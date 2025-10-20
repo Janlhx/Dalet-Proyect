@@ -45,20 +45,32 @@ async def on_ready():
 
 #________________________________________________________________________________________
 async def load_extensions():
-    # ======================================================
-    # ▼▼▼ AÑADE ESTA LÍNEA ▼▼▼
-    # ======================================================
     print("<<<<< INICIANDO CARGA DE MÓDULOS... SI VES ESTO, ESTÁS EN EL LOG CORRECTO >>>>>")
-    # ======================================================
+
+    # --- INICIO DEL CÓDIGO DE DEPURACIÓN DE RUTAS ---
+    # Obtenemos la ruta absoluta del script actual
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    handlers_path = os.path.join(script_dir, "handlers")
     
-    for filename in os.listdir("./handlers"):
+    print(f"--- [DEBUG] Directorio del script: {script_dir}")
+    print(f"--- [DEBUG] Buscando handlers en: {handlers_path}")
+
+    try:
+        # Listamos los archivos en la ruta absoluta
+        lista_archivos = os.listdir(handlers_path)
+        print(f"--- [DEBUG] Archivos encontrados en handlers: {lista_archivos}")
+    except FileNotFoundError:
+        print("!!!!!! [DEBUG] ERROR GRAVE: La carpeta 'handlers' no se encontró en la ruta esperada.")
+        return # Detenemos la carga si la carpeta no existe
+    # --- FIN DEL CÓDIGO DE DEPURACIÓN DE RUTAS ---
+
+    for filename in lista_archivos:
         if filename.endswith(".py") and not filename.startswith("__"):
             module_name = f"handlers.{filename[:-3]}"
             try:
                 await bot.load_extension(module_name)
                 print(f"--- Cargado: {module_name}")
             except Exception as e:
-                # También haremos el error más visible
                 print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
                 print(f"!!!!!! ERROR FATAL AL CARGAR {module_name} !!!!!!")
                 print(f"!!!!!! DETALLE: {e}")
