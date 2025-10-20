@@ -6,7 +6,22 @@ load_dotenv()
 
 # Carga la URL de la base de datos desde el archivo .env
 DATABASE_URL = os.getenv("DATABASE_URL")
-
+# ======================================================
+# ▼▼▼ LÍNEAS DE DIAGNÓSTICO ▼▼▼
+# ======================================================
+print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+print(f"+++ [DB Connector] Intentando usar DATABASE_URL:")
+if DATABASE_URL:
+    # Mostramos solo una parte de la URL para no exponer la contraseña completa en los logs
+    url_parts = DATABASE_URL.split('@')
+    if len(url_parts) > 1:
+        print(f"+++    URL encontrada (parcial): postgres://...@{url_parts[-1]}")
+    else:
+        print(f"+++    URL encontrada (formato desconocido): {DATABASE_URL[:30]}...")
+else:
+    print("+++    ¡ERROR! DATABASE_URL NO encontrada o vacía.")
+print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+# ======================================================
 def get_connection():
     """Crea y devuelve una nueva conexión a la base de datos."""
     try:
