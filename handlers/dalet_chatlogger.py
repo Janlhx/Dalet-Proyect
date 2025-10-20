@@ -3,7 +3,7 @@ from discord.ext import commands
 from collections import deque
 # Se eliminan 'json' y 'os' porque ya no se manejan archivos aquí
 from datetime import datetime
-
+from handlers import db_connector
 # ------------------------------------------------------------------
 # 🚀 ¡NUEVA INTEGRACIÓN CON LA BASE DE DATOS! 🚀
 # Importamos nuestro conector.

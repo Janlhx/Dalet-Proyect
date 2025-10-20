@@ -4,7 +4,7 @@ from handlers.modules.osu_api import OsuAPI
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
 import google.generativeai as genai
 import json, os
-from .modules import db_connector
+from handlers import db_connector
 # --- Configuración y funciones auxiliares ---
 
 class AnalysisPaginator(discord.ui.View):
