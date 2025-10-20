@@ -70,18 +70,26 @@ class Gemini(commands.Cog, name="Dalet AI"):
     @commands.command(name="ask")
     async def ask_gemini(self, ctx, *, pregunta: str):
         """Pregunta directamente a la IA (con memoria contextual y relevante)."""
-        print("\n================ [d.ask DIAGNÓSTICO] ================") # Inicio del diagnóstico
+        print("\n================ [d.ask DIAGNÓSTICO] ================")
 
         # --- PERMISOS ---
         print("--- [d.ask] Verificando permisos...")
         user_role_ids = [role.id for role in ctx.author.roles]
         print(f"--- [d.ask] Roles del usuario: {user_role_ids}")
-        query = "SELECT fn_CheckRolePermission(%s, %s::BIGINT[])"
+        
+        # ======================================================
+        # ▼▼▼ ¡AQUÍ ESTÁ EL CAMBIO! ▼▼▼
+        # Quitamos la conversión explícita '::BIGINT[]'
+        # ======================================================
+        query = "SELECT fn_CheckRolePermission(%s, %s)"
+        # ======================================================
+        
         is_owner = await self.bot.is_owner(ctx.author)
         print(f"--- [d.ask] ¿Es owner?: {is_owner}")
         
         try:
-            result = db_connector.fetch_one(query, (ctx.guild.id, user_role_ids))
+            # psycopg2 manejará la conversión de la lista Python a array SQL
+            result = db_connector.fetch_one(query, (ctx.guild.id, user_role_ids)) 
             print(f"--- [d.ask] Resultado de fn_CheckRolePermission: {result}")
             has_permission = (result and result[0]) or is_owner
         except Exception as e:
@@ -94,10 +102,10 @@ class Gemini(commands.Cog, name="Dalet AI"):
             print("====================================================\n")
             return await ctx.send("No tienes permiso para usar este comando.")
         
+        # --- (El resto del código de diagnóstico se mantiene igual) ---
         print("--- [d.ask] PERMISO CONCEDIDO.")
         await ctx.typing()
 
-        # --- OBTENER CONTEXTO ---
         print("--- [d.ask] Obteniendo contexto...")
         if not self.memory:
             print("--- [d.ask] Intentando cargar MemoryManager...")
@@ -116,9 +124,8 @@ class Gemini(commands.Cog, name="Dalet AI"):
             print(f"--- [d.ask] Contexto obtenido (longitud): {len(contexto_relevante)} caracteres.")
         except Exception as e:
             print(f"!!!!!! [d.ask] ERROR al obtener contexto: {e}")
-            contexto_relevante = "" # Continuar sin contexto si falla
+            contexto_relevante = "" 
 
-        # --- LLAMADA A GEMINI ---
         print("--- [d.ask] Construyendo historial para IA...")
         historial_para_ia = [
             {"role": "user", "parts": [self.system_instructions]},
@@ -136,7 +143,6 @@ class Gemini(commands.Cog, name="Dalet AI"):
             texto = response.text.strip()
             print(f"--- [d.ask] Respuesta recibida de Gemini (longitud): {len(texto)} caracteres.")
 
-            # --- GUARDADO EN BD ---
             print("--- [d.ask] Guardando respuesta del bot en la BD...")
             try:
                 db_connector.execute_procedure(
@@ -152,13 +158,11 @@ class Gemini(commands.Cog, name="Dalet AI"):
             except Exception as e_db:
                 print(f"!!!!!! [d.ask] ERROR al guardar respuesta en BD: {e_db}")
 
-            # --- GUARDADO MEMORIA USUARIO (JSON) ---
             if "recuerda que" in pregunta.lower() or "mi nombre es" in pregunta.lower():
                 print("--- [d.ask] Guardando recuerdo de usuario en JSON...")
                 self.memory.add_user_memory(ctx.author.id, pregunta, topic="información personal")
                 print("--- [d.ask] Recuerdo guardado.")
 
-            # --- ENVÍO DE RESPUESTA ---
             if len(texto) > 2000:
                 texto = texto[:1990] + "…"
             print("--- [d.ask] Enviando respuesta a Discord...")
