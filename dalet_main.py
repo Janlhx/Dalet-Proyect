@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 from flask import Flask
 from threading import Thread
-
+import sys # Asegúrate de tener 'import sys' al principio del archiv
 #________________________________________________________________________________________
 load_dotenv()  # Carga las variables desde el archivo .env
 
@@ -38,43 +38,42 @@ def keep_alive():
     t.start()
 # --- FIN DEL CÓDIGO DEL SERVIDOR WEB ---
 
-@bot.event
-async def on_ready():
-    await bot.tree.sync()
-    print(f"Bot conectado como {bot.user}")
+
 
 #________________________________________________________________________________________
 async def load_extensions():
-    print("<<<<< INICIANDO CARGA DE MÓDULOS... SI VES ESTO, ESTÁS EN EL LOG CORRECTO >>>>>")
+    print("<<<<< INICIANDO CARGA DE MÓDULOS... >>>>>")
 
-    # --- INICIO DEL CÓDIGO DE DEPURACIÓN DE RUTAS ---
-    # Obtenemos la ruta absoluta del script actual
+    # Obtenemos la ruta absoluta para que funcione siempre en Render
     script_dir = os.path.dirname(os.path.abspath(__file__))
     handlers_path = os.path.join(script_dir, "handlers")
-    
-    print(f"--- [DEBUG] Directorio del script: {script_dir}")
-    print(f"--- [DEBUG] Buscando handlers en: {handlers_path}")
 
     try:
-        # Listamos los archivos en la ruta absoluta
         lista_archivos = os.listdir(handlers_path)
-        print(f"--- [DEBUG] Archivos encontrados en handlers: {lista_archivos}")
     except FileNotFoundError:
-        print("!!!!!! [DEBUG] ERROR GRAVE: La carpeta 'handlers' no se encontró en la ruta esperada.")
-        return # Detenemos la carga si la carpeta no existe
-    # --- FIN DEL CÓDIGO DE DEPURACIÓN DE RUTAS ---
+        print("!!!!!! ERROR GRAVE: La carpeta 'handlers' no se encontró.", file=sys.stderr)
+        return
 
     for filename in lista_archivos:
+        # ======================================================
+        # ▼▼▼ ESTA ES LA LÍNEA CLAVE DE LA SOLUCIÓN ▼▼▼
+        # ======================================================
+        # Si el archivo es nuestro conector, lo saltamos y continuamos con el siguiente.
+        if filename == "db_connector.py":
+            continue
+        # ======================================================
+
         if filename.endswith(".py") and not filename.startswith("__"):
             module_name = f"handlers.{filename[:-3]}"
             try:
                 await bot.load_extension(module_name)
-                print(f"--- Cargado: {module_name}")
+                print(f"--- ✅ Cargado: {module_name}")
             except Exception as e:
-                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                print(f"!!!!!! ERROR FATAL AL CARGAR {module_name} !!!!!!")
-                print(f"!!!!!! DETALLE: {e}")
-                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                # Imprimimos el error en el stream de errores para que sea más visible
+                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", file=sys.stderr)
+                print(f"!!!!!! ❌ ERROR FATAL AL CARGAR {module_name} !!!!!!", file=sys.stderr)
+                print(f"!!!!!! DETALLE: {e}", file=sys.stderr)
+                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", file=sys.stderr)
 #________________________________________________________________________________________
 
 #________________________________________________________________________________________
