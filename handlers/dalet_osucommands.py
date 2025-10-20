@@ -56,8 +56,12 @@ class OsuHandler(commands.Cog, name="osu!"):
     """Comandos dedicados a osu! y análisis con IA."""
 
     def __init__(self, bot):
-        self.bot = bot
-        self.osu = OsuAPI(client_id=38819, client_secret="jiy7kpqNVZKtgjZRpvY2EzPmc6VL2BT1cpeS1qmR")
+            self.bot = bot
+            # Es mejor cargar las credenciales desde variables de entorno
+            self.osu = OsuAPI(
+                client_id=os.getenv("OSU_CLIENT_ID"), 
+                client_secret=os.getenv("OSU_CLIENT_SECRET")
+            )
 
     @commands.command(name="link")
     async def link(self, ctx, osu_username: str):
@@ -223,12 +227,8 @@ class OsuHandler(commands.Cog, name="osu!"):
     `d.osuCoach -mania` - Analiza tu perfil en modo mania.
     `d.osuCoach Litxe --focus velocidad` - Analiza a Litxe enfocándose en 'velocidad'.
 
-    El flag `--focus` te permite elegir el área de entrenamiento.
-    Si no lo usas, la IA determinará el foco automáticamente.
-    
     Enfoques válidos: `precisión`, `consistencia`, `velocidad`, `lectura`, `stamina`.
     """, aliases=["oc"])
-    @commands.command(aliases=["oc"]) # He añadido un alias más corto para tu comodidad
     async def osuCoach(self, ctx, *, args: str = None):
         username, mode, user_focus, is_linked = None, "osu", None, False
         if args:
@@ -242,24 +242,21 @@ class OsuHandler(commands.Cog, name="osu!"):
                 username_parts.append(part); i += 1
             if username_parts: username = " ".join(username_parts)
 
-        # ======================================================================
-        # ▼▼▼ ESTA ES LA SECCIÓN QUE CAMBIAMOS ▼▼▼
-        # ======================================================================
         if not username:
-            # Usamos nuestro conector para buscar en la base de datos
             result = db_connector.fetch_one("SELECT fn_GetOsuUsername(%s)", (ctx.author.id,))
-            
             if result and result[0]:
                 username = result[0]
                 is_linked = True
             else:
                 return await ctx.send("❌ No tienes cuenta vinculada ni has especificado un nombre.")
-            is_linked = True
+
         await ctx.typing()
         try:
             user = self.osu.get_user(username, mode)
             if not user or 'id' not in user: return await ctx.send(f"No se pudo encontrar '{username}' en modo '{mode}'.")
-            best, recent = self.osu.get_user_best_scores(user["id"], mode, 10), self.osu.get_user_recent_scores(user["id"], mode, 20)
+            
+            best = self.osu.get_user_best_scores(user["id"], mode, 10)
+            recent = self.osu.get_user_recent_scores(user["id"], mode, 20)
             
             analyzer = OsuAnalyzer(self.osu, user, recent_plays=recent, best_plays=best, user_focus=user_focus)
             prompt = await analyzer.generate_coaching_prompt()
@@ -285,3 +282,4 @@ class OsuHandler(commands.Cog, name="osu!"):
 
 async def setup(bot):
     await bot.add_cog(OsuHandler(bot))
+
