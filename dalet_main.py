@@ -45,15 +45,24 @@ async def on_ready():
 
 #________________________________________________________________________________________
 async def load_extensions():
+    # ======================================================
+    # ▼▼▼ AÑADE ESTA LÍNEA ▼▼▼
+    # ======================================================
+    print("<<<<< INICIANDO CARGA DE MÓDULOS... SI VES ESTO, ESTÁS EN EL LOG CORRECTO >>>>>")
+    # ======================================================
+    
     for filename in os.listdir("./handlers"):
-        # Ahora ignora archivos que empiezan con '__'
         if filename.endswith(".py") and not filename.startswith("__"):
             module_name = f"handlers.{filename[:-3]}"
             try:
                 await bot.load_extension(module_name)
-                print(f" Cargado: {module_name}")
+                print(f"--- Cargado: {module_name}")
             except Exception as e:
-                print(f" Error al cargar {module_name}: {e}")
+                # También haremos el error más visible
+                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                print(f"!!!!!! ERROR FATAL AL CARGAR {module_name} !!!!!!")
+                print(f"!!!!!! DETALLE: {e}")
+                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 #________________________________________________________________________________________
 
 #________________________________________________________________________________________
