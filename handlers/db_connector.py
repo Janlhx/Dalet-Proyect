@@ -36,27 +36,28 @@ def execute_procedure(procedure_name, params=()):
     if conn:
         try:
             with conn.cursor() as cur:
-                cur.callproc(procedure_name, params)
+                # ------------------------------------------------------------------
+                # ¡AQUÍ ESTÁ EL CAMBIO!
+                # Ya no usamos cur.callproc().
+                # Construimos una consulta SQL con la sintaxis CALL
+                # y placeholders %s para los parámetros.
+                # ------------------------------------------------------------------
+                
+                # 1. Creamos los placeholders (ej: %s, %s, %s)
+                placeholders = ', '.join(['%s'] * len(params))
+                
+                # 2. Creamos la consulta SQL
+                sql_query = f"CALL {procedure_name}({placeholders})"
+                
+                # 3. Ejecutamos la consulta
+                cur.execute(sql_query, params)
+                
+            # 4. Hacemos commit de los cambios
             conn.commit()
         except Exception as e:
             print(f"Error ejecutando el procedimiento {procedure_name}: {e}")
         finally:
             conn.close()
-
-def fetch_one(query, params=()):
-    """Ejecuta una consulta (SELECT) y devuelve un solo resultado."""
-    conn = get_connection()
-    result = None
-    if conn:
-        try:
-            with conn.cursor() as cur:
-                cur.execute(query, params)
-                result = cur.fetchone()
-        except Exception as e:
-            print(f"Error en la consulta fetch_one: {e}")
-        finally:
-            conn.close()
-    return result
 
 def fetch_all(query, params=()):
     """Ejecuta una consulta (SELECT) y devuelve todos los resultados."""
