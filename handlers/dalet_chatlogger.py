@@ -11,21 +11,27 @@ class ChatLogger(commands.Cog, name="Memoria Global"):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        if message.author.bot:
+        # Ignorar bots y mensajes privados (por ahora, para simplificar)
+        if message.author.bot or not message.guild:
             return
+        
+        # Ignorar canales no permitidos si la lista está configurada
         if self.allowed_channels and message.channel.id not in self.allowed_channels:
             return
         
         try:
             db_connector.execute_procedure(
-                "sp_LogMessage",
-                (
-                    message.author.id,
-                    str(message.author),
-                    message.channel.id,
-                    message.content.strip()
+                    "sp_LogMessage",
+                    (
+                        message.author.id,
+                        str(message.author),
+                        message.guild.id,
+                        str(message.guild.name),
+                        message.channel.id,
+                        str(message.channel.name),
+                        message.content.strip()
+                    )
                 )
-            )
         except Exception as e:
             print(f"Error en ChatLogger al guardar mensaje en la BD: {e}")
 
@@ -38,13 +44,14 @@ class ChatLogger(commands.Cog, name="Memoria Global"):
                 SELECT u.UserName, m.Content
                 FROM Messages m
                 JOIN Users u ON m.UserID = u.UserID
+                WHERE m.ChannelID = %s -- Mostramos solo del canal actual
                 ORDER BY m.Timestamp DESC
                 LIMIT %s
             """
-            registros = db_connector.fetch_all(query, (cantidad,))
+            registros = db_connector.fetch_all(query, (ctx.channel.id, cantidad))
             
             if not registros:
-                return await ctx.send("No hay mensajes registrados en la base de datos.")
+                return await ctx.send("No hay mensajes registrados en este canal.")
 
             registros.reverse()
             texto = "\n".join([f"**{autor}**: {contenido}" for autor, contenido in registros])
@@ -53,7 +60,7 @@ class ChatLogger(commands.Cog, name="Memoria Global"):
                 texto = texto[:1900] + "..."
 
             embed = discord.Embed(
-                title=f"📜 Últimos {len(registros)} Mensajes Registrados",
+                title=f"📜 Últimos {len(registros)} Mensajes en #{ctx.channel.name}",
                 description=texto,
                 color=discord.Color.blue()
             )
