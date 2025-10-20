@@ -70,37 +70,56 @@ class Gemini(commands.Cog, name="Dalet AI"):
     @commands.command(name="ask")
     async def ask_gemini(self, ctx, *, pregunta: str):
         """Pregunta directamente a la IA (con memoria contextual y relevante)."""
-        
-        # --- PERMISOS (MODIFICADO) ---
-        # Convertimos la lista de roles del usuario a una lista de IDs (como BIGINT)
-        user_role_ids = [role.id for role in ctx.author.roles]
-        
-        # Llamamos a la función de la BD para verificar el permiso
-        query = "SELECT fn_CheckRolePermission(%s, %s::BIGINT[])"
-        # Agregamos la verificación de 'is_owner'
-        is_owner = await self.bot.is_owner(ctx.author)
-        
-        result = db_connector.fetch_one(query, (ctx.guild.id, user_role_ids))
-        
-        if not (result and result[0]) and not is_owner:
-            return await ctx.send("No tienes permiso para usar este comando.")
+        print("\n================ [d.ask DIAGNÓSTICO] ================") # Inicio del diagnóstico
 
+        # --- PERMISOS ---
+        print("--- [d.ask] Verificando permisos...")
+        user_role_ids = [role.id for role in ctx.author.roles]
+        print(f"--- [d.ask] Roles del usuario: {user_role_ids}")
+        query = "SELECT fn_CheckRolePermission(%s, %s::BIGINT[])"
+        is_owner = await self.bot.is_owner(ctx.author)
+        print(f"--- [d.ask] ¿Es owner?: {is_owner}")
+        
+        try:
+            result = db_connector.fetch_one(query, (ctx.guild.id, user_role_ids))
+            print(f"--- [d.ask] Resultado de fn_CheckRolePermission: {result}")
+            has_permission = (result and result[0]) or is_owner
+        except Exception as e:
+            print(f"!!!!!! [d.ask] ERROR en la consulta de permisos: {e}")
+            await ctx.send("❌ Error al verificar permisos con la base de datos.")
+            return
+
+        if not has_permission:
+            print("--- [d.ask] PERMISO DENEGADO.")
+            print("====================================================\n")
+            return await ctx.send("No tienes permiso para usar este comando.")
+        
+        print("--- [d.ask] PERMISO CONCEDIDO.")
         await ctx.typing()
 
-        # --- LÓGICA DE MEMORIA (MODIFICADA) ---
-        # 1. Asegurarse de que el cog de memoria esté cargado
+        # --- OBTENER CONTEXTO ---
+        print("--- [d.ask] Obteniendo contexto...")
         if not self.memory:
+            print("--- [d.ask] Intentando cargar MemoryManager...")
             self.memory = self.bot.get_cog("MemoryManager")
             if not self.memory:
+                print("!!!!!! [d.ask] ERROR FATAL: No se pudo cargar MemoryManager.")
+                print("====================================================\n")
                 return await ctx.send("❌ Error: El módulo de memoria no está cargado.")
+            print("--- [d.ask] MemoryManager cargado exitosamente.")
 
-        # 2. Obtener contexto relevante (ya usa la BD gracias a nuestros cambios anteriores)
-        contexto_relevante = self.memory.get_relevant_context(
-            ctx.guild.id, ctx.channel.id, ctx.author.id, pregunta,
-            check_user_memory=True 
-        )
+        try:
+            contexto_relevante = self.memory.get_relevant_context(
+                ctx.guild.id, ctx.channel.id, ctx.author.id, pregunta,
+                check_user_memory=True 
+            )
+            print(f"--- [d.ask] Contexto obtenido (longitud): {len(contexto_relevante)} caracteres.")
+        except Exception as e:
+            print(f"!!!!!! [d.ask] ERROR al obtener contexto: {e}")
+            contexto_relevante = "" # Continuar sin contexto si falla
 
-        # 3. Construir el historial para la IA (sin cambios)
+        # --- LLAMADA A GEMINI ---
+        print("--- [d.ask] Construyendo historial para IA...")
         historial_para_ia = [
             {"role": "user", "parts": [self.system_instructions]},
             {"role": "model", "parts": ["Entendido. Estoy lista."]}
@@ -108,39 +127,49 @@ class Gemini(commands.Cog, name="Dalet AI"):
         if contexto_relevante:
             historial_para_ia.append({"role": "user", "parts": [f"Usa este contexto y recuerdos para responder: {contexto_relevante}"]})
             historial_para_ia.append({"role": "model", "parts": ["Contexto analizado. Procedo con la respuesta."]})
-
         historial_para_ia.append({"role": "user", "parts": [f"{ctx.author.name} pregunta: {pregunta}"]})
+        print(f"--- [d.ask] Historial listo ({len(historial_para_ia)} partes). Llamando a Gemini...")
 
         try:
             model = genai.GenerativeModel("models/gemini-2.5-flash")
             response = model.generate_content(historial_para_ia)
             texto = response.text.strip()
+            print(f"--- [d.ask] Respuesta recibida de Gemini (longitud): {len(texto)} caracteres.")
 
-            # --- GUARDADO EN MEMORIA (MODIFICADO) ---
-            # 4. Guardar la respuesta del BOT en la base de datos (ChatLogger ya guardó la del usuario)
-            db_connector.execute_procedure(
-                "sp_LogMessage",
-                (
-                    self.bot.user.id,
-                    str(self.bot.user.name),
-                    ctx.guild.id,
-                    str(ctx.guild.name),
-                    ctx.channel.id,
-                    str(ctx.channel.name),
-                    texto
+            # --- GUARDADO EN BD ---
+            print("--- [d.ask] Guardando respuesta del bot en la BD...")
+            try:
+                db_connector.execute_procedure(
+                    "sp_LogMessage",
+                    (
+                        self.bot.user.id, str(self.bot.user.name),
+                        ctx.guild.id, str(ctx.guild.name),
+                        ctx.channel.id, str(ctx.channel.name),
+                        texto
+                    )
                 )
-            )
-            
-            # 5. Opcional: Guardar recuerdo específico en JSON (Sin cambios)
+                print("--- [d.ask] Respuesta guardada exitosamente.")
+            except Exception as e_db:
+                print(f"!!!!!! [d.ask] ERROR al guardar respuesta en BD: {e_db}")
+
+            # --- GUARDADO MEMORIA USUARIO (JSON) ---
             if "recuerda que" in pregunta.lower() or "mi nombre es" in pregunta.lower():
+                print("--- [d.ask] Guardando recuerdo de usuario en JSON...")
                 self.memory.add_user_memory(ctx.author.id, pregunta, topic="información personal")
+                print("--- [d.ask] Recuerdo guardado.")
 
-
+            # --- ENVÍO DE RESPUESTA ---
             if len(texto) > 2000:
                 texto = texto[:1990] + "…"
+            print("--- [d.ask] Enviando respuesta a Discord...")
             await ctx.send(texto)
-        except Exception as e:
-            await ctx.send(f"Error al contactar con Gemini: `{e}`")
+            print("--- [d.ask] Respuesta enviada.")
+
+        except Exception as e_gemini:
+            print(f"!!!!!! [d.ask] ERROR al contactar con Gemini: {e_gemini}")
+            await ctx.send(f"Error al contactar con Gemini: `{e_gemini}`")
+        
+        print("====================================================\n")
 
     # ----------------------------------------------------------------------
     # 🧱 Whitelist de roles (ACTUALIZADO)
