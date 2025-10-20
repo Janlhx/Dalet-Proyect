@@ -1,14 +1,8 @@
 import discord
 from discord.ext import commands
 from datetime import datetime
-# --- Import corregido (solo queda una línea) ---
+# --- Import corregido (solo queda una línea y apunta al lugar correcto) ---
 from handlers import db_connector
-# ------------------------------------------------------------------
-# 🚀 ¡NUEVA INTEGRACIÓN CON LA BASE DE DATOS! 🚀
-# Importamos nuestro conector.
-from handlers.modules import db_connector
-# ------------------------------------------------------------------
-
 
 class ChatLogger(commands.Cog, name="Memoria Global"):
     def __init__(self, bot):
