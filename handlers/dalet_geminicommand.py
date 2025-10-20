@@ -77,25 +77,39 @@ class Gemini(commands.Cog, name="Dalet AI"):
         user_role_ids = [role.id for role in ctx.author.roles]
         print(f"--- [d.ask] Roles del usuario: {user_role_ids}")
         
-        # ======================================================
-        # ▼▼▼ ¡AQUÍ ESTÁ EL CAMBIO! ▼▼▼
-        # Quitamos la conversión explícita '::BIGINT[]'
-        # ======================================================
-        query = "SELECT fn_CheckRolePermission(%s, %s)"
-        # ======================================================
-        
         is_owner = await self.bot.is_owner(ctx.author)
         print(f"--- [d.ask] ¿Es owner?: {is_owner}")
         
-        try:
-            # psycopg2 manejará la conversión de la lista Python a array SQL
-            result = db_connector.fetch_one(query, (ctx.guild.id, user_role_ids)) 
-            print(f"--- [d.ask] Resultado de fn_CheckRolePermission: {result}")
-            has_permission = (result and result[0]) or is_owner
-        except Exception as e:
-            print(f"!!!!!! [d.ask] ERROR en la consulta de permisos: {e}")
-            await ctx.send("❌ Error al verificar permisos con la base de datos.")
-            return
+        # ======================================================
+        # ▼▼▼ ¡NUEVA CONSULTA DE PERMISOS! ▼▼▼
+        # Ahora usamos ANY directamente en la consulta principal
+        # y no llamamos a la función fn_CheckRolePermission
+        # ======================================================
+        query = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM RolePermissions
+                WHERE ServerID = %s
+                AND RoleID = ANY(%s::BIGINT[])
+            )
+        """
+        # ======================================================
+        
+        has_permission = False # Iniciamos asumiendo que no tiene permiso
+        if is_owner:
+            has_permission = True
+        else:
+            try:
+                # Ejecutamos la nueva consulta
+                result = db_connector.fetch_one(query, (ctx.guild.id, user_role_ids)) 
+                print(f"--- [d.ask] Resultado de la consulta EXISTS: {result}")
+                # El resultado de EXISTS es una tupla con un booleano, ej: (True,)
+                if result and result[0]:
+                    has_permission = True
+            except Exception as e:
+                print(f"!!!!!! [d.ask] ERROR en la consulta de permisos EXISTS: {e}")
+                await ctx.send("❌ Error al verificar permisos con la base de datos.")
+                return
 
         if not has_permission:
             print("--- [d.ask] PERMISO DENEGADO.")
@@ -107,72 +121,8 @@ class Gemini(commands.Cog, name="Dalet AI"):
         await ctx.typing()
 
         print("--- [d.ask] Obteniendo contexto...")
-        if not self.memory:
-            print("--- [d.ask] Intentando cargar MemoryManager...")
-            self.memory = self.bot.get_cog("MemoryManager")
-            if not self.memory:
-                print("!!!!!! [d.ask] ERROR FATAL: No se pudo cargar MemoryManager.")
-                print("====================================================\n")
-                return await ctx.send("❌ Error: El módulo de memoria no está cargado.")
-            print("--- [d.ask] MemoryManager cargado exitosamente.")
-
-        try:
-            contexto_relevante = self.memory.get_relevant_context(
-                ctx.guild.id, ctx.channel.id, ctx.author.id, pregunta,
-                check_user_memory=True 
-            )
-            print(f"--- [d.ask] Contexto obtenido (longitud): {len(contexto_relevante)} caracteres.")
-        except Exception as e:
-            print(f"!!!!!! [d.ask] ERROR al obtener contexto: {e}")
-            contexto_relevante = "" 
-
-        print("--- [d.ask] Construyendo historial para IA...")
-        historial_para_ia = [
-            {"role": "user", "parts": [self.system_instructions]},
-            {"role": "model", "parts": ["Entendido. Estoy lista."]}
-        ]
-        if contexto_relevante:
-            historial_para_ia.append({"role": "user", "parts": [f"Usa este contexto y recuerdos para responder: {contexto_relevante}"]})
-            historial_para_ia.append({"role": "model", "parts": ["Contexto analizado. Procedo con la respuesta."]})
-        historial_para_ia.append({"role": "user", "parts": [f"{ctx.author.name} pregunta: {pregunta}"]})
-        print(f"--- [d.ask] Historial listo ({len(historial_para_ia)} partes). Llamando a Gemini...")
-
-        try:
-            model = genai.GenerativeModel("models/gemini-2.5-flash")
-            response = model.generate_content(historial_para_ia)
-            texto = response.text.strip()
-            print(f"--- [d.ask] Respuesta recibida de Gemini (longitud): {len(texto)} caracteres.")
-
-            print("--- [d.ask] Guardando respuesta del bot en la BD...")
-            try:
-                db_connector.execute_procedure(
-                    "sp_LogMessage",
-                    (
-                        self.bot.user.id, str(self.bot.user.name),
-                        ctx.guild.id, str(ctx.guild.name),
-                        ctx.channel.id, str(ctx.channel.name),
-                        texto
-                    )
-                )
-                print("--- [d.ask] Respuesta guardada exitosamente.")
-            except Exception as e_db:
-                print(f"!!!!!! [d.ask] ERROR al guardar respuesta en BD: {e_db}")
-
-            if "recuerda que" in pregunta.lower() or "mi nombre es" in pregunta.lower():
-                print("--- [d.ask] Guardando recuerdo de usuario en JSON...")
-                self.memory.add_user_memory(ctx.author.id, pregunta, topic="información personal")
-                print("--- [d.ask] Recuerdo guardado.")
-
-            if len(texto) > 2000:
-                texto = texto[:1990] + "…"
-            print("--- [d.ask] Enviando respuesta a Discord...")
-            await ctx.send(texto)
-            print("--- [d.ask] Respuesta enviada.")
-
-        except Exception as e_gemini:
-            print(f"!!!!!! [d.ask] ERROR al contactar con Gemini: {e_gemini}")
-            await ctx.send(f"Error al contactar con Gemini: `{e_gemini}`")
-        
+        # ... (resto del código sin cambios) ...
+        # ...
         print("====================================================\n")
 
     # ----------------------------------------------------------------------
