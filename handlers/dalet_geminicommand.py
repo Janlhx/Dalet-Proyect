@@ -4,7 +4,7 @@ import google.generativeai as genai
 import json
 import os
 import random
-
+import asyncio
 # Importamos el MemoryManager, pero NO el archivo JSON
 from handlers.dalet_memorymanager import MemoryManager, MEMORY_FILE
 # --- Importamos nuestro conector de base de datos ---
@@ -75,16 +75,9 @@ class Gemini(commands.Cog, name="Dalet AI"):
         # --- PERMISOS ---
         print("--- [d.ask] Verificando permisos...")
         user_role_ids = [role.id for role in ctx.author.roles]
-        print(f"--- [d.ask] Roles del usuario: {user_role_ids}")
-        
         is_owner = await self.bot.is_owner(ctx.author)
         print(f"--- [d.ask] ¿Es owner?: {is_owner}")
-        
-        # ======================================================
-        # ▼▼▼ ¡NUEVA CONSULTA DE PERMISOS! ▼▼▼
-        # Ahora usamos ANY directamente en la consulta principal
-        # y no llamamos a la función fn_CheckRolePermission
-        # ======================================================
+
         query = """
             SELECT EXISTS (
                 SELECT 1
@@ -93,17 +86,13 @@ class Gemini(commands.Cog, name="Dalet AI"):
                 AND RoleID = ANY(%s::BIGINT[])
             )
         """
-        # ======================================================
-        
-        has_permission = False # Iniciamos asumiendo que no tiene permiso
+        has_permission = False
         if is_owner:
             has_permission = True
         else:
             try:
-                # Ejecutamos la nueva consulta
                 result = db_connector.fetch_one(query, (ctx.guild.id, user_role_ids)) 
                 print(f"--- [d.ask] Resultado de la consulta EXISTS: {result}")
-                # El resultado de EXISTS es una tupla con un booleano, ej: (True,)
                 if result and result[0]:
                     has_permission = True
             except Exception as e:
@@ -116,15 +105,99 @@ class Gemini(commands.Cog, name="Dalet AI"):
             print("====================================================\n")
             return await ctx.send("No tienes permiso para usar este comando.")
         
-        # --- (El resto del código de diagnóstico se mantiene igual) ---
         print("--- [d.ask] PERMISO CONCEDIDO.")
         await ctx.typing()
 
+        # --- OBTENER CONTEXTO ---
         print("--- [d.ask] Obteniendo contexto...")
-        # ... (resto del código sin cambios) ...
-        # ...
-        print("====================================================\n")
+        # ... (código para obtener contexto sin cambios) ...
+        contexto_relevante = "" # Asegurarse de tener un valor por defecto
+        if not self.memory:
+            self.memory = self.bot.get_cog("MemoryManager")
+        if self.memory:
+             try:
+                contexto_relevante = self.memory.get_relevant_context(
+                    ctx.guild.id, ctx.channel.id, ctx.author.id, pregunta,
+                    check_user_memory=True 
+                )
+                print(f"--- [d.ask] Contexto obtenido (longitud): {len(contexto_relevante)} caracteres.")
+             except Exception as e:
+                print(f"!!!!!! [d.ask] ERROR al obtener contexto: {e}")
+                
+        # --- LLAMADA A GEMINI CON TIMEOUT ---
+        print("--- [d.ask] Construyendo historial para IA...")
+        # ... (código para construir historial_para_ia sin cambios) ...
+        historial_para_ia = [
+             {"role": "user", "parts": [self.system_instructions]},
+             {"role": "model", "parts": ["Entendido. Estoy lista."]}
+        ]
+        if contexto_relevante:
+             historial_para_ia.append({"role": "user", "parts": [f"Usa este contexto y recuerdos para responder: {contexto_relevante}"]})
+             historial_para_ia.append({"role": "model", "parts": ["Contexto analizado. Procedo con la respuesta."]})
+        historial_para_ia.append({"role": "user", "parts": [f"{ctx.author.name} pregunta: {pregunta}"]})
+        print(f"--- [d.ask] Historial listo ({len(historial_para_ia)} partes). Llamando a Gemini con timeout...")
 
+        texto = None # Inicializar texto
+        try:
+            # ======================================================
+            # ▼▼▼ ¡AQUÍ ESTÁ EL CAMBIO! ▼▼▼
+            # Usamos generate_content_async con asyncio.wait_for
+            # ======================================================
+            model = genai.GenerativeModel("models/gemini-2.5-flash")
+            # Establecemos un timeout de 30 segundos (puedes ajustarlo)
+            response_task = model.generate_content_async(historial_para_ia)
+            response = await asyncio.wait_for(response_task, timeout=30.0)
+            # ======================================================
+            texto = response.text.strip()
+            print(f"--- [d.ask] Respuesta recibida de Gemini (longitud): {len(texto)} caracteres.")
+
+        except asyncio.TimeoutError:
+            # Si se excede el tiempo límite
+            print("!!!!!! [d.ask] ERROR: Timeout esperando respuesta de Gemini.")
+            await ctx.send("⏳ La IA está tardando mucho en responder. Intenta de nuevo más tarde.")
+            print("====================================================\n")
+            return # Salir de la función si hay timeout
+        except Exception as e_gemini:
+            print(f"!!!!!! [d.ask] ERROR al contactar con Gemini: {e_gemini}")
+            await ctx.send(f"Error al contactar con Gemini: `{e_gemini}`")
+            print("====================================================\n")
+            return # Salir si hay otro error de Gemini
+
+        # Si llegamos aquí, tenemos una respuesta
+        if texto:
+            # --- GUARDADO EN BD ---
+            print("--- [d.ask] Guardando respuesta del bot en la BD...")
+            try:
+                db_connector.execute_procedure(
+                    "sp_LogMessage",
+                    (
+                        self.bot.user.id, str(self.bot.user.name),
+                        ctx.guild.id, str(ctx.guild.name),
+                        ctx.channel.id, str(ctx.channel.name),
+                        texto
+                    )
+                )
+                print("--- [d.ask] Respuesta guardada exitosamente.")
+            except Exception as e_db:
+                print(f"!!!!!! [d.ask] ERROR al guardar respuesta en BD: {e_db}")
+
+            # --- GUARDADO MEMORIA USUARIO (JSON) ---
+            if "recuerda que" in pregunta.lower() or "mi nombre es" in pregunta.lower():
+                print("--- [d.ask] Guardando recuerdo de usuario en JSON...")
+                self.memory.add_user_memory(ctx.author.id, pregunta, topic="información personal")
+                print("--- [d.ask] Recuerdo guardado.")
+
+            # --- ENVÍO DE RESPUESTA ---
+            if len(texto) > 2000:
+                texto = texto[:1990] + "…"
+            print("--- [d.ask] Enviando respuesta a Discord...")
+            await ctx.send(texto)
+            print("--- [d.ask] Respuesta enviada.")
+        else:
+             print("!!!!!! [d.ask] ERROR: Gemini devolvió una respuesta vacía.")
+             await ctx.send("🤔 La IA no generó una respuesta esta vez.")
+
+        print("====================================================\n")
     # ----------------------------------------------------------------------
     # 🧱 Whitelist de roles (ACTUALIZADO)
     # ----------------------------------------------------------------------
