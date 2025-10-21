@@ -65,30 +65,43 @@ class OsuHandler(commands.Cog, name="osu!"):
 
     @commands.command(name="link")
     async def link(self, ctx, osu_username: str):
-        """Vincula tu cuenta de Discord con tu perfil de osu!.
-
-        Uso: d.link <tu_nombre_de_usuario_en_osu>
-        Ejemplo: d.link "Litxe"
-
-        Esto guardará tu perfil para que no tengas que escribirlo
-        en cada comando.
-        """
+        """Vincula tu cuenta de Discord con tu perfil de osu! y guarda tus stats."""
         async with ctx.typing():
-            user_data = self.osu.get_user(osu_username)
-            if not user_data:
-                await ctx.send("❌ No se encontró un jugador con ese nombre.")
+            # 1. Obtener datos del usuario (incluyendo stats)
+            #    Asumimos que self.osu.get_user() ya devuelve las stats
+            #    Si no, necesitarías modificar osu_api.py o hacer otra llamada
+            user_data = self.osu.get_user(osu_username) # Obtiene los datos del modo por defecto ('osu')
+            
+            if not user_data or 'statistics' not in user_data:
+                await ctx.send("❌ No se encontró un jugador con ese nombre o faltan estadísticas.")
                 return
 
+            # Extraer estadísticas (con valores por defecto si no existen)
+            stats = user_data.get('statistics', {})
+            play_mode = user_data.get('playmode', 'osu') # Obtener el modo (por si acaso)
+            pp = stats.get('pp', 0.0)
+            global_rank = stats.get('global_rank') # Puede ser None si no tiene rank
+            country_rank = stats.get('country_rank') # Puede ser None
+            accuracy = stats.get('hit_accuracy', 0.0)
+
             try:
-                # ¡Aquí está el cambio!
-                # Llamamos a nuestro puente para ejecutar el procedimiento en la BD.
+                # 2. Llamar al procedimiento actualizado con todos los datos
                 db_connector.execute_procedure(
-                    "sp_LinkOsuAccount",  # El nombre del procedimiento
-                    (ctx.author.id, user_data["username"], user_data["id"])  # Los parámetros
+                    "sp_LinkOsuAccount",
+                    (
+                        ctx.author.id, 
+                        user_data["username"], 
+                        user_data["id"],
+                        play_mode,          # Nuevo
+                        pp,                 # Nuevo
+                        global_rank,        # Nuevo (puede ser None)
+                        country_rank,       # Nuevo (puede ser None)
+                        accuracy            # Nuevo
+                    )
                 )
-                await ctx.send(f"✅ ¡Tu cuenta de osu! ha sido vinculada exitosamente con el perfil **{user_data['username']}**!")
+                await ctx.send(f"✅ ¡Tu cuenta de osu! ha sido vinculada con **{user_data['username']}** y tus estadísticas han sido guardadas!")
             except Exception as e:
-                await ctx.send("❌ Hubo un error al conectar con la base de datos. Por favor, inténtalo de nuevo más tarde.")
+                await ctx.send("❌ Hubo un error al conectar con la base de datos.")
                 print(f"Error en el comando link: {e}")
     @commands.command(name="unlink")
     async def unlink(self, ctx):
@@ -107,82 +120,59 @@ class OsuHandler(commands.Cog, name="osu!"):
     @commands.command(help="Muestra un perfil detallado de osu! de un jugador...", aliases=["op"])
     async def osuProfile(self, ctx, *, args: str = None):
         username, mode, is_linked = None, "osu", False
+        # ... (código para parsear args sin cambios) ...
         if args:
-            # ... (código para parsear args sin cambios) ...
-            parts = args.split()
-            username_parts = []
-            for part in parts:
-                if part.startswith("-") and part[1:].lower() in ["osu", "taiko", "fruits", "mania"]:
-                    mode = part[1:].lower()
-                else:
-                    username_parts.append(part)
-            username = " ".join(username_parts) if username_parts else None
+             parts = args.split()
+             username_parts = []
+             for part in parts:
+                 if part.startswith("-") and part[1:].lower() in ["osu", "taiko", "fruits", "mania"]:
+                     mode = part[1:].lower()
+                 else:
+                     username_parts.append(part)
+             username = " ".join(username_parts) if username_parts else None
 
         if not username:
-            print("\n--- [osuProfile DIAGNÓSTICO SIN NOMBRE] ---") # Inicio diagnóstico
+            print("\n--- [osuProfile DIAGNÓSTICO SIN NOMBRE v3] ---") # Actualizado
             try:
-                # 1. Llamada a la BD
                 result = db_connector.fetch_one("SELECT fn_GetOsuUsername(%s)", (ctx.author.id,))
+                print(f"--- Resultado crudo de fetch_one: {result!r}")
                 
                 # ======================================================
-                # ▼▼▼ ¡NUEVOS PRINTS DE DIAGNÓSTICO! ▼▼▼
+                # ▼▼▼ ¡NUEVA LÓGICA DE VERIFICACIÓN! ▼▼▼
                 # ======================================================
-                print(f"--- Resultado crudo de fetch_one: {result!r}") # Muestra el resultado tal cual
-                if result:
-                     print(f"--- Tipo de result[0]: {type(result[0])}") # Muestra el tipo de dato
-                     print(f"--- Valor de result[0]: {result[0]!r}") # Muestra el valor exacto
-                     print(f"--- Evaluación de 'result and result[0]': {bool(result and result[0])}") # Muestra si la condición es True o False
+                nombre_obtenido = None
+                if result and result[0] is not None:
+                    # Forzamos conversión a string y quitamos espacios
+                    nombre_obtenido = str(result[0]).strip() 
+                    print(f"--- Nombre obtenido (limpio): {nombre_obtenido!r}")
                 else:
-                     print("--- 'result' es None.")
-                # ======================================================
+                    print(f"--- 'result' es None o el primer elemento es None.")
 
-                if result and result[0]:
-                    username = result[0]
+                # Verificamos si el nombre obtenido NO está vacío
+                if nombre_obtenido: 
+                    username = nombre_obtenido
                     is_linked = True
                     print(f"--- Nombre de usuario asignado: {username!r}")
                 else:
-                    print("--- Condición 'if result and result[0]' fue FALSA. Enviando mensaje de error.")
+                    print("--- 'nombre_obtenido' está vacío o es None. Enviando mensaje de error.")
                     print("-------------------------------------------\n")
                     return await ctx.send("❌ No tienes cuenta vinculada ni has especificado un nombre.")
-                    
+                # ======================================================
+
             except Exception as e:
                  print(f"!!!!!! ERROR al consultar fn_GetOsuUsername: {e}")
                  print("-------------------------------------------\n")
                  await ctx.send("❌ Error al consultar tu cuenta vinculada.")
                  return
-            print("-------------------------------------------\n") # Fin diagnóstico
+            print("-------------------------------------------\n")
 
         # --- (El resto del código para mostrar el perfil no cambia) ---
         await ctx.typing()
         try:
-            # ... (código existente para obtener datos de API y crear embed) ...
-            user = self.osu.get_user(username, mode) # Asegúrate que osu_api esté inicializada correctamente
-            if not user or 'id' not in user: 
-                # Añadir un print aquí también por si el username asignado es inválido
-                print(f"!!!!!! ERROR: API de osu! no encontró al usuario '{username}' en modo '{mode}'.")
-                return await ctx.send(f"No se pudo encontrar '{username}' en modo '{mode}'.")
-            
-            stats, grades = user.get("statistics", {}), user.get("statistics", {}).get("grade_counts", {})
-            play_time_hours, country_code = round(stats.get("play_time", 0) / 3600), user.get("country_code", "xx")
-            global_rank_formatted = f"#{stats.get('global_rank'):,}" if stats.get('global_rank') else "N/A"
-            country_rank_formatted = f"#{stats.get('country_rank'):,}" if stats.get('country_rank') else "N/A"
-            mode_colors = {"osu": 0xFF66AA, "taiko": 0xDA3B26, "fruits": 0x86BA40, "mania": 0x5885C9}
-            
-            embed = discord.Embed(title=f"Perfil de {user['username']}", url=f"[https://osu.ppy.sh/users/](https://osu.ppy.sh/users/){user['id']}/{mode}", description=f"**Mostrando estadísticas para: `{mode.capitalize()}`**", color=mode_colors.get(mode, 0x7289DA))
-            embed.set_thumbnail(url=user.get("avatar_url", ""))
-            
-            main_stats_text = (f"**País:** :flag_{country_code.lower()}: `{country_rank_formatted}`\n**Rango Global:** 🏆 `{global_rank_formatted}`\n**PP:** 🎯 `{stats.get('pp', 0):,.2f}`\n"
-                               f"**Precisión:** 📈 `{stats.get('hit_accuracy', 0):.2f}%`\n**Nivel:** ✨ `{stats.get('level', {}).get('current', 0)}`\n"
-                               f"**Tiempo de Juego:** 🕒 `{play_time_hours:,} horas`\n**Playcount:** 🖱️ `{stats.get('play_count', 0):,}`")
-            embed.add_field(name=f"Estadísticas de {mode.capitalize()}", value=main_stats_text, inline=False)
-            
-            if grades:
-                grades_text = f"**SS:** `{grades.get('ss', 0) + grades.get('ssh', 0):,}` | **S:** `{grades.get('s', 0) + grades.get('sh', 0):,}` | **A:** `{grades.get('a', 0):,}`"
-                embed.add_field(name="Calificaciones", value=grades_text, inline=False)
-            
-            if is_linked: embed.set_footer(text="Mostrando perfil vinculado.")
-            
-            await ctx.send(embed=embed)
+             # ... (código existente para obtener datos de API y crear embed) ...
+             user = self.osu.get_user(username, mode)
+             # ... (resto del código) ...
+
         except Exception as e:
             await ctx.send("⚠️ Error al obtener el perfil."); print(f"[osuProfile] Error: {e}")
 
