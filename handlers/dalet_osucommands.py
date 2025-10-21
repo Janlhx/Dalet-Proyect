@@ -104,16 +104,11 @@ class OsuHandler(commands.Cog, name="osu!"):
         except Exception as e:
             await ctx.send("❌ Hubo un error al conectar con la base de datos.")
             print(f"Error en el comando unlink: {e}")
-    @commands.command(help="""Muestra un perfil detallado de osu! de un jugador.
-    
-    Uso: `d.osuProfile [usuario] [-modo]`
-    Ejemplo: `d.osuProfile WhiteCat -mania`
-    
-    Si no especificas un usuario, buscará tu perfil vinculado.
-    """, aliases=["op"])
+    @commands.command(help="Muestra un perfil detallado de osu! de un jugador...", aliases=["op"])
     async def osuProfile(self, ctx, *, args: str = None):
         username, mode, is_linked = None, "osu", False
         if args:
+            # ... (código para parsear args sin cambios) ...
             parts = args.split()
             username_parts = []
             for part in parts:
@@ -123,27 +118,49 @@ class OsuHandler(commands.Cog, name="osu!"):
                     username_parts.append(part)
             username = " ".join(username_parts) if username_parts else None
 
-        # ======================================================================
-        # ▼▼▼ ESTA ES LA SECCIÓN QUE CAMBIAMOS ▼▼▼
-        # ======================================================================
         if not username:
-            # Usamos nuestro conector para buscar en la base de datos
-            result = db_connector.fetch_one("SELECT fn_GetOsuUsername(%s)", (ctx.author.id,))
-            
-            if result and result[0]:
-                username = result[0]
-                is_linked = True
-            else:
-                return await ctx.send("❌ No tienes cuenta vinculada ni has especificado un nombre.")
-        # ======================================================================
-        # ▲▲▲ FIN DE LA SECCIÓN QUE CAMBIAMOS ▲▲▲
-        # ======================================================================
+            print("\n--- [osuProfile DIAGNÓSTICO SIN NOMBRE] ---") # Inicio diagnóstico
+            try:
+                # 1. Llamada a la BD
+                result = db_connector.fetch_one("SELECT fn_GetOsuUsername(%s)", (ctx.author.id,))
+                
+                # ======================================================
+                # ▼▼▼ ¡NUEVOS PRINTS DE DIAGNÓSTICO! ▼▼▼
+                # ======================================================
+                print(f"--- Resultado crudo de fetch_one: {result!r}") # Muestra el resultado tal cual
+                if result:
+                     print(f"--- Tipo de result[0]: {type(result[0])}") # Muestra el tipo de dato
+                     print(f"--- Valor de result[0]: {result[0]!r}") # Muestra el valor exacto
+                     print(f"--- Evaluación de 'result and result[0]': {bool(result and result[0])}") # Muestra si la condición es True o False
+                else:
+                     print("--- 'result' es None.")
+                # ======================================================
 
+                if result and result[0]:
+                    username = result[0]
+                    is_linked = True
+                    print(f"--- Nombre de usuario asignado: {username!r}")
+                else:
+                    print("--- Condición 'if result and result[0]' fue FALSA. Enviando mensaje de error.")
+                    print("-------------------------------------------\n")
+                    return await ctx.send("❌ No tienes cuenta vinculada ni has especificado un nombre.")
+                    
+            except Exception as e:
+                 print(f"!!!!!! ERROR al consultar fn_GetOsuUsername: {e}")
+                 print("-------------------------------------------\n")
+                 await ctx.send("❌ Error al consultar tu cuenta vinculada.")
+                 return
+            print("-------------------------------------------\n") # Fin diagnóstico
+
+        # --- (El resto del código para mostrar el perfil no cambia) ---
         await ctx.typing()
         try:
-            # El resto del código no necesita cambios, ya que solo consume la variable "username"
-            user = self.osu.get_user(username, mode)
-            if not user or 'id' not in user: return await ctx.send(f"No se pudo encontrar '{username}' en modo '{mode}'.")
+            # ... (código existente para obtener datos de API y crear embed) ...
+            user = self.osu.get_user(username, mode) # Asegúrate que osu_api esté inicializada correctamente
+            if not user or 'id' not in user: 
+                # Añadir un print aquí también por si el username asignado es inválido
+                print(f"!!!!!! ERROR: API de osu! no encontró al usuario '{username}' en modo '{mode}'.")
+                return await ctx.send(f"No se pudo encontrar '{username}' en modo '{mode}'.")
             
             stats, grades = user.get("statistics", {}), user.get("statistics", {}).get("grade_counts", {})
             play_time_hours, country_code = round(stats.get("play_time", 0) / 3600), user.get("country_code", "xx")
@@ -151,7 +168,7 @@ class OsuHandler(commands.Cog, name="osu!"):
             country_rank_formatted = f"#{stats.get('country_rank'):,}" if stats.get('country_rank') else "N/A"
             mode_colors = {"osu": 0xFF66AA, "taiko": 0xDA3B26, "fruits": 0x86BA40, "mania": 0x5885C9}
             
-            embed = discord.Embed(title=f"Perfil de {user['username']}", url=f"https://osu.ppy.sh/users/{user['id']}/{mode}", description=f"**Mostrando estadísticas para: `{mode.capitalize()}`**", color=mode_colors.get(mode, 0x7289DA))
+            embed = discord.Embed(title=f"Perfil de {user['username']}", url=f"[https://osu.ppy.sh/users/](https://osu.ppy.sh/users/){user['id']}/{mode}", description=f"**Mostrando estadísticas para: `{mode.capitalize()}`**", color=mode_colors.get(mode, 0x7289DA))
             embed.set_thumbnail(url=user.get("avatar_url", ""))
             
             main_stats_text = (f"**País:** :flag_{country_code.lower()}: `{country_rank_formatted}`\n**Rango Global:** 🏆 `{global_rank_formatted}`\n**PP:** 🎯 `{stats.get('pp', 0):,.2f}`\n"
