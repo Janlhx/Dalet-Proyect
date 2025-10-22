@@ -6,7 +6,7 @@ from discord.ext import commands
 import discord
 
 # --- AÑADIMOS EL CONECTOR DE BASE DE DATOS ---
-from handlers import db_connector
+from . import db_connector
 
 MEMORY_FILE = "memoria_contextual.json"
 

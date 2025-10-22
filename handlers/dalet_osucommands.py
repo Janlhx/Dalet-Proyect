@@ -7,7 +7,7 @@ import google.generativeai as genai # Necesario para osuCoach
 import os
 import asyncio # Necesario para timeouts si los usas
 # Import del conector
-from handlers import db_connector
+from . import db_connector
 import datetime
 
 # --- Clases Paginator (sin cambios) ---

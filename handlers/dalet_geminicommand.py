@@ -4,7 +4,7 @@ from discord.ext import commands
 import os
 
 # --- Importamos nuestro conector de base de datos ---
-from handlers import db_connector
+from . import db_connector
 
 # --- 🗑️ SECCIÓN ELIMINADA 🗑️ ---
 # Ya no necesitamos variables de archivos JSON ni funciones auxiliares para ellos

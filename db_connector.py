@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# (Quitamos los prints de diagnóstico anteriores, ya confirmamos que la URL se lee)
+# (Quitamos los prints de diagnóstico de la URL, ya confirmamos que se lee)
 
 def get_connection():
     """Crea y devuelve una nueva conexión a la base de datos."""
@@ -29,54 +29,49 @@ def execute_procedure(procedure_name, params=()):
             with conn.cursor() as cur:
                 placeholders = ', '.join(['%s'] * len(params))
                 sql_query = f"CALL {procedure_name}({placeholders})"
+                # print(f"--- [DB Connector] Ejecutando CALL: {sql_query} con {params}") # DEBUG (opcional)
                 cur.execute(sql_query, params)
             conn.commit()
+            # print(f"--- [DB Connector] CALL {procedure_name} ejecutado.") # DEBUG (opcional)
         except Exception as e:
-            # Imprimir error más detallado
             print(f"!!!!!! [DB Connector] Error ejecutando CALL {procedure_name}({params}): {e}")
-            # Considerar re-lanzar la excepción si quieres que el comando falle explícitamente
-            # raise e
         finally:
             conn.close()
 
 # ======================================================
-# ▼▼▼ ¡ASEGÚRATE DE QUE ESTAS FUNCIONES ESTÉN PRESENTES! ▼▼▼
+# ▼▼▼ ¡ESTAS FUNCIONES DEBEN ESTAR PRESENTES! ▼▼▼
 # ======================================================
 def fetch_one(query, params=()):
     """Ejecuta una consulta (SELECT) y devuelve UNA SOLA fila (tupla) o None."""
     conn = get_connection()
-    result = None # Inicializar resultado como None
+    result = None
     if conn:
         try:
             with conn.cursor() as cur:
-                print(f"--- [DB Connector] Ejecutando fetch_one: {query} con {params}") # DEBUG
+                # print(f"--- [DB Connector] Ejecutando fetch_one: {query} con {params}") # DEBUG (opcional)
                 cur.execute(query, params)
-                result = cur.fetchone() # fetchone() devuelve una tupla o None
-                print(f"--- [DB Connector] Resultado fetch_one: {result!r}") # DEBUG
+                result = cur.fetchone()
+                # print(f"--- [DB Connector] Resultado fetch_one: {result!r}") # DEBUG (opcional)
         except Exception as e:
             print(f"!!!!!! [DB Connector] Error en la consulta fetch_one: {e}")
-            # No re-lanzar aquí para que la función devuelva None en caso de error
         finally:
             conn.close()
-    # Devolver el resultado (que será None si no se encontró nada o si hubo error)
     return result
 
 def fetch_all(query, params=()):
     """Ejecuta una consulta (SELECT) y devuelve TODAS las filas (lista de tuplas) o lista vacía."""
     conn = get_connection()
-    results = [] # Inicializar como lista vacía
+    results = []
     if conn:
         try:
             with conn.cursor() as cur:
-                print(f"--- [DB Connector] Ejecutando fetch_all: {query} con {params}") # DEBUG
+                # print(f"--- [DB Connector] Ejecutando fetch_all: {query} con {params}") # DEBUG (opcional)
                 cur.execute(query, params)
-                results = cur.fetchall() # fetchall() devuelve lista de tuplas o lista vacía
-                print(f"--- [DB Connector] Resultado fetch_all: {len(results)} filas") # DEBUG
+                results = cur.fetchall()
+                # print(f"--- [DB Connector] Resultado fetch_all: {len(results)} filas") # DEBUG (opcional)
         except Exception as e:
             print(f"!!!!!! [DB Connector] Error en la consulta fetch_all: {e}")
-            # No re-lanzar, devolver lista vacía en caso de error
         finally:
             conn.close()
-    # Devolver la lista de resultados (vacía si no hubo o si hubo error)
     return results
 # ======================================================
