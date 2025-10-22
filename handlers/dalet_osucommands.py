@@ -268,8 +268,8 @@ class OsuHandler(commands.Cog, name="osu!"):
              main_stats_text = (
                  f"**País:** :flag_{country_code.lower()}: `{country_rank_formatted}`\n"
                  f"**Rango Global:** 🏆 `{global_rank_formatted}`\n"
-                 f"**PP:** 🎯 `{stats.get('pp', 0):,.2f}`\n"
-                 f"**Precisión:** 📈 `{stats.get('hit_accuracy', 0):.2f}%`\n"
+                 f"**PP:** 📈 `{stats.get('pp', 0):,.2f}`\n"
+                 f"**Precisión:** 🎯`{stats.get('hit_accuracy', 0):.2f}%`\n"
                  f"**Nivel:** ✨ `{stats.get('level', {}).get('current', 0)}` (`{stats.get('level', {}).get('progress', 0)}%`)\n" # Añadir progreso
                  f"**Tiempo de Juego:** 🕒 `{play_time_hours:,} horas`\n"
                  f"**Playcount:** 🖱️ `{stats.get('play_count', 0):,}`"
