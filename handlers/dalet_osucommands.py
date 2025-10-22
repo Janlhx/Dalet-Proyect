@@ -119,88 +119,69 @@ class OsuHandler(commands.Cog, name="osu!"):
             print(f"Error en el comando unlink: {e}")
     @commands.command(help="Muestra un perfil detallado de osu! de un jugador...", aliases=["op"])
     async def osuProfile(self, ctx, *, args: str = None):
+        print("\n--- [osuProfile DEBUG v4] --- Intentando ejecutar comando...") # NUEVO PRINT INICIAL
         username, mode, is_linked = None, "osu", False
-        # ... (código para parsear args sin cambios) ...
+        
+        # --- Parseo de argumentos (simplificado para prueba) ---
         if args:
-             parts = args.split()
-             username_parts = []
-             for part in parts:
-                 if part.startswith("-") and part[1:].lower() in ["osu", "taiko", "fruits", "mania"]:
-                     mode = part[1:].lower()
-                 else:
-                     username_parts.append(part)
-             username = " ".join(username_parts) if username_parts else None
-
+             # Asumimos que args es solo el nombre de usuario por ahora
+             username = args.strip() 
+             # (Ignoramos el modo por ahora para simplificar)
+        
+        # --- Lógica SIN nombre de usuario ---
         if not username:
-            print("\n--- [osuProfile DIAGNÓSTICO SIN NOMBRE v3] ---") # Actualizado
+            print(f"--- [osuProfile DEBUG v4] No se proporcionó nombre. Consultando BD para UserID: {ctx.author.id}")
             try:
+                # Directamente intentamos la consulta
                 result = db_connector.fetch_one("SELECT fn_GetOsuUsername(%s)", (ctx.author.id,))
-                print(f"--- Resultado crudo de fetch_one: {result!r}")
+                print(f"--- [osuProfile DEBUG v4] Resultado DB: {result!r}") # Ver qué devuelve exactamente
 
-                # ======================================================
-                # ▼▼▼ ¡NUEVA LÓGICA DE VERIFICACIÓN! ▼▼▼
-                # ======================================================
-                nombre_obtenido = None
+                nombre_db = None
                 if result and result[0] is not None:
-                    # Forzamos conversión a string y quitamos espacios
-                    nombre_obtenido = str(result[0]).strip()
-                    print(f"--- Nombre obtenido (limpio): {nombre_obtenido!r}")
-                else:
-                    print(f"--- 'result' es None o el primer elemento es None.")
-
-                # Verificamos si el nombre obtenido NO está vacío
-                if nombre_obtenido:
-                    username = nombre_obtenido
+                    nombre_db = str(result[0]).strip()
+                
+                if nombre_db:
+                    username = nombre_db
                     is_linked = True
-                    print(f"--- Nombre de usuario asignado: {username!r}")
+                    print(f"--- [osuProfile DEBUG v4] Nombre encontrado en BD: {username!r}")
                 else:
-                    print("--- 'nombre_obtenido' está vacío o es None. Enviando mensaje de error.")
-                    print("-------------------------------------------\n")
-                    # Mensaje de error que coincide con la imagen image_52cf53.png
-                    return await ctx.send("❌ No tienes cuenta vinculada ni has especificado un nombre.")
-                # ======================================================
+                    print("--- [osuProfile DEBUG v4] No se encontró nombre en BD o resultado vacío.")
+                    await ctx.send("❌ No tienes cuenta vinculada.")
+                    print("------------------------------\n")
+                    return # Terminar aquí si no hay nombre vinculado
 
             except Exception as e:
-                 print(f"!!!!!! ERROR al consultar fn_GetOsuUsername: {e}")
-                 print("-------------------------------------------\n")
-                 # Mensaje de error que coincide con la imagen image_f92edf.png
+                 print(f"!!!!!! [osuProfile DEBUG v4] ERROR al consultar DB: {e}")
                  await ctx.send("❌ Error al consultar tu cuenta vinculada.")
+                 print("------------------------------\n")
                  return
-            print("-------------------------------------------\n")
-
-        # --- (El resto del código para mostrar el perfil no cambia) ---
+        
+        # --- Si llegamos aquí, TENEMOS un 'username' (sea de args o de la BD) ---
+        print(f"--- [osuProfile DEBUG v4] Intentando obtener perfil para: {username!r}, Modo: {mode}")
         await ctx.typing()
         try:
-             # ... (código existente para obtener datos de API y crear embed) ...
              user = self.osu.get_user(username, mode)
              if not user or 'id' not in user:
-                 print(f"!!!!!! ERROR: API de osu! no encontró al usuario '{username}' en modo '{mode}'.")
-                 return await ctx.send(f"No se pudo encontrar '{username}' en modo '{mode}'.")
+                 print(f"!!!!!! [osuProfile DEBUG v4] API osu! no encontró usuario.")
+                 await ctx.send(f"No se pudo encontrar '{username}' en modo '{mode}'.")
+                 print("------------------------------\n")
+                 return
 
-             stats, grades = user.get("statistics", {}), user.get("statistics", {}).get("grade_counts", {})
-             play_time_hours, country_code = round(stats.get("play_time", 0) / 3600), user.get("country_code", "xx")
-             global_rank_formatted = f"#{stats.get('global_rank'):,}" if stats.get('global_rank') else "N/A"
-             country_rank_formatted = f"#{stats.get('country_rank'):,}" if stats.get('country_rank') else "N/A"
-             mode_colors = {"osu": 0xFF66AA, "taiko": 0xDA3B26, "fruits": 0x86BA40, "mania": 0x5885C9}
-
-             embed = discord.Embed(title=f"Perfil de {user['username']}", url=f"https://osu.ppy.sh/users/{user['id']}/{mode}", description=f"**Mostrando estadísticas para: `{mode.capitalize()}`**", color=mode_colors.get(mode, 0x7289DA))
-             embed.set_thumbnail(url=user.get("avatar_url", ""))
-
-             main_stats_text = (f"**País:** :flag_{country_code.lower()}: `{country_rank_formatted}`\n**Rango Global:** 🏆 `{global_rank_formatted}`\n**PP:** 🎯 `{stats.get('pp', 0):,.2f}`\n"
-                                f"**Precisión:** 📈 `{stats.get('hit_accuracy', 0):.2f}%`\n**Nivel:** ✨ `{stats.get('level', {}).get('current', 0)}`\n"
-                                f"**Tiempo de Juego:** 🕒 `{play_time_hours:,} horas`\n**Playcount:** 🖱️ `{stats.get('play_count', 0):,}`")
-             embed.add_field(name=f"Estadísticas de {mode.capitalize()}", value=main_stats_text, inline=False)
-
-             if grades:
-                 grades_text = f"**SS:** `{grades.get('ss', 0) + grades.get('ssh', 0):,}` | **S:** `{grades.get('s', 0) + grades.get('sh', 0):,}` | **A:** `{grades.get('a', 0):,}`"
-                 embed.add_field(name="Calificaciones", value=grades_text, inline=False)
-
+             # --- Crear y enviar Embed (código simplificado) ---
+             stats = user.get("statistics", {})
+             embed = discord.Embed(title=f"Perfil de {user['username']} (Modo: {mode})", color=discord.Color.blue())
+             embed.add_field(name="PP", value=f"{stats.get('pp', 0):.2f}")
+             embed.add_field(name="Rank", value=f"#{stats.get('global_rank', 'N/A')}")
              if is_linked: embed.set_footer(text="Mostrando perfil vinculado.")
-
+             
+             print(f"--- [osuProfile DEBUG v4] Enviando embed para {username!r}")
              await ctx.send(embed=embed)
 
         except Exception as e:
-            await ctx.send("⚠️ Error al obtener el perfil."); print(f"[osuProfile] Error: {e}")
+            print(f"!!!!!! [osuProfile DEBUG v4] ERROR al obtener/enviar perfil: {e}")
+            await ctx.send("⚠️ Error al obtener el perfil.")
+        
+        print("------------------------------\n")
 
     @commands.command(name="osuAnalyze")
     async def osu_analyze(self, ctx, *, args: str = None):
