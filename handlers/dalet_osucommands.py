@@ -8,6 +8,7 @@ import os
 import asyncio # Necesario para timeouts si los usas
 # Import del conector
 from handlers import db_connector
+import datetime
 
 # --- Clases Paginator (sin cambios) ---
 class AnalysisPaginator(discord.ui.View):
@@ -360,9 +361,38 @@ class OsuHandler(commands.Cog, name="osu!"):
                  print(f"!!!!!! [osuAnalyze DEBUG v5] ERROR al obtener scores: {e_scores}")
                  # Podemos continuar sin scores o abortar, decidimos continuar
                  await ctx.send("⚠️ No se pudieron obtener los scores recientes/mejores, el análisis puede ser limitado.")
-
-
-            # Asegurarse que OsuAnalyzer existe y se instancia correctamente
+# ======================================================
+            # ▼▼▼ ¡NUEVO! Guardando Scores en la Base de Datos ▼▼▼
+            # ======================================================
+            # Guardar best scores
+            for score in best_scores:
+                # El mod es una lista, lo unimos en un string
+                mods_str = "".join(score.get('mods', []))
+                # La API a veces no devuelve timestamp, usamos la fecha de la jugada
+                timestamp = score.get('created_at', datetime.utcnow().isoformat())
+                db_connector.execute_procedure(
+                    "sp_SaveOrUpdateOsuScore",
+                    (
+                        score['id'], user['id'], score['beatmap']['id'],
+                        score['score'], score['accuracy'], mods_str,
+                        'best', timestamp
+                    )
+                )
+            
+            # Guardar recent scores
+            for score in recent_scores:
+                mods_str = "".join(score.get('mods', []))
+                timestamp = score.get('created_at', datetime.utcnow().isoformat())
+                db_connector.execute_procedure(
+                    "sp_SaveOrUpdateOsuScore",
+                    (
+                        score['id'], user['id'], score['beatmap']['id'],
+                        score['score'], score['accuracy'], mods_str,
+                        'recent', timestamp
+                    )
+                )
+            print(f"--- [osuAnalyze DEBUG v5] {len(best_scores) + len(recent_scores)} scores guardados/actualizados en la BD.")
+            # ======================================================
             # Pasar user_focus al Analyzer si lo usa para análisis interno
             analyzer = OsuAnalyzer(self.osu, user, recent_plays=recent_scores, best_plays=best_scores, user_focus=user_focus)
             # Verificar si el método existe y es async
@@ -499,7 +529,38 @@ class OsuHandler(commands.Cog, name="osu!"):
             except Exception as e_scores:
                  print(f"!!!!!! [osuCoach DEBUG v5] ERROR al obtener scores: {e_scores}")
                  await ctx.send("⚠️ No se pudieron obtener los scores recientes/mejores, el coaching puede ser limitado.")
-
+# ======================================================
+            # ▼▼▼ ¡NUEVO! Guardando Scores en la Base de Datos ▼▼▼
+            # ======================================================
+            # Guardar best scores
+            for score in best_scores:
+                # El mod es una lista, lo unimos en un string
+                mods_str = "".join(score.get('mods', []))
+                # La API a veces no devuelve timestamp, usamos la fecha de la jugada
+                timestamp = score.get('created_at', datetime.utcnow().isoformat())
+                db_connector.execute_procedure(
+                    "sp_SaveOrUpdateOsuScore",
+                    (
+                        score['id'], user['id'], score['beatmap']['id'],
+                        score['score'], score['accuracy'], mods_str,
+                        'best', timestamp
+                    )
+                )
+            
+            # Guardar recent scores
+            for score in recent_scores:
+                mods_str = "".join(score.get('mods', []))
+                timestamp = score.get('created_at', datetime.utcnow().isoformat())
+                db_connector.execute_procedure(
+                    "sp_SaveOrUpdateOsuScore",
+                    (
+                        score['id'], user['id'], score['beatmap']['id'],
+                        score['score'], score['accuracy'], mods_str,
+                        'recent', timestamp
+                    )
+                )
+            print(f"--- [osuAnalyze DEBUG v5] {len(best_scores) + len(recent_scores)} scores guardados/actualizados en la BD.")
+            # ======================================================
             # Pasamos el user_focus aquí a OsuAnalyzer
             analyzer = OsuAnalyzer(self.osu, user, recent_plays=recent_scores, best_plays=best_scores, user_focus=user_focus)
             # Asegurarse que el método se llama así y es async
