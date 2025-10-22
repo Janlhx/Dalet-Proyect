@@ -299,7 +299,7 @@ class OsuHandler(commands.Cog, name="osu!"):
 
     # --- Comando osuAnalyze (LIMPIO y usando auxiliar) ---
     # --- Comando osuAnalyze (CON DIAGNÓSTICO REFORZADO) ---
-# --- Comando osuAnalyze (CON DIAGNÓSTICO REFORZADO y FIX DATETIME) ---
+# --- Comando osuAnalyze (CON DIAGNÓSTICO REFORZADO y FIX DATETIME/ORDER) ---
     @commands.command(name="osuAnalyze", help="Analiza el perfil de osu! con IA.\nUso: `d.osuAnalyze [usuario] [-modo] [--focus <area>]`")
     async def osu_analyze(self, ctx, *, args: str = None):
         print("\n--- [osuAnalyze DEBUG v6] --- Iniciando comando...")
@@ -358,12 +358,12 @@ class OsuHandler(commands.Cog, name="osu!"):
                  traceback.print_exc()
                  await ctx.send("⚠️ No se pudieron obtener scores, análisis limitado.")
 
-            # --- Guardar scores en DB (CON FIX DATETIME) ---
-            print("--- [osuAnalyze DEBUG v6] Guardando scores en BD...")
+            # --- Guardar scores en DB (CON FIX DATETIME y FIX USERID/OSU_ID ORDER) ---
+            print(f"--- [osuAnalyze DEBUG v6] Guardando scores en BD...")
             saved_count = 0
-            try:
-                score_type = 'best'
-                for score in best_scores:
+            score_type = 'best'
+            for score in best_scores:
+                try:
                     mods_str = "".join(score.get('mods', []))
                     timestamp_str = score.get('created_at')
                     timestamp = None
@@ -375,13 +375,35 @@ class OsuHandler(commands.Cog, name="osu!"):
                             timestamp = datetime.now(timezone.utc)
                     else:
                         timestamp = datetime.now(timezone.utc)
-                    db_connector.execute_procedure("sp_SaveOrUpdateOsuScore", (
-                        score['id'], user['id'], score['beatmap']['id'], score['score'],
-                        score['accuracy'], mods_str, score_type, timestamp ))
-                    saved_count += 1
 
-                score_type = 'recent'
-                for score in recent_scores:
+                    score_id = score['id']
+                    user_id_discord = ctx.author.id # ID Discord (BIGINT) - Segundo parámetro
+                    user_id_osu = user['id']        # ID Osu! (INT) - Tercer parámetro
+                    beatmap_info = score.get('beatmap')
+                    if not beatmap_info or 'id' not in beatmap_info:
+                         print(f"WARN: Score (best) {score_id} no tiene beatmap ID. Saltando.")
+                         continue
+                    beatmap_id = beatmap_info['id'] # INT - Cuarto parámetro
+                    score_value = score['score']    # INT - Quinto parámetro
+                    accuracy_value = score['accuracy'] # FLOAT/NUMERIC - Sexto parámetro
+
+                    db_connector.execute_procedure(
+                        "sp_SaveOrUpdateOsuScore",
+                        ( # Orden SQL: ScoreID, UserID(Discord), OsuUserID, BeatmapID, Score, Accuracy, Mods, Type, Timestamp
+                            score_id, user_id_discord, user_id_osu, beatmap_id, score_value,
+                            accuracy_value, mods_str, score_type, timestamp
+                        )
+                    )
+                    saved_count += 1
+                except KeyError as e_key:
+                     print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR Key (best): Dato faltante: {e_key} - Score ID: {score.get('id', 'N/A')}")
+                except Exception as e_proc:
+                     print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR Proc (best): {e_proc}")
+                     traceback.print_exc()
+
+            score_type = 'recent'
+            for score in recent_scores:
+                 try:
                     mods_str = "".join(score.get('mods', []))
                     timestamp_str = score.get('created_at')
                     timestamp = None
@@ -393,33 +415,45 @@ class OsuHandler(commands.Cog, name="osu!"):
                             timestamp = datetime.now(timezone.utc)
                     else:
                         timestamp = datetime.now(timezone.utc)
-                    db_connector.execute_procedure("sp_SaveOrUpdateOsuScore", (
-                        score['id'], user['id'], score['beatmap']['id'], score['score'],
-                        score['accuracy'], mods_str, score_type, timestamp ))
+
+                    score_id = score['id']
+                    user_id_discord = ctx.author.id # ID Discord (BIGINT)
+                    user_id_osu = user['id']        # ID Osu! (INT)
+                    beatmap_info = score.get('beatmap')
+                    if not beatmap_info or 'id' not in beatmap_info:
+                         print(f"WARN: Score (recent) {score_id} no tiene beatmap ID. Saltando.")
+                         continue
+                    beatmap_id = beatmap_info['id'] # INT
+                    score_value = score['score']    # INT
+                    accuracy_value = score['accuracy'] # FLOAT/NUMERIC
+
+                    db_connector.execute_procedure(
+                        "sp_SaveOrUpdateOsuScore",
+                        ( # Orden SQL: ScoreID, UserID(Discord), OsuUserID, BeatmapID, Score, Accuracy, Mods, Type, Timestamp
+                            score_id, user_id_discord, user_id_osu, beatmap_id, score_value,
+                            accuracy_value, mods_str, score_type, timestamp
+                        )
+                    )
                     saved_count += 1
-                print(f"--- [osuAnalyze DEBUG v6] {saved_count} scores procesados para BD.")
-            except KeyError as e_key:
-                 print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR Key: Dato faltante en score API: {e_key}")
-                 traceback.print_exc()
-                 await ctx.send("❌ Error interno: Datos de score incompletos desde API.")
-                 # Considerar retornar aquí si es crítico
-            except Exception as e_db_score:
-                 print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR al guardar scores en BD: {e_db_score}")
-                 traceback.print_exc()
-                 await ctx.send("❌ Error al guardar historial de scores.")
-                 # No retornamos, el análisis puede continuar
+                 except KeyError as e_key:
+                    print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR Key (recent): Dato faltante: {e_key} - Score ID: {score.get('id', 'N/A')}")
+                 except Exception as e_proc:
+                    print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR Proc (recent): {e_proc}")
+                    traceback.print_exc()
+
+            print(f"--- [osuAnalyze DEBUG v6] {saved_count} scores procesados para BD.")
+            # No enviamos mensaje de error aquí, solo logueamos
 
             print("--- [osuAnalyze DEBUG v6] Generando prompt con OsuAnalyzer...")
             analyzer = OsuAnalyzer(self.osu, user, recent_plays=recent_scores, best_plays=best_scores, user_focus=user_focus)
             prompt = ""
             try:
-                 # Verificar método y si es async
                  method_to_call = getattr(analyzer, 'generate_ai_analysis', None)
                  if method_to_call:
                       if asyncio.iscoroutinefunction(method_to_call):
                            prompt = await method_to_call()
                       else:
-                           prompt = method_to_call() # Síncrono
+                           prompt = method_to_call()
                  else: raise AttributeError("Método generate_ai_analysis no encontrado")
                  print(f"--- [osuAnalyze DEBUG v6] Prompt generado (longitud): {len(prompt)}")
                  if not prompt: raise ValueError("Prompt vacío generado por Analyzer")
@@ -444,8 +478,7 @@ class OsuHandler(commands.Cog, name="osu!"):
                  return
             except Exception as e_gemini:
                  print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR Gemini: {e_gemini}")
-                 traceback.print_exc() # Ver el error exacto de Gemini
-                 # Intentar obtener más detalles del error si es posible
+                 traceback.print_exc()
                  error_details = getattr(e_gemini, 'message', str(e_gemini))
                  await ctx.send(f"❌ Error contactando la IA: {error_details}")
                  return
@@ -482,7 +515,7 @@ class OsuHandler(commands.Cog, name="osu!"):
 
     # --- Comando osuCoach (LIMPIO y usando auxiliar) ---
    # --- Comando osuCoach (CON DIAGNÓSTICO REFORZADO) ---
-   # --- Comando osuCoach (CON DIAGNÓSTICO REFORZADO y FIX DATETIME) ---
+# --- Comando osuCoach (CON DIAGNÓSTICO REFORZADO y FIX DATETIME/ORDER) ---
     @commands.command(help="Genera un plan de coaching de osu!...", aliases=["oc"])
     async def osuCoach(self, ctx, *, args: str = None):
         print("\n--- [osuCoach DEBUG v6] --- Iniciando comando...")
@@ -541,12 +574,12 @@ class OsuHandler(commands.Cog, name="osu!"):
                  traceback.print_exc()
                  await ctx.send("⚠️ No se pudieron obtener scores, coaching limitado.")
 
-            # --- Guardar scores en DB (CON FIX DATETIME) ---
-            print("--- [osuCoach DEBUG v6] Guardando scores en BD...")
+            # --- Guardar scores en DB (CON FIX DATETIME y FIX USERID/OSU_ID ORDER) ---
+            print(f"--- [osuCoach DEBUG v6] Guardando scores en BD...")
             saved_count = 0
-            try:
-                score_type = 'best'
-                for score in best_scores:
+            score_type = 'best'
+            for score in best_scores:
+                try:
                     mods_str = "".join(score.get('mods', []))
                     timestamp_str = score.get('created_at')
                     timestamp = None
@@ -558,13 +591,35 @@ class OsuHandler(commands.Cog, name="osu!"):
                             timestamp = datetime.now(timezone.utc)
                     else:
                         timestamp = datetime.now(timezone.utc)
-                    db_connector.execute_procedure("sp_SaveOrUpdateOsuScore", (
-                        score['id'], user['id'], score['beatmap']['id'], score['score'],
-                        score['accuracy'], mods_str, score_type, timestamp ))
-                    saved_count += 1
 
-                score_type = 'recent'
-                for score in recent_scores:
+                    score_id = score['id']
+                    user_id_discord = ctx.author.id # ID Discord (BIGINT)
+                    user_id_osu = user['id']        # ID Osu! (INT)
+                    beatmap_info = score.get('beatmap')
+                    if not beatmap_info or 'id' not in beatmap_info:
+                         print(f"WARN: Score (best) {score_id} no tiene beatmap ID. Saltando.")
+                         continue
+                    beatmap_id = beatmap_info['id'] # INT
+                    score_value = score['score']    # INT
+                    accuracy_value = score['accuracy'] # FLOAT/NUMERIC
+
+                    db_connector.execute_procedure(
+                        "sp_SaveOrUpdateOsuScore",
+                        ( # Orden SQL: ScoreID, UserID(Discord), OsuUserID, BeatmapID, Score, Accuracy, Mods, Type, Timestamp
+                            score_id, user_id_discord, user_id_osu, beatmap_id, score_value,
+                            accuracy_value, mods_str, score_type, timestamp
+                        )
+                    )
+                    saved_count += 1
+                except KeyError as e_key:
+                     print(f"!!!!!! [osuCoach DEBUG v6] ERROR Key (best): Dato faltante: {e_key} - Score ID: {score.get('id', 'N/A')}")
+                except Exception as e_proc:
+                     print(f"!!!!!! [osuCoach DEBUG v6] ERROR Proc (best): {e_proc}")
+                     traceback.print_exc()
+
+            score_type = 'recent'
+            for score in recent_scores:
+                 try:
                     mods_str = "".join(score.get('mods', []))
                     timestamp_str = score.get('created_at')
                     timestamp = None
@@ -576,21 +631,35 @@ class OsuHandler(commands.Cog, name="osu!"):
                             timestamp = datetime.now(timezone.utc)
                     else:
                         timestamp = datetime.now(timezone.utc)
-                    db_connector.execute_procedure("sp_SaveOrUpdateOsuScore", (
-                        score['id'], user['id'], score['beatmap']['id'], score['score'],
-                        score['accuracy'], mods_str, score_type, timestamp ))
+
+                    score_id = score['id']
+                    user_id_discord = ctx.author.id # ID Discord (BIGINT)
+                    user_id_osu = user['id']        # ID Osu! (INT)
+                    beatmap_info = score.get('beatmap')
+                    if not beatmap_info or 'id' not in beatmap_info:
+                         print(f"WARN: Score (recent) {score_id} no tiene beatmap ID. Saltando.")
+                         continue
+                    beatmap_id = beatmap_info['id'] # INT
+                    score_value = score['score']    # INT
+                    accuracy_value = score['accuracy'] # FLOAT/NUMERIC
+
+                    db_connector.execute_procedure(
+                        "sp_SaveOrUpdateOsuScore",
+                        ( # Orden SQL: ScoreID, UserID(Discord), OsuUserID, BeatmapID, Score, Accuracy, Mods, Type, Timestamp
+                            score_id, user_id_discord, user_id_osu, beatmap_id, score_value,
+                            accuracy_value, mods_str, score_type, timestamp
+                        )
+                    )
                     saved_count += 1
-                print(f"--- [osuCoach DEBUG v6] {saved_count} scores procesados para BD.")
-            except KeyError as e_key:
-                 print(f"!!!!!! [osuCoach DEBUG v6] ERROR Key: Dato faltante en score API: {e_key}")
-                 traceback.print_exc()
-                 await ctx.send("❌ Error interno: Datos de score incompletos desde API.")
-                 # Considerar retornar
-            except Exception as e_db_score:
-                 print(f"!!!!!! [osuCoach DEBUG v6] ERROR al guardar scores en BD: {e_db_score}")
-                 traceback.print_exc()
-                 await ctx.send("❌ Error al guardar historial de scores.")
-                 # Continuar
+                 except KeyError as e_key:
+                    print(f"!!!!!! [osuCoach DEBUG v6] ERROR Key (recent): Dato faltante: {e_key} - Score ID: {score.get('id', 'N/A')}")
+                 except Exception as e_proc:
+                    print(f"!!!!!! [osuCoach DEBUG v6] ERROR Proc (recent): {e_proc}")
+                    traceback.print_exc()
+
+            print(f"--- [osuCoach DEBUG v6] {saved_count} scores procesados para BD.")
+            # No enviamos mensaje de error aquí, solo logueamos
+
 
             print("--- [osuCoach DEBUG v6] Generando prompt con OsuAnalyzer...")
             analyzer = OsuAnalyzer(self.osu, user, recent_plays=recent_scores, best_plays=best_scores, user_focus=user_focus)
@@ -601,7 +670,7 @@ class OsuHandler(commands.Cog, name="osu!"):
                       if asyncio.iscoroutinefunction(method_to_call):
                            prompt = await method_to_call()
                       else:
-                           prompt = method_to_call() # Síncrono
+                           prompt = method_to_call()
                  else: raise AttributeError("Método generate_coaching_prompt no encontrado")
                  print(f"--- [osuCoach DEBUG v6] Prompt generado (longitud): {len(prompt)}")
                  if not prompt: raise ValueError("Prompt vacío generado por Analyzer")
