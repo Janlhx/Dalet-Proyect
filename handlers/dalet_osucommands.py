@@ -179,11 +179,11 @@ class OsuHandler(commands.Cog, name="osu!"):
     async def unlink(self, ctx):
         """Desvincula tu cuenta de osu!."""
          # No necesita API osu!
-         try:
+        try:
              db_connector.execute_procedure("sp_UnlinkOsuAccount", (ctx.author.id,))
              # Mensaje más informativo
              await ctx.send("✅ Vinculación con osu! eliminada (si existía).")
-         except Exception as e:
+        except Exception as e:
              await ctx.send("❌ Hubo un error al intentar desvincular la cuenta en la base de datos.")
              print(f"Error en el comando unlink: {e}")
 
