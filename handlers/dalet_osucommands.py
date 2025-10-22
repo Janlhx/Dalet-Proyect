@@ -8,8 +8,9 @@ import os
 import asyncio # Necesario para timeouts si los usas
 # Import del conector
 import db_connector
-import datetime
-
+from datetime import datetime, timezone # Necesitamos importar timezone
+# Import para traceback
+import traceback
 # --- Clases Paginator (sin cambios) ---
 class AnalysisPaginator(discord.ui.View):
     def __init__(self, pages):
@@ -298,63 +299,54 @@ class OsuHandler(commands.Cog, name="osu!"):
 
     # --- Comando osuAnalyze (LIMPIO y usando auxiliar) ---
     # --- Comando osuAnalyze (CON DIAGNÓSTICO REFORZADO) ---
+# --- Comando osuAnalyze (CON DIAGNÓSTICO REFORZADO y FIX DATETIME) ---
     @commands.command(name="osuAnalyze", help="Analiza el perfil de osu! con IA.\nUso: `d.osuAnalyze [usuario] [-modo] [--focus <area>]`")
     async def osu_analyze(self, ctx, *, args: str = None):
-        print("\n--- [osuAnalyze DEBUG v6] --- Iniciando comando...") # DEBUG v6
-        try: # Try general para capturar TODO
+        print("\n--- [osuAnalyze DEBUG v6] --- Iniciando comando...")
+        try:
             if not self.osu:
                  print("!!!!!! [osuAnalyze DEBUG v6] OsuAPI no inicializada.")
-                 return await ctx.send("❌ Error: La conexión con la API de osu! no está configurada.")
+                 return await ctx.send("❌ Error: La API de osu! no está configurada.")
 
             username, user_focus, mode, is_linked = None, None, "osu", False
 
-            # --- Parseo de argumentos (CON TRY-EXCEPT) ---
             print("--- [osuAnalyze DEBUG v6] Parseando argumentos...")
             try:
                 if args:
-                     parts = args.split()
-                     username_parts = []
-                     i = 0
+                     parts = args.split(); username_parts = []; i = 0
                      while i < len(parts):
-                         part = parts[i]
-                         if part.lower() == '--focus' and i + 1 < len(parts):
-                              user_focus = parts[i+1].lower()
-                              i += 2; continue
-                         if part.startswith("-") and part[1:].lower() in ["osu", "taiko", "fruits", "mania"]:
-                              mode = part[1:].lower()
-                              i += 1; continue
-                         username_parts.append(part)
-                         i += 1
+                          part = parts[i]
+                          if part.lower() == '--focus' and i + 1 < len(parts):
+                               user_focus = parts[i+1].lower(); i += 2; continue
+                          if part.startswith("-") and part[1:].lower() in ["osu", "taiko", "fruits", "mania"]:
+                               mode = part[1:].lower(); i += 1; continue
+                          username_parts.append(part); i += 1
                      if username_parts: username = " ".join(username_parts).strip()
                 print(f"--- [osuAnalyze DEBUG v6] Args parseados: user='{username}', mode='{mode}', focus='{user_focus}'")
             except Exception as e_parse:
-                print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR durante parseo de args: {e_parse}")
-                await ctx.send("❌ Error al procesar los argumentos del comando.")
+                print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR parseando args: {e_parse}")
+                traceback.print_exc()
+                await ctx.send("❌ Error al procesar los argumentos.")
                 return
 
-            # --- Obtener nombre vinculado ---
             if not username:
                 print("--- [osuAnalyze DEBUG v6] No hay nombre, buscando vinculado...")
                 username = await self._get_linked_username(ctx)
                 if not username:
                      await ctx.send("❌ No tienes cuenta vinculada ni especificaste nombre.")
-                     print("--- [osuAnalyze DEBUG v6] Terminando: No hay nombre de usuario.")
-                     print("------------------------------\n")
+                     print("--- [osuAnalyze DEBUG v6] Terminando: No hay nombre.")
                      return
                 is_linked = True
 
-            # --- Lógica principal (dentro del try general) ---
             print(f"--- [osuAnalyze DEBUG v6] Obteniendo datos para: {username!r}, Modo: {mode}")
             await ctx.typing()
 
-            # Obtener datos usuario
             user = self.osu.get_user(username, mode)
             if not user or 'id' not in user:
                  print(f"!!!!!! [osuAnalyze DEBUG v6] API osu! no encontró usuario.")
                  await ctx.send(f"❌ No se pudo encontrar '{username}' en modo '{mode}'.")
                  return
 
-            # Obtener scores
             print("--- [osuAnalyze DEBUG v6] Obteniendo scores...")
             best_scores, recent_scores = [], []
             try:
@@ -363,60 +355,80 @@ class OsuHandler(commands.Cog, name="osu!"):
                  print(f"--- [osuAnalyze DEBUG v6] Scores obtenidos: {len(best_scores)} best, {len(recent_scores)} recent.")
             except Exception as e_scores:
                  print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR al obtener scores: {e_scores}")
+                 traceback.print_exc()
                  await ctx.send("⚠️ No se pudieron obtener scores, análisis limitado.")
 
-            # Guardar scores en DB (¡Aquí puede fallar!)
+            # --- Guardar scores en DB (CON FIX DATETIME) ---
             print("--- [osuAnalyze DEBUG v6] Guardando scores en BD...")
             saved_count = 0
             try:
+                score_type = 'best'
                 for score in best_scores:
                     mods_str = "".join(score.get('mods', []))
-                    timestamp = score.get('created_at', datetime.utcnow().isoformat()) # Necesita import datetime
+                    timestamp_str = score.get('created_at')
+                    timestamp = None
+                    if timestamp_str:
+                        try:
+                            timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                        except ValueError:
+                            print(f"WARN: Could not parse timestamp '{timestamp_str}', using current time.")
+                            timestamp = datetime.now(timezone.utc)
+                    else:
+                        timestamp = datetime.now(timezone.utc)
                     db_connector.execute_procedure("sp_SaveOrUpdateOsuScore", (
                         score['id'], user['id'], score['beatmap']['id'], score['score'],
-                        score['accuracy'], mods_str, 'best', timestamp ))
+                        score['accuracy'], mods_str, score_type, timestamp ))
                     saved_count += 1
+
+                score_type = 'recent'
                 for score in recent_scores:
                     mods_str = "".join(score.get('mods', []))
-                    timestamp = score.get('created_at', datetime.utcnow().isoformat())
+                    timestamp_str = score.get('created_at')
+                    timestamp = None
+                    if timestamp_str:
+                        try:
+                            timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                        except ValueError:
+                            print(f"WARN: Could not parse timestamp '{timestamp_str}', using current time.")
+                            timestamp = datetime.now(timezone.utc)
+                    else:
+                        timestamp = datetime.now(timezone.utc)
                     db_connector.execute_procedure("sp_SaveOrUpdateOsuScore", (
                         score['id'], user['id'], score['beatmap']['id'], score['score'],
-                        score['accuracy'], mods_str, 'recent', timestamp ))
+                        score['accuracy'], mods_str, score_type, timestamp ))
                     saved_count += 1
                 print(f"--- [osuAnalyze DEBUG v6] {saved_count} scores procesados para BD.")
-            except ImportError: # Capturar error si datetime no está importado
-                 print("!!!!!! [osuAnalyze DEBUG v6] ERROR: Falta 'from datetime import datetime' al inicio del archivo.")
-                 await ctx.send("❌ Error interno: Falta configuración de fecha.")
-                 return
-            except KeyError as e_key: # Error si falta 'id' en score o 'beatmap' etc.
-                 print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR: Dato faltante en score API al guardar en BD: {e_key}")
-                 await ctx.send("❌ Error interno: Datos de score incompletos.")
-                 return
+            except KeyError as e_key:
+                 print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR Key: Dato faltante en score API: {e_key}")
+                 traceback.print_exc()
+                 await ctx.send("❌ Error interno: Datos de score incompletos desde API.")
+                 # Considerar retornar aquí si es crítico
             except Exception as e_db_score:
                  print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR al guardar scores en BD: {e_db_score}")
+                 traceback.print_exc()
                  await ctx.send("❌ Error al guardar historial de scores.")
                  # No retornamos, el análisis puede continuar
 
-            # Generar prompt
             print("--- [osuAnalyze DEBUG v6] Generando prompt con OsuAnalyzer...")
             analyzer = OsuAnalyzer(self.osu, user, recent_plays=recent_scores, best_plays=best_scores, user_focus=user_focus)
             prompt = ""
             try:
                  # Verificar método y si es async
-                 if hasattr(analyzer, 'generate_ai_analysis'):
-                      if asyncio.iscoroutinefunction(analyzer.generate_ai_analysis):
-                           prompt = await analyzer.generate_ai_analysis()
+                 method_to_call = getattr(analyzer, 'generate_ai_analysis', None)
+                 if method_to_call:
+                      if asyncio.iscoroutinefunction(method_to_call):
+                           prompt = await method_to_call()
                       else:
-                           prompt = analyzer.generate_ai_analysis() # Síncrono
+                           prompt = method_to_call() # Síncrono
                  else: raise AttributeError("Método generate_ai_analysis no encontrado")
                  print(f"--- [osuAnalyze DEBUG v6] Prompt generado (longitud): {len(prompt)}")
                  if not prompt: raise ValueError("Prompt vacío generado por Analyzer")
             except Exception as e_analyzer:
                  print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR en OsuAnalyzer: {e_analyzer}")
+                 traceback.print_exc()
                  await ctx.send("❌ Error interno al generar el análisis.")
                  return
 
-            # Llamar a Gemini
             print("--- [osuAnalyze DEBUG v6] Llamando a Gemini...")
             model = genai.GenerativeModel("models/gemini-2.5-flash")
             ai_text = None
@@ -432,47 +444,58 @@ class OsuHandler(commands.Cog, name="osu!"):
                  return
             except Exception as e_gemini:
                  print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR Gemini: {e_gemini}")
-                 await ctx.send("❌ Error contactando la IA.")
+                 traceback.print_exc() # Ver el error exacto de Gemini
+                 # Intentar obtener más detalles del error si es posible
+                 error_details = getattr(e_gemini, 'message', str(e_gemini))
+                 await ctx.send(f"❌ Error contactando la IA: {error_details}")
                  return
 
-            # Enviar Embed
             print("--- [osuAnalyze DEBUG v6] Creando y enviando Embed...")
-            # ... (código para crear embed y paginator) ...
-            embed = discord.Embed(title=f"Análisis de {user['username']}...", color=0x9932CC)
-            # ... (añadir campos) ...
+            embed = discord.Embed(title=f"Análisis de {user['username']} (Modo: {mode.capitalize()})", color=0x9932CC)
+            stats = user.get("statistics", {})
+            avatar_url = user.get("avatar_url", "https://osu.ppy.sh/images/layout/avatar-guest.png")
+            embed.set_thumbnail(url=avatar_url)
+            embed.add_field(name="PP", value=f"{stats.get('pp', 0):.2f}", inline=True)
+            embed.add_field(name="Accuracy", value=f"{stats.get('hit_accuracy', 0):.2f}%", inline=True)
+            global_rank = stats.get('global_rank')
+            embed.add_field(name="Rank", value=f"#{global_rank:,}" if global_rank else "N/A", inline=True)
             if is_linked: embed.set_footer(text="Mostrando perfil vinculado.")
-            # ... (lógica paginator) ...
-            await ctx.send(embed=embed) # Simplificado
 
-        # Captura final para cualquier otro error inesperado
+            PAGE_LIMIT = 1024
+            if len(ai_text) <= PAGE_LIMIT:
+                 embed.add_field(name="🧠 Análisis de Dalet", value=ai_text, inline=False)
+                 print(f"--- [osuAnalyze DEBUG v6] Enviando embed para {username!r}")
+                 await ctx.send(embed=embed)
+            else:
+                 pages = [ai_text[i:i + PAGE_LIMIT] for i in range(0, len(ai_text), PAGE_LIMIT)]
+                 embed.add_field(name=f"🧠 Análisis de Dalet (Página 1/{len(pages)})", value=pages[0], inline=False)
+                 print(f"--- [osuAnalyze DEBUG v6] Enviando embed paginado para {username!r}")
+                 await ctx.send(embed=embed, view=AnalysisPaginator(pages))
+
         except Exception as e:
             print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR INESPERADO (captura general): {e}")
-            # Importar traceback para más detalle
-            import traceback
-            traceback.print_exc() # Imprime el stack trace completo en los logs
-            await ctx.send("⚠️ Error inesperado al generar el análisis.") # Mensaje genérico al usuario
+            traceback.print_exc()
+            await ctx.send("⚠️ Error inesperado al generar el análisis.")
         finally:
-            # Este bloque se ejecuta siempre, haya error o no
             print("--- [osuAnalyze DEBUG v6] --- Comando finalizado.")
             print("------------------------------\n")
 
     # --- Comando osuCoach (LIMPIO y usando auxiliar) ---
    # --- Comando osuCoach (CON DIAGNÓSTICO REFORZADO) ---
+   # --- Comando osuCoach (CON DIAGNÓSTICO REFORZADO y FIX DATETIME) ---
     @commands.command(help="Genera un plan de coaching de osu!...", aliases=["oc"])
     async def osuCoach(self, ctx, *, args: str = None):
-        print("\n--- [osuCoach DEBUG v6] --- Iniciando comando...") # DEBUG v6
-        try: # Try general
+        print("\n--- [osuCoach DEBUG v6] --- Iniciando comando...")
+        try:
             if not self.osu:
                  print("!!!!!! [osuCoach DEBUG v6] OsuAPI no inicializada.")
                  return await ctx.send("❌ Error: La conexión con la API de osu! no está configurada.")
 
             username, mode, user_focus, is_linked = None, "osu", None, False
 
-            # --- Parseo de argumentos (CON TRY-EXCEPT) ---
             print("--- [osuCoach DEBUG v6] Parseando argumentos...")
             try:
                 if args:
-                     # ... (Tu lógica de parseo aquí) ...
                      parts = args.split(); username_parts = []; i = 0
                      while i < len(parts):
                           part = parts[i]
@@ -484,33 +507,29 @@ class OsuHandler(commands.Cog, name="osu!"):
                      if username_parts: username = " ".join(username_parts).strip()
                 print(f"--- [osuCoach DEBUG v6] Args parseados: user='{username}', mode='{mode}', focus='{user_focus}'")
             except Exception as e_parse:
-                 print(f"!!!!!! [osuCoach DEBUG v6] ERROR durante parseo de args: {e_parse}")
-                 await ctx.send("❌ Error al procesar los argumentos del comando.")
+                 print(f"!!!!!! [osuCoach DEBUG v6] ERROR parseando args: {e_parse}")
+                 traceback.print_exc()
+                 await ctx.send("❌ Error al procesar los argumentos.")
                  return
 
-            # --- Obtener nombre vinculado ---
             if not username:
                 print("--- [osuCoach DEBUG v6] No hay nombre, buscando vinculado...")
                 username = await self._get_linked_username(ctx)
                 if not username:
                      await ctx.send("❌ No tienes cuenta vinculada ni especificaste nombre.")
-                     print("--- [osuCoach DEBUG v6] Terminando: No hay nombre de usuario.")
-                     print("------------------------------\n")
+                     print("--- [osuCoach DEBUG v6] Terminando: No hay nombre.")
                      return
                 is_linked = True
 
-            # --- Lógica principal ---
             print(f"--- [osuCoach DEBUG v6] Obteniendo datos para: {username!r}, Modo: {mode}, Focus: {user_focus}")
             await ctx.typing()
 
-            # Obtener datos usuario
             user = self.osu.get_user(username, mode)
             if not user or 'id' not in user:
                  print(f"!!!!!! [osuCoach DEBUG v6] API osu! no encontró usuario.")
                  await ctx.send(f"❌ No se pudo encontrar '{username}' en modo '{mode}'.")
                  return
 
-            # Obtener scores
             print("--- [osuCoach DEBUG v6] Obteniendo scores...")
             best_scores, recent_scores = [], []
             try:
@@ -519,62 +538,79 @@ class OsuHandler(commands.Cog, name="osu!"):
                  print(f"--- [osuCoach DEBUG v6] Scores obtenidos: {len(best_scores)} best, {len(recent_scores)} recent.")
             except Exception as e_scores:
                  print(f"!!!!!! [osuCoach DEBUG v6] ERROR al obtener scores: {e_scores}")
+                 traceback.print_exc()
                  await ctx.send("⚠️ No se pudieron obtener scores, coaching limitado.")
 
-            # Guardar scores en BD
+            # --- Guardar scores en DB (CON FIX DATETIME) ---
             print("--- [osuCoach DEBUG v6] Guardando scores en BD...")
             saved_count = 0
             try:
-                # Necesita 'from datetime import datetime' al inicio del archivo
-                from datetime import datetime # Importar aquí si falta globalmente
+                score_type = 'best'
                 for score in best_scores:
                     mods_str = "".join(score.get('mods', []))
-                    timestamp = score.get('created_at', datetime.utcnow().isoformat())
+                    timestamp_str = score.get('created_at')
+                    timestamp = None
+                    if timestamp_str:
+                        try:
+                            timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                        except ValueError:
+                            print(f"WARN: Could not parse timestamp '{timestamp_str}', using current time.")
+                            timestamp = datetime.now(timezone.utc)
+                    else:
+                        timestamp = datetime.now(timezone.utc)
                     db_connector.execute_procedure("sp_SaveOrUpdateOsuScore", (
                         score['id'], user['id'], score['beatmap']['id'], score['score'],
-                        score['accuracy'], mods_str, 'best', timestamp ))
+                        score['accuracy'], mods_str, score_type, timestamp ))
                     saved_count += 1
+
+                score_type = 'recent'
                 for score in recent_scores:
                     mods_str = "".join(score.get('mods', []))
-                    timestamp = score.get('created_at', datetime.utcnow().isoformat())
+                    timestamp_str = score.get('created_at')
+                    timestamp = None
+                    if timestamp_str:
+                        try:
+                            timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                        except ValueError:
+                            print(f"WARN: Could not parse timestamp '{timestamp_str}', using current time.")
+                            timestamp = datetime.now(timezone.utc)
+                    else:
+                        timestamp = datetime.now(timezone.utc)
                     db_connector.execute_procedure("sp_SaveOrUpdateOsuScore", (
                         score['id'], user['id'], score['beatmap']['id'], score['score'],
-                        score['accuracy'], mods_str, 'recent', timestamp ))
+                        score['accuracy'], mods_str, score_type, timestamp ))
                     saved_count += 1
                 print(f"--- [osuCoach DEBUG v6] {saved_count} scores procesados para BD.")
-            except ImportError:
-                 print("!!!!!! [osuCoach DEBUG v6] ERROR: Falta 'from datetime import datetime'.")
-                 await ctx.send("❌ Error interno: Falta configuración de fecha.")
-                 return
             except KeyError as e_key:
-                 print(f"!!!!!! [osuCoach DEBUG v6] ERROR: Dato faltante en score API al guardar: {e_key}")
-                 await ctx.send("❌ Error interno: Datos de score incompletos.")
-                 return
+                 print(f"!!!!!! [osuCoach DEBUG v6] ERROR Key: Dato faltante en score API: {e_key}")
+                 traceback.print_exc()
+                 await ctx.send("❌ Error interno: Datos de score incompletos desde API.")
+                 # Considerar retornar
             except Exception as e_db_score:
                  print(f"!!!!!! [osuCoach DEBUG v6] ERROR al guardar scores en BD: {e_db_score}")
+                 traceback.print_exc()
                  await ctx.send("❌ Error al guardar historial de scores.")
                  # Continuar
 
-            # Generar prompt
             print("--- [osuCoach DEBUG v6] Generando prompt con OsuAnalyzer...")
             analyzer = OsuAnalyzer(self.osu, user, recent_plays=recent_scores, best_plays=best_scores, user_focus=user_focus)
             prompt = ""
             try:
-                 # Verificar método y si es async
-                 if hasattr(analyzer, 'generate_coaching_prompt'):
-                      if asyncio.iscoroutinefunction(analyzer.generate_coaching_prompt):
-                           prompt = await analyzer.generate_coaching_prompt()
+                 method_to_call = getattr(analyzer, 'generate_coaching_prompt', None)
+                 if method_to_call:
+                      if asyncio.iscoroutinefunction(method_to_call):
+                           prompt = await method_to_call()
                       else:
-                           prompt = analyzer.generate_coaching_prompt()
+                           prompt = method_to_call() # Síncrono
                  else: raise AttributeError("Método generate_coaching_prompt no encontrado")
                  print(f"--- [osuCoach DEBUG v6] Prompt generado (longitud): {len(prompt)}")
                  if not prompt: raise ValueError("Prompt vacío generado por Analyzer")
             except Exception as e_analyzer:
                  print(f"!!!!!! [osuCoach DEBUG v6] ERROR en OsuAnalyzer: {e_analyzer}")
+                 traceback.print_exc()
                  await ctx.send("❌ Error interno al generar el coaching.")
                  return
 
-            # Llamar a Gemini
             print("--- [osuCoach DEBUG v6] Llamando a Gemini...")
             model = genai.GenerativeModel("models/gemini-2.5-flash")
             ai_text = None
@@ -590,22 +626,30 @@ class OsuHandler(commands.Cog, name="osu!"):
                  return
             except Exception as e_gemini:
                  print(f"!!!!!! [osuCoach DEBUG v6] ERROR Gemini: {e_gemini}")
-                 await ctx.send("❌ Error contactando la IA.")
+                 traceback.print_exc()
+                 error_details = getattr(e_gemini, 'message', str(e_gemini))
+                 await ctx.send(f"❌ Error contactando la IA: {error_details}")
                  return
 
-            # Enviar Embed
             print("--- [osuCoach DEBUG v6] Creando y enviando Embed...")
-            # ... (código para crear embed y paginator) ...
-            embed_shell = discord.Embed(title=f"Plan de Coaching para {user['username']}...", color=0xFFD700)
-            # ... (añadir descripción/campos y paginator) ...
+            embed_shell = discord.Embed(title=f"Plan de Coaching para {user['username']}", color=0xFFD700)
+            avatar_url = user.get("avatar_url", "https://osu.ppy.sh/images/layout/avatar-guest.png")
+            embed_shell.set_thumbnail(url=avatar_url)
             if is_linked: embed_shell.set_footer(text="Mostrando perfil vinculado.")
-            # ... (lógica paginator) ...
-            await ctx.send(embed=embed_shell) # Simplificado
+            PAGE_CHAR_LIMIT = 1800
 
-        # Captura final
+            if len(ai_text) <= PAGE_CHAR_LIMIT:
+                embed_shell.description = ai_text
+                print(f"--- [osuCoach DEBUG v6] Enviando embed para {username!r}")
+                await ctx.send(embed=embed_shell)
+            else:
+                pages = [ai_text[i:i + PAGE_CHAR_LIMIT] for i in range(0, len(ai_text), PAGE_CHAR_LIMIT)]
+                embed_shell.description = pages[0]
+                print(f"--- [osuCoach DEBUG v6] Enviando embed paginado para {username!r}")
+                await ctx.send(embed=embed_shell, view=DescriptionPaginator(pages, embed_shell))
+
         except Exception as e:
             print(f"!!!!!! [osuCoach DEBUG v6] ERROR INESPERADO (captura general): {e}")
-            import traceback
             traceback.print_exc()
             await ctx.send("⚠️ Error inesperado al generar el plan de coaching.")
         finally:
@@ -614,20 +658,18 @@ class OsuHandler(commands.Cog, name="osu!"):
 
 
 async def setup(bot):
-    print("--- [osu! Cog] Ejecutando setup...") # DEBUG SETUP
-    # Asegúrate de tener las variables de entorno para la API de osu!
+    print("--- [osu! Cog] Ejecutando setup...")
     client_id = os.getenv("OSU_CLIENT_ID")
     client_secret = os.getenv("OSU_CLIENT_SECRET")
-
     if client_id and client_secret:
-        # Validar que client_id sea un número antes de añadir el cog
         try:
-             int(client_id) # Intentar convertir a entero
+             int(client_id)
              await bot.add_cog(OsuHandler(bot))
-             print("--- [osu! Cog] Cog OsuHandler añadido exitosamente.") # DEBUG SETUP OK
+             print("--- [osu! Cog] Cog OsuHandler añadido exitosamente.")
         except ValueError:
-             print(f"!!!!!! [osu! Cog] ERROR: OSU_CLIENT_ID ('{client_id}') no es un número válido. El cog no se cargará.")
+             print(f"!!!!!! [osu! Cog] ERROR: OSU_CLIENT_ID ('{client_id}') no es número.")
         except Exception as e:
-             print(f"!!!!!! [osu! Cog] ERROR al añadir cog OsuHandler: {e}") # DEBUG SETUP FAIL
+             print(f"!!!!!! [osu! Cog] ERROR al añadir cog: {e}")
+             traceback.print_exc() # Ver error al añadir cog
     else:
-        print("!!!!!! [osu! Cog] ADVERTENCIA: Faltan OSU_CLIENT_ID o OSU_CLIENT_SECRET. El cog OsuHandler no se cargará.")
+        print("!!!!!! [osu! Cog] ADVERTENCIA: Faltan credenciales osu!. Cog no cargado.")
