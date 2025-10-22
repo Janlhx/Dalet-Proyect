@@ -9,7 +9,7 @@ from handlers.modules import dalet_nlp # Importamos el módulo con la lógica de
 # Importamos el MemoryManager para obtener contexto
 from handlers.dalet_memorymanager import MemoryManager
 # --- ¡Importamos nuestro conector de base de datos! ---
-from . import db_connector
+import db_connector
   # 🧠 Nueva integración
 
 # ==========================================================

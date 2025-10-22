@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from datetime import datetime
 # --- Import corregido (solo queda una línea y apunta al lugar correcto) ---
-from . import db_connector
+import db_connector
 
 class ChatLogger(commands.Cog, name="Memoria Global"):
     def __init__(self, bot):
