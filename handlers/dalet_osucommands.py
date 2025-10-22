@@ -97,20 +97,20 @@ class OsuHandler(commands.Cog, name="osu!"):
                   self.osu = None
         print("--- [osu! Cog] __init__ completado.") # DEBUG INIT FIN
 
-    # --- Función auxiliar para obtener nombre vinculado (con debug) ---
+    # --- Función auxiliar para obtener nombre vinculado (con debug v6 - Consulta Directa) ---
     async def _get_linked_username(self, ctx):
-        """Intenta obtener el nombre de usuario vinculado desde la BD."""
-        # Primero verificar si la API está disponible (aunque esta función no la usa directamente,
-        # los comandos que la llaman sí la necesitarán después)
-        if not self.osu:
-             print("!!!!!! [_get_linked_username DEBUG] OsuAPI no está inicializada. Abortando.")
-             # No enviamos mensaje aquí, solo devolvemos None para que el comando principal lo maneje
-             return None
-
-        print(f"\n--- [_get_linked_username DEBUG] Consultando BD para UserID: {ctx.author.id}")
+        """Intenta obtener el nombre de usuario vinculado DIRECTAMENTE desde la tabla."""
+        print(f"\n--- [_get_linked_username DEBUG v6] Consultando BD para UserID: {ctx.author.id}")
         try:
-            result = db_connector.fetch_one("SELECT fn_GetOsuUsername(%s)", (ctx.author.id,))
-            print(f"--- [_get_linked_username DEBUG] Resultado DB: {result!r}")
+            # ======================================================
+            # ▼▼▼ ¡CAMBIO PRINCIPAL! ▼▼▼
+            # Hacemos la consulta SELECT directamente a la tabla
+            # ======================================================
+            query = "SELECT osuusername FROM osuaccounts WHERE userid = %s LIMIT 1"
+            # ======================================================
+
+            result = db_connector.fetch_one(query, (ctx.author.id,)) # Pasar el ID como tupla
+            print(f"--- [_get_linked_username DEBUG v6] Resultado DB (consulta directa): {result!r}")
 
             nombre_db = None
             if result and result[0] is not None:
@@ -118,16 +118,16 @@ class OsuHandler(commands.Cog, name="osu!"):
                 nombre_db = str(result[0]).strip()
 
             if nombre_db: # Comprobar si la cadena no está vacía después de strip()
-                print(f"--- [_get_linked_username DEBUG] Nombre encontrado: {nombre_db!r}")
+                print(f"--- [_get_linked_username DEBUG v6] Nombre encontrado: {nombre_db!r}")
                 print("-------------------------------------------\n")
                 return nombre_db
             else:
-                print("--- [_get_linked_username DEBUG] No se encontró nombre en BD o resultado vacío/None.")
+                print("--- [_get_linked_username DEBUG v6] No se encontró nombre en BD o resultado vacío/None.")
                 print("-------------------------------------------\n")
                 return None
         except Exception as e:
              # Imprimir el error pero no enviar mensaje a Discord, devolver None
-             print(f"!!!!!! [_get_linked_username DEBUG] ERROR al consultar DB: {e}")
+             print(f"!!!!!! [_get_linked_username DEBUG v6] ERROR al consultar DB directamente: {e}")
              print("-------------------------------------------\n")
              # await ctx.send("❌ Error al consultar tu cuenta vinculada.") # Quitar mensaje de aquí
              return None
