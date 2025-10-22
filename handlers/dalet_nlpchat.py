@@ -11,6 +11,7 @@ from handlers.dalet_memorymanager import MemoryManager
 # --- ¡Importamos nuestro conector de base de datos! ---
 import db_connector
   # 🧠 Nueva integración
+import traceback
 
 # ==========================================================
 # 🧠 CONFIGURACIÓN (Simplificada)
@@ -72,86 +73,82 @@ class DaletNLPChat(commands.Cog):
     # ------------------------------------------------------
     @commands.Cog.listener()
     async def on_message(self, message):
-        # 1. Filtros iniciales (ignorar bots, comandos, etc.)
-        if message.author.bot or not message.guild:
-            return
-        if message.content.lower().startswith(("d.", "D.")):
-            return
+        # 1. Filtros iniciales
+        if message.author.bot or not message.guild: return
+        if message.content.lower().startswith(("d.", "D.")): return
 
         content_lower = message.content.lower()
 
-        # --- LÓGICA DE RESPUESTAS RÁPIDAS (Movida desde EventsHandler) ---
-        diccionario_Frases = {
-            "dalet test": "si sirvo",
-            "dalet di algo": ["algo", "nose", "chao"],
-            "dalet on": "estoy on",
-            "brawlhalla?": "eso va",
-            "que pasa si hay alts": "muerte a las alts"
-        }
-        
-        if "dalet test" in content_lower:
-            await message.channel.send(diccionario_Frases["dalet test"])
-            return # Termina aquí, no necesita IA ni memoria
-        elif "dalet di algo" in content_lower:
-            await message.channel.send(random.choice(diccionario_Frases["dalet di algo"]))
-            return
-        elif "dalet on" in content_lower:
-            await message.channel.send(diccionario_Frases["dalet on"])
-            return
-        elif "brawlhalla?" in content_lower:
-            await message.channel.send(diccionario_Frases["brawlhalla?"])
-            return
-        elif "que pasa si hay alts" in content_lower:
-            await message.channel.send(diccionario_Frases["que pasa si hay alts"])
-            return
+        # --- LÓGICA DE RESPUESTAS RÁPIDAS (Sin cambios) ---
+        diccionario_Frases = { ... } # Tu diccionario
+        if "dalet test" in content_lower: await message.channel.send(diccionario_Frases["dalet test"]); return
+        elif "dalet di algo" in content_lower: await message.channel.send(random.choice(diccionario_Frases["dalet di algo"])); return
+        # ... (resto de tus respuestas rápidas) ...
+        elif "que pasa si hay alts" in content_lower: await message.channel.send(diccionario_Frases["que pasa si hay alts"]); return
         # --- FIN DE LÓGICA DE RESPUESTAS RÁPIDAS ---
 
 
-
-        
-       # ==========================================================
-        # ▼▼▼ LÓGICA DE DECISIÓN ACTUALIZADA CON BASE DE DATOS ▼▼▼
         # ==========================================================
-        # 3. Decidir si responder con IA (Lógica Reactiva y Proactiva)
-        
-        # Verificar modo reactivo desde la BD
-        is_server_reactive = True # Asumir True por defecto
+        # ▼▼▼ ¡NUEVO! LÓGICA PARA GUARDAR RECUERDOS ▼▼▼
+        # ==========================================================
+        # Verificar si el mensaje contiene frases clave ANTES de decidir responder
+        try:
+            # Asegurarse de que self.memory esté disponible
+            if not self.memory: self.memory = self.bot.get_cog("MemoryManager")
+
+            if self.memory and ("recuerda que" in content_lower or "mi nombre es" in content_lower or "quiero que recuerdes" in content_lower):
+                print(f"[NLP DEBUG] Detectada frase clave para guardar recuerdo: '{message.content}'")
+                # Extraer el contenido relevante (opcional, podrías guardar el mensaje entero)
+                # content_to_remember = message.content # Guardar mensaje completo
+                # O intentar extraer solo la parte importante (más complejo)
+                
+                # Llamar a la función async para guardar
+                await self.memory.add_user_memory(
+                    message.author.id,
+                    str(message.author.name), # Pasar nombre de usuario
+                    message.content, # Guardar mensaje completo por simplicidad
+                    topic="información personal" # O podrías intentar detectar el topic
+                )
+                # Podríamos añadir una reacción al mensaje para confirmar visualmente
+                # await message.add_reaction("🧠")
+        except Exception as e_mem_save:
+             print(f"!!!!!! [NLP DEBUG] ERROR al intentar llamar a add_user_memory: {e_mem_save}")
+             traceback.print_exc()
+        # ==========================================================
+
+
+        # --- LÓGICA DE DECISIÓN REACTIVA/PROACTIVA (Sin cambios) ---
+        is_server_reactive = True
         try:
             reactive_result = db_connector.fetch_one("SELECT fn_IsServerReactive(%s)", (message.guild.id,))
-            if reactive_result and reactive_result[0] is not None:
-                is_server_reactive = reactive_result[0]
-        except Exception as e:
-            print(f"Error al consultar fn_IsServerReactive: {e}")
+            if reactive_result and reactive_result[0] is not None: is_server_reactive = reactive_result[0]
+        except Exception as e: print(f"Error al consultar fn_IsServerReactive: {e}")
 
-        # Si el servidor es reactivo Y mencionan al bot o su nombre
         if is_server_reactive and (self.bot.user.mentioned_in(message) or "dalet" in content_lower):
-            print(f"[NLP DEBUG] Trigger reactivo detectado para mensaje: '{message.content}'")
+            print(f"[NLP DEBUG] Trigger reactivo detectado...")
             await self.generate_response(message, is_direct_mention=True)
-            return # Importante: terminar aquí si ya respondimos reactivamente
+            return
 
-        # Si no fue reactivo, verificar modo proactivo desde la BD
-        is_channel_proactive = False # Asumir False por defecto
+        is_channel_proactive = False
         try:
             proactive_result = db_connector.fetch_one("SELECT fn_IsChannelProactive(%s)", (message.channel.id,))
-            if proactive_result and proactive_result[0] is not None:
-                is_channel_proactive = proactive_result[0]
-        except Exception as e:
-            print(f"Error al consultar fn_IsChannelProactive: {e}")
-            
-        # Si el canal es proactivo Y cumple las condiciones de tiempo/mensajes/probabilidad
+            if proactive_result and proactive_result[0] is not None: is_channel_proactive = proactive_result[0]
+        except Exception as e: print(f"Error al consultar fn_IsChannelProactive: {e}")
+
         if is_channel_proactive:
-             print(f"[NLP DEBUG] Canal proactivo. Verificando should_respond() para: '{message.content}'")
+             # print(f"[NLP DEBUG] Canal proactivo. Verificando should_respond()...")
              if self.should_respond():
-                 print(f"[NLP DEBUG] should_respond() es TRUE. Generando respuesta proactiva.")
+                 print(f"[NLP DEBUG] should_respond() TRUE. Generando respuesta proactiva.")
                  await self.generate_response(message, is_direct_mention=False)
              else:
-                 # Si no debe responder proactivamente, solo incrementamos el contador
-                 self.message_counter += 1
-                 print(f"[NLP DEBUG] should_respond() es FALSE. Contador: {self.message_counter}")
+                 # El contador ahora se incrementa dentro de should_respond()
+                 # print(f"[NLP DEBUG] should_respond() FALSE. Contador: {self.message_counter}")
+                 pass # No hacemos nada si no debe responder
         else:
-             # Si el canal no es proactivo, igual incrementamos contador para should_respond()
-             self.message_counter += 1
-             print(f"[NLP DEBUG] Canal NO proactivo. Contador: {self.message_counter}")
+             # Si el canal no es proactivo, igual llamamos a should_respond para incrementar contador
+             self.should_respond() # Llamar para que incremente el contador interno
+             # print(f"[NLP DEBUG] Canal NO proactivo. Contador: {self.message_counter}")
+             pass
 
         # ==========================================================
         # ▲▲▲ FIN DE LA LÓGICA ACTUALIZADA ▲▲▲
