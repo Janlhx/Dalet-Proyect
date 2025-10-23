@@ -111,12 +111,12 @@ class MemoryManager(commands.Cog):
 
         # 1️⃣ Últimos mensajes del canal (desde la Base de Datos)
         try:
+            # REQUISITO 4: Usamos la VISTA en lugar de un JOIN
             query = """
-                SELECT u.UserName, m.Content
-                FROM Messages m
-                JOIN Users u ON m.UserID = u.UserID
-                WHERE m.ChannelID = %s
-                ORDER BY m.Timestamp DESC
+                SELECT UserName, Content
+                FROM V_ChannelMessages
+                WHERE ChannelID = %s
+                ORDER BY Timestamp DESC
                 LIMIT 20
             """
             registros_canal = db_connector.fetch_all(query, (channel_id,))

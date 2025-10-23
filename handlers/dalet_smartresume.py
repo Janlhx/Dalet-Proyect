@@ -30,12 +30,12 @@ class ResumenInteligente(commands.Cog, name="Resumen Inteligente"):
         try:
             # 1. Obtener historial desde la base de datos
             print(f"--- [Resumen DEBUG] Obteniendo {cantidad_mensajes} mensajes de la BD...")
+            # REQUISITO 4: Usamos la VISTA en lugar de un JOIN
             query = """
-                SELECT u.UserName, m.Content
-                FROM Messages m
-                JOIN Users u ON m.UserID = u.UserID
-                WHERE m.ChannelID = %s
-                ORDER BY m.Timestamp DESC
+                SELECT UserName, Content
+                FROM V_ChannelMessages
+                WHERE ChannelID = %s
+                ORDER BY Timestamp DESC
                 LIMIT %s
             """
             # Obtener mensajes y revertir para orden cronológico
@@ -43,10 +43,6 @@ class ResumenInteligente(commands.Cog, name="Resumen Inteligente"):
             registros.reverse()
             historial_texto = "\n".join([f"{autor}: {contenido}" for autor, contenido in registros])
             print(f"--- [Resumen DEBUG] Historial obtenido (longitud): {len(historial_texto)} chars")
-
-            if not historial_texto:
-                await ctx.send("No hay suficientes mensajes en este canal para generar un resumen.")
-                return
 
             # 2. Generar resumen con Gemini (sin cambios)
             print("--- [Resumen DEBUG] Llamando a Gemini para resumir...")

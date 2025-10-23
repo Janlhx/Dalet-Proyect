@@ -11,6 +11,7 @@ import db_connector
 from datetime import datetime, timezone # Necesitamos importar timezone
 # Import para traceback
 import traceback
+from discord.utils import format_dt # Para formatear la fecha
 # --- Clases Paginator (sin cambios) ---
 class AnalysisPaginator(discord.ui.View):
     def __init__(self, pages):
@@ -724,7 +725,76 @@ class OsuHandler(commands.Cog, name="osu!"):
         finally:
             print("--- [osuCoach DEBUG v6] --- Comando finalizado.")
             print("------------------------------\n")
+    @commands.command(name="ranking", help="Muestra el ranking de PP del bot.")
+    async def osu_ranking(self, ctx, limit: int = 10):
+        """Muestra el ranking de PP de usuarios vinculados."""
+        if limit > 25: limit = 25 # Evitar spam
 
+        try:
+            # REQUISITO 4c/5a: Llamamos a la VISTA con RANK()
+            query = "SELECT UserName, PP, Accuracy, CalculatedRank FROM V_OsuRankingGlobal LIMIT %s"
+            ranking_data = db_connector.fetch_all(query, (limit,))
+
+            if not ranking_data:
+                return await ctx.send("No hay datos de ranking disponibles.")
+
+            embed = discord.Embed(
+                title="🏆 Ranking Global de PP (Usuarios de Dalet)",
+                color=0xFF66AA
+            )
+            
+            description = ""
+            for row in ranking_data:
+                # row[0]=UserName, row[1]=PP, row[2]=Accuracy, row[3]=CalculatedRank
+                rank = row[3]
+                username = row[0]
+                pp = row[1]
+                acc = row[2]
+                description += f"**{rank}. {username}** - `{pp:,.2f} pp` (`{acc:.2f}%`)\n"
+            
+            embed.description = description
+            await ctx.send(embed=embed)
+
+        except Exception as e:
+            await ctx.send(f"❌ Error al obtener el ranking: {e}")
+
+    @commands.command(name="scorehistory", help="Muestra tu historial de accuracy en 'best plays'.")
+    async def osu_score_history(self, ctx):
+        """Muestra la evolución de accuracy de tus 'best plays'."""
+        try:
+            # REQUISITO 4d/5a: Llamamos a la función con CTE y LAG()
+            query = "SELECT * FROM fn_GetScoreHistory(%s, 10)"
+            history_data = db_connector.fetch_all(query, (ctx.author.id,))
+
+            if not history_data:
+                return await ctx.send("No tienes historial de scores (tipo 'best') guardado.")
+
+            embed = discord.Embed(
+                title=f"📈 Historial de 'Best Plays' de {ctx.author.name}",
+                description="Muestra la ganancia/pérdida de accuracy entre tus 'best plays' guardadas.",
+                color=0x5885C9
+            )
+
+            for row in history_data:
+                # row[0]=timestamp, row[1]=accuracy, row[2]=accuracy_change
+                timestamp = row[0]
+                accuracy = row[1]
+                change = row[2]
+
+                change_str = "N/A"
+                if change is not None:
+                    # Formateamos el cambio para que muestre el signo
+                    change_str = f"+{change:.2f}%" if change > 0 else f"{change:.2f}%"
+                
+                field_name = f"{format_dt(timestamp, 'D')}" # 'D' = 22 de octubre de 2025
+                field_value = f"**Acc:** `{accuracy:.2f}%` (Cambio: `{change_str}`)"
+                embed.add_field(name=field_name, value=field_value, inline=False)
+            
+            embed.set_footer(text="El cambio se compara con el 'best play' guardado anteriormente.")
+            await ctx.send(embed=embed)
+        
+        except Exception as e:
+            await ctx.send(f"❌ Error al obtener tu historial de scores: {e}")
 
 async def setup(bot):
     print("--- [osu! Cog] Ejecutando setup...")

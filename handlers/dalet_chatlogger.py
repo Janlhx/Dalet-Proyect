@@ -40,12 +40,12 @@ class ChatLogger(commands.Cog, name="Memoria Global"):
     async def chatlog(self, ctx, cantidad: int = 10):
         """[ADMIN] Muestra los últimos mensajes guardados desde la BD."""
         try:
+            # REQUISITO 4: Usamos la VISTA en lugar de un JOIN
             query = """
-                SELECT u.UserName, m.Content
-                FROM Messages m
-                JOIN Users u ON m.UserID = u.UserID
-                WHERE m.ChannelID = %s -- Mostramos solo del canal actual
-                ORDER BY m.Timestamp DESC
+                SELECT UserName, Content
+                FROM V_ChannelMessages
+                WHERE ChannelID = %s
+                ORDER BY Timestamp DESC
                 LIMIT %s
             """
             registros = db_connector.fetch_all(query, (ctx.channel.id, cantidad))

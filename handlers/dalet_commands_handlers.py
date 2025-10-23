@@ -2,7 +2,8 @@ import discord
 from discord.ext import commands
 import os
 import json
-
+import db_connector # ¡Asegúrate de importar el conector!
+from discord.utils import format_dt # Para formatear la fecha
 
 class CommandsHandler(commands.Cog, name="Comandos Generales"):
     """Comandos básicos de Dalet (utilidades, info y herramientas generales)."""
@@ -54,6 +55,35 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
         """Hace que el bot repita tu mensaje."""
         await ctx.send(mensaje)
 
+    @commands.command()
+    async def mystats(self, ctx):
+        """Muestra tus estadísticas de actividad en el bot."""
+        try:
+            # REQUISITO 4d/5: Llamamos a la función que usa CTEs
+            query = "SELECT * FROM fn_GetUserStats(%s)"
+            stats = db_connector.fetch_one(query, (ctx.author.id,))
 
+            if not stats:
+                return await ctx.send("No tengo datos sobre ti.")
+
+            # stats[0] = msg_count, stats[1] = score_count, stats[2] = last_msg_timestamp
+            msg_count = stats[0]
+            score_count = stats[1]
+            last_msg = stats[2]
+
+            embed = discord.Embed(
+                title=f"📊 Estadísticas de {ctx.author.name}",
+                color=discord.Color.random()
+            )
+            embed.add_field(name="Mensajes Enviados", value=f"`{msg_count:,}`", inline=True)
+            embed.add_field(name="Scores de osu! Guardados", value=f"`{score_count:,}`", inline=True)
+            if last_msg:
+                # format_dt(last_msg, 'R') crea un timestamp relativo (ej: "hace 2 horas")
+                embed.add_field(name="Último Mensaje", value=format_dt(last_msg, 'R'), inline=False)
+
+            await ctx.send(embed=embed)
+
+        except Exception as e:
+            await ctx.send(f"❌ Error al obtener tus estadísticas: {e}")
 async def setup(bot):
     await bot.add_cog(CommandsHandler(bot))
