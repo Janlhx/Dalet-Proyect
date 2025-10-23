@@ -80,11 +80,10 @@ class DaletNLPChat(commands.Cog):
         content_lower = message.content.lower()
 
         # --- LÓGICA DE RESPUESTAS RÁPIDAS (Sin cambios) ---
-        diccionario_Frases = { ... } # Tu diccionario
+        diccionario_Frases = {"dalet test":"si sirvo",
+                              "dalet on":"estoy on"} # Tu diccionario
         if "dalet test" in content_lower: await message.channel.send(diccionario_Frases["dalet test"]); return
-        elif "dalet di algo" in content_lower: await message.channel.send(random.choice(diccionario_Frases["dalet di algo"])); return
-        # ... (resto de tus respuestas rápidas) ...
-        elif "que pasa si hay alts" in content_lower: await message.channel.send(diccionario_Frases["que pasa si hay alts"]); return
+        elif "dalet on" in content_lower: await message.channel.send(diccionario_Frases["dalet on"]); return
         # --- FIN DE LÓGICA DE RESPUESTAS RÁPIDAS ---
 
 
