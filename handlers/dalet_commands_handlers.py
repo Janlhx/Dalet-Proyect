@@ -1,8 +1,15 @@
+"""
+Handler (Cog) para Comandos Generales y de Utilidad.
+
+Este Cog agrupa comandos básicos que proporcionan información
+sobre el bot, el servidor o los usuarios (ej. ping, userinfo).
+No están ligados a una lógica de negocio compleja (como IA o osu!).
+"""
 import discord
 from discord.ext import commands
 import os
 import json
-import db_connector 
+import db_connector # Importado para el comando mystats
 from discord.utils import format_dt # Para formatear la fecha
 
 class CommandsHandler(commands.Cog, name="Comandos Generales"):
@@ -14,7 +21,7 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
     # --- 💬 UTILIDADES ---
     @commands.command()
     async def ms(self, ctx):
-        """Muestra la latencia del bot."""
+        """Muestra la latencia del bot (ping)."""
         latency = round(self.bot.latency * 1000)
         await ctx.send(embed=discord.Embed(
             title="🏓 Ping",
@@ -24,7 +31,7 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
 
     @commands.command()
     async def userinfo(self, ctx, member: discord.Member = None):
-        """Muestra información de un usuario."""
+        """Muestra información de un usuario (o de quien usa el comando)."""
         member = member or ctx.author
         embed = discord.Embed(
             title=f"👤 {member}",
@@ -38,7 +45,7 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
 
     @commands.command()
     async def serverinfo(self, ctx):
-        """Muestra información del servidor."""
+        """Muestra información del servidor actual."""
         g = ctx.guild
         embed = discord.Embed(
             title=f"🌐 {g.name}",
@@ -85,5 +92,9 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
 
         except Exception as e:
             await ctx.send(f"❌ Error al obtener tus estadísticas: {e}")
+            print(f"!!!!!! [CommandsHandler] Error en mystats: {e}")
+
+
 async def setup(bot):
+    """Función 'setup' para cargar el Cog."""
     await bot.add_cog(CommandsHandler(bot))

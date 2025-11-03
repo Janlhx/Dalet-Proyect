@@ -1,3 +1,11 @@
+"""
+Módulo de Conexión a la Base de Datos.
+
+Este archivo centraliza la conexión con la base de datos PostgreSQL en Neon.
+Proporciona funciones auxiliares para ejecutar consultas (SELECT) y
+procedimientos almacenados (CALL) de forma segura y consistente
+a través de toda la aplicación.
+"""
 import psycopg2
 import os
 from dotenv import load_dotenv
@@ -6,11 +14,15 @@ from dotenv import load_dotenv
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# (Quitamos los prints de diagnóstico de la URL, ya confirmamos que se lee)
-
 def get_connection():
-    """Crea y devuelve una nueva conexión a la base de datos."""
-    # Verificar si la URL existe antes de intentar conectar
+    """
+    Crea y devuelve una nueva conexión a la base de datos.
+
+    Utiliza la variable de entorno DATABASE_URL para conectar con PostgreSQL.
+
+    Returns:
+        psycopg2.connection: Un objeto de conexión de Psycopg2 o None si falla.
+    """
     if not DATABASE_URL:
         print("!!!!!! [DB Connector] ERROR FATAL: DATABASE_URL no está configurada.")
         return None
@@ -22,36 +34,48 @@ def get_connection():
         return None
 
 def execute_procedure(procedure_name, params=()):
-    """Ejecuta un procedimiento almacenado (usa CALL)."""
+    """
+    Ejecuta un procedimiento almacenado (usa CALL) y confirma la transacción.
+
+    Esta función es para operaciones que modifican datos (INSERT, UPDATE, DELETE)
+    y no devuelven resultados.
+
+    Args:
+        procedure_name (str): El nombre del procedimiento almacenado a llamar.
+        params (tuple, optional): Una tupla de parámetros para el procedimiento.
+    """
     conn = get_connection()
     if conn:
         try:
             with conn.cursor() as cur:
                 placeholders = ', '.join(['%s'] * len(params))
                 sql_query = f"CALL {procedure_name}({placeholders})"
-                # print(f"--- [DB Connector] Ejecutando CALL: {sql_query} con {params}") # DEBUG (opcional)
                 cur.execute(sql_query, params)
-            conn.commit()
-            # print(f"--- [DB Connector] CALL {procedure_name} ejecutado.") # DEBUG (opcional)
+            conn.commit() # Confirma la transacción
         except Exception as e:
             print(f"!!!!!! [DB Connector] Error ejecutando CALL {procedure_name}({params}): {e}")
+            conn.rollback() # Revierte en caso de error
         finally:
             conn.close()
 
-# ======================================================
-# ▼▼▼ ¡ESTAS FUNCIONES DEBEN ESTAR PRESENTES! ▼▼▼
-# ======================================================
 def fetch_one(query, params=()):
-    """Ejecuta una consulta (SELECT) y devuelve UNA SOLA fila (tupla) o None."""
+    """
+    Ejecuta una consulta (SELECT) y devuelve UNA SOLA fila.
+
+    Args:
+        query (str): La consulta SQL (ej. "SELECT * FROM Users WHERE UserID = %s").
+        params (tuple, optional): Una tupla de parámetros para la consulta.
+
+    Returns:
+        tuple: Una tupla que representa la fila encontrada, o None si no hay resultados.
+    """
     conn = get_connection()
     result = None
     if conn:
         try:
             with conn.cursor() as cur:
-                # print(f"--- [DB Connector] Ejecutando fetch_one: {query} con {params}") # DEBUG (opcional)
                 cur.execute(query, params)
                 result = cur.fetchone()
-                # print(f"--- [DB Connector] Resultado fetch_one: {result!r}") # DEBUG (opcional)
         except Exception as e:
             print(f"!!!!!! [DB Connector] Error en la consulta fetch_one: {e}")
         finally:
@@ -59,19 +83,25 @@ def fetch_one(query, params=()):
     return result
 
 def fetch_all(query, params=()):
-    """Ejecuta una consulta (SELECT) y devuelve TODAS las filas (lista de tuplas) o lista vacía."""
+    """
+    Ejecuta una consulta (SELECT) y devuelve TODAS las filas.
+
+    Args:
+        query (str): La consulta SQL (ej. "SELECT * FROM V_OsuRankingGlobal").
+        params (tuple, optional): Una tupla de parámetros para la consulta.
+
+    Returns:
+        list: Una lista de tuplas, donde cada tupla es una fila. Lista vacía si no hay resultados.
+    """
     conn = get_connection()
     results = []
     if conn:
         try:
             with conn.cursor() as cur:
-                # print(f"--- [DB Connector] Ejecutando fetch_all: {query} con {params}") # DEBUG (opcional)
                 cur.execute(query, params)
                 results = cur.fetchall()
-                # print(f"--- [DB Connector] Resultado fetch_all: {len(results)} filas") # DEBUG (opcional)
         except Exception as e:
             print(f"!!!!!! [DB Connector] Error en la consulta fetch_all: {e}")
         finally:
             conn.close()
     return results
-# ======================================================

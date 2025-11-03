@@ -1,25 +1,44 @@
+"""
+Handler (Cog) para el Registro de Mensajes.
+
+Este Cog tiene una responsabilidad principal: escuchar todos los mensajes
+en los canales donde el bot está presente y guardarlos en la base de datos
+usando el procedimiento 'sp_LogMessage'.
+
+También incluye un comando de administrador ('d.chatlog') para depurar
+y ver los últimos mensajes guardados desde la base de datos.
+"""
 import discord
 from discord.ext import commands
 from datetime import datetime
-# --- Import corregido (solo queda una línea y apunta al lugar correcto) ---
 import db_connector
+import traceback
 
 class ChatLogger(commands.Cog, name="Memoria Global"):
+    """Maneja el registro de todos los mensajes en la base de datos."""
     def __init__(self, bot):
         self.bot = bot
-        self.allowed_channels = []
+        # (Opcional) Se podría añadir un filtro de canales aquí si fuera necesario
+        # self.allowed_channels = [] 
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # Ignorar bots y mensajes privados (por ahora, para simplificar)
+        """
+        Listener que se activa con cada mensaje.
+
+        Guarda el contenido del mensaje en la tabla 'Messages' de la BD.
+        Ignora los mensajes de otros bots y los comandos del propio bot.
+        """
+        # Ignorar bots y mensajes privados (DM)
         if message.author.bot or not message.guild:
             return
         
-        # Ignorar canales no permitidos si la lista está configurada
-        if self.allowed_channels and message.channel.id not in self.allowed_channels:
+        # Ignorar mensajes que son comandos para este bot
+        if message.content.lower().startswith(("d.", "D.")):
             return
-        
+
         try:
+            # Llama al SP que también registra al usuario, servidor y canal si no existen
             db_connector.execute_procedure(
                     "sp_LogMessage",
                     (
@@ -33,14 +52,20 @@ class ChatLogger(commands.Cog, name="Memoria Global"):
                     )
                 )
         except Exception as e:
-            print(f"Error en ChatLogger al guardar mensaje en la BD: {e}")
+            print(f"!!!!!! [ChatLogger] Error al guardar mensaje en la BD: {e}")
+            traceback.print_exc()
 
     @commands.command(name="chatlog")
     @commands.is_owner()
     async def chatlog(self, ctx, cantidad: int = 10):
-        """[ADMIN] Muestra los últimos mensajes guardados desde la BD."""
+        """
+        [ADMIN] Muestra los últimos mensajes guardados desde la BD.
+        
+        Utiliza la vista 'V_ChannelMessages' para obtener los mensajes
+        formateados del canal actual.
+        """
         try:
-            # REQUISITO 4: Usamos la VISTA en lugar de un JOIN
+            # Usamos la VISTA (Req 4) para obtener los mensajes con el nombre de usuario
             query = """
                 SELECT UserName, Content
                 FROM V_ChannelMessages
@@ -53,6 +78,7 @@ class ChatLogger(commands.Cog, name="Memoria Global"):
             if not registros:
                 return await ctx.send("No hay mensajes registrados en este canal.")
 
+            # Invertimos para mostrar en orden cronológico
             registros.reverse()
             texto = "\n".join([f"**{autor}**: {contenido}" for autor, contenido in registros])
             
@@ -68,7 +94,9 @@ class ChatLogger(commands.Cog, name="Memoria Global"):
             
         except Exception as e:
             await ctx.send("❌ Error al consultar los logs de la base de datos.")
-            print(f"Error en el comando chatlog: {e}")
+            print(f"!!!!!! [ChatLogger] Error en el comando chatlog: {e}")
+            traceback.print_exc()
 
 async def setup(bot):
+    """Función 'setup' para cargar el Cog."""
     await bot.add_cog(ChatLogger(bot))

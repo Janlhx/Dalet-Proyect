@@ -1,11 +1,18 @@
+"""
+Handler (Cog) para Comandos de Administración.
+
+Contiene comandos restringidos al dueño del bot (IS_OWNER)
+para gestionar el estado del bot y depurar la base de datos.
+"""
 import discord
 import os
 import sys
 from discord.ext import commands
-import db_connector # <-- ¡Importante! Asegúrate de importar tu conector
+import db_connector # Importado para el comando SQL
 import traceback # Para mostrar errores de recarga
 
 class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot"):
+    """Comandos para el Administrador del bot"""
     def __init__(self, bot):
         self.bot = bot
 
@@ -14,7 +21,8 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
     @commands.command()
     @commands.is_owner()
     async def restart(self, ctx):
-        """[ADMIN] Reinicia el bot (solo para el dueño).
+        """
+        [ADMIN] Reinicia el bot (solo para el dueño).
         
         Uso: d.restart
         
@@ -27,11 +35,13 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
     @commands.command(name="reload")
     @commands.is_owner()
     async def reload_cog(self, ctx, *, cog_name: str):
-        """[ADMIN] Recarga un módulo/handler (Cog).
+        """
+        [ADMIN] Recarga un módulo/handler (Cog).
         
         Uso: d.reload handlers.dalet_osucommands
         
         Actualiza el código de un handler sin reiniciar el bot.
+        Ideal para desarrollo y corrección de bugs en caliente.
         """
         try:
             # Los cogs en subcarpetas se llaman 'handlers.nombrearchivo'
@@ -45,17 +55,18 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
     @commands.command(name="sql")
     @commands.is_owner()
     async def run_sql_select(self, ctx, *, query: str):
-        """[ADMIN] Ejecuta una consulta SELECT en la BD.
+        """
+        [ADMIN] Ejecuta una consulta SELECT en la BD.
         
         Uso: d.sql SELECT * FROM v_osurankingglobal LIMIT 3
         
-        ¡Solo para consultas SELECT!
+        Permite depurar y consultar la base de datos de Neon
+        directamente desde Discord. ¡Solo para consultas SELECT!
         """
         if not query.lower().strip().startswith("select"):
             return await ctx.send("❌ Este comando solo permite consultas `SELECT`.")
 
         try:
-            # Usamos fetch_all para obtener los resultados
             results = db_connector.fetch_all(query)
             
             if not results:
@@ -63,9 +74,6 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
 
             # Formatear la respuesta
             response = ""
-            # Añadir cabeceras (nombres de columnas) - ¡Bonus!
-            # headers = [desc[0] for desc in cur.description] # Esto es más complejo, omitámoslo por simplicidad
-            
             for i, row in enumerate(results):
                 response += f"Fila {i+1}: {row}\n"
                 if len(response) > 1800:
@@ -95,4 +103,5 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
             await ctx.send(f"❌ Error al enviar DM: {e}")
 
 async def setup(bot):
+    """Función 'setup' para cargar el Cog."""
     await bot.add_cog(AdminCommands(bot))
