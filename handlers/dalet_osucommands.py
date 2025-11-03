@@ -106,7 +106,6 @@ class OsuHandler(commands.Cog, name="osu!"):
         print(f"\n--- [_get_linked_username DEBUG v6] Consultando BD para UserID: {ctx.author.id}")
         try:
             # ======================================================
-            # ▼▼▼ ¡CAMBIO PRINCIPAL! ▼▼▼
             # Hacemos la consulta SELECT directamente a la tabla
             # ======================================================
             query = "SELECT osuusername FROM osuaccounts WHERE userid = %s LIMIT 1"
@@ -298,8 +297,7 @@ class OsuHandler(commands.Cog, name="osu!"):
         print("------------------------------\n")
 
 
-    # --- Comando osuAnalyze (LIMPIO y usando auxiliar) ---
-    # --- Comando osuAnalyze (CON DIAGNÓSTICO REFORZADO) ---
+
 # --- Comando osuAnalyze (CON DIAGNÓSTICO REFORZADO y FIX DATETIME/ORDER) ---
     @commands.command(name="osuAnalyze", help="Analiza el perfil de osu! con IA.\nUso: `d.osuAnalyze [usuario] [-modo] [--focus <area>]`")
     async def osu_analyze(self, ctx, *, args: str = None):
@@ -514,8 +512,7 @@ class OsuHandler(commands.Cog, name="osu!"):
             print("--- [osuAnalyze DEBUG v6] --- Comando finalizado.")
             print("------------------------------\n")
 
-    # --- Comando osuCoach (LIMPIO y usando auxiliar) ---
-   # --- Comando osuCoach (CON DIAGNÓSTICO REFORZADO) ---
+
 # --- Comando osuCoach (CON DIAGNÓSTICO REFORZADO y FIX DATETIME/ORDER) ---
     @commands.command(help="Genera un plan de coaching de osu!...", aliases=["oc"])
     async def osuCoach(self, ctx, *, args: str = None):

@@ -87,9 +87,6 @@ class DaletNLPChat(commands.Cog):
         # --- FIN DE LÓGICA DE RESPUESTAS RÁPIDAS ---
 
 
-        # ==========================================================
-        # ▼▼▼ ¡NUEVO! LÓGICA PARA GUARDAR RECUERDOS ▼▼▼
-        # ==========================================================
         # Verificar si el mensaje contiene frases clave ANTES de decidir responder
         try:
             # Asegurarse de que self.memory esté disponible

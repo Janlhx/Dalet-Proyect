@@ -39,9 +39,7 @@ class MemoryManager(commands.Cog):
     # def add_message(...): pass
     # --- FIN ---
 
-    # ==========================================================
-    # ▼▼▼ FUNCIÓN add_user_memory MODIFICADA ▼▼▼
-    # ==========================================================
+
     # Ahora es async para poder obtener el nombre de usuario
     async def add_user_memory(self, user_id: int, user_name: str, content: str, topic: str = "general"):
         """Guarda un recuerdo específico para un usuario en la base de datos."""
@@ -99,9 +97,6 @@ class MemoryManager(commands.Cog):
             traceback.print_exc()
             return False
 
-    # ==========================================================
-    # ▼▼▼ FUNCIÓN get_relevant_context MODIFICADA ▼▼▼
-    # ==========================================================
     def get_relevant_context(self, guild_id: int, channel_id: int, user_id: int, current_message: str, check_user_memory: bool = True):
         """
         Obtiene contexto del canal (BD) y recuerdos relevantes del usuario (BD + Python).

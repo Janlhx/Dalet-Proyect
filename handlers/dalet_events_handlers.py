@@ -21,9 +21,7 @@ class EventsHandler(commands.Cog):
             await ctx.send("No tengo esa Función")
 #________________________________________________________________________________________
 
-    # ======================================================
-    # ▼▼▼ ESTE EVENTO AHORA ESTÁ DENTRO DE LA CLASE ▼▼▼
-    # ======================================================
+
     @commands.Cog.listener()
     async def on_member_join(self, member):
         # ID del canal donde se mandará el mensaje

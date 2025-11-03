@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import os
 import json
-import db_connector # ¡Asegúrate de importar el conector!
+import db_connector 
 from discord.utils import format_dt # Para formatear la fecha
 
 class CommandsHandler(commands.Cog, name="Comandos Generales"):
