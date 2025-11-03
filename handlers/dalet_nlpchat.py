@@ -182,7 +182,7 @@ class DaletNLPChat(commands.Cog):
                 
                 # 2. Llamar a la IA (Usando el módulo dalet_nlp)
                 # Asegurarse de que la personalidad esté definida en dalet_nlp.py o pasarla
-                reply = dalet_nlp.generate_contextual_reply(
+                reply = await dalet_nlp.generate_contextual_reply(
                     trigger=trigger_for_ia,
                     context=context_for_ia,
                     username=message.author.name
