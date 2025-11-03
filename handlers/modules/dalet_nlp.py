@@ -6,18 +6,10 @@ import os
 # Configurar Gemini (si no está hecho en el main)
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-LOG_FILE = "chat_history.json"
+# Omitimos get_recent_messages (ya no se usa)
 
-def get_recent_messages(limit=10):
-    """Devuelve los últimos N mensajes de chat_history.json"""
-    try:
-        with open(LOG_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return [f"{m['author_name']}: {m['content']}" for m in data[-limit:] if m.get("content")]
-    except Exception:
-        return []
-
-def generate_contextual_reply(trigger: str, context: str, username: str = "Usuario"):
+# ▼▼▼ CONVERTIDO A ASYNC ▼▼▼
+async def generate_contextual_reply(trigger: str, context: str, username: str = "Usuario"):
     """
     Genera una respuesta con base en un contexto provisto y el mensaje actual (trigger).
     """
@@ -43,9 +35,14 @@ Nuevo mensaje de {username}: "{trigger}"
 
 Tu respuesta (solo el mensaje, sin contexto adicional):
 """
-    model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash"))
-    response = model.generate_content(prompt)
-    return response.text.strip() if response and response.text else None
+    try:
+        model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash"))
+        # ▼▼▼ USAMOS LA VERSIÓN ASÍNCRONA ▼▼▼
+        response = await model.generate_content_async(prompt)
+        return response.text.strip() if response and response.text else None
+    except Exception as e:
+        print(f"!!!!!! [dalet_nlp] ERROR al generar respuesta: {e}")
+        return None
 
 
 # Setup opcional (por compatibilidad con Discord)
