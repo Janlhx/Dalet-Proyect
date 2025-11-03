@@ -346,8 +346,26 @@ class OsuHandler(commands.Cog, name="osu!"):
                  await ctx.send(f"❌ No se pudo encontrar '{username}' en modo '{mode}'.")
                  return
 
+            # ▼▼▼ ¡AÑADE ESTAS LÍNEAS AQUÍ! ▼▼▼
+            print(f"--- [osuAnalyze DEBUG v6] Actualizando perfil en OsuAccounts...")
+            try:
+                stats = user.get('statistics', {})
+                db_connector.execute_procedure(
+                    "sp_LinkOsuAccount",
+                    (
+                        ctx.author.id, user["username"], user["id"],
+                        user.get('playmode', 'osu'), stats.get('pp', 0.0),
+                        stats.get('global_rank', None), stats.get('country_rank', None),
+                        stats.get('hit_accuracy', 0.0)
+                    )
+                )
+                print(f"--- [osuAnalyze DEBUG v6] Perfil actualizado.")
+            except Exception as e_db:
+                print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR al actualizar OsuAccounts: {e_db}")
+                # No detenemos el comando, solo logueamos el error
+            # ▲▲▲ FIN DEL CÓDIGO AÑADIDO ▲▲▲
+
             print("--- [osuAnalyze DEBUG v6] Obteniendo scores...")
-            best_scores, recent_scores = [], []
             try:
                  best_scores = self.osu.get_user_best_scores(user["id"], mode, 10)
                  recent_scores = self.osu.get_user_recent_scores(user["id"], mode, 20)
@@ -557,11 +575,30 @@ class OsuHandler(commands.Cog, name="osu!"):
 
             user = self.osu.get_user(username, mode)
             if not user or 'id' not in user:
-                 print(f"!!!!!! [osuCoach DEBUG v6] API osu! no encontró usuario.")
+                 print(f"!!!!!! [osuAnalyze DEBUG v6] API osu! no encontró usuario.")
                  await ctx.send(f"❌ No se pudo encontrar '{username}' en modo '{mode}'.")
                  return
 
-            print("--- [osuCoach DEBUG v6] Obteniendo scores...")
+            # ▼▼▼ ¡AÑADE ESTAS LÍNEAS AQUÍ! ▼▼▼
+            print(f"--- [osuAnalyze DEBUG v6] Actualizando perfil en OsuAccounts...")
+            try:
+                stats = user.get('statistics', {})
+                db_connector.execute_procedure(
+                    "sp_LinkOsuAccount",
+                    (
+                        ctx.author.id, user["username"], user["id"],
+                        user.get('playmode', 'osu'), stats.get('pp', 0.0),
+                        stats.get('global_rank', None), stats.get('country_rank', None),
+                        stats.get('hit_accuracy', 0.0)
+                    )
+                )
+                print(f"--- [osuAnalyze DEBUG v6] Perfil actualizado.")
+            except Exception as e_db:
+                print(f"!!!!!! [osuAnalyze DEBUG v6] ERROR al actualizar OsuAccounts: {e_db}")
+                # No detenemos el comando, solo logueamos el error
+            # ▲▲▲ FIN DEL CÓDIGO AÑADIDO ▲▲▲
+
+            print("--- [osuAnalyze DEBUG v6] Obteniendo scores...")
             best_scores, recent_scores = [], []
             try:
                  best_scores = self.osu.get_user_best_scores(user["id"], mode, 10)
