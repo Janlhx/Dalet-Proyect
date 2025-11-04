@@ -55,7 +55,21 @@ class EventsHandler(commands.Cog):
 
         if channel:
             await channel.send(f"¡Bienvenido {member.mention} al servidor!")
+            
+    @commands.Cog.listener()
+    async def on_member_remove(self, member):
+        """
+        Se ejecuta cuando un miembro sale del servidor.
+        
+        Envía un mensaje de despedida a un canal predefinido.
+        """
+        # ID del canal de despedida
+        channel_id = 790645132121604126
+        channel = member.guild.get_channel(channel_id)
 
+        if channel:
+            await channel.send(f"hola adios {member.mention}")
+            
 async def setup(bot):
     """Función 'setup' para cargar el Cog."""
     await bot.add_cog(EventsHandler(bot))
