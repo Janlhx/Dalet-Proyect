@@ -68,7 +68,7 @@ class EventsHandler(commands.Cog):
         channel = member.guild.get_channel(channel_id)
 
         if channel:
-            await channel.send(f"hola adios {member.mention}")
+            await channel.send(f"hola no {member.mention}")
             
 async def setup(bot):
     """Función 'setup' para cargar el Cog."""
