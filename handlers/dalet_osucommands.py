@@ -310,8 +310,8 @@ class OsuHandler(commands.Cog, name="osu!"):
 
         best_scores, recent_scores = [], []
         try:
-             best_scores = self.osu.get_user_best_scores(user["id"], mode, 10)
-             recent_scores = self.osu.get_user_recent_scores(user["id"], mode, 20)
+             best_scores = self.osu.get_user_best_scores(user["id"], mode, 50)
+             recent_scores = self.osu.get_user_recent_scores(user["id"], mode, 50)
         except Exception as e_scores:
              print(f"!!!!!! [osu! Cog] ERROR al obtener scores: {e_scores}")
              await ctx.send("⚠️ No se pudieron obtener scores, análisis limitado.")
