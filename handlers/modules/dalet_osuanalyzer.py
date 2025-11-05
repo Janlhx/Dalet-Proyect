@@ -1,12 +1,9 @@
 """
-Módulo de Lógica de Análisis de osu! (v4.0)
+Módulo de Lógica de Análisis de osu! (v4.1)
 
-Esta versión corrige el bug de 'acc promedio' (v3.0) y soluciona
-el problema de sesgo por 'top plays' antiguos.
-
-Ahora analiza 'best plays' y 'recent plays' por separado y le
-pide a la IA que compare los resultados para un análisis
-de hábitos vs. potencial.
+Esta versión corrige el 'edge case' donde el 'acc promedio'
+daba 0.0% si todas las partidas recientes eran 'fails'.
+Ahora maneja este caso como 'N/A' (No Aplicable).
 """
 from collections import Counter
 import statistics
@@ -24,7 +21,7 @@ FOCUS_KEYWORDS = {
 }
 
 class OsuAnalyzer:
-    """Analiza datos de osu! (v4.0) y genera prompts detallados para la IA."""
+    """Analiza datos de osu! (v4.1) y genera prompts detallados para la IA."""
 
     def __init__(self, osu_api, user_data: dict, recent_plays: list = None, best_plays: list = None, user_focus: str = None):
         self.osu_api = osu_api
@@ -103,16 +100,19 @@ class OsuAnalyzer:
         """
         Analiza los 'recent plays' para detectar la consistencia del accuracy.
         
-        (BUG ARREGLADO): Ahora filtra p.get('pass') != False
+        (BUG ARREGLADO v4.1): Maneja el caso de 'no partidas pasadas'.
         """
-        # --- ¡FIX! Filtramos solo las partidas que NO son 'pass: False' ---
+        # Filtramos solo las partidas que NO son 'pass: False'
         recent_accs = [
             p['accuracy'] * 100 for p in self.recent
             if p.get('pass') != False and 'accuracy' in p # Keep 'pass: True' and 'pass: None'
         ]
         
+        # --- ¡FIX v4.1! ---
+        # Si la lista está vacía, no devuelvas 0.0, devuélve None.
         if not recent_accs: 
-            return {"trend": "Estable", "consistency": "Media", "avg_recent_acc": 0.0}
+            return {"trend": "Ninguna", "consistency": "Baja (Inconsistente)", "avg_recent_acc": None} 
+        # --- FIN FIX ---
         
         avg_acc = statistics.mean(recent_accs)
         std_dev = statistics.pstdev(recent_accs) if len(recent_accs) > 1 else 0
@@ -121,9 +121,7 @@ class OsuAnalyzer:
         return {"trend": "Estable", "consistency": consistency, "avg_recent_acc": round(avg_acc, 2)}
 
     def _analyze_recent_playstyle(self) -> dict:
-        """
-        ¡NUEVO! Analiza los 'recent plays' (Últimos 50) para detectar el estilo ACTUAL.
-        """
+        """Analiza los 'recent plays' (Últimos 50) para detectar el estilo ACTUAL."""
         if not self.recent:
             return {"detected_style": "Ninguna", "dominant_mods": ["NM"]}
         
@@ -138,7 +136,6 @@ class OsuAnalyzer:
         dominant_mods = [m for m, _ in mods_counter.most_common(3)]
         
         style = "Híbrido"
-        # Usamos un umbral más bajo pq son menos plays
         if mods_counter['DT'] > 3 or mods_counter['NC'] > 3: style = "Velocidad (DT/NC)"
         elif mods_counter['HR'] > 3: style = "Precisión (HR)"
         elif mods_counter['HD'] > 5: style = "Lectura (HD)"
@@ -146,7 +143,7 @@ class OsuAnalyzer:
         return {"detected_style": style, "dominant_mods": dominant_mods}
 
     def _analyze_recent_beatmap_stats(self) -> dict:
-        """¡NUEVO! Analiza las propiedades de los mapas en los 'recent plays' (Últimos 50)."""
+        """Analiza las propiedades de los mapas en los 'recent plays' (Últimos 50)."""
         passed_recent_plays = [p for p in self.recent if p.get('pass') != False]
         if not passed_recent_plays:
             return {'avg_ar': 9.0, 'avg_od': 7.0, 'avg_cs': 4.0, 'avg_length': 180}
@@ -173,21 +170,17 @@ class OsuAnalyzer:
     # --- LÓGICA DE DECISIÓN Y BÚSQUEDA ---
 
     def _determine_focus(self, trends: dict, pp_spread: dict, recent_beatmap_stats: dict) -> str:
-        """
-        MEJORADO: Determina el área de enfoque basado en HÁBITOS RECIENTES.
-        """
+        """Determina el área de enfoque basado en HÁBITOS RECIENTES."""
         if self.user_focus and self.user_focus in FOCUS_KEYWORDS:
             return self.user_focus
         
-        # Lógica de detección (basada en 'recents' y 'trends')
         if trends.get("consistency") == "Baja (Inconsistente)":
             return "consistencia"
         
-        # Si su ACC promedio reciente es bajo, pero su OD reciente es alto, necesita precisión
-        if trends.get("avg_recent_acc") < 96 and recent_beatmap_stats['avg_od'] > 8:
+        avg_acc = trends.get("avg_recent_acc")
+        if avg_acc is not None and avg_acc < 96 and recent_beatmap_stats['avg_od'] > 8:
             return "precisión"
             
-        # Si su AR reciente es bajo, está evitando la lectura
         if recent_beatmap_stats['avg_ar'] < 9.3:
             return "lectura"
         
@@ -220,18 +213,18 @@ class OsuAnalyzer:
             for m in results:
                 bm = m.get("beatmaps", [{}])[0]
                 maps.append({"title": m.get("title", "Desconocido"), "artist": m.get("artist", "Desconocido"),
-                             "stars": round(bm.get("difficulty_rating", 0), 2), "url": f"https://osu.ppy.sh/beatmapsets/{m.get('id')}"})
+                             "stars": round(bm.get("difficulty_rating", 0), 2), "url": f"https://osu_ppy_sh/beatmapsets/{m.get('id')}"})
             
             return random.sample(maps, k=min(5, len(maps)))
         except Exception as e:
             print(f"!!!!!! [OsuAnalyzer] Error en Map Search: {e}"); 
             return []
 
-    # --- GENERADORES DE PROMPTS (v4.0) ---
+    # --- GENERADORES DE PROMPTS (v4.1) ---
 
     def generate_ai_analysis(self) -> str:
         """
-        MEJORADO: El prompt ahora incluye la COMPARACIÓN entre 'best' y 'recent'.
+        MEJORADO: El prompt ahora incluye la COMPARACIÓN y maneja el 'None' del acc.
         """
         # 1. Analizar Best Plays
         best_playstyle = self._analyze_best_playstyle()
@@ -242,6 +235,18 @@ class OsuAnalyzer:
         trends = self._analyze_trends()
         recent_playstyle = self._analyze_recent_playstyle()
         recent_beatmap_stats = self._analyze_recent_beatmap_stats()
+        
+        # --- ¡FIX v4.1! Manejar el None ---
+        if trends['avg_recent_acc'] is not None:
+            trends_text = f"""
+            - **Acc Promedio Reciente:** {trends['avg_recent_acc']}% (¡Corregido!)
+            - **Consistencia Reciente:** {trends['consistency']}
+            """
+        else:
+            trends_text = """
+            - **Acc Promedio Reciente:** N/A (No se encontraron partidas completadas en las últimas 50)
+            - **Consistencia Reciente:** Baja (Inconsistente)
+            """
 
         prompt = f"""
         **ROL:** Eres Dalet, una analista de osu! experta, sarcástica y brutalmente honesta.
@@ -259,20 +264,19 @@ class OsuAnalyzer:
         
         **ANÁLISIS DE HÁBITOS (Últimas 50 Partidas Pasadas):**
         - **Estilo Reciente:** {recent_playstyle['detected_style']} (Mods: {', '.join(recent_playstyle['dominant_mods'])})
-        - **Acc Promedio Reciente:** {trends['avg_recent_acc']}% (¡Corregido!)
-        - **Consistencia Reciente:** {trends['consistency']}
+        {trends_text}
         - **Stats de Mapas (Reciente):** AR {recent_beatmap_stats['avg_ar']:.1f}, OD {recent_beatmap_stats['avg_od']:.1f}
         
         **FORMATO OBLIGATORIO (SEPARA CADA SECCIÓN CLARAMENTE):**
         
         ### 🧠 Análisis (Potencial vs. Hábito)
-        (Aquí está la clave. Compara ambos análisis. Ej: "Veo que tus mejores plays son de DT, pero recientemente no juegas DT para nada. Parece que estás cambiando tu estilo..." o "Tu potencial está en HR, pero tu acc reciente es baja, lo que significa que...")
+        (Aquí está la clave. Compara ambos análisis. Ej: "Veo que tus mejores plays son de DT, pero recientemente no juegas DT para nada. Parece que estás cambiando tu estilo..." o "Tu potencial está en HR, pero tu acc reciente es N/A, lo que significa que estás fallando todo.")
         
         ### ✅ Fortalezas
         (Menciona 2-3 puntos fuertes claros basados en TODOS los datos.)
         
         ### ⚠️ A Mejorar
-        (Menciona 2-3 debilidades claras. Si su AR reciente es bajo, está sesgado. Si su Acc Reciente es baja, está jugando mapas muy difíciles.)
+        (Menciona 2-3 debilidades claras. Si su AR reciente es bajo, está sesgado. Si su Acc Reciente es N/A, está jugando mapas muy difíciles o reiniciando mucho.)
         
         ### 💡 Consejo Rápido de Dalet
         (Basado en la comparación. Ej: "Ya demostraste que puedes jugar DT. Ahora aplica esa velocidad a mapas de 'stamina' (NM) para balancear tu perfil." o "Tu AR promedio reciente es 9.1. Deja de tenerle miedo a AR10.")
@@ -284,7 +288,8 @@ class OsuAnalyzer:
 
     async def generate_coaching_prompt(self) -> str:
         """
-        MEJORADO: El prompt de coaching ahora también se basa en la comparación.
+        MEJORADO: El prompt de coaching ahora también se basa en la comparación
+        y maneja el 'None' del acc.
         """
         # 1. Analizar Best Plays
         best_playstyle = self._analyze_best_playstyle()
@@ -310,6 +315,12 @@ class OsuAnalyzer:
         if not recommended_maps:
             maps_text = "No se encontraron mapas específicos con la búsqueda automática."
 
+        # --- ¡FIX v4.1! Manejar el None ---
+        if trends['avg_recent_acc'] is not None:
+            trends_text = f"- **Tendencia Reciente:** Acc Promedio: {trends['avg_recent_acc']}% (Consistencia: {trends['consistency']})"
+        else:
+            trends_text = f"- **Tendencia Reciente:** N/A (No hay partidas completadas recientemente. Consistencia: Baja)"
+        
         prompt = f"""
         **ROL Y OBJETIVO:** Eres Dalet, un coach de osu! de élite. Tu tono es sarcástico pero tus consejos son oro puro.
         **TAREA:** Crea un plan de coaching para el jugador, usando los datos y los mapas encontrados. Sigue el formato OBLIGATORIO.
@@ -319,7 +330,7 @@ class OsuAnalyzer:
         - **Stats Clave:** {self.analysis_summary['pp']}pp, {self.analysis_summary['accuracy']}% acc
         - **Estilo Histórico (Top 50):** {best_playstyle['detected_style']} (Mods: {', '.join(best_playstyle['dominant_mods'])})
         - **Estilo Reciente (Últimos 50):** {recent_playstyle['detected_style']} (Mods: {', '.join(recent_playstyle['dominant_mods'])})
-        - **Tendencia Reciente:** Acc Promedio: {trends['avg_recent_acc']}% (Consistencia: {trends['consistency']})
+        {trends_text}
         - **Análisis de Mapas (Reciente):** AR Promedio: {recent_beatmap_stats['avg_ar']:.1f}, OD Promedio: {recent_beatmap_stats['avg_od']:.1f}
         - **ÁREA DE ENFOQUE (Deducida):** {focus.upper()}
 
@@ -330,7 +341,7 @@ class OsuAnalyzer:
         Usa viñetas y frases cortas. No te repitas.
 
         ### 🎯 Foco Principal: {focus.capitalize()}
-        (Explica en UNA SOLA frase por qué este enfoque es crucial. Ej: "Tu AR promedio reciente es 9.2, necesitas mejorar tu 'Lectura' con mapas más rápidos" o "Tu consistencia reciente es 'Baja', necesitas 'Consistencia' para dejar de fallar.")
+        (Explica en UNA SOLA frase por qué este enfoque es crucial. Ej: "Tu AR promedio reciente es 9.2, necesitas mejorar tu 'Lectura' con mapas más rápidos" o "Tu acc reciente es N/A, lo que significa que estás fallando todo. Enfócate en 'Consistencia' y completa mapas.")
 
         ### 💡 Observación Clave (Potencial vs. Hábito)
         (Compara su 'Estilo Histórico' con su 'Estilo Reciente'. Ej: "Tus mejores plays son DT, pero ya no lo juegas. Si quieres subir PP, vuelve a practicar velocidad, o si no, enfócate en tu nuevo estilo de NM".)
