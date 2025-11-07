@@ -26,7 +26,7 @@ Este proyecto se apoya en tres servicios en la nube principales:
 
 2.  **Render (El Bot):**
     * **Rol:** Aloja y ejecuta el código de Python (`dalet_main.py`).
-    * **Implementación:** Está configurado como un "Web Service". [cite_start]Para asegurar la alta disponibilidad, el script principal (`dalet_main.py` [cite: 50-56]) inicia un servidor web **Flask** en un hilo secundario. Render monitorea el *endpoint* (`/`) de este servidor. Si el bot falla, el servidor Flask también lo hace, y Render reinicia automáticamente todo el servicio.
+    * **Implementación:** Está configurado como un "Web Service".Para asegurar la alta disponibilidad, el script principal (`dalet_main.py`) inicia un servidor web **Flask** en un hilo secundario. Render monitorea el *endpoint* (`/`) de este servidor. Si el bot falla, el servidor Flask también lo hace, y Render reinicia automáticamente todo el servicio.
 
 3.  **UptimeRobot (El "Despertador"):**
     * **Rol:** Evita que el servicio de Render (en su plan gratuito) se "duerma" por inactividad.
