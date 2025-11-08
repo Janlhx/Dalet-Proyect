@@ -115,7 +115,7 @@ class MemoryManager(commands.Cog):
                         similarity = self._calculate_similarity(vec_query, vec_memory)
                         
                         # Umbral de relevancia
-                        if similarity >= 0.75:
+                        if similarity >= 0.65:
                             relevant_user_memories.append(f"Recuerdo sobre {topic}: {content}")
 
                 # Añadir recuerdos relevantes al principio del contexto
