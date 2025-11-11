@@ -500,8 +500,8 @@ class OsuHandler(commands.Cog, name="osu!"):
             )
 
             for row in history_data:
-                # row[0]=timestamp, row[1]=accuracy, row[2]=accuracy_change
-                timestamp, accuracy, change = row[0], row[1], row[2]
+                # El guion bajo (_) ignora el ScoreID, que es la primera columna (row[0])
+                _, accuracy, change, timestamp = row[0], row[1], row[2], row[3]
                 change_str = "N/A"
                 if change is not None:
                     change_str = f"+{change:.2f}%" if change > 0 else f"{change:.2f}%"
