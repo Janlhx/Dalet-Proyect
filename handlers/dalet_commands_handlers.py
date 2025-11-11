@@ -66,17 +66,17 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
     async def mystats(self, ctx):
         """Muestra tus estadísticas de actividad en el bot."""
         try:
-            # REQUISITO 4d/5: Llamamos a la función que usa CTEs
+            
             query = "SELECT * FROM fn_GetUserStats(%s)"
             stats = db_connector.fetch_one(query, (ctx.author.id,))
 
             if not stats:
                 return await ctx.send("No tengo datos sobre ti.")
 
-            # stats[0] = msg_count, stats[1] = score_count, stats[2] = last_msg_timestamp
+            # La función SQL devuelve: (MsgCount, LastMsgTimestamp, ScoreCount, LastScoreTimestamp)
             msg_count = stats[0]
-            score_count = stats[1]
-            last_msg = stats[2]
+            last_msg = stats[1]
+            score_count = stats[2]
 
             embed = discord.Embed(
                 title=f"📊 Estadísticas de {ctx.author.name}",
