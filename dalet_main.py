@@ -94,7 +94,7 @@ async def main():
         # la penalización de rate limit de la IP de tu servidor de hosting.
         import asyncio
         print("Esperando 60 segundos para evitar Rate Limit (Error 429) antes de iniciar sesión en Discord...")
-        await asyncio.sleep(60)
+        await asyncio.sleep(300)
         
         await bot.start(DISCORD_TOKEN)
 
