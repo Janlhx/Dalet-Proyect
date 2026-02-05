@@ -88,13 +88,7 @@ async def main():
     """Función asíncrona principal para iniciar el bot."""
     async with bot:
         await load_extensions()
-        
-        # --- SOLUCIÓN TEMPORAL PARA ERROR 429 ---
-        # Esperamos 60 segundos. Esto le da tiempo a Discord para levantar
-        # la penalización de rate limit de la IP de tu servidor de hosting.
-        import asyncio
-        print("Esperando 60 segundos para evitar Rate Limit (Error 429) antes de iniciar sesión en Discord...")
-        await asyncio.sleep(300)
+
         
         await bot.start(DISCORD_TOKEN)
 
