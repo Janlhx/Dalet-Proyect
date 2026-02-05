@@ -370,7 +370,7 @@ class OsuHandler(commands.Cog, name="osu!"):
             analyzer = OsuAnalyzer(self.osu, user, recent_plays=recent_scores, best_plays=best_scores, user_focus=user_focus)
             prompt = analyzer.generate_ai_analysis() # Usar el método síncrono
 
-            model = genai.GenerativeModel("models/gemini-2.5-flash")
+            model = genai.GenerativeModel("models/gemini-3-flash-preview")
             response = await asyncio.wait_for(model.generate_content_async(prompt), timeout=45.0)
             ai_text = response.text.strip()
 
@@ -418,7 +418,7 @@ class OsuHandler(commands.Cog, name="osu!"):
             analyzer = OsuAnalyzer(self.osu, user, recent_plays=recent_scores, best_plays=best_scores, user_focus=user_focus)
             prompt = await analyzer.generate_coaching_prompt() # Usar el método asíncrono
 
-            model = genai.GenerativeModel("models/gemini-2.5-flash")
+            model = genai.GenerativeModel("models/gemini-3-flash-preview")
             response = await asyncio.wait_for(model.generate_content_async(prompt), timeout=60.0) # Timeout más largo
             ai_text = response.text.strip()
 

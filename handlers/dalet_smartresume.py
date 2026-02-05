@@ -50,7 +50,7 @@ class ResumenInteligente(commands.Cog, name="Resumen Inteligente"):
 
             # 2. Generar resumen con Gemini
             prompt = (f"Eres Dalet, una IA asistente. Analiza el siguiente historial de chat y genera un resumen conciso y neutral de los temas principales, eventos importantes y el tono general de la conversación. Sé breve y directo.\n\nHistorial:\n{historial_texto}\n\nResumen:")
-            model = genai.GenerativeModel("models/gemini-2.5-flash")
+            model = genai.GenerativeModel("models/gemini-3-flash-preview")
             response = await model.generate_content_async(prompt)
             resumen_generado = response.text.strip()
 
@@ -136,7 +136,7 @@ class ResumenInteligente(commands.Cog, name="Resumen Inteligente"):
 
             # Llamar a Gemini para comparar
             prompt = (f"Compara los siguientes dos resúmenes del chat. Explica brevemente cómo cambiaron los temas, el tono o las prioridades entre el Resumen {index1} (más antiguo si index1 > index2) y el Resumen {index2} (más reciente si index2 < index1).\n\nResumen {index1}:\n{res1}\n\nResumen {index2}:\n{res2}\n\nComparación:")
-            model = genai.GenerativeModel("models/gemini-2.5-flash")
+            model = genai.GenerativeModel("models/gemini-3-flash-preview")
             response = await model.generate_content_async(prompt)
             comparacion = response.text.strip()
 

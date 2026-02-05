@@ -55,7 +55,7 @@ Nuevo mensaje de {username}: "{trigger}"
 Tu respuesta (solo el mensaje, sin contexto adicional):
 """
     try:
-        model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash"))
+        model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "models/gemini-3-flash-preview"))
         # Usamos la versión asíncrona para no bloquear el bot
         response = await model.generate_content_async(prompt)
         return response.text.strip() if response and response.text else None
