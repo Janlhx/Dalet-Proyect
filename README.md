@@ -1,4 +1,4 @@
-# Proyecto Final de Bases de Datos - Bot de Discord "Dalet"
+# Bot de Discord "Dalet"
 
 ## 1. Resumen del Proyecto
 
