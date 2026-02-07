@@ -17,15 +17,25 @@ import google.generativeai as genai
 from flask import Flask
 from threading import Thread
 import sys
-import time # Lo necesitas si usas time.sleep
+import logging
+from database.pool import DatabasePool
+
+# --- Configuración de Logging ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler("dalet.log")
+    ]
+)
+logger = logging.getLogger("dalet.main")
+
 # --- 1. Carga de Configuración ---
 load_dotenv()
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-print("Token de Discord cargado:", bool(DISCORD_TOKEN))
-print("Key de Gemini cargada:", bool(GEMINI_API_KEY))
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -38,65 +48,51 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    """Punto de 'health check' que Render usa para saber si el bot está vivo."""
     return "El bot está vivo."
 
 def run():
-    """Inicia el servidor Flask."""
     app.run(host='0.0.0.0', port=8080)
 
 def keep_alive():
-    """Crea e inicia el hilo del servidor Flask."""
     t = Thread(target=run)
     t.start()
 
 # --- 4. Carga de Extensiones (Cogs) ---
 async def load_extensions():
-    """
-    Carga dinámicamente todas las extensiones (archivos .py)
-    de la carpeta /handlers.
-    """
-    print("<<<<< INICIANDO CARGA DE MÓDULOS... >>>>>")
-
+    logger.info("<<<<< INICIANDO CARGA DE MÓDULOS... >>>>>")
     script_dir = os.path.dirname(os.path.abspath(__file__))
     handlers_path = os.path.join(script_dir, "handlers")
 
-    try:
-        lista_archivos = os.listdir(handlers_path)
-    except FileNotFoundError:
-        print("!!!!!! ERROR GRAVE: La carpeta 'handlers' no se encontró.", file=sys.stderr)
+    if not os.path.exists(handlers_path):
+        logger.error("!!!!!! ERROR GRAVE: La carpeta 'handlers' no se encontró.")
         return
 
-    for filename in lista_archivos:
-        # Ignoramos el conector de BD, ya que no es un Cog.
-        if filename == "db_connector.py":
-            continue
-
-        if filename.endswith(".py") and not filename.startswith("__"):
+    for filename in os.listdir(handlers_path):
+        if filename.endswith(".py") and not filename.startswith("__") and filename != "db_connector.py":
             module_name = f"handlers.{filename[:-3]}"
             try:
                 await bot.load_extension(module_name)
-                print(f"--- ✅ Cargado: {module_name}")
+                logger.info(f"--- ✅ Cargado: {module_name}")
             except Exception as e:
-                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", file=sys.stderr)
-                print(f"!!!!!! ❌ ERROR FATAL AL CARGAR {module_name} !!!!!!", file=sys.stderr)
-                print(f"!!!!!! DETALLE: {e}", file=sys.stderr)
-                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", file=sys.stderr)
+                logger.error(f"!!!!!! ❌ ERROR FATAL AL CARGAR {module_name} !!!!!! | DETALLE: {e}")
 
 # --- 5. Punto de Entrada Principal ---
 async def main():
-    """Función asíncrona principal para iniciar el bot."""
-    async with bot:
-        await load_extensions()
-
+    try:
+        # Inicializar el pool de base de datos
+        await DatabasePool.get_pool()
         
-        await bot.start(DISCORD_TOKEN)
+        async with bot:
+            await load_extensions()
+            await bot.start(DISCORD_TOKEN)
+    except Exception as e:
+        logger.critical(f"Error crítico en el bucle principal: {e}")
+    finally:
+        await DatabasePool.close()
 
-# Inicia el servidor web en un hilo secundario
-keep_alive()
-
-# Inicia el bot en el hilo principal
-try:
-    asyncio.run(main())
-except KeyboardInterrupt:
-    print("Bot desconectado manualmente.")
+if __name__ == "__main__":
+    keep_alive()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Bot desconectado manualmente.")
