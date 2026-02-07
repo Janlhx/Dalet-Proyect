@@ -16,17 +16,23 @@ class NLPService:
             genai.configure(api_key=self.gemini_api_key)
         
         self.groq_api_key = os.getenv("GROQ_API_KEY")
-
         self.repo = UserRepository()
         
-        provider = os.getenv("AI_PROVIDER", "gemini").lower()
+        # Prioridad: Si hay llave de Groq y no se ha forzado Gemini, usar Groq
+        env_provider = os.getenv("AI_PROVIDER", "").lower()
+        if self.groq_api_key and env_provider != "gemini":
+            self.active_provider = "groq"
+        else:
+            self.active_provider = env_provider if env_provider else "gemini"
+
         print("\n" + "="*50)
-        print(f"DEBUG IA: Proveedor configurado = {provider}")
+        print(f"DEBUG IA: Proveedor Final Activo = {self.active_provider}")
+        print(f"DEBUG IA: AI_PROVIDER en env = '{env_provider}'")
         print(f"DEBUG IA: Groq Key detectada = {'SI' if self.groq_api_key else 'NO'}")
-        print(f"DEBUG IA: Gemini Key detectada = {'SI' if self.gemini_api_key else 'NO'}")
+        print(f"DEBUG IA: Directorio actual = {os.getcwd()}")
         print("="*50 + "\n")
         
-        logger.info(f"NLPService initialized. Provider: {provider}")
+        logger.info(f"NLPService initialized. Provider: {self.active_provider}")
 
         self.personality = """
 Eres Dalet. Tu personalidad se define por una trinidad de rasgos: Graciosa, Sarcástica y Simple.
@@ -48,13 +54,13 @@ IMPORTANTE: Nunca respondas con mensajes que parezcan comandos (ej. no empieces 
 
 
     async def generate_reply(self, trigger: str, context: str, username: str):
-        provider = os.getenv("AI_PROVIDER", "gemini").lower()
-        logger.info(f"Generating reply for {username}. Provider chosen: {provider} (Groq Key: {'Set' if self.groq_api_key else 'Missing'})")
+        logger.info(f"Generating reply for {username}. Provider chosen: {self.active_provider} (Groq Key: {'Set' if self.groq_api_key else 'Missing'})")
         
-        if provider == "groq" and self.groq_api_key:
+        if self.active_provider == "groq" and self.groq_api_key:
             return await self._generate_groq_reply(trigger, context, username)
         else:
             return await self._generate_gemini_reply(trigger, context, username)
+
 
     async def _generate_gemini_reply(self, trigger: str, context: str, username: str):
         prompt = f"{self.personality}\n\nConversación reciente:\n{context}\n\nNuevo mensaje de {username}: \"{trigger}\"\n\nTu respuesta (solo el mensaje, sin contexto adicional):"
