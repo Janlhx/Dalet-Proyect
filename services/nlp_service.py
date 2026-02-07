@@ -7,9 +7,12 @@ from database.repositories.user_repository import UserRepository
 logger = logging.getLogger("dalet.services.nlp")
 
 class NLPService:
-    def __init__(self, api_key: str):
-        self.api_key = api_key
-        genai.configure(api_key=self.api_key)
+    def __init__(self, gemini_api_key: str):
+        self.gemini_api_key = gemini_api_key
+        if self.gemini_api_key:
+            genai.configure(api_key=self.gemini_api_key)
+        
+        self.groq_api_key = os.getenv("GROQ_API_KEY")
         self.repo = UserRepository()
         self.personality = """
 Eres Dalet. Tu personalidad se define por una trinidad de rasgos: Graciosa, Sarcástica y Simple.
@@ -28,22 +31,55 @@ Si alguien te pide que menciones con @ a otra persona, o de manera similar, no l
 """
 
     async def generate_reply(self, trigger: str, context: str, username: str):
-        prompt = f"{self.personality}\n\nConversación reciente:\n{context}\n\nNuevo mensaje de {username}: \"{trigger}\"\n\nTu respuesta (solo el mensaje, sin contexto adicional):"
+        provider = os.getenv("AI_PROVIDER", "gemini").lower()
         
+        if provider == "groq" and self.groq_api_key:
+            return await self._generate_groq_reply(trigger, context, username)
+        else:
+            return await self._generate_gemini_reply(trigger, context, username)
+
+    async def _generate_gemini_reply(self, trigger: str, context: str, username: str):
+        prompt = f"{self.personality}\n\nConversación reciente:\n{context}\n\nNuevo mensaje de {username}: \"{trigger}\"\n\nTu respuesta (solo el mensaje, sin contexto adicional):"
         try:
-            model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "models/gemini-3-flash-preview"))
-            logger.info(f"Calling Gemini with model: {os.getenv('GEMINI_MODEL', 'models/gemini-3-flash-preview')}")
+            model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.0-flash-exp")
+            model = genai.GenerativeModel(model_name)
+            logger.info(f"Calling Gemini with model: {model_name}")
             response = await model.generate_content_async(prompt)
             
             if response and response.text:
-                logger.info(f"Gemini response received: {len(response.text)} characters")
                 return response.text.strip()
-            else:
-                logger.warning(f"Gemini returned empty response. Response object: {response}")
-                return None
+            return None
         except Exception as e:
             logger.error(f"Error calling Gemini: {e}")
-            import traceback
-            traceback.print_exc()
             return None
+
+    async def _generate_groq_reply(self, trigger: str, context: str, username: str):
+        model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.groq_api_key}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "model": model_name,
+            "messages": [
+                {"role": "system", "content": self.personality},
+                {"role": "user", "content": f"Conversación reciente:\n{context}\n\nNuevo mensaje de {username}: \"{trigger}\""}
+            ],
+            "temperature": 0.7,
+            "max_tokens": 500
+        }
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                logger.info(f"Calling Groq with model: {model_name}")
+                response = await client.post(url, headers=headers, json=data, timeout=30.0)
+                response.raise_for_status()
+                result = response.json()
+                return result['choices'][0]['message']['content'].strip()
+        except Exception as e:
+            logger.error(f"Error calling Groq: {e}")
+            # Fallback a Gemini si Groq falla
+            return await self._generate_gemini_reply(trigger, context, username)
+
 
