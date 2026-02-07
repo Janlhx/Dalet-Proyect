@@ -5,7 +5,7 @@ from database.repositories.user_repository import UserRepository
 logger = logging.getLogger("dalet.services.memory")
 
 class MemoryService:
-    def __init__(self, user_repo, relevance_model="models/gemini-embedding-001"):
+    def __init__(self, user_repo, relevance_model="models/embedding-001"):
         self.relevance_model = relevance_model
         self.repo = user_repo
 
