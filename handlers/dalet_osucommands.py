@@ -250,8 +250,10 @@ class OsuHandler(commands.Cog, name="osu!"):
                     embed.description = "❌ No pude generar el análisis en este momento."
                     await msg.edit(embed=embed)
             except Exception as e:
-                logger.error(f"Error in osuAnalyze: {e}")
-                await ctx.send(f"⚠️ Error al analizar a '{username}'.")
+                logger.error(f"Error in osuAnalyze for {username}: {e}")
+                traceback.print_exc()
+                await ctx.send(f"⚠️ Error técnico al analizar a '{username}'. Dile a Litxe que revise los logs.")
+
 
     @commands.command(name="oc", aliases=["osuCoach"])
     async def osu_coach(self, ctx, *, args: str = None):
