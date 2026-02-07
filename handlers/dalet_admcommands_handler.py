@@ -63,23 +63,67 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
             logger.error(f"SQL command error: {e}")
             await ctx.send(f"❌ Error al ejecutar la consulta SQL:\n```\n{e}\n```")
 
-    @commands.command(name="dm")
+    @commands.command(name="lock")
     @commands.has_permissions(administrator=True)
-    async def send_dm(self, ctx, user_id: int, *, message: str):
-        """[ADMIN] Envía un DM a un usuario por su ID."""
+    async def lock_channel(self, ctx):
+        """[ADMIN] Bloquea todos los comandos en este canal."""
         try:
-            user = await self.bot.fetch_user(user_id)
-            if not user:
-                return await ctx.send("❌ Usuario no encontrado.")
-                
-            await user.send(f"Un mensaje del administrador del bot:\n\n{message}")
-            await ctx.send(f"✅ Mensaje enviado a **{user.name}**.")
-            
-        except discord.Forbidden:
-            await ctx.send("❌ No se pudo enviar el DM. Es probable que el usuario tenga los DMs cerrados.")
+            await self.bot.admin_repo.set_channel_lock(
+                ctx.channel.id, ctx.channel.name, ctx.guild.id, ctx.guild.name, True
+            )
+            await ctx.send("🛑 **Canal Bloqueado.** Dalet ignorará todos los comandos aquí hasta que se use `d.unlock`.")
         except Exception as e:
-            logger.error(f"DM command error: {e}")
-            await ctx.send(f"❌ Error al enviar DM.")
+            logger.error(f"Error in lock: {e}")
+            await ctx.send("❌ Error al bloquear el canal.")
+
+    @commands.command(name="unlock")
+    @commands.has_permissions(administrator=True)
+    async def unlock_channel(self, ctx):
+        """[ADMIN] Desbloquea los comandos en este canal."""
+        try:
+            await self.bot.admin_repo.set_channel_lock(
+                ctx.channel.id, ctx.channel.name, ctx.guild.id, ctx.guild.name, False
+            )
+            await ctx.send("🔓 **Canal Desbloqueado.** ¡Los comandos de Dalet ya están disponibles!")
+        except Exception as e:
+            logger.error(f"Error in unlock: {e}")
+            await ctx.send("❌ Error al desbloquear el canal.")
+
+    @commands.command(name="cs", aliases=["channelstatus"])
+    async def channel_status(self, ctx):
+        """Muestra el estado de seguridad y IA del canal actual."""
+        try:
+            is_locked = await self.bot.admin_repo.is_channel_locked(ctx.channel.id)
+            # Reaprovechamos UserRepository para proactividad
+            is_proactive = await self.bot.user_repo.is_channel_proactive(ctx.channel.id)
+            is_reactive = await self.bot.user_repo.is_server_reactive(ctx.guild.id)
+
+            status_embed = discord.Embed(
+                title=f"🛡️ Estado del Canal: #{ctx.channel.name}",
+                color=discord.Color.red() if is_locked else discord.Color.green()
+            )
+            status_embed.add_field(
+                name="🔒 Comandos", 
+                value="⛔ **BLOQUEADOS** (Usa `d.unlock`)" if is_locked else "✅ **ACTIVOS**",
+                inline=False
+            )
+            status_embed.add_field(
+                name="🤖 IA Proactiva", 
+                value="✨ **ACTIVA**" if is_proactive else "🌑 **INACTIVA**",
+                inline=True
+            )
+            status_embed.add_field(
+                name="💬 IA Reactiva (Menciones)", 
+                value="✅ **ACTIVA**" if is_reactive else "❌ **INACTIVA**",
+                inline=True
+            )
+            
+            await ctx.send(embed=status_embed)
+        except Exception as e:
+            logger.error(f"Error in channel_status: {e}")
+            await ctx.send("❌ Error al obtener el estado del canal.")
+
+    @commands.command(name="dm")
 
 async def setup(bot):
     await bot.add_cog(AdminCommands(bot))

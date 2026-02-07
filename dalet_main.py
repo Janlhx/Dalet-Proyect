@@ -85,6 +85,7 @@ async def main():
         # --- Inyección de Dependencias ---
         from database.repositories.user_repository import UserRepository
         from database.repositories.osu_repository import OsuRepository
+        from database.repositories.admin_repository import AdminRepository
         from services.nlp_service import NLPService
         from services.memory_service import MemoryService
         from services.osu_service import OsuService
@@ -92,6 +93,7 @@ async def main():
         # Instanciar Repositorios
         bot.user_repo = UserRepository()
         bot.osu_repo = OsuRepository()
+        bot.admin_repo = AdminRepository()
 
         # Instanciar Servicios
         bot.nlp_service = NLPService(GEMINI_API_KEY)
@@ -101,6 +103,22 @@ async def main():
             client_secret=os.getenv("OSU_CLIENT_SECRET", "")
         )
         
+        # --- Middleware de Seguridad (Global Check) ---
+        @bot.check
+        async def global_block_check(ctx):
+            # 1. El comando 'unlock' siempre debe ser accesible para administradores
+            if ctx.command.name in ["unlock", "channelstatus"]:
+                return True
+            
+            # 2. Otros comandos están sujetos al candado de la DB
+            is_locked = await bot.admin_repo.is_channel_locked(ctx.channel.id)
+            if is_locked:
+                # Opcional: Avisar solo una vez o ignorar silenciosamente
+                # await ctx.send("🛑 Los comandos están bloqueados en este canal. Usa `d.unlock` para activarlos.", delete_after=5)
+                return False
+            
+            return True
+
         async with bot:
             await load_extensions()
             await bot.start(DISCORD_TOKEN)

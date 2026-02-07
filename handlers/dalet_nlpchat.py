@@ -9,9 +9,10 @@ import traceback
 logger = logging.getLogger("dalet.handlers.nlp")
 
 # --- Configuración de Comportamiento ---
-BASE_RESPONSE_RATE = 0.30  # 30% de probabilidad
+BASE_RESPONSE_RATE = 0.25  # 25% de probabilidad
 COOLDOWN_TIME = 45  # Espera 45 segundos
 MIN_MESSAGES_BETWEEN_REPLIES = 10  # Mínimo 10 mensajes
+MAX_MESSAGES_WINDOW = 20  # Si pasan 20 mensajes sin responder, resetear contador
 
 class DaletNLPChat(commands.Cog):
     """Maneja el listener 'on_message' para las respuestas de la IA."""
@@ -25,12 +26,24 @@ class DaletNLPChat(commands.Cog):
     def _should_respond(self):
         if self.is_responding: return False # Ignorar si ya está procesando
         
+        # Incrementar contador de mensajes
+        self.message_counter += 1
+        
+        # Lógica de Reinicio de Ventana (Si superamos el límite sin haber respondido)
+        if self.message_counter > MAX_MESSAGES_WINDOW:
+            logger.info(f"Proactive window reset: {self.message_counter} messages reached without response.")
+            self.message_counter = 0
+            return False
+
         now = time.time()
         if now - self.last_reply_time < COOLDOWN_TIME:
             return False
         
-        self.message_counter += 1
-        return self.message_counter >= MIN_MESSAGES_BETWEEN_REPLIES and random.random() < BASE_RESPONSE_RATE
+        # Verificar si cumplimos el mínimo y la probabilidad
+        if self.message_counter >= MIN_MESSAGES_BETWEEN_REPLIES and random.random() < BASE_RESPONSE_RATE:
+            return True
+            
+        return False
 
 
     @commands.Cog.listener()
