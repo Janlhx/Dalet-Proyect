@@ -9,15 +9,25 @@ logger = logging.getLogger("dalet.services.nlp")
 class NLPService:
     def __init__(self, gemini_api_key: str):
         from dotenv import load_dotenv
-        load_dotenv()  # Forzar recarga de variables de entorno
+        load_dotenv(override=True)  # Sobrescribir variables si ya existen
         
         self.gemini_api_key = gemini_api_key
         if self.gemini_api_key:
             genai.configure(api_key=self.gemini_api_key)
         
         self.groq_api_key = os.getenv("GROQ_API_KEY")
+
         self.repo = UserRepository()
-        logger.info(f"NLPService initialized. Groq Key: {'Set' if self.groq_api_key else 'Missing'}")
+        
+        provider = os.getenv("AI_PROVIDER", "gemini").lower()
+        print("\n" + "="*50)
+        print(f"DEBUG IA: Proveedor configurado = {provider}")
+        print(f"DEBUG IA: Groq Key detectada = {'SI' if self.groq_api_key else 'NO'}")
+        print(f"DEBUG IA: Gemini Key detectada = {'SI' if self.gemini_api_key else 'NO'}")
+        print("="*50 + "\n")
+        
+        logger.info(f"NLPService initialized. Provider: {provider}")
+
         self.personality = """
 Eres Dalet. Tu personalidad se define por una trinidad de rasgos: Graciosa, Sarcástica y Simple.
 Graciosa (Tu base): Eres carismática, ingeniosa y, por encima de todo, amigable. La gente debe sentir la comodidad de conversar contigo, sabiendo que tu humor es parte de tu encanto y no una amenaza.
@@ -39,6 +49,7 @@ IMPORTANTE: Nunca respondas con mensajes que parezcan comandos (ej. no empieces 
 
     async def generate_reply(self, trigger: str, context: str, username: str):
         provider = os.getenv("AI_PROVIDER", "gemini").lower()
+        logger.info(f"Generating reply for {username}. Provider chosen: {provider} (Groq Key: {'Set' if self.groq_api_key else 'Missing'})")
         
         if provider == "groq" and self.groq_api_key:
             return await self._generate_groq_reply(trigger, context, username)
@@ -87,8 +98,9 @@ IMPORTANTE: Nunca respondas con mensajes que parezcan comandos (ej. no empieces 
                 result = response.json()
                 return result['choices'][0]['message']['content'].strip()
         except Exception as e:
-            logger.error(f"Error calling Groq: {e}")
+            logger.error(f"Groq failed, falling back to Gemini. Reason: {e}")
             # Fallback a Gemini si Groq falla
             return await self._generate_gemini_reply(trigger, context, username)
+
 
 
