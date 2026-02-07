@@ -90,6 +90,12 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
     async def proactive_debug(self, ctx):
         """🔍 Muestra el estado interno del sistema proactivo para debugging."""
         try:
+            # Importar constantes de dalet_nlpchat para que el debug sea real
+            from handlers.dalet_nlpchat import (
+                BASE_RESPONSE_RATE, COOLDOWN_TIME, 
+                MIN_MESSAGES_BETWEEN_REPLIES, MAX_MESSAGES_WINDOW
+            )
+            
             # Obtener el cog de NLP para acceder a sus variables internas
             nlp_cog = self.bot.get_cog("DaletNLPChat")
             if not nlp_cog:
@@ -98,7 +104,13 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
             import time
             now = time.time()
             time_since_last = now - nlp_cog.last_reply_time
-            cooldown_remaining = max(0, 30 - time_since_last)  # COOLDOWN_TIME = 30
+            # Si el bot nunca ha respondido (last_reply_time = 0), evitamos números gigantes
+            if nlp_cog.last_reply_time == 0:
+                time_text = "Nunca"
+                cooldown_remaining = 0
+            else:
+                time_text = f"{int(time_since_last)}s"
+                cooldown_remaining = max(0, COOLDOWN_TIME - time_since_last)
             
             # Verificar si este canal es proactivo
             is_proactive = await self.repo.fetch_one(
@@ -106,46 +118,58 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
             )
             channel_status = "✅ SÍ" if (is_proactive and is_proactive[0]) else "❌ NO"
             
+            # Verificar si el canal está bloqueado (Lock)
+            is_locked = await self.bot.admin_repo.is_channel_locked(ctx.channel.id)
+            lock_status = "🔒 BLOQUEADO" if is_locked else "🔓 LIBRE"
+
             embed = discord.Embed(
                 title="🔍 Estado del Sistema Proactivo",
                 color=discord.Color.blue()
             )
             embed.add_field(
                 name="📊 Configuración Actual",
-                value=f"• Probabilidad: **35%**\n"
-                      f"• Cooldown: **30 segundos**\n"
-                      f"• Mensajes mínimos: **4**",
+                value=f"• Probabilidad: **{int(BASE_RESPONSE_RATE * 100)}%**\n"
+                      f"• Cooldown: **{COOLDOWN_TIME} segundos**\n"
+                      f"• Mensajes mínimos: **{MIN_MESSAGES_BETWEEN_REPLIES}**\n"
+                      f"• Ventana de Reset: **{MAX_MESSAGES_WINDOW} mensajes**",
                 inline=False
             )
             embed.add_field(
                 name="📈 Estado Actual",
-                value=f"• Mensajes desde última respuesta: **{nlp_cog.message_counter}**/4\n"
-                      f"• Tiempo desde última respuesta: **{int(time_since_last)}s**\n"
+                value=f"• Mensajes en ventana: **{nlp_cog.message_counter}**/{MIN_MESSAGES_BETWEEN_REPLIES}\n"
+                      f"• Tiempo desde última respuesta: **{time_text}**\n"
                       f"• Cooldown restante: **{int(cooldown_remaining)}s**",
                 inline=False
             )
             embed.add_field(
                 name="🎯 Este Canal",
-                value=f"• Modo proactivo: {channel_status}",
+                value=f"• Modo proactivo: {channel_status}\n"
+                      f"• Candado (Lock): {lock_status}",
                 inline=False
             )
             
             # Calcular si podría responder ahora
             can_respond = (
-                nlp_cog.message_counter >= 4 and 
+                not is_locked and
+                (is_proactive and is_proactive[0]) and
+                nlp_cog.message_counter >= MIN_MESSAGES_BETWEEN_REPLIES and 
                 cooldown_remaining == 0
             )
             
             if can_respond:
                 embed.add_field(
                     name="✅ Estado",
-                    value="El bot **PUEDE** responder ahora (con 35% de probabilidad en el próximo mensaje)",
+                    value=f"El bot **PUEDE** responder ahora (con {int(BASE_RESPONSE_RATE * 100)}% de probabilidad en el próximo mensaje)",
                     inline=False
                 )
             else:
                 reasons = []
-                if nlp_cog.message_counter < 4:
-                    reasons.append(f"Faltan **{4 - nlp_cog.message_counter}** mensajes")
+                if is_locked:
+                    reasons.append("Los **comandos están bloqueados** (`d.unlock` para activar)")
+                if not (is_proactive and is_proactive[0]):
+                    reasons.append("El **modo proactivo** no está activado en este canal")
+                if nlp_cog.message_counter < MIN_MESSAGES_BETWEEN_REPLIES:
+                    reasons.append(f"Faltan **{MIN_MESSAGES_BETWEEN_REPLIES - nlp_cog.message_counter}** mensajes")
                 if cooldown_remaining > 0:
                     reasons.append(f"Cooldown activo por **{int(cooldown_remaining)}s**")
                 
