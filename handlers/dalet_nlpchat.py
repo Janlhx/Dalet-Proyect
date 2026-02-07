@@ -32,7 +32,11 @@ class DaletNLPChat(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.bot or not message.guild: return
-        if message.content.lower().startswith(("d.", "D.")): return
+        
+        # Ignorar si el mensaje es un comando del bot o de otros bots comunes
+        bot_prefixes = ("d.", "D.", "!", "/", ".", "?", "$", ">", "-", "+")
+        if message.content.startswith(bot_prefixes): return
+
 
         content_lower = message.content.lower()
 
