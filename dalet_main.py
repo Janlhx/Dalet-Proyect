@@ -106,15 +106,14 @@ async def main():
         # --- Middleware de Seguridad (Global Check) ---
         @bot.check
         async def global_block_check(ctx):
-            # 1. El comando 'unlock' siempre debe ser accesible para administradores
-            if ctx.command.name in ["unlock", "channelstatus"]:
+            # 1. Comandos de administrador para gestión de canales siempre permitidos
+            allowed_commands = ["unlock", "cs", "channelstatus"]
+            if ctx.command and ctx.command.name in allowed_commands:
                 return True
             
             # 2. Otros comandos están sujetos al candado de la DB
             is_locked = await bot.admin_repo.is_channel_locked(ctx.channel.id)
             if is_locked:
-                # Opcional: Avisar solo una vez o ignorar silenciosamente
-                # await ctx.send("🛑 Los comandos están bloqueados en este canal. Usa `d.unlock` para activarlos.", delete_after=5)
                 return False
             
             return True

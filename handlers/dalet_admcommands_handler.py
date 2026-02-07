@@ -124,6 +124,22 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
             await ctx.send("❌ Error al obtener el estado del canal.")
 
     @commands.command(name="dm")
+    @commands.has_permissions(administrator=True)
+    async def send_dm(self, ctx, user_id: int, *, message: str):
+        """[ADMIN] Envía un DM a un usuario por su ID."""
+        try:
+            user = await self.bot.fetch_user(user_id)
+            if not user:
+                return await ctx.send("❌ Usuario no encontrado.")
+                
+            await user.send(f"Un mensaje del administrador del bot:\n\n{message}")
+            await ctx.send(f"✅ Mensaje enviado a **{user.name}**.")
+            
+        except discord.Forbidden:
+            await ctx.send("❌ No se pudo enviar el DM. Es probable que el usuario tenga los DMs cerrados.")
+        except Exception as e:
+            logger.error(f"DM command error: {e}")
+            await ctx.send(f"❌ Error al enviar DM.")
 
 async def setup(bot):
     await bot.add_cog(AdminCommands(bot))
