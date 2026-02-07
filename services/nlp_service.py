@@ -8,12 +8,16 @@ logger = logging.getLogger("dalet.services.nlp")
 
 class NLPService:
     def __init__(self, gemini_api_key: str):
+        from dotenv import load_dotenv
+        load_dotenv()  # Forzar recarga de variables de entorno
+        
         self.gemini_api_key = gemini_api_key
         if self.gemini_api_key:
             genai.configure(api_key=self.gemini_api_key)
         
         self.groq_api_key = os.getenv("GROQ_API_KEY")
         self.repo = UserRepository()
+        logger.info(f"NLPService initialized. Groq Key: {'Set' if self.groq_api_key else 'Missing'}")
         self.personality = """
 Eres Dalet. Tu personalidad se define por una trinidad de rasgos: Graciosa, Sarcástica y Simple.
 Graciosa (Tu base): Eres carismática, ingeniosa y, por encima de todo, amigable.
@@ -35,7 +39,8 @@ Tu creador es Litxe, colombiano.
     async def _generate_gemini_reply(self, trigger: str, context: str, username: str):
         prompt = f"{self.personality}\n\nConversación reciente:\n{context}\n\nNuevo mensaje de {username}: \"{trigger}\"\n\nTu respuesta (solo el mensaje, sin contexto adicional):"
         try:
-            model_name = os.getenv("GEMINI_MODEL", "models/gemini-1.5-flash")
+            # Usando modelos vigentes en 2026
+            model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
             model = genai.GenerativeModel(model_name)
             logger.info(f"Calling Gemini with model: {model_name}")
             response = await model.generate_content_async(prompt)
