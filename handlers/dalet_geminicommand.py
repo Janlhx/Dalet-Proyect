@@ -14,13 +14,13 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
     @commands.group(name="proactive", invoke_without_command=True)
     @commands.has_permissions(administrator=True)
     async def proactive(self, ctx):
-        """Configura en qué canales Dalet puede participar automáticamente."""
+        """🤖 [ADMIN] Configura en qué canales Dalet puede participar automáticamente en conversaciones."""
         await ctx.send("Usa `d.proactive add/remove/list/clear`.")
 
     @proactive.command(name="add")
     @commands.has_permissions(administrator=True)
     async def proactive_add(self, ctx, *channels: discord.TextChannel):
-        """Añade canales a la lista de IA activa."""
+        """➕ Añade canales donde Dalet participará automáticamente. Uso: `d.proactive add #canal1 #canal2`"""
         if not channels: return await ctx.send("Menciona al menos un canal.")
 
         added = []
@@ -41,7 +41,7 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
     @proactive.command(name="remove")
     @commands.has_permissions(administrator=True)
     async def proactive_remove(self, ctx, *channels: discord.TextChannel):
-        """Quita canales de la lista de IA activa."""
+        """➖ Quita canales del modo proactivo. Uso: `d.proactive remove #canal1 #canal2`"""
         if not channels: return await ctx.send("Menciona al menos un canal.")
 
         removed = []
@@ -61,7 +61,7 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
 
     @proactive.command(name="list")
     async def proactive_list(self, ctx):
-        """Muestra los canales donde la IA está activa."""
+        """📜 Muestra todos los canales donde Dalet participa automáticamente."""
         try:
             query = "SELECT * FROM fn_GetProactiveChannels($1)"
             result = await self.repo.fetch_one(query, ctx.guild.id)
@@ -89,8 +89,8 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
     @commands.group(name="reactive", invoke_without_command=True)
     @commands.has_permissions(administrator=True)
     async def reactive(self, ctx):
-        """Activa o desactiva la capacidad de Dalet para responder a su nombre."""
-        await ctx.send_help(ctx.command)
+        """💬 [ADMIN] Controla si Dalet responde cuando la mencionan en conversaciones."""
+        await ctx.send("Usa `d.reactive on/off/status` para controlar el modo reactivo.")
 
     @reactive.command(name="on")
     @commands.has_permissions(administrator=True)
@@ -115,6 +115,7 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
             await ctx.send(f"❌ Error al desactivar el modo reactivo.")
 
     @reactive.command(name="status")
+    @commands.has_permissions(administrator=True)
     async def reactive_status(self, ctx):
         """Muestra si el modo reactivo está activado o desactivado."""
         try:

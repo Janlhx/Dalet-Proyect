@@ -28,7 +28,7 @@ class ResumenInteligente(commands.Cog, name="Resumen Inteligente"):
             # registers are in descending order, we want chronological for display
             display_list = list(registros)
             display_list.reverse()
-            historial_texto = "\n".join([f"{r['username']}: {r['content']}" for r in display_list])
+            historial_texto = "\n".join([f"{r[0]}: {r[1]}" for r in display_list])
 
             # 2. Generar resumen con NLPService
             prompt = (f"Analiza el siguiente historial de chat y genera un resumen conciso y neutral de los temas principales, "
@@ -61,7 +61,7 @@ class ResumenInteligente(commands.Cog, name="Resumen Inteligente"):
 
     @commands.command(name="ver_resumenes_hibrido")
     async def ver_resumenes_hibrido(self, ctx, cantidad: int = 5):
-        """Muestra los últimos resúmenes generados para este canal desde la BD."""
+        """📜 Muestra los últimos resúmenes generados para este canal. Uso: `d.ver_resumenes_hibrido [cantidad]`"""
         try:
             query = "SELECT generated_date, summary_text FROM fn_GetRecentSummaries($1, $2)"
             resumenes = await self.repo.fetch_all(query, ctx.channel.id, cantidad)
@@ -75,8 +75,8 @@ class ResumenInteligente(commands.Cog, name="Resumen Inteligente"):
             )
 
             for i, r in enumerate(resumenes):
-                fecha_str = r['generated_date'].strftime('%Y-%m-%d %H:%M UTC')
-                texto = r['summary_text']
+                fecha_str = r[0].strftime('%Y-%m-%d %H:%M UTC')
+                texto = r[1]
                 texto_corto = (texto[:200] + '...') if len(texto) > 200 else texto
                 embed.add_field(
                     name=f"#{i+1} - {fecha_str}",

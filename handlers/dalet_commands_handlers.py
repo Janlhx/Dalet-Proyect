@@ -15,7 +15,7 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
     # --- 💬 UTILIDADES ---
     @commands.command()
     async def ms(self, ctx):
-        """Muestra la latencia del bot (ping)."""
+        """🏓 Muestra la latencia del bot en milisegundos."""
         latency = round(self.bot.latency * 1000)
         await ctx.send(embed=discord.Embed(
             title="🏓 Ping",
@@ -25,7 +25,7 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
 
     @commands.command()
     async def userinfo(self, ctx, member: discord.Member = None):
-        """Muestra información de un usuario."""
+        """👤 Muestra información detallada de un usuario del servidor."""
         member = member or ctx.author
         embed = discord.Embed(
             title=f"👤 {member}",
@@ -39,7 +39,7 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
 
     @commands.command()
     async def serverinfo(self, ctx):
-        """Muestra información del servidor actual."""
+        """🌐 Muestra información detallada del servidor actual."""
         g = ctx.guild
         embed = discord.Embed(
             title=f"🌐 {g.name}",
@@ -53,12 +53,12 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
 
     @commands.command()
     async def say(self, ctx, *, mensaje):
-        """Hace que el bot repita tu mensaje."""
+        """💬 Hace que Dalet repita tu mensaje."""
         await ctx.send(mensaje)
 
     @commands.command(name="mystats")
     async def mystats(self, ctx):
-        """Muestra tus estadísticas de actividad en el bot."""
+        """📊 Muestra tus estadísticas de actividad: mensajes enviados, scores de osu! guardados, y más."""
         try:
             query = "SELECT * FROM fn_GetUserStats($1)"
             stats = await self.repo.fetch_one(query, ctx.author.id)
@@ -67,9 +67,9 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
                 return await ctx.send("No tengo datos sobre ti.")
 
             # fn_GetUserStats returns: (msg_count, score_count, last_msg_timestamp)
-            msg_count = stats['msg_count']
-            score_count = stats['score_count']
-            last_msg = stats['last_msg_timestamp']
+            msg_count = stats[0]
+            score_count = stats[1]
+            last_msg = stats[2]
 
             embed = discord.Embed(
                 title=f"📊 Estadísticas de {ctx.author.name}",

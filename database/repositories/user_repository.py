@@ -29,6 +29,8 @@ class UserRepository(BaseRepository):
             ORDER BY Timestamp DESC
             LIMIT $2
         """
+        return await self.fetch_all(query, channel_id, limit)
+    
     async def log_message(self, user_id, user_name, server_id, server_name, channel_id, channel_name, content):
         return await self.call_procedure(
             "sp_LogMessage",
