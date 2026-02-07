@@ -15,7 +15,7 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
     @commands.has_permissions(administrator=True)
     async def proactive(self, ctx):
         """🤖 [ADMIN] Configura en qué canales Dalet puede participar automáticamente en conversaciones."""
-        await ctx.send("Usa `d.proactive add/remove/list/clear`.")
+        await ctx.send("Usa `d.proactive add/remove/list/clear/debug`.")
 
     @proactive.command(name="add")
     @commands.has_permissions(administrator=True)
@@ -85,6 +85,81 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
         except Exception as e:
             logger.error(f"Error in proactive_clear: {e}")
             await ctx.send(f"❌ Error al limpiar la lista.")
+
+    @proactive.command(name="debug")
+    async def proactive_debug(self, ctx):
+        """🔍 Muestra el estado interno del sistema proactivo para debugging."""
+        try:
+            # Obtener el cog de NLP para acceder a sus variables internas
+            nlp_cog = self.bot.get_cog("DaletNLPChat")
+            if not nlp_cog:
+                return await ctx.send("❌ No se pudo encontrar el módulo de NLP.")
+            
+            import time
+            now = time.time()
+            time_since_last = now - nlp_cog.last_reply_time
+            cooldown_remaining = max(0, 30 - time_since_last)  # COOLDOWN_TIME = 30
+            
+            # Verificar si este canal es proactivo
+            is_proactive = await self.repo.fetch_one(
+                "SELECT fn_IsChannelProactive($1)", ctx.channel.id
+            )
+            channel_status = "✅ SÍ" if (is_proactive and is_proactive[0]) else "❌ NO"
+            
+            embed = discord.Embed(
+                title="🔍 Estado del Sistema Proactivo",
+                color=discord.Color.blue()
+            )
+            embed.add_field(
+                name="📊 Configuración Actual",
+                value=f"• Probabilidad: **35%**\n"
+                      f"• Cooldown: **30 segundos**\n"
+                      f"• Mensajes mínimos: **4**",
+                inline=False
+            )
+            embed.add_field(
+                name="📈 Estado Actual",
+                value=f"• Mensajes desde última respuesta: **{nlp_cog.message_counter}**/4\n"
+                      f"• Tiempo desde última respuesta: **{int(time_since_last)}s**\n"
+                      f"• Cooldown restante: **{int(cooldown_remaining)}s**",
+                inline=False
+            )
+            embed.add_field(
+                name="🎯 Este Canal",
+                value=f"• Modo proactivo: {channel_status}",
+                inline=False
+            )
+            
+            # Calcular si podría responder ahora
+            can_respond = (
+                nlp_cog.message_counter >= 4 and 
+                cooldown_remaining == 0
+            )
+            
+            if can_respond:
+                embed.add_field(
+                    name="✅ Estado",
+                    value="El bot **PUEDE** responder ahora (con 35% de probabilidad en el próximo mensaje)",
+                    inline=False
+                )
+            else:
+                reasons = []
+                if nlp_cog.message_counter < 4:
+                    reasons.append(f"Faltan **{4 - nlp_cog.message_counter}** mensajes")
+                if cooldown_remaining > 0:
+                    reasons.append(f"Cooldown activo por **{int(cooldown_remaining)}s**")
+                
+                embed.add_field(
+                    name="⏳ Estado",
+                    value=f"El bot **NO PUEDE** responder aún:\n" + "\n".join(f"• {r}" for r in reasons),
+                    inline=False
+                )
+            
+            await ctx.send(embed=embed)
+            
+        except Exception as e:
+            logger.error(f"Error in proactive_debug: {e}")
+            await ctx.send(f"❌ Error al obtener información de debug: {e}")
 
     @commands.group(name="reactive", invoke_without_command=True)
     @commands.has_permissions(administrator=True)

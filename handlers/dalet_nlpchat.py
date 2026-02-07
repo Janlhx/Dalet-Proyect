@@ -9,9 +9,9 @@ import traceback
 logger = logging.getLogger("dalet.handlers.nlp")
 
 # --- Configuración de Comportamiento ---
-BASE_RESPONSE_RATE = 0.1 
-COOLDOWN_TIME = 60 
-MIN_MESSAGES_BETWEEN_REPLIES = 10 
+BASE_RESPONSE_RATE = 0.35  # 35% de probabilidad de responder (antes: 10%)
+COOLDOWN_TIME = 30  # Espera 30 segundos entre respuestas (antes: 60s)
+MIN_MESSAGES_BETWEEN_REPLIES = 4  # Mínimo 4 mensajes antes de responder (antes: 10) 
 
 class DaletNLPChat(commands.Cog):
     """Maneja el listener 'on_message' para las respuestas de la IA."""
