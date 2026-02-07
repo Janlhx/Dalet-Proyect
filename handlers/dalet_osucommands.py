@@ -9,6 +9,7 @@ from discord.utils import format_dt
 from ui.osu_ui import UniversalPaginator
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
 import google.generativeai as genai
+import re
 
 logger = logging.getLogger("dalet.handlers.osu")
 
@@ -251,7 +252,6 @@ class OsuHandler(commands.Cog, name="osu!"):
     def _parse_ai_response(self, text):
         """Divide la respuesta de la IA en secciones basadas en los delimitadores."""
         # Secciones esperadas: [PAGE1_INTRO], [PAGE2_ANALYSIS], [PAGE3_COACHING], [FOOTER]
-        import re
         
         intro = self._extract_section(text, "PAGE1_INTRO")
         analysis = self._extract_section(text, "PAGE2_ANALYSIS")
