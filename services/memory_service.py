@@ -5,9 +5,9 @@ from database.repositories.user_repository import UserRepository
 logger = logging.getLogger("dalet.services.memory")
 
 class MemoryService:
-    def __init__(self, relevance_model="models/embedding-001"):
+    def __init__(self, user_repo, relevance_model="models/embedding-001"):
         self.relevance_model = relevance_model
-        self.repo = UserRepository()
+        self.repo = user_repo
 
     def _calculate_similarity(self, vec_a, vec_b):
         try:

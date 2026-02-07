@@ -81,6 +81,25 @@ async def main():
     try:
         # Inicializar el pool de base de datos
         await DatabasePool.get_pool()
+
+        # --- Inyección de Dependencias ---
+        from database.repositories.user_repository import UserRepository
+        from database.repositories.osu_repository import OsuRepository
+        from services.nlp_service import NLPService
+        from services.memory_service import MemoryService
+        from services.osu_service import OsuService
+
+        # Instanciar Repositorios
+        bot.user_repo = UserRepository()
+        bot.osu_repo = OsuRepository()
+
+        # Instanciar Servicios
+        bot.nlp_service = NLPService(GEMINI_API_KEY)
+        bot.memory_service = MemoryService(bot.user_repo)
+        bot.osu_service = OsuService(
+            client_id=int(os.getenv("OSU_CLIENT_ID", 0)),
+            client_secret=os.getenv("OSU_CLIENT_SECRET", "")
+        )
         
         async with bot:
             await load_extensions()
@@ -96,3 +115,4 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Bot desconectado manualmente.")
+

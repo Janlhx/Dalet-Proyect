@@ -35,7 +35,7 @@ class EventsHandler(commands.Cog):
             await ctx.send("No tengo esa Función")
         elif isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(f"Te faltan argumentos. Revisa el comando con `d.help {ctx.command.name}`")
-        elif isinstance(error, commands.NotOwner):
+        elif isinstance(error, commands.NotOwner) or isinstance(error, commands.MissingPermissions):
              await ctx.send("No tienes permiso para usar ese comando.")
         else:
             # Errores más serios se imprimen en la consola

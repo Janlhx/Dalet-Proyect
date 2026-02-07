@@ -50,3 +50,14 @@ class OsuService:
     async def get_user_best_scores(self, user_id: int, mode: str = "osu", limit: int = 10):
         params = {"mode": mode, "limit": limit}
         return await self._get(f"users/{user_id}/scores/best", params=params)
+
+    async def get_user_recent_scores(self, user_id: int, mode: str = "osu", limit: int = 10, include_fails: int = 1):
+        params = {"mode": mode, "limit": limit, "include_fails": include_fails}
+        return await self._get(f"users/{user_id}/scores/recent", params=params)
+
+    async def async_search_beatmaps(self, mode: str, min_stars: float, max_stars: float, keyword: str = ""):
+        """Busca beatmaps usando filtros de dificultad."""
+        q = f"mode={mode} status=ranked stars>={min_stars} stars<={max_stars} {keyword}"
+        params = {"q": q, "sort": "plays_desc"}
+        res = await self._get("beatmapsets/search", params=params)
+        return res.get("beatmapsets", [])

@@ -1,22 +1,16 @@
-"""
-Handler (Cog) para Comandos Generales y de Utilidad.
-
-Este Cog agrupa comandos básicos que proporcionan información
-sobre el bot, el servidor o los usuarios (ej. ping, userinfo).
-No están ligados a una lógica de negocio compleja (como IA o osu!).
-"""
 import discord
 from discord.ext import commands
-import os
-import json
-import db_connector # Importado para el comando mystats
-from discord.utils import format_dt # Para formatear la fecha
+import logging
+from discord.utils import format_dt
+
+logger = logging.getLogger("dalet.handlers.general")
 
 class CommandsHandler(commands.Cog, name="Comandos Generales"):
     """Comandos básicos de Dalet (utilidades, info y herramientas generales)."""
 
     def __init__(self, bot):
         self.bot = bot
+        self.repo = bot.user_repo
 
     # --- 💬 UTILIDADES ---
     @commands.command()
@@ -31,7 +25,7 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
 
     @commands.command()
     async def userinfo(self, ctx, member: discord.Member = None):
-        """Muestra información de un usuario (o de quien usa el comando)."""
+        """Muestra información de un usuario."""
         member = member or ctx.author
         embed = discord.Embed(
             title=f"👤 {member}",
@@ -62,21 +56,20 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
         """Hace que el bot repita tu mensaje."""
         await ctx.send(mensaje)
 
-    @commands.command()
+    @commands.command(name="mystats")
     async def mystats(self, ctx):
         """Muestra tus estadísticas de actividad en el bot."""
         try:
-            
-            query = "SELECT * FROM fn_GetUserStats(%s)"
-            stats = db_connector.fetch_one(query, (ctx.author.id,))
+            query = "SELECT * FROM fn_GetUserStats($1)"
+            stats = await self.repo.fetch_one(query, ctx.author.id)
 
             if not stats:
                 return await ctx.send("No tengo datos sobre ti.")
 
-            # La función SQL devuelve: (MsgCount, LastMsgTimestamp, ScoreCount, LastScoreTimestamp)
-            msg_count = stats[0]
-            last_msg = stats[1]
-            score_count = stats[2]
+            # fn_GetUserStats returns: (msg_count, score_count, last_msg_timestamp)
+            msg_count = stats['msg_count']
+            score_count = stats['score_count']
+            last_msg = stats['last_msg_timestamp']
 
             embed = discord.Embed(
                 title=f"📊 Estadísticas de {ctx.author.name}",
@@ -85,16 +78,13 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
             embed.add_field(name="Mensajes Enviados", value=f"`{msg_count:,}`", inline=True)
             embed.add_field(name="Scores de osu! Guardados", value=f"`{score_count:,}`", inline=True)
             if last_msg:
-                # format_dt(last_msg, 'R') crea un timestamp relativo (ej: "hace 2 horas")
                 embed.add_field(name="Último Mensaje", value=format_dt(last_msg, 'R'), inline=False)
 
             await ctx.send(embed=embed)
 
         except Exception as e:
-            await ctx.send(f"❌ Error al obtener tus estadísticas: {e}")
-            print(f"!!!!!! [CommandsHandler] Error en mystats: {e}")
-
+            logger.error(f"Error in mystats command: {e}")
+            await ctx.send(f"❌ Error al obtener tus estadísticas.")
 
 async def setup(bot):
-    """Función 'setup' para cargar el Cog."""
     await bot.add_cog(CommandsHandler(bot))
