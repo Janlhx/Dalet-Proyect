@@ -56,35 +56,7 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
         """💬 Hace que Dalet repita tu mensaje."""
         await ctx.send(mensaje)
 
-    @commands.command(name="mystats")
-    async def mystats(self, ctx):
-        """📊 Muestra tus estadísticas de actividad: mensajes enviados, scores de osu! guardados, y más."""
-        try:
-            query = "SELECT * FROM fn_GetUserStats($1)"
-            stats = await self.repo.fetch_one(query, ctx.author.id)
-
-            if not stats:
-                return await ctx.send("No tengo datos sobre ti.")
-
-            # fn_GetUserStats returns: (msg_count, score_count, last_msg_timestamp)
-            msg_count = stats[0]
-            score_count = stats[1]
-            last_msg = stats[2]
-
-            embed = discord.Embed(
-                title=f"📊 Estadísticas de {ctx.author.name}",
-                color=discord.Color.random()
-            )
-            embed.add_field(name="Mensajes Enviados", value=f"`{msg_count:,}`", inline=True)
-            embed.add_field(name="Scores de osu! Guardados", value=f"`{score_count:,}`", inline=True)
-            if last_msg:
-                embed.add_field(name="Último Mensaje", value=format_dt(last_msg, 'R'), inline=False)
-
-            await ctx.send(embed=embed)
-
-        except Exception as e:
-            logger.error(f"Error in mystats command: {e}")
-            await ctx.send(f"❌ Error al obtener tus estadísticas.")
 
 async def setup(bot):
     await bot.add_cog(CommandsHandler(bot))
+

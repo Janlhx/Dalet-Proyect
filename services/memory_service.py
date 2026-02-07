@@ -25,23 +25,20 @@ class MemoryService:
     async def get_relevant_context(self, channel_id: int, user_id: int, current_message: str, check_user_memory: bool = True):
         context_lines = []
 
-        # 1. Historial de chat
+        # 1. Historial de chat (Reducido a 5 mensajes para ahorrar tokens)
         try:
-            chat_history = await self.repo.get_channel_messages(channel_id, 10)
+            chat_history = await self.repo.get_channel_messages(channel_id, 5)
             for record in reversed(chat_history):
                 context_lines.append(f"{record['username']}: {record['content']}")
         except Exception as e:
             logger.error(f"Error getting channel context: {e}")
 
-        # 2. Recuerdos de usuario (Embeddings)
+        # 2. Recuerdos de usuario (Embeddings) - Solo los 3 más relevantes
         if check_user_memory:
             try:
                 memories_raw = await self.repo.get_all_user_memories(user_id)
                 if memories_raw:
                     texts = [current_message] + [m['content'] for m in memories_raw]
-                    # This call is blocking if not using an async wrapper, 
-                    # but genai often has internal async handling or can be threaded.
-                    # For now we use the standard call.
                     embeddings = genai.embed_content(
                         model=self.relevance_model,
                         content=texts,
@@ -52,14 +49,15 @@ class MemoryService:
                     relevant_memories = []
                     for i, memory in enumerate(memories_raw):
                         vec_memory = embeddings['embedding'][i + 1]
-                        if self._calculate_similarity(vec_query, vec_memory) >= 0.65:
-                            relevant_memories.append(f"Recuerdo sobre {memory['topic']}: {memory['content']}")
+                        if self._calculate_similarity(vec_query, vec_memory) >= 0.75: # Umbral más estricto
+                            relevant_memories.append(f"Dato: {memory['content']}")
                     
-                    context_lines = relevant_memories + context_lines
+                    # Solo enviar el más relevante si hay muchos
+                    context_lines = relevant_memories[:1] + context_lines
             except Exception as e:
                 logger.error(f"Error processing user memories: {e}")
 
-        return "\n".join(context_lines[-30:])
+        return "\n".join(context_lines)
 
     async def add_memory(self, user_id, user_name, content, topic="general"):
         return await self.repo.add_user_memory(user_id, user_name, content, topic)

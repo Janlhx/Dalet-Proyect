@@ -9,9 +9,9 @@ import traceback
 logger = logging.getLogger("dalet.handlers.nlp")
 
 # --- Configuración de Comportamiento ---
-BASE_RESPONSE_RATE = 0.35  # 35% de probabilidad de responder (antes: 10%)
-COOLDOWN_TIME = 30  # Espera 30 segundos entre respuestas (antes: 60s)
-MIN_MESSAGES_BETWEEN_REPLIES = 4  # Mínimo 4 mensajes antes de responder (antes: 10) 
+BASE_RESPONSE_RATE = 0.30  # 30% de probabilidad
+COOLDOWN_TIME = 45  # Espera 45 segundos
+MIN_MESSAGES_BETWEEN_REPLIES = 10  # Mínimo 10 mensajes
 
 class DaletNLPChat(commands.Cog):
     """Maneja el listener 'on_message' para las respuestas de la IA."""
@@ -20,14 +20,18 @@ class DaletNLPChat(commands.Cog):
         self.bot = bot
         self.last_reply_time = 0
         self.message_counter = 0
+        self.is_responding = False # Flag para evitar doble respuesta
 
     def _should_respond(self):
+        if self.is_responding: return False # Ignorar si ya está procesando
+        
         now = time.time()
         if now - self.last_reply_time < COOLDOWN_TIME:
             return False
         
         self.message_counter += 1
         return self.message_counter >= MIN_MESSAGES_BETWEEN_REPLIES and random.random() < BASE_RESPONSE_RATE
+
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -69,6 +73,9 @@ class DaletNLPChat(commands.Cog):
             logger.error(f"Error in decision logic: {e}")
 
     async def generate_response(self, message, is_direct_mention: bool):
+        if self.is_responding: return
+        
+        self.is_responding = True
         async with message.channel.typing():
             try:
                 context = await self.bot.memory_service.get_relevant_context(
@@ -95,6 +102,9 @@ class DaletNLPChat(commands.Cog):
             except Exception as e:
                 logger.error(f"Error generating response: {e}")
                 traceback.print_exc()
+            finally:
+                self.is_responding = False
+
 
 async def setup(bot):
     await bot.add_cog(DaletNLPChat(bot))
