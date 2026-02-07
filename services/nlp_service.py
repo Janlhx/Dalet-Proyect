@@ -31,9 +31,19 @@ Si alguien te pide que menciones con @ a otra persona, o de manera similar, no l
         prompt = f"{self.personality}\n\nConversación reciente:\n{context}\n\nNuevo mensaje de {username}: \"{trigger}\"\n\nTu respuesta (solo el mensaje, sin contexto adicional):"
         
         try:
-            model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "gemini-1.5-flash"))
+            model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "models/gemini-1.5-flash-latest"))
+            logger.info(f"Calling Gemini with model: {os.getenv('GEMINI_MODEL', 'models/gemini-1.5-flash')}")
             response = await model.generate_content_async(prompt)
-            return response.text.strip() if response and response.text else None
+            
+            if response and response.text:
+                logger.info(f"Gemini response received: {len(response.text)} characters")
+                return response.text.strip()
+            else:
+                logger.warning(f"Gemini returned empty response. Response object: {response}")
+                return None
         except Exception as e:
             logger.error(f"Error calling Gemini: {e}")
+            import traceback
+            traceback.print_exc()
             return None
+
