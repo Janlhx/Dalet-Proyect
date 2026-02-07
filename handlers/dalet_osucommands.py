@@ -6,14 +6,14 @@ import logging
 import traceback
 from datetime import datetime, timezone
 from discord.utils import format_dt
-from ui.osu_ui import AnalysisPaginator, DescriptionPaginator
+from ui.osu_ui import UniversalPaginator
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
 import google.generativeai as genai
 
 logger = logging.getLogger("dalet.handlers.osu")
 
 class OsuHandler(commands.Cog, name="osu!"):
-    """Comandos dedicados a osu! y análisis con IA."""
+    """Comandos dedicados a osu! y análisis Pro con IA."""
 
     def __init__(self, bot):
         self.bot = bot
@@ -63,15 +63,7 @@ class OsuHandler(commands.Cog, name="osu!"):
                 stats = user.get("statistics", {})
                 
                 # Color basado en el rango
-                rank = stats.get('global_rank', 999999)
-                if rank <= 1000:
-                    color = 0xFFD700  # Gold
-                elif rank <= 10000:
-                    color = 0xC0C0C0  # Silver
-                elif rank <= 100000:
-                    color = 0xCD7F32  # Bronze
-                else:
-                    color = 0xFF66AA  # Pink
+                color = self._get_rank_color(stats.get('global_rank', 999999))
                 
                 # Crear embed principal
                 embed = discord.Embed(
@@ -186,132 +178,99 @@ class OsuHandler(commands.Cog, name="osu!"):
             except Exception as e:
                 logger.error(f"Error in osuProfile: {e}")
                 await ctx.send(f"⚠️ Error al obtener el perfil de '{username}'.")
-    
+
     def _create_progress_bar(self, percentage, length=10):
         """Crea una barra de progreso visual."""
         filled = int(length * percentage / 100)
         empty = length - filled
         return f"[{'█' * filled}{'░' * empty}]"
 
-    @commands.command(name="oa", aliases=["osuAnalyze"])
+    @commands.command(name="oa", aliases=["osuAnalyze", "oc", "osuCoach"])
     async def osu_analyze(self, ctx, *, args: str = None):
-        """Analiza tu perfil de osu! y hábitos recientes con IA."""
+        """[SUPER ANALYZE PRO] Análisis profundo + Coaching personalizado en un solo reporte."""
         username, mode = await self._parse_args(ctx, args)
         if not username: return
 
         async with ctx.typing():
             try:
+                # 1. Recolección de Datos (Enriquecida)
                 user = await self.osu_service.get_user(username, mode)
                 recent = await self.osu_service.get_user_recent_scores(user["id"], mode, limit=50)
                 best = await self.osu_service.get_user_best_scores(user["id"], mode, limit=50)
                 stats = user.get("statistics", {})
                 
-                # Crear embed inicial con estadísticas
+                # Crear embed inicial (Skeleton)
+                color = self._get_rank_color(stats.get('global_rank', 999999))
                 embed = discord.Embed(
-                    title=f"🧠 Análisis IA: {username}",
+                    title=f"📊 Reporte Dalet: {username}",
                     url=f"https://osu.ppy.sh/users/{user['id']}/{mode}",
-                    color=0xFF66AA,
-                    description="Analizando tu perfil y jugadas recientes..."
+                    color=color,
+                    description="🚀 Generando análisis total y plan de coaching..."
                 )
                 embed.set_thumbnail(url=user.get("avatar_url", ""))
                 
-                # Stats rápidas
+                # Stats rápidas en Pagina 1
                 embed.add_field(name="PP", value=f"`{stats.get('pp', 0):,.0f}`", inline=True)
                 embed.add_field(name="Rank", value=f"`#{stats.get('global_rank', 0):,}`", inline=True)
                 embed.add_field(name="Acc", value=f"`{stats.get('hit_accuracy', 0):.2f}%`", inline=True)
                 
                 msg = await ctx.send(embed=embed)
                 
-                # OsuAnalyzer usa self.osu_service para búsquedas asíncronas
+                # 2. Generar Análisis con IA
                 analyzer = OsuAnalyzer(self.osu_service, user, recent, best)
-                prompt = analyzer.generate_ai_analysis()
+                prompt = await analyzer.generate_super_prompt()
                 
-                response = await self.bot.nlp_service.generate_reply(prompt, "Análisis de osu!", username)
+                response = await self.bot.nlp_service.generate_reply(prompt, "Súper Análisis de osu!", username)
                 
                 if response:
-                    # Actualizar embed con el análisis
-                    embed.description = None
+                    # 3. Parsing del Response (Separadores [PAGE1_INTRO], etc)
+                    pages = self._parse_ai_response(response)
                     
-                    # Dividir el análisis en secciones si es muy largo
-                    if len(response) > 1024:
-                        parts = [response[i:i+1024] for i in range(0, len(response), 1024)]
-                        for i, part in enumerate(parts[:3]):  # Máximo 3 campos
-                            embed.add_field(
-                                name=f"📊 Análisis (Parte {i+1})" if len(parts) > 1 else "📊 Análisis Completo",
-                                value=part,
-                                inline=False
-                            )
-                    else:
-                        embed.add_field(name="📊 Análisis Completo", value=response, inline=False)
+                    # Actualizar embed con la primera página (Intro)
+                    embed.description = pages[0]
+                    embed.set_footer(text=f"{pages[3]} | Página 1/3")
                     
-                    embed.set_footer(text=f"Basado en {len(recent)} jugadas recientes y {len(best)} mejores scores")
-                    await msg.edit(embed=embed)
+                    # 4. Lanzar Paginador
+                    view = UniversalPaginator(pages, embed)
+                    await msg.edit(embed=embed, view=view)
                 else:
-                    embed.description = "❌ No pude generar el análisis en este momento."
+                    embed.description = "❌ Dalet se quedó dormida. No pude obtener el análisis."
                     await msg.edit(embed=embed)
+                    
             except Exception as e:
-                logger.error(f"Error in osuAnalyze for {username}: {e}")
+                logger.error(f"Error in Super Analyze for {username}: {e}")
                 traceback.print_exc()
-                await ctx.send(f"⚠️ Error técnico al analizar a '{username}'. Dile a Litxe que revise los logs.")
+                await ctx.send(f"⚠️ Error técnico en el Súper Análisis. Dile a Litxe que revise los logs.")
 
+    def _get_rank_color(self, rank):
+        if rank <= 1000: return 0xFFD700
+        if rank <= 10000: return 0xC0C0C0
+        if rank <= 100000: return 0xCD7F32
+        return 0xFF66AA
 
-    @commands.command(name="oc", aliases=["osuCoach"])
-    async def osu_coach(self, ctx, *, args: str = None):
-        """Plan de entrenamiento personalizado basado en tus debilidades."""
-        username, mode = await self._parse_args(ctx, args)
-        if not username: return
+    def _parse_ai_response(self, text):
+        """Divide la respuesta de la IA en secciones basadas en los delimitadores."""
+        # Secciones esperadas: [PAGE1_INTRO], [PAGE2_ANALYSIS], [PAGE3_COACHING], [FOOTER]
+        import re
+        
+        intro = self._extract_section(text, "PAGE1_INTRO")
+        analysis = self._extract_section(text, "PAGE2_ANALYSIS")
+        coaching = self._extract_section(text, "PAGE3_COACHING")
+        footer = self._extract_section(text, "FOOTER")
+        
+        # Fallbacks si la IA falla en los tags
+        if not intro and not analysis:
+            return [text[:1500], "Análisis no disponible", "Coaching no disponible", "Fin."]
+            
+        return [intro, analysis, coaching, footer]
 
-        async with ctx.typing():
-            try:
-                user = await self.osu_service.get_user(username, mode)
-                recent = await self.osu_service.get_user_recent_scores(user["id"], mode, limit=50)
-                best = await self.osu_service.get_user_best_scores(user["id"], mode, limit=50)
-                stats = user.get("statistics", {})
-                
-                # Crear embed inicial
-                embed = discord.Embed(
-                    title=f"🎯 Plan de Coaching: {username}",
-                    url=f"https://osu.ppy.sh/users/{user['id']}/{mode}",
-                    color=0x00FF00,
-                    description="Generando plan de entrenamiento personalizado..."
-                )
-                embed.set_thumbnail(url=user.get("avatar_url", ""))
-                
-                # Stats actuales
-                embed.add_field(name="Nivel Actual", value=f"`{stats.get('pp', 0):,.0f}pp`", inline=True)
-                embed.add_field(name="Precisión", value=f"`{stats.get('hit_accuracy', 0):.2f}%`", inline=True)
-                embed.add_field(name="Jugadas", value=f"`{stats.get('play_count', 0):,}`", inline=True)
-                
-                msg = await ctx.send(embed=embed)
-                
-                analyzer = OsuAnalyzer(self.osu_service, user, recent, best)
-                prompt = await analyzer.generate_coaching_prompt()
-                
-                response = await self.bot.nlp_service.generate_reply(prompt, "Coaching de osu!", username)
-                
-                if response:
-                    embed.description = None
-                    
-                    # Dividir el plan en secciones
-                    if len(response) > 1024:
-                        parts = [response[i:i+1024] for i in range(0, len(response), 1024)]
-                        for i, part in enumerate(parts[:3]):
-                            embed.add_field(
-                                name=f"📝 Plan (Parte {i+1})" if len(parts) > 1 else "📝 Plan Completo",
-                                value=part,
-                                inline=False
-                            )
-                    else:
-                        embed.add_field(name="📝 Plan de Mejora", value=response, inline=False)
-                    
-                    embed.set_footer(text="💡 Practica con constancia y verás mejoras")
-                    await msg.edit(embed=embed)
-                else:
-                    embed.description = "❌ No pude generar el plan de coaching."
-                    await msg.edit(embed=embed)
-            except Exception as e:
-                logger.error(f"Error in osuCoach: {e}")
-                await ctx.send(f"⚠️ Error al generar coaching para '{username}'.")
+    def _extract_section(self, text, tag):
+        pattern = rf"\[{tag}\](.*?)(?=\[|$)"
+        match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+        return match.group(1).strip() if match else ""
+
+    # ... (parse_args y setup se mantienen)
+
 
     async def _parse_args(self, ctx, args):
         username, mode = None, "osu"

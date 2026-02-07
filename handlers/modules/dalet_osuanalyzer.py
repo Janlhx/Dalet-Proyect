@@ -220,142 +220,86 @@ class OsuAnalyzer:
             print(f"!!!!!! [OsuAnalyzer] Error en Map Search: {e}"); 
             return []
 
-    # --- GENERADORES DE PROMPTS (v4.1) ---
+    # --- GENERADOR DE PROMPT UNIFICADO (v5.0 - SUPER ANALYZE) ---
 
-    def generate_ai_analysis(self) -> str:
+    async def generate_super_prompt(self) -> str:
         """
-        MEJORADO: El prompt ahora incluye la COMPARACIÓN y maneja el 'None' del acc.
+        Genera un prompt unificado que incluye Estadísticas, Análisis Profundo y Coaching.
+        Estructurado para ser dividido en 3 páginas por el Bot.
         """
-        # 1. Analizar Best Plays
+        # 1. Preparar Datos
         best_playstyle = self._analyze_best_playstyle()
         pp_spread = self._analyze_pp_spread()
         best_beatmap_stats = self._analyze_best_beatmap_stats()
         
-        # 2. Analizar Recent Plays
         trends = self._analyze_trends()
         recent_playstyle = self._analyze_recent_playstyle()
         recent_beatmap_stats = self._analyze_recent_beatmap_stats()
         
-        # --- ¡FIX v4.1! Manejar el None ---
-        if trends['avg_recent_acc'] is not None:
-            trends_text = f"""
-            - **Acc Promedio Reciente:** {trends['avg_recent_acc']}% (¡Corregido!)
-            - **Consistencia Reciente:** {trends['consistency']}
-            """
-        else:
-            trends_text = """
-            - **Acc Promedio Reciente:** N/A (No se encontraron partidas completadas en las últimas 50)
-            - **Consistencia Reciente:** Baja (Inconsistente)
-            """
-
-        prompt = f"""
-        **ROL:** Eres Dalet, una analista de osu! experta, sarcástica y brutalmente honesta.
-        **TAREA:** Proporciona un análisis detallado comparando el historial (Top 50) vs. los hábitos (Recent 50).
-        
-        **DATOS DEL PERFIL:**
-        - **Nombre:** {self.user.get("username")}
-        - **PP Total:** {self.stats.get('pp', 0):.2f}
-        - **Acc Global:** {self.stats.get('hit_accuracy', 0):.2f}%
-        
-        **ANÁLISIS DE POTENCIAL (Top 50 Plays):**
-        - **Estilo Histórico:** {best_playstyle['detected_style']} (Mods: {', '.join(best_playstyle['dominant_mods'])})
-        - **Perfil de PP:** {pp_spread['spread_type']} (Top: {pp_spread['top_pp']:.0f}pp vs 50vo: {pp_spread['50th_pp']:.0f}pp)
-        - **Stats de Mapas (Top):** AR {best_beatmap_stats['avg_ar']:.1f}, OD {best_beatmap_stats['avg_od']:.1f}
-        
-        **ANÁLISIS DE HÁBITOS (Últimas 50 Partidas Pasadas):**
-        - **Estilo Reciente:** {recent_playstyle['detected_style']} (Mods: {', '.join(recent_playstyle['dominant_mods'])})
-        {trends_text}
-        - **Stats de Mapas (Reciente):** AR {recent_beatmap_stats['avg_ar']:.1f}, OD {recent_beatmap_stats['avg_od']:.1f}
-        
-        **FORMATO OBLIGATORIO (SEPARA CADA SECCIÓN CLARAMENTE):**
-        
-        ### 🧠 Análisis (Potencial vs. Hábito)
-        (Aquí está la clave. Compara ambos análisis. Ej: "Veo que tus mejores plays son de DT, pero recientemente no juegas DT para nada. Parece que estás cambiando tu estilo..." o "Tu potencial está en HR, pero tu acc reciente es N/A, lo que significa que estás fallando todo.")
-        
-        ### ✅ Fortalezas
-        (Menciona 2-3 puntos fuertes claros basados en TODOS los datos.)
-        
-        ### ⚠️ A Mejorar
-        (Menciona 2-3 debilidades claras. Si su AR reciente es bajo, está sesgado. Si su Acc Reciente es N/A, está jugando mapas muy difíciles o reiniciando mucho.)
-        
-        ### 💡 Consejo Rápido de Dalet
-        (Basado en la comparación. Ej: "Ya demostraste que puedes jugar DT. Ahora aplica esa velocidad a mapas de 'stamina' (NM) para balancear tu perfil." o "Tu AR promedio reciente es 9.1. Deja de tenerle miedo a AR10.")
-        
-        ### 💬 Comentario Final
-        (Una frase final, corta y sarcástica sobre su perfil.)
-        """
-        return prompt
-
-    async def generate_coaching_prompt(self) -> str:
-        """
-        MEJORADO: El prompt de coaching ahora también se basa en la comparación
-        y maneja el 'None' del acc.
-        """
-        # 1. Analizar Best Plays
-        best_playstyle = self._analyze_best_playstyle()
-        pp_spread = self._analyze_pp_spread()
-        best_beatmap_stats = self._analyze_best_beatmap_stats()
-        
-        # 2. Analizar Recent Plays
-        trends = self._analyze_trends()
-        recent_playstyle = self._analyze_recent_playstyle()
-        recent_beatmap_stats = self._analyze_recent_beatmap_stats()
-        
-        self.analysis_summary = {
-            "username": self.user.get("username", "Desconocido"),
-            "pp": round(self.stats.get("pp", 0), 2),
-            "accuracy": round(self.stats.get("hit_accuracy", 0), 2),
-        }
-
-        # 3. Determinar Foco (basado en 'recents' y 'trends')
         focus = self._determine_focus(trends, pp_spread, recent_beatmap_stats)
         recommended_maps = await self._search_recommended_maps(focus)
- 
-        maps_text = "\n".join([f"- Título: {m['title']}, Artista: {m['artist']}, Estrellas: {m['stars']:.2f}, URL: {m['url']}" for m in recommended_maps])
-        if not recommended_maps:
-            maps_text = "No se encontraron mapas específicos con la búsqueda automática."
-
-        # --- ¡FIX v4.1! Manejar el None ---
-        if trends['avg_recent_acc'] is not None:
-            trends_text = f"- **Tendencia Reciente:** Acc Promedio: {trends['avg_recent_acc']}% (Consistencia: {trends['consistency']})"
-        else:
-            trends_text = f"- **Tendencia Reciente:** N/A (No hay partidas completadas recientemente. Consistencia: Baja)"
         
+        # 2. Formatear Datos Extra (Rank History, Hits, etc.)
+        stats = self.stats
+        rank_highest = self.user.get("rank_highest", {})
+        rank_highest_text = f"#{rank_highest.get('rank', 0):,} ({rank_highest.get('updated_at', 'N/A')})"
+        
+        # Muestra de hits totales (perfil)
+        hits_profile = f"300s: {stats.get('count_300', 0):,}, 100s: {stats.get('count_100', 0):,}, 50s: {stats.get('count_50', 0):,}, Misses: {stats.get('count_miss', 0):,}"
+        
+        # Historial de Rank (últimos 90 días)
+        rank_history = self.user.get("rank_history", {}).get("data", [])
+        rank_trend = "Estable"
+        if len(rank_history) > 1:
+            start_rank = rank_history[0]
+            end_rank = rank_history[-1]
+            if end_rank < start_rank: rank_trend = "Ascendente 📈"
+            elif end_rank > start_rank: rank_trend = "Descendente 📉"
+
+        # Formatear mapas
+        maps_text = "\n".join([f"- [{m['artist']} - {m['title']}]( {m['url']} ) ({m['stars']}★)" for m in recommended_maps])
+        if not recommended_maps:
+            maps_text = "No se encontraron mapas específicos."
+
+        # 3. Construir el Prompt
         prompt = f"""
-        **ROL Y OBJETIVO:** Eres Dalet, un coach de osu! de élite. Tu tono es sarcástico pero tus consejos son oro puro.
-        **TAREA:** Crea un plan de coaching para el jugador, usando los datos y los mapas encontrados. Sigue el formato OBLIGATORIO.
-
-        **DATOS DEL JUGADOR:**
-        - **Nombre:** {self.analysis_summary['username']}
-        - **Stats Clave:** {self.analysis_summary['pp']}pp, {self.analysis_summary['accuracy']}% acc
-        - **Estilo Histórico (Top 50):** {best_playstyle['detected_style']} (Mods: {', '.join(best_playstyle['dominant_mods'])})
-        - **Estilo Reciente (Últimos 50):** {recent_playstyle['detected_style']} (Mods: {', '.join(recent_playstyle['dominant_mods'])})
-        {trends_text}
-        - **Análisis de Mapas (Reciente):** AR Promedio: {recent_beatmap_stats['avg_ar']:.1f}, OD Promedio: {recent_beatmap_stats['avg_od']:.1f}
-        - **ÁREA DE ENFOQUE (Deducida):** {focus.upper()}
-
-        **MAPAS ENCONTRADOS (CON URL):**
+        **ROL:** Eres Dalet, la analista y coach de osu! más respetada, ácida y técnica del mundo.
+        **OBJETIVO:** Realiza un reporte total del jugador {self.user.get("username")}.
+        
+        **DATOS CRÍTICOS DEL JUGADOR:**
+        - **PP:** {stats.get('pp', 0):.2f} | **Acc Global:** {stats.get('hit_accuracy', 0):.2f}%
+        - **Rank Actual:** #{stats.get('global_rank', 0):,} | **Tendencia:** {rank_trend}
+        - **Peak Rank:** {rank_highest_text}
+        - **Hits Totales:** {hits_profile}
+        - **Play Count:** {stats.get('play_count', 0):,} | **Play Time:** {stats.get('play_time', 0)//3600}h
+        
+        **COMPORTAMIENTO TÉCNICO:**
+        - **Estilo Histórico (Top 50):** {best_playstyle['detected_style']} (AR: {best_beatmap_stats['avg_ar']:.1f}, OD: {best_beatmap_stats['avg_od']:.1f})
+        - **Hábitos Recientes (Recent 50):** {recent_playstyle['detected_style']} (AR: {recent_beatmap_stats['avg_ar']:.1f}, OD: {recent_beatmap_stats['avg_od']:.1f})
+        - **Consistencia Reciente:** {trends.get('consistency', 'N/A')} (Acc Promedio: {trends.get('avg_recent_acc', 'N/A')}%)
+        - **Área de Enfoque Deducida:** {focus.upper()}
+        
+        **ESTRUCTURA DE RESPUESTA (OBLIGATORIA CON SEPARADORES):**
+        Divide tu respuesta exactamente con estos separadores. Sé concisa y usa un formato visualmente limpio (negritas, listas).
+        
+        [PAGE1_INTRO]
+        (Escribe una introducción sarcástica sobre su perfil actual. Menciona su rank, su tendencia y su peak rank. Hazle saber si está mejorando o si es un "hardstuck".)
+        
+        [PAGE2_ANALYSIS]
+        ### 🧠 Diagnóstico de Dalet
+        - **Análisis de Potencial vs. Hábito**: (¿Qué dicen sus Top Plays vs sus jugadas recientes? ¿Está perdiendo el toque?)
+        - **Fortalezas**: (Lista técnica de 2-3 puntos)
+        - **Debilidades Criticas**: (Sé brutalmente honesta aquí sobre su acc, stamina o lectura)
+        
+        [PAGE3_COACHING]
+        ### 🎯 Plan de Acción: {focus.capitalize()}
+        - **Consejo Maestro**: (Un párrafo de coaching técnico puro basado en su área de enfoque)
+        - **Entrenamiento Recomendado**:
         {maps_text}
-
-        **FORMATO DE RESPUESTA OBLIGATORIO Y REGLAS:**
-        Usa viñetas y frases cortas. No te repitas.
-
-        ### 🎯 Foco Principal: {focus.capitalize()}
-        (Explica en UNA SOLA frase por qué este enfoque es crucial. Ej: "Tu AR promedio reciente es 9.2, necesitas mejorar tu 'Lectura' con mapas más rápidos" o "Tu acc reciente es N/A, lo que significa que estás fallando todo. Enfócate en 'Consistencia' y completa mapas.")
-
-        ### 💡 Observación Clave (Potencial vs. Hábito)
-        (Compara su 'Estilo Histórico' con su 'Estilo Reciente'. Ej: "Tus mejores plays son DT, pero ya no lo juegas. Si quieres subir PP, vuelve a practicar velocidad, o si no, enfócate en tu nuevo estilo de NM".)
-
-        ### ⚠️ A Mejorar
-        (Menciona 1-2 debilidades que NO sean el Foco Principal.)
-
-        ### 🗺️ Plan de Acción y Mapas
-        (Para cada mapa de la lista (deben ser 4 o 5), crea un enlace Markdown. **Formato exacto:** `- [Título del Mapa](URL) ({'stars'}★)`.
-        (Debajo de cada mapa, en una sub-viñeta, da un consejo técnico específico Y UNA RECOMENDACIÓN DE MOD. Ej: "Juega esto con Hidden para tu 'lectura'" o "Juega esto SIN MODS (NM) para enfocarte en el acc puro").
-        (Si no hay mapas, recomienda 1-2 tipos de mapas a buscar manualmente).
-
-        ### 💬 Comentario de Dalet
-        (UNA frase final, sarcástica y motivadora).
+        (Añade una breve nota técnica sobre por qué estos mapas le servirán)
+        
+        [FOOTER]
+        (Una frase final corta que sirva de cierre sarcástico/motivador)
         """
         return prompt
     
