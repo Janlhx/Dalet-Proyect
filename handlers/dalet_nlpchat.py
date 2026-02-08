@@ -12,7 +12,7 @@ logger = logging.getLogger("dalet.handlers.nlp")
 BASE_RESPONSE_RATE = 0.25  # 25% de probabilidad
 COOLDOWN_TIME = 45  # Espera 45 segundos
 MIN_MESSAGES_BETWEEN_REPLIES = 10  # Mínimo 10 mensajes
-MAX_MESSAGES_WINDOW = 20  # Si pasan 20 mensajes sin responder, resetear contador
+MAX_MESSAGES_WINDOW = 10  # Si pasan 10 mensajes sin responder, resetear contador
 
 class DaletNLPChat(commands.Cog):
     """Maneja el listener 'on_message' para las respuestas de la IA."""
@@ -156,37 +156,35 @@ class DaletNLPChat(commands.Cog):
         try:
             ctx = await self.bot.get_context(message)
             
-            if action_name == "osu_analyze":
-                target = params.get("user")
-                if target:
-                    command = self.bot.get_command("oa")
-                    if command: await ctx.invoke(command, args=target)
-            
-            elif action_name == "userinfo":
-                target = params.get("target")
-                # Intentar convertir mención o ID a miembro
-                member = None
-                if target:
-                    if target.startswith("<@") and target.endswith(">"):
-                        user_id = int(re.sub(r"\D", "", target))
-                        member = message.guild.get_member(user_id)
+            # --- Mapeo de Comandos ---
+            command_map = {
+                "osu_analyze": ("oa", {"args": params.get("user")}),
+                "userinfo": ("userinfo", {}), # El member se maneja abajo
+                "serverinfo": ("serverinfo", {}),
+                "ping": ("ms", {}),
+                "say": ("say", {"mensaje": params.get("text")})
+            }
+
+            if action_name in command_map:
+                cmd_name, cmd_params = command_map[action_name]
+                command = self.bot.get_command(cmd_name)
                 
-                command = self.bot.get_command("userinfo")
-                if command: await ctx.invoke(command, member=member or message.author)
+                if command:
+                    # CASO ESPECIAL: Manejo de miembros en userinfo
+                    if action_name == "userinfo" and params.get("target"):
+                        target = params.get("target")
+                        if target.startswith("<@") and target.endswith(">"):
+                            user_id = int(re.sub(r"\D", "", target))
+                            cmd_params["member"] = message.guild.get_member(user_id) or message.author
 
-            elif action_name == "serverinfo":
-                command = self.bot.get_command("serverinfo")
-                if command: await ctx.invoke(command)
-
-            elif action_name == "ping":
-                command = self.bot.get_command("ms")
-                if command: await ctx.invoke(command)
-
-            elif action_name == "say":
-                text = params.get("text")
-                if text:
-                    command = self.bot.get_command("say")
-                    if command: await ctx.invoke(command, mensaje=text)
+                    # VERIFICACIÓN DE SEGURIDAD (Respetar bot.check y bloqueos)
+                    try:
+                        if await command.can_run(ctx):
+                             await ctx.invoke(command, **cmd_params)
+                        else:
+                             logger.warning(f"AI Action {action_name} blocked by security checks in #{message.channel.name}")
+                    except commands.CheckFailure:
+                        logger.info(f"AI Action {action_name} skipped: Channel is locked or permissions missing.")
 
         except Exception as e:
             logger.error(f"Error executing action {action_name}: {e}")
