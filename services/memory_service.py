@@ -52,8 +52,8 @@ class MemoryService:
                         if self._calculate_similarity(vec_query, vec_memory) >= 0.60: # Más generoso (antes 0.75)
                             relevant_memories.append(f"Dato: {memory['content']}")
                     
-                    # Enviar más recuerdos para aprovechar la ventana de contexto de Llama 3.3
-                    context_lines = relevant_memories[:5] + context_lines
+                    # Inyectar solo 2 recuerdos para evitar saturar de "spam" el cerebro
+                    context_lines = relevant_memories[:2] + context_lines
             except Exception as e:
                 logger.error(f"Error processing user memories: {e}")
 
