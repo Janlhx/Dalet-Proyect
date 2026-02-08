@@ -100,13 +100,46 @@ class DaletNLPChat(commands.Cog):
                 )
 
                 if reply:
-                    await message.channel.send(reply)
-                    await self.bot.user_repo.log_message(
-                        self.bot.user.id, self.bot.user.name,
-                        message.guild.id, message.guild.name,
-                        message.channel.id, message.channel.name,
-                        reply
-                    )
+                    # --- Extracción de Memoria Automática ---
+                    import re
+                    memory_match = re.search(r"\[SAVE_MEMORY:\s*(.*?)\]", reply)
+                    if memory_match:
+                        memory_content = memory_match.group(1).strip()
+                        try:
+                            logger.info(f"Auto-Memory detected: {memory_content} for {message.author.name}")
+                            await self.bot.memory_service.add_memory(
+                                message.author.id, str(message.author.name), memory_content
+                            )
+                            reply = re.sub(r"\[SAVE_MEMORY:.*?\]", "", reply).strip()
+                        except Exception as e:
+                            logger.error(f"Error saving auto-memory: {e}")
+
+                    # --- Ejecución de Acciones por Intención ---
+                    action_match = re.search(r"(\[ACTION:\s*(\w+)(?:,\s*.*?)?\])", reply)
+                    if action_match:
+                        full_tag = action_match.group(1)
+                        action_name = action_match.group(2).lower()
+                        
+                        # Extraer parámetros SOLO dentro de la etiqueta
+                        params = {}
+                        param_matches = re.findall(r"(\w+):\s*([^,\]]+)", full_tag)
+                        for k, v in param_matches:
+                            params[k.strip()] = v.strip()
+
+                        # Limpiar el mensaje antes de enviarlo
+                        reply = re.sub(r"\[ACTION:.*?\]", "", reply).strip()
+                        
+                        # Ejecutar la acción
+                        await self._execute_action(message, action_name, params)
+
+                    if reply: 
+                        await message.channel.send(reply)
+                        await self.bot.user_repo.log_message(
+                            self.bot.user.id, self.bot.user.name,
+                            message.guild.id, message.guild.name,
+                            message.channel.id, message.channel.name,
+                            reply
+                        )
                 
                 if not is_direct_mention:
                     self.last_reply_time = time.time()
@@ -117,6 +150,46 @@ class DaletNLPChat(commands.Cog):
                 traceback.print_exc()
             finally:
                 self.is_responding = False
+
+    async def _execute_action(self, message, action_name, params):
+        """Mapea y ejecuta comandos de Discord basados en la intención de la IA."""
+        try:
+            ctx = await self.bot.get_context(message)
+            
+            if action_name == "osu_analyze":
+                target = params.get("user")
+                if target:
+                    command = self.bot.get_command("oa")
+                    if command: await ctx.invoke(command, args=target)
+            
+            elif action_name == "userinfo":
+                target = params.get("target")
+                # Intentar convertir mención o ID a miembro
+                member = None
+                if target:
+                    if target.startswith("<@") and target.endswith(">"):
+                        user_id = int(re.sub(r"\D", "", target))
+                        member = message.guild.get_member(user_id)
+                
+                command = self.bot.get_command("userinfo")
+                if command: await ctx.invoke(command, member=member or message.author)
+
+            elif action_name == "serverinfo":
+                command = self.bot.get_command("serverinfo")
+                if command: await ctx.invoke(command)
+
+            elif action_name == "ping":
+                command = self.bot.get_command("ms")
+                if command: await ctx.invoke(command)
+
+            elif action_name == "say":
+                text = params.get("text")
+                if text:
+                    command = self.bot.get_command("say")
+                    if command: await ctx.invoke(command, mensaje=text)
+
+        except Exception as e:
+            logger.error(f"Error executing action {action_name}: {e}")
 
 
 async def setup(bot):
