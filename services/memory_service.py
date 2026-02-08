@@ -25,9 +25,9 @@ class MemoryService:
     async def get_relevant_context(self, channel_id: int, user_id: int, current_message: str, check_user_memory: bool = True):
         context_lines = []
 
-        # 1. Historial de chat (Reducido a 5 mensajes para ahorrar tokens)
+        # 1. Historial de chat (10 mensajes para mejor contexto)
         try:
-            chat_history = await self.repo.get_channel_messages(channel_id, 5)
+            chat_history = await self.repo.get_channel_messages(channel_id, 10)
             for record in reversed(chat_history):
                 context_lines.append(f"{record['username']}: {record['content']}")
         except Exception as e:
@@ -49,11 +49,11 @@ class MemoryService:
                     relevant_memories = []
                     for i, memory in enumerate(memories_raw):
                         vec_memory = embeddings['embedding'][i + 1]
-                        if self._calculate_similarity(vec_query, vec_memory) >= 0.75: # Umbral más estricto
+                        if self._calculate_similarity(vec_query, vec_memory) >= 0.60: # Más generoso (antes 0.75)
                             relevant_memories.append(f"Dato: {memory['content']}")
                     
-                    # Solo enviar el más relevante si hay muchos
-                    context_lines = relevant_memories[:1] + context_lines
+                    # Enviar más recuerdos para aprovechar la ventana de contexto de Llama 3.3
+                    context_lines = relevant_memories[:5] + context_lines
             except Exception as e:
                 logger.error(f"Error processing user memories: {e}")
 

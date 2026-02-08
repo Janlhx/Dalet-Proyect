@@ -36,3 +36,16 @@ class UserRepository(BaseRepository):
             "sp_LogMessage",
             user_id, user_name, server_id, server_name, channel_id, channel_name, content
         )
+
+    async def search_lore(self, query: str, channel_id: int, limit: int = 25):
+        """Busca fragmentos de mensajes pasados que coincidan con un término."""
+        sql_query = """
+            SELECT UserName, Content, Timestamp
+            FROM V_ChannelMessages
+            WHERE Content ILIKE $1
+            AND ChannelID = $2
+            ORDER BY Timestamp DESC
+            LIMIT $3
+        """
+        search_term = f"%{query}%"
+        return await self.fetch_all(sql_query, search_term, channel_id, limit)
