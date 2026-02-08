@@ -81,8 +81,9 @@ IMPORTANTE: Nunca respondas con mensajes que parezcan comandos (ej. no empieces 
             return None
 
 
-    async def _generate_groq_reply(self, trigger: str, context: str, username: str):
-        model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    async def _generate_groq_reply(self, trigger: str, context: str, username: str, is_fallback=False):
+        model_name = os.getenv("GROQ_MODEL" if not is_fallback else "GROQ_MODEL_FALLBACK", 
+                               "llama-3.3-70b-versatile" if not is_fallback else "llama-3.1-8b-instant")
         url = "https://api.groq.com/openai/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.groq_api_key}",
@@ -100,14 +101,26 @@ IMPORTANTE: Nunca respondas con mensajes que parezcan comandos (ej. no empieces 
         
         try:
             async with httpx.AsyncClient() as client:
-                logger.info(f"Calling Groq with model: {model_name}")
+                logger.info(f"Calling Groq with model: {model_name} (is_fallback={is_fallback})")
                 response = await client.post(url, headers=headers, json=data, timeout=30.0)
+                
+                # Manejo específico de Rate Limit (429)
+                if response.status_code == 429:
+                    if not is_fallback:
+                        logger.warning(f"Groq {model_name} Rate Limit (429). Trying fallback model...")
+                        return await self._generate_groq_reply(trigger, context, username, is_fallback=True)
+                    else:
+                        logger.error("All Groq models reached Rate Limit.")
+                        return "Oye, dame un respiro. Me voy a fundir con tanto mensaje. Vuelve en un ratito, ¿vale?"
+                
                 response.raise_for_status()
                 result = response.json()
                 return result['choices'][0]['message']['content'].strip()
         except Exception as e:
-            logger.error(f"Groq failed, falling back to Gemini. Reason: {e}")
-            # Fallback a Gemini si Groq falla
+            logger.error(f"Groq call failed ({model_name}). Reason: {e}")
+            # Solo hacemos fallback a Gemini ante errores críticos que NO sean 429
+            if not is_fallback:
+                return await self._generate_groq_reply(trigger, context, username, is_fallback=True)
             return await self._generate_gemini_reply(trigger, context, username)
 
 
