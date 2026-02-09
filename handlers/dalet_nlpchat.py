@@ -5,6 +5,7 @@ import time
 import random
 import logging
 import traceback
+import re
 
 logger = logging.getLogger("dalet.handlers.nlp")
 
@@ -90,13 +91,24 @@ class DaletNLPChat(commands.Cog):
         
         self.is_responding = True
         async with message.channel.typing():
-            try:
+                # --- Limpieza de Contenido ---
+                # 1. Quitar menciones al bot (<@!ID> o <@ID>)
+                clean_content = re.sub(r"<@!?\d+>", "", message.content)
+                # 2. Quitar la palabra "dalet" (insensible a mayúsculas)
+                clean_content = re.compile(re.escape("dalet"), re.IGNORECASE).sub("", clean_content)
+                # 3. Limpiar espacios extras
+                clean_content = clean_content.strip()
+
+                # Si el contenido quedó vacío después de limpiar, usar el original como fallback 
+                # (aunque esto no debería pasar si se disparó por texto)
+                final_content = clean_content if clean_content else message.content
+
                 context = await self.bot.memory_service.get_relevant_context(
-                    message.channel.id, message.author.id, message.content
+                    message.channel.id, message.author.id, final_content
                 )
                 
                 reply = await self.bot.nlp_service.generate_reply(
-                    message.content, context, message.author.name
+                    final_content, context, message.author.name
                 )
 
                 if reply:
