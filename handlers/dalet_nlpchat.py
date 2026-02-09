@@ -91,6 +91,7 @@ class DaletNLPChat(commands.Cog):
         
         self.is_responding = True
         async with message.channel.typing():
+            try:
                 # --- Limpieza de Contenido ---
                 # 1. Quitar menciones al bot (<@!ID> o <@ID>)
                 clean_content = re.sub(r"<@!?\d+>", "", message.content)
@@ -113,7 +114,6 @@ class DaletNLPChat(commands.Cog):
 
                 if reply:
                     # --- Extracción de Memoria Automática ---
-                    import re
                     memory_match = re.search(r"\[SAVE_MEMORY:\s*(.*?)\]", reply)
                     if memory_match:
                         memory_content = memory_match.group(1).strip()
@@ -144,7 +144,7 @@ class DaletNLPChat(commands.Cog):
                         # Ejecutar la acción
                         await self._execute_action(message, action_name, params)
 
-                    if reply: 
+                    if reply:
                         await message.channel.send(reply)
                         await self.bot.user_repo.log_message(
                             self.bot.user.id, self.bot.user.name,
@@ -152,7 +152,7 @@ class DaletNLPChat(commands.Cog):
                             message.channel.id, message.channel.name,
                             reply
                         )
-                
+
                 if not is_direct_mention:
                     self.last_reply_time = time.time()
                     self.message_counter = 0
