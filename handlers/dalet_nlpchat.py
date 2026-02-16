@@ -85,13 +85,33 @@ class DaletNLPChat(commands.Cog):
                 await self.generate_response(message, is_direct_mention=False)
         except Exception as e:
             logger.error(f"Error in decision logic: {e}")
+            self.is_responding = False # Emergency reset if something fails early
 
     async def generate_response(self, message, is_direct_mention: bool):
         if self.is_responding: return
         
         self.is_responding = True
-        async with message.channel.typing():
+        try:
+            # Intentar activar el typing solo si tenemos permisos
             try:
+                # Usar un contexto typing manual para tener control total
+                typing_ctx = message.channel.typing()
+                await typing_ctx.__aenter__()
+            except discord.Forbidden:
+                logger.warning(f"Missing permissions to show typing in #{message.channel.name}")
+                typing_ctx = None # No enviamos typing pero seguimos adelante
+            except Exception as e:
+                logger.error(f"Error starting typing: {e}")
+                typing_ctx = None
+
+            try:
+                # --- Detección de Imágenes ---
+                image_urls = []
+                if message.attachments:
+                    for attachment in message.attachments:
+                        if any(attachment.filename.lower().endswith(ext) for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+                            image_urls.append(attachment.url)
+
                 # --- Limpieza de Contenido ---
                 # 1. Quitar menciones al bot (<@!ID> o <@ID>)
                 clean_content = re.sub(r"<@!?\d+>", "", message.content)
@@ -101,15 +121,15 @@ class DaletNLPChat(commands.Cog):
                 clean_content = clean_content.strip()
 
                 # Si el contenido quedó vacío después de limpiar, usar el original como fallback 
-                # (aunque esto no debería pasar si se disparó por texto)
                 final_content = clean_content if clean_content else message.content
 
                 context = await self.bot.memory_service.get_relevant_context(
                     message.channel.id, message.author.id, final_content
                 )
                 
+                # Pasar las imágenes al servicio NLP
                 reply = await self.bot.nlp_service.generate_reply(
-                    final_content, context, message.author.name
+                    final_content, context, message.author.name, image_urls=image_urls
                 )
 
                 if reply:
@@ -157,11 +177,19 @@ class DaletNLPChat(commands.Cog):
                     self.last_reply_time = time.time()
                     self.message_counter = 0
 
-            except Exception as e:
-                logger.error(f"Error generating response: {e}")
-                traceback.print_exc()
             finally:
-                self.is_responding = False
+                # Cerrar el contexto de typing si se inició
+                if typing_ctx:
+                    try:
+                        await typing_ctx.__aexit__(None, None, None)
+                    except:
+                        pass
+
+        except Exception as e:
+            logger.error(f"Error generating response: {e}")
+            traceback.print_exc()
+        finally:
+            self.is_responding = False
 
     async def _execute_action(self, message, action_name, params):
         """Mapea y ejecuta comandos de Discord basados en la intención de la IA."""
