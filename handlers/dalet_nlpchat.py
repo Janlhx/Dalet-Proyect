@@ -108,9 +108,16 @@ class DaletNLPChat(commands.Cog):
                 # --- Detección de Imágenes ---
                 image_urls = []
                 if message.attachments:
+                    logger.info(f"Attachments detected: {len(message.attachments)}")
                     for attachment in message.attachments:
+                        logger.info(f"Attachment: {attachment.filename} ({attachment.content_type})")
                         if any(attachment.filename.lower().endswith(ext) for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp')):
                             image_urls.append(attachment.url)
+                
+                if image_urls:
+                    logger.info(f"Valid images found: {image_urls}")
+                elif message.attachments:
+                    logger.info("Attachments found but no valid image extensions detected.")
 
                 # --- Limpieza de Contenido ---
                 # 1. Quitar menciones al bot (<@!ID> o <@ID>)

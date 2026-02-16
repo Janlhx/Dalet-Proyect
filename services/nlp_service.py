@@ -136,36 +136,46 @@ REGLAS DE ESTILO:
     async def _get_images_description(self, image_urls: list):
         """Usa Gemini Vision para describir las imágenes de forma técnica."""
         if not self.gemini_api_key:
+            logger.warning("Gemini Vision failed: Missing API Key.")
             return "No puedo ver imágenes ahora mismo (falta API key de Gemini)."
             
         try:
-            # Usar específicamente un modelo flash para visión rápida
-            model = genai.GenerativeModel("gemini-2.5-flash") # O el que esté disponible
+            model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
+            logger.info(f"Starting vision processing with model: {model_name}")
+            model = genai.GenerativeModel(model_name)
             
             descriptions = []
             async with httpx.AsyncClient() as client:
-                for url in image_urls[:2]: # Límite de 2 imágenes para evitar lentitud
+                for i, url in enumerate(image_urls[:2]):
+                    logger.info(f"Downloading image {i+1}: {url}")
                     response = await client.get(url, timeout=10.0)
                     response.raise_for_status()
                     
-                    # Gemini SDK acepta { 'mime_type': '...', 'data': ... }
+                    content_type = response.headers.get('Content-Type', 'image/jpeg')
+                    logger.info(f"Image downloaded. Size: {len(response.content)} bytes, Type: {content_type}")
+                    
                     img_data = {
-                        'mime_type': response.headers.get('Content-Type', 'image/jpeg'),
+                        'mime_type': content_type,
                         'data': response.content
                     }
                     
                     vision_prompt = "Describe esta imagen de forma detallada pero técnica (objetos, colores, texto, ambiente, personas). Máximo 100 palabras por descripción."
                     
-                    # Llamada síncrona dentro de thread para no bloquear el bucle
-                    # Aunque generate_content_async existe, a veces el SDK tiene issues con bytes en async
-                    # Intentaremos async primero
+                    logger.info(f"Calling Gemini Vision for image {i+1}...")
                     res = await model.generate_content_async([vision_prompt, img_data])
+                    
                     if res and res.text:
+                        logger.info(f"Vision response for image {i+1} received.")
                         descriptions.append(res.text.strip())
+                    else:
+                        logger.warning(f"Vision response for image {i+1} was empty.")
+            
+            if not descriptions:
+                logger.warning("No descriptions were generated for any images.")
             
             return " | ".join(descriptions) if descriptions else ""
         except Exception as e:
-            logger.error(f"Error in vision processing: {e}")
+            logger.error(f"Error in vision processing: {e}", exc_info=True)
             return "Error al analizar la imagen."
 
 
