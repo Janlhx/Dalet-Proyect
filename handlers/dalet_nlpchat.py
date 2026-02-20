@@ -107,17 +107,45 @@ class DaletNLPChat(commands.Cog):
             try:
                 # --- Detección de Imágenes ---
                 image_urls = []
-                if message.attachments:
-                    logger.info(f"Attachments detected: {len(message.attachments)}")
-                    for attachment in message.attachments:
-                        logger.info(f"Attachment: {attachment.filename} ({attachment.content_type})")
-                        if any(attachment.filename.lower().endswith(ext) for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp')):
-                            image_urls.append(attachment.url)
                 
+                # 1. Archivos adjuntos (Attachments)
+                if message.attachments:
+                    logger.info(f"Checking attachments: {len(message.attachments)}")
+                    for attachment in message.attachments:
+                        if attachment.content_type and attachment.content_type.startswith('image/'):
+                            image_urls.append(attachment.url)
+                        elif any(attachment.filename.lower().endswith(ext) for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+                            image_urls.append(attachment.url)
+
+                # 2. Enlaces incrustados (Embeds - tipo imagen o miniatura)
+                if message.embeds:
+                    logger.info(f"Checking embeds: {len(message.embeds)}")
+                    for embed in message.embeds:
+                        if embed.image and embed.image.url:
+                            image_urls.append(embed.image.url)
+                        elif embed.thumbnail and embed.thumbnail.url:
+                            image_urls.append(embed.thumbnail.url)
+
+                # 3. Respuesta a un mensaje con imagen (Reference/Reply)
+                if not image_urls and message.reference and message.reference.resolved:
+                    ref_msg = message.reference.resolved
+                    if isinstance(ref_msg, discord.Message):
+                        logger.info(f"Checking referenced message (reply) for images")
+                        # Revisar adjuntos del mensaje referenciado
+                        for attachment in ref_msg.attachments:
+                            if any(attachment.filename.lower().endswith(ext) for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+                                image_urls.append(attachment.url)
+                        # Revisar embeds del mensaje referenciado
+                        for embed in ref_msg.embeds:
+                            if embed.image and embed.image.url:
+                                image_urls.append(embed.image.url)
+
                 if image_urls:
-                    logger.info(f"Valid images found: {image_urls}")
-                elif message.attachments:
-                    logger.info("Attachments found but no valid image extensions detected.")
+                    # Eliminar duplicados manteniendo el orden
+                    image_urls = list(dict.fromkeys(image_urls))
+                    logger.info(f"Final valid images to analyze: {image_urls}")
+                elif message.attachments or message.embeds or message.reference:
+                    logger.info("Potential visual content detected but no valid image URLs extracted.")
 
                 # --- Limpieza de Contenido ---
                 # 1. Quitar menciones al bot (<@!ID> o <@ID>)

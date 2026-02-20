@@ -23,17 +23,18 @@ class MemoryService:
             return 0.0
 
     async def get_relevant_context(self, channel_id: int, user_id: int, current_message: str, check_user_memory: bool = True):
-        context_lines = []
+        memory_section = []
+        history_section = []
 
         # 1. Historial de chat (10 mensajes para mejor contexto)
         try:
             chat_history = await self.repo.get_channel_messages(channel_id, 10)
             for record in reversed(chat_history):
-                context_lines.append(f"{record['username']}: {record['content']}")
+                history_section.append(f"{record['username']}: {record['content']}")
         except Exception as e:
             logger.error(f"Error getting channel context: {e}")
 
-        # 2. Recuerdos de usuario (Embeddings) - Solo los 3 más relevantes
+        # 2. Recuerdos de usuario (Embeddings) - Solo los más relevantes
         if check_user_memory:
             try:
                 memories_raw = await self.repo.get_all_user_memories(user_id)
@@ -46,18 +47,22 @@ class MemoryService:
                     )
                     
                     vec_query = embeddings['embedding'][0]
-                    relevant_memories = []
                     for i, memory in enumerate(memories_raw):
                         vec_memory = embeddings['embedding'][i + 1]
-                        if self._calculate_similarity(vec_query, vec_memory) >= 0.60: # Más generoso (antes 0.75)
-                            relevant_memories.append(f"Dato: {memory['content']}")
-                    
-                    # Inyectar solo 2 recuerdos para evitar saturar de "spam" el cerebro
-                    context_lines = relevant_memories[:2] + context_lines
+                        # Umbral ligeramente más estricto para evitar ruido
+                        if self._calculate_similarity(vec_query, vec_memory) >= 0.70:
+                            memory_section.append(f"- {memory['content']}")
             except Exception as e:
                 logger.error(f"Error processing user memories: {e}")
 
-        return "\n".join(context_lines)
+        # Construir el contexto final con etiquetas claras
+        final_context = ""
+        if memory_section:
+            final_context += "DATOS RELEVANTES (MEMORIA):\n" + "\n".join(memory_section[:3]) + "\n\n"
+        
+        final_context += "HISTORIAL RECIENTE DEL CHAT:\n" + "\n".join(history_section)
+        
+        return final_context
 
     async def add_memory(self, user_id, user_name, content, topic="general"):
         return await self.repo.add_user_memory(user_id, user_name, content, topic)
