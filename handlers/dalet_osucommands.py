@@ -8,7 +8,6 @@ from datetime import datetime, timezone
 from discord.utils import format_dt
 from ui.osu_ui import UniversalPaginator
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
-import google.generativeai as genai
 import re
 
 logger = logging.getLogger("dalet.handlers.osu")

@@ -1,15 +1,23 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import logging
-from database.repositories.user_repository import UserRepository
+import os
 
 logger = logging.getLogger("dalet.services.memory")
 
 class MemoryService:
-    def __init__(self, user_repo, relevance_model="models/gemini-embedding-001"):
-
-
+    def __init__(self, user_repo, relevance_model="text-embedding-004"): # Actualizado a un modelo más moderno si es posible, o mantenemos el 001
         self.relevance_model = relevance_model
         self.repo = user_repo
+        
+        # El cliente se inyectará desde nlp_service o se creará aquí si es necesario
+        # Para ser consistente, usaremos la API KEY del .env
+        api_key = os.getenv("GEMINI_API_KEY")
+        if api_key:
+            self.client = genai.Client(api_key=api_key)
+        else:
+            self.client = None
+            logger.error("No Gemini API Key found for MemoryService")
 
     def _calculate_similarity(self, vec_a, vec_b):
         try:
@@ -26,7 +34,7 @@ class MemoryService:
         memory_section = []
         history_section = []
 
-        # 1. Historial de chat (10 mensajes para mejor contexto)
+        # 1. Historial de chat
         try:
             chat_history = await self.repo.get_channel_messages(channel_id, 10)
             for record in reversed(chat_history):
@@ -34,28 +42,30 @@ class MemoryService:
         except Exception as e:
             logger.error(f"Error getting channel context: {e}")
 
-        # 2. Recuerdos de usuario (Embeddings) - Solo los más relevantes
-        if check_user_memory:
+        # 2. Recuerdos de usuario (Embeddings)
+        if check_user_memory and self.client:
             try:
                 memories_raw = await self.repo.get_all_user_memories(user_id)
                 if memories_raw:
                     texts = [current_message] + [m['content'] for m in memories_raw]
-                    embeddings = genai.embed_content(
+                    
+                    # Usar el nuevo SDK para embeddings
+                    res = self.client.models.embed_content(
                         model=self.relevance_model,
-                        content=texts,
-                        task_type="retrieval_query"
+                        contents=texts,
+                        config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY")
                     )
                     
-                    vec_query = embeddings['embedding'][0]
+                    embeddings = res.embeddings
+                    vec_query = embeddings[0].values
+                    
                     for i, memory in enumerate(memories_raw):
-                        vec_memory = embeddings['embedding'][i + 1]
-                        # Umbral ligeramente más estricto para evitar ruido
+                        vec_memory = embeddings[i + 1].values
                         if self._calculate_similarity(vec_query, vec_memory) >= 0.70:
                             memory_section.append(f"- {memory['content']}")
             except Exception as e:
                 logger.error(f"Error processing user memories: {e}")
 
-        # Construir el contexto final con etiquetas claras
         final_context = ""
         if memory_section:
             final_context += "DATOS RELEVANTES (MEMORIA):\n" + "\n".join(memory_section[:3]) + "\n\n"
