@@ -13,7 +13,7 @@ from discord.ext import commands
 import os
 import discord
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
 from flask import Flask
 from threading import Thread
 import sys
@@ -36,9 +36,6 @@ load_dotenv()
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
 
 # --- 2. Configuración del Bot ---
 bot = commands.Bot(command_prefix=["D.","d."], intents=discord.Intents.all(), case_insensitive=True)
