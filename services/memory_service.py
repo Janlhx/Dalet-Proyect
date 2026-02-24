@@ -6,7 +6,7 @@ import os
 logger = logging.getLogger("dalet.services.memory")
 
 class MemoryService:
-    def __init__(self, user_repo, relevance_model="text-embedding-004"): # Actualizado a un modelo más moderno si es posible, o mantenemos el 001
+    def __init__(self, user_repo, relevance_model="models/gemini-embedding-001"): 
         self.relevance_model = relevance_model
         self.repo = user_repo
         

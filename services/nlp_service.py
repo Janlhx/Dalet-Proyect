@@ -3,6 +3,7 @@ from google.genai import types
 import os
 import httpx
 import logging
+import asyncio
 from database.repositories.user_repository import UserRepository
 
 logger = logging.getLogger("dalet.services.nlp")
@@ -13,14 +14,14 @@ class NLPService:
         load_dotenv(override=True)
         
         self.gemini_api_key = gemini_api_key
-        # Usar el nuevo cliente de Google GenAI
+        # Usar el nuevo cliente de Google GenAI (Asíncrono para no bloquear)
         if self.gemini_api_key:
-            self.client = genai.Client(api_key=self.gemini_api_key)
+            self.client = genai.Client(api_key=self.gemini_api_key, http_options={'api_version': 'v1beta'})
         
         self.groq_api_key = os.getenv("GROQ_API_KEY")
         self.repo = UserRepository()
         
-        # Prioridad: Gemini como principal para búsqueda en internet
+        # Prioridad: Gemini como principal
         env_provider = os.getenv("AI_PROVIDER", "gemini").lower()
         self.active_provider = env_provider
 
@@ -70,16 +71,14 @@ INSTRUCCIONES TÉCNICAS:
             model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
             logger.info(f"Calling Gemini with model: {model_name} and Google Search enabled")
             
-            # Configuración con búsqueda en Google
             config = types.GenerateContentConfig(
                 system_instruction=self.personality,
                 tools=[types.Tool(google_search=types.GoogleSearch())],
                 temperature=0.7
             )
             
-            # Llamada síncrona dentro de un run_in_executor para no bloquear el loop si no hay _async
-            # Nota: google-genai tiene respuesta asíncrona pero para simplicidad aqui usaremos el cliente normal
-            response = self.client.models.generate_content(
+            # Usar la interfaz asíncrona del nuevo SDK
+            response = await self.client.aio.models.generate_content(
                 model=model_name,
                 contents=prompt,
                 config=config
@@ -90,8 +89,11 @@ INSTRUCCIONES TÉCNICAS:
             return None
         except Exception as e:
             logger.error(f"Error calling Gemini: {e}", exc_info=True)
-            print(f"DEBUG ERROR GEMINI: {e}")
-            return "Perdón, me he quedado un poco en blanco con lo que me has dicho. ¿Me lo repites?"
+            # Si falla Gemini por cuota, intentar Groq como fallback real
+            if self.groq_api_key:
+                logger.warning("Gemini failed, falling back to Groq...")
+                return await self._generate_groq_reply(trigger, context, username, image_description, is_fallback=True)
+            return "Perdón, me he quedado un poco en blanco. ¿Me lo repites?"
 
     async def _generate_groq_reply(self, trigger: str, context: str, username: str, image_description: str = "", is_fallback=False):
         model_name = os.getenv("GROQ_MODEL" if not is_fallback else "GROQ_MODEL_FALLBACK", 
@@ -123,16 +125,14 @@ INSTRUCCIONES TÉCNICAS:
                     if not is_fallback:
                         return await self._generate_groq_reply(trigger, context, username, is_fallback=True)
                     else:
-                        return "Oye, dame un respiro. Me voy a fundir con tanto mensaje. Vuelve en un ratito, ¿vale?"
+                        return "Oye, dame un respiro. Me voy a fundir con tanto mensaje."
                 
                 response.raise_for_status()
                 result = response.json()
                 return result['choices'][0]['message']['content'].strip()
         except Exception as e:
             logger.error(f"Groq call failed ({model_name}). Reason: {e}")
-            if not is_fallback:
-                return await self._generate_groq_reply(trigger, context, username, is_fallback=True)
-            return await self._generate_gemini_reply(trigger, context, username, image_description)
+            return "Me he liado un poco, ¿puedes decirme otra vez?"
 
     async def _get_images_description(self, image_urls: list):
         if not self.gemini_api_key:
@@ -147,18 +147,17 @@ INSTRUCCIONES TÉCNICAS:
                     resp = await client.get(url, timeout=10.0)
                     resp.raise_for_status()
                     
-                    # El nuevo SDK maneja las imágenes de forma distinta
                     image_part = types.Part.from_bytes(
                         data=resp.content,
                         mime_type=resp.headers.get('Content-Type', 'image/jpeg')
                     )
                     
                     vision_prompt = (
-                        "Analiza esta imagen para Dalet. Describe texto, estadísticas (osu!), ambiente y acción. "
-                        "Sé conciso y técnico. Máximo 100 palabras."
+                        "Analiza esta imagen para Dalet. Describe texto, estadísticas y acción. "
+                        "Sé conciso y técnica. Máximo 100 palabras."
                     )
                     
-                    res = self.client.models.generate_content(
+                    res = await self.client.aio.models.generate_content(
                         model=model_name,
                         contents=[vision_prompt, image_part]
                     )
