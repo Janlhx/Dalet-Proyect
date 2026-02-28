@@ -72,6 +72,18 @@ async def load_extensions(bot):
                 logger.error(f"!!!!!! ❌ ERROR FATAL AL CARGAR {module_name} !!!!!! | DETALLE: {e}")
 
 # --- 5. Punto de Entrada Principal ---
+async def main():
+    try:
+        # Inicializar el pool de base de datos UNA VEZ
+        await DatabasePool.get_pool()
+
+        from database.repositories.user_repository import UserRepository
+        from database.repositories.osu_repository import OsuRepository
+        from database.repositories.admin_repository import AdminRepository
+        from services.nlp_service import NLPService
+        from services.memory_service import MemoryService
+        from services.osu_service import OsuService
+
         while True:
             # Crear una instancia NUEVA del bot en cada intento
             bot = commands.Bot(command_prefix=["D.","d."], intents=discord.Intents.all(), case_insensitive=True)
