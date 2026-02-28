@@ -234,8 +234,8 @@ class DaletNLPChat(commands.Cog):
                                 self.consecutive_429s += 1
                                 # Penalización exponencial: 30s, 60s, 120s...
                                 self.error_cooldown = time.time() + (30 * (2 ** (self.consecutive_429s - 1)))
-                                logger.error(f"429 Rate Limit detected. Throttling for {self.error_cooldown - time.time()}s")
-                            raise e
+                                logger.error(f"429 Rate Limit detected. Throttling for {int(self.error_cooldown - time.time())}s")
+                            # No re-lanzar: el finally externo se encargará del reset
 
                 if not is_direct_mention:
                     self.last_reply_time = time.time()

@@ -89,8 +89,13 @@ async def main():
             bot = commands.Bot(command_prefix=["D.","d."], intents=discord.Intents.all(), case_insensitive=True)
             
             # Instanciar Repositorios para este bot
+            prev_repo = getattr(locals(), '_prev_user_repo', None)
             bot.user_repo = UserRepository()
-            bot.user_repo.start_flush_task(asyncio.get_event_loop())
+            # Cancelar tarea de flush previa si existe (evitar zombie tasks)
+            if hasattr(bot, '_prev_flush_task') and bot._prev_flush_task:
+                bot._prev_flush_task.cancel()
+            flush_task = asyncio.get_event_loop().create_task(bot.user_repo._periodic_flush())
+            bot._prev_flush_task = flush_task
             bot.osu_repo = OsuRepository()
             bot.admin_repo = AdminRepository()
 

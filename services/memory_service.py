@@ -61,11 +61,16 @@ class MemoryService:
                 if memories_raw:
                     texts = [current_message] + [m['content'] for m in memories_raw]
                     
-                    # Usar el nuevo SDK para embeddings
-                    res = self.client.models.embed_content(
-                        model=self.relevance_model,
-                        contents=texts,
-                        config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY")
+                    # Usar executor para no bloquear el event loop con la llamada síncrona
+                    import asyncio
+                    loop = asyncio.get_event_loop()
+                    res = await loop.run_in_executor(
+                        None,
+                        lambda: self.client.models.embed_content(
+                            model=self.relevance_model,
+                            contents=texts,
+                            config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY")
+                        )
                     )
                     
                     embeddings = res.embeddings
