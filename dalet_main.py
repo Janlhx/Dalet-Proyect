@@ -129,8 +129,9 @@ async def main():
                 else:
                     raise e
             except Exception as e:
-                logger.critical(f"Error crítico en el bucle principal: {e}")
-                break
+                wait_error = 10
+                logger.error(f"Error no esperado en el inicio: {e}. Reintentando en {wait_error}s...")
+                await asyncio.sleep(wait_error)
     finally:
         await DatabasePool.close()
 
