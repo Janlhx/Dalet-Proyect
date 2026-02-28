@@ -34,11 +34,9 @@ logger = logging.getLogger("dalet.main")
 # --- 1. Carga de Configuración ---
 load_dotenv()
 
+# --- 2. Configuración (El bot se crea dentro de main para mayor resiliencia) ---
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-# --- 2. Configuración del Bot ---
-bot = commands.Bot(command_prefix=["D.","d."], intents=discord.Intents.all(), case_insensitive=True)
 
 # --- 3. Servidor Web (Health Check para Render) ---
 app = Flask('')
@@ -55,7 +53,7 @@ def keep_alive():
     t.start()
 
 # --- 4. Carga de Extensiones (Cogs) ---
-async def load_extensions():
+async def load_extensions(bot):
     logger.info("<<<<< INICIANDO CARGA DE MÓDULOS... >>>>>")
     script_dir = os.path.dirname(os.path.abspath(__file__))
     handlers_path = os.path.join(script_dir, "handlers")
@@ -74,52 +72,36 @@ async def load_extensions():
                 logger.error(f"!!!!!! ❌ ERROR FATAL AL CARGAR {module_name} !!!!!! | DETALLE: {e}")
 
 # --- 5. Punto de Entrada Principal ---
-async def main():
-    try:
-        # Inicializar el pool de base de datos
-        await DatabasePool.get_pool()
-
-        # --- Inyección de Dependencias ---
-        from database.repositories.user_repository import UserRepository
-        from database.repositories.osu_repository import OsuRepository
-        from database.repositories.admin_repository import AdminRepository
-        from services.nlp_service import NLPService
-        from services.memory_service import MemoryService
-        from services.osu_service import OsuService
-
-        # Instanciar Repositorios
-        bot.user_repo = UserRepository()
-        bot.user_repo.start_flush_task(asyncio.get_event_loop())
-        bot.osu_repo = OsuRepository()
-        bot.admin_repo = AdminRepository()
-
-        # Instanciar Servicios
-        bot.nlp_service = NLPService(GEMINI_API_KEY, user_repo=bot.user_repo)
-        bot.memory_service = MemoryService(bot.user_repo)
-        bot.osu_service = OsuService(
-            client_id=int(os.getenv("OSU_CLIENT_ID", 0)),
-            client_secret=os.getenv("OSU_CLIENT_SECRET", "")
-        )
-        
-        # --- Middleware de Seguridad (Global Check) ---
-        @bot.check
-        async def global_block_check(ctx):
-            # 1. Comandos de administrador para gestión de canales siempre permitidos
-            allowed_commands = ["unlock", "cs", "channelstatus"]
-            if ctx.command and ctx.command.name in allowed_commands:
-                return True
-            
-            # 2. Otros comandos están sujetos al candado de la DB
-            is_locked = await bot.admin_repo.is_channel_locked(ctx.channel.id)
-            if is_locked:
-                return False
-            
-            return True
-
         while True:
+            # Crear una instancia NUEVA del bot en cada intento
+            bot = commands.Bot(command_prefix=["D.","d."], intents=discord.Intents.all(), case_insensitive=True)
+            
+            # Instanciar Repositorios para este bot
+            bot.user_repo = UserRepository()
+            bot.user_repo.start_flush_task(asyncio.get_event_loop())
+            bot.osu_repo = OsuRepository()
+            bot.admin_repo = AdminRepository()
+
+            # Instanciar Servicios para este bot
+            bot.nlp_service = NLPService(GEMINI_API_KEY, user_repo=bot.user_repo)
+            bot.memory_service = MemoryService(bot.user_repo)
+            bot.osu_service = OsuService(
+                client_id=int(os.getenv("OSU_CLIENT_ID", 0)),
+                client_secret=os.getenv("OSU_CLIENT_SECRET", "")
+            )
+            
+            # Re-aplicar el Middleware de Seguridad
+            @bot.check
+            async def global_block_check(ctx):
+                allowed_commands = ["unlock", "cs", "channelstatus"]
+                if ctx.command and ctx.command.name in allowed_commands:
+                    return True
+                is_locked = await bot.admin_repo.is_channel_locked(ctx.channel.id)
+                return not is_locked
+
             try:
                 async with bot:
-                    await load_extensions()
+                    await load_extensions(bot)
                     await bot.start(DISCORD_TOKEN)
             except discord.HTTPException as e:
                 if e.status == 429:
