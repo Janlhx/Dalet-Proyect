@@ -116,11 +116,21 @@ async def main():
             
             return True
 
-        async with bot:
-            await load_extensions()
-            await bot.start(DISCORD_TOKEN)
-    except Exception as e:
-        logger.critical(f"Error crítico en el bucle principal: {e}")
+        while True:
+            try:
+                async with bot:
+                    await load_extensions()
+                    await bot.start(DISCORD_TOKEN)
+            except discord.HTTPException as e:
+                if e.status == 429:
+                    wait_time = 60 # Esperar 1 minuto base ante 429 en el inicio
+                    logger.error(f"Rate limited (429) en el inicio. Reintentando en {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                else:
+                    raise e
+            except Exception as e:
+                logger.critical(f"Error crítico en el bucle principal: {e}")
+                break
     finally:
         await DatabasePool.close()
 
