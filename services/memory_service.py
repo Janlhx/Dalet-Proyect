@@ -9,6 +9,10 @@ class MemoryService:
     def __init__(self, user_repo, relevance_model="models/gemini-embedding-001"): 
         self.relevance_model = relevance_model
         self.repo = user_repo
+        self._local_history = {} # {channel_id: deque([msg1, msg2, ...])}
+        from collections import deque
+        self.history_class = deque
+        self.max_local_history = 10
         
         # El cliente se inyectará desde nlp_service o se creará aquí si es necesario
         # Para ser consistente, usaremos la API KEY del .env
@@ -37,10 +41,18 @@ class MemoryService:
         # 1. Historial de chat
         try:
             chat_history = await self.repo.get_channel_messages(channel_id, 10)
-            for record in reversed(chat_history):
-                history_section.append(f"{record['username']}: {record['content']}")
+            if chat_history:
+                for record in reversed(chat_history):
+                    history_section.append(f"{record['username']}: {record['content']}")
+            else:
+                # Fallback al historial local si la DB retorna vacío o falla
+                if channel_id in self._local_history:
+                    history_section = list(self._local_history[channel_id])
         except Exception as e:
             logger.error(f"Error getting channel context: {e}")
+            # Fallback al historial local en caso de error crítico de DB
+            if channel_id in self._local_history:
+                history_section = list(self._local_history[channel_id])
 
         # 2. Recuerdos de usuario (Embeddings)
         if check_user_memory and self.client:
@@ -76,3 +88,10 @@ class MemoryService:
 
     async def add_memory(self, user_id, user_name, content, topic="general"):
         return await self.repo.add_user_memory(user_id, user_name, content, topic)
+
+    def add_to_local_history(self, channel_id, username, content):
+        """Guarda un mensaje en el buffer local (en memoria) para emergencias."""
+        if channel_id not in self._local_history:
+            self._local_history[channel_id] = self.history_class(maxlen=self.max_local_history)
+        
+        self._local_history[channel_id].append(f"{username}: {content}")

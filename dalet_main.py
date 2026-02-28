@@ -89,11 +89,12 @@ async def main():
 
         # Instanciar Repositorios
         bot.user_repo = UserRepository()
+        bot.user_repo.start_flush_task(asyncio.get_event_loop())
         bot.osu_repo = OsuRepository()
         bot.admin_repo = AdminRepository()
 
         # Instanciar Servicios
-        bot.nlp_service = NLPService(GEMINI_API_KEY)
+        bot.nlp_service = NLPService(GEMINI_API_KEY, user_repo=bot.user_repo)
         bot.memory_service = MemoryService(bot.user_repo)
         bot.osu_service = OsuService(
             client_id=int(os.getenv("OSU_CLIENT_ID", 0)),

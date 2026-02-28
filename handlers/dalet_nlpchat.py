@@ -23,6 +23,8 @@ class DaletNLPChat(commands.Cog):
         self.last_reply_time = 0
         self.message_counter = 0
         self.is_responding = False # Flag para evitar doble respuesta
+        self.error_cooldown = 0 # Cooldown dinámico ante errores 429
+        self.consecutive_429s = 0
 
     def _should_respond(self):
         if self.is_responding: return False # Ignorar si ya está procesando
@@ -56,7 +58,14 @@ class DaletNLPChat(commands.Cog):
         if message.content.startswith(bot_prefixes): return
 
 
+        # 0. Registro en historial local (Emergencia/Resiliencia)
+        self.bot.memory_service.add_to_local_history(message.channel.id, message.author.name, message.content)
+
         content_lower = message.content.lower()
+        
+        # Throttling global ante errores 429 registrados
+        if time.time() < self.error_cooldown:
+            return
 
         # 1. Respuestas Rápidas
         quick_responses = {"dalet test": "si sirvo", "dalet on": "estoy on"}
@@ -90,6 +99,12 @@ class DaletNLPChat(commands.Cog):
     async def generate_response(self, message, is_direct_mention: bool):
         if self.is_responding: return
         
+        # Throttling ante rate limits previos
+        if time.time() < self.error_cooldown:
+            if is_direct_mention:
+                logger.warning("Throttling active due to recent 429 errors. Skipping response.")
+            return
+
         self.is_responding = True
         try:
             # Intentar activar el typing solo si tenemos permisos
@@ -200,13 +215,27 @@ class DaletNLPChat(commands.Cog):
                         await self._execute_action(message, action_name, params)
 
                     if reply:
-                        await message.channel.send(reply)
-                        await self.bot.user_repo.log_message(
-                            self.bot.user.id, self.bot.user.name,
-                            message.guild.id, message.guild.name,
-                            message.channel.id, message.channel.name,
-                            reply
-                        )
+                        try:
+                            await message.channel.send(reply)
+                            self.consecutive_429s = 0 # Reset si logramos enviar algo
+                            
+                            # Intentar loguear, pero si falla no importa
+                            try:
+                                await self.bot.user_repo.log_message(
+                                    self.bot.user.id, self.bot.user.name,
+                                    message.guild.id, message.guild.name,
+                                    message.channel.id, message.channel.name,
+                                    reply
+                                )
+                            except Exception as db_err:
+                                logger.warning(f"Failed to log reply to DB: {db_err}")
+                        except discord.HTTPException as e:
+                            if e.status == 429:
+                                self.consecutive_429s += 1
+                                # Penalización exponencial: 30s, 60s, 120s...
+                                self.error_cooldown = time.time() + (30 * (2 ** (self.consecutive_429s - 1)))
+                                logger.error(f"429 Rate Limit detected. Throttling for {self.error_cooldown - time.time()}s")
+                            raise e
 
                 if not is_direct_mention:
                     self.last_reply_time = time.time()

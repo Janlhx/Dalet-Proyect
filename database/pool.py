@@ -18,8 +18,8 @@ class DatabasePool:
                 logger.info("Initializing asyncpg connection pool...")
                 cls._pool = await asyncpg.create_pool(
                     DATABASE_URL,
-                    min_size=5,
-                    max_size=20,
+                    min_size=1,
+                    max_size=5,
                     command_timeout=60
                 )
                 logger.info("Database pool initialized successfully.")

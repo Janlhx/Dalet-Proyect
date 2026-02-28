@@ -9,7 +9,7 @@ from database.repositories.user_repository import UserRepository
 logger = logging.getLogger("dalet.services.nlp")
 
 class NLPService:
-    def __init__(self, gemini_api_key: str):
+    def __init__(self, gemini_api_key: str, user_repo=None):
         from dotenv import load_dotenv
         load_dotenv(override=True)
         
@@ -19,7 +19,7 @@ class NLPService:
             self.client = genai.Client(api_key=self.gemini_api_key, http_options={'api_version': 'v1beta'})
         
         self.groq_api_key = os.getenv("GROQ_API_KEY")
-        self.repo = UserRepository()
+        self.repo = user_repo or UserRepository()
         
         # Prioridad: Gemini como principal
         env_provider = os.getenv("AI_PROVIDER", "gemini").lower()
