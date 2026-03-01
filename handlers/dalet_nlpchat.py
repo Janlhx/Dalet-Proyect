@@ -107,19 +107,14 @@ class DaletNLPChat(commands.Cog):
 
         self.is_responding = True
         try:
-            # Intentar activar el typing solo si tenemos permisos
+            # Usar typing() como context manager correcto para evitar errores con __aenter__/__aexit__ manual
             try:
-                # Usar un contexto typing manual para tener control total
                 typing_ctx = message.channel.typing()
-                await typing_ctx.__aenter__()
-            except discord.Forbidden:
-                logger.warning(f"Missing permissions to show typing in #{message.channel.name}")
-                typing_ctx = None # No enviamos typing pero seguimos adelante
-            except Exception as e:
-                logger.error(f"Error starting typing: {e}")
+            except Exception:
                 typing_ctx = None
 
-            try:
+            async def _do_respond():
+                """Lógica interna de respuesta, envuelta para poder usar typing correctamente."""
                 # --- Detección de Imágenes ---
                 image_urls = []
                 
@@ -146,38 +141,29 @@ class DaletNLPChat(commands.Cog):
                     ref_msg = message.reference.resolved
                     if isinstance(ref_msg, discord.Message):
                         logger.info(f"Checking referenced message (reply) for images")
-                        # Revisar adjuntos del mensaje referenciado
                         for attachment in ref_msg.attachments:
                             if any(attachment.filename.lower().endswith(ext) for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp')):
                                 image_urls.append(attachment.url)
-                        # Revisar embeds del mensaje referenciado
                         for embed in ref_msg.embeds:
                             if embed.image and embed.image.url:
                                 image_urls.append(embed.image.url)
 
                 if image_urls:
-                    # Eliminar duplicados manteniendo el orden
                     image_urls = list(dict.fromkeys(image_urls))
                     logger.info(f"Final valid images to analyze: {image_urls}")
                 elif message.attachments or message.embeds or message.reference:
                     logger.info("Potential visual content detected but no valid image URLs extracted.")
 
                 # --- Limpieza de Contenido ---
-                # 1. Quitar menciones al bot (<@!ID> o <@ID>)
                 clean_content = re.sub(r"<@!?\d+>", "", message.content)
-                # 2. Quitar la palabra "dalet" (insensible a mayúsculas)
                 clean_content = re.compile(re.escape("dalet"), re.IGNORECASE).sub("", clean_content)
-                # 3. Limpiar espacios extras
                 clean_content = clean_content.strip()
-
-                # Si el contenido quedó vacío después de limpiar, usar el original como fallback 
                 final_content = clean_content if clean_content else message.content
 
                 context = await self.bot.memory_service.get_relevant_context(
                     message.channel.id, message.author.id, final_content
                 )
                 
-                # Pasar las imágenes al servicio NLP
                 reply = await self.bot.nlp_service.generate_reply(
                     final_content, context, message.author.name, image_urls=image_urls
                 )
@@ -201,25 +187,17 @@ class DaletNLPChat(commands.Cog):
                     if action_match:
                         full_tag = action_match.group(1)
                         action_name = action_match.group(2).lower()
-                        
-                        # Extraer parámetros SOLO dentro de la etiqueta
                         params = {}
                         param_matches = re.findall(r"(\w+):\s*([^,\]]+)", full_tag)
                         for k, v in param_matches:
                             params[k.strip()] = v.strip()
-
-                        # Limpiar el mensaje antes de enviarlo
                         reply = re.sub(r"\[ACTION:.*?\]", "", reply).strip()
-                        
-                        # Ejecutar la acción
                         await self._execute_action(message, action_name, params)
 
                     if reply:
                         try:
                             await message.channel.send(reply)
-                            self.consecutive_429s = 0 # Reset si logramos enviar algo
-                            
-                            # Intentar loguear, pero si falla no importa
+                            self.consecutive_429s = 0
                             try:
                                 await self.bot.user_repo.log_message(
                                     self.bot.user.id, self.bot.user.name,
@@ -232,22 +210,32 @@ class DaletNLPChat(commands.Cog):
                         except discord.HTTPException as e:
                             if e.status == 429:
                                 self.consecutive_429s += 1
-                                # Penalización exponencial: 30s, 60s, 120s...
-                                self.error_cooldown = time.time() + (30 * (2 ** (self.consecutive_429s - 1)))
-                                logger.error(f"429 Rate Limit detected. Throttling for {int(self.error_cooldown - time.time())}s")
-                            # No re-lanzar: el finally externo se encargará del reset
+                                wait_secs = 30 * (2 ** (self.consecutive_429s - 1))
+                                self.error_cooldown = time.time() + wait_secs
+                                logger.error(f"429 Rate Limit on send. Throttling for {wait_secs}s")
+                            else:
+                                logger.error(f"Discord HTTP error sending message: {e}")
 
                 if not is_direct_mention:
                     self.last_reply_time = time.time()
                     self.message_counter = 0
 
-            finally:
-                # Cerrar el contexto de typing si se inició
-                if typing_ctx:
-                    try:
-                        await typing_ctx.__aexit__(None, None, None)
-                    except:
-                        pass
+            # Ejecutar con typing si está disponible; si typing falla con 429, continuar igual
+            if typing_ctx:
+                try:
+                    async with typing_ctx:
+                        await _do_respond()
+                except discord.HTTPException as e:
+                    if e.status == 429:
+                        logger.warning(f"429 on typing indicator, responding without typing indicator.")
+                        await _do_respond()
+                    else:
+                        raise
+                except discord.Forbidden:
+                    logger.warning(f"Missing permissions for typing in #{message.channel.name}, responding anyway.")
+                    await _do_respond()
+            else:
+                await _do_respond()
 
         except Exception as e:
             logger.error(f"Error generating response: {e}")

@@ -1,4 +1,8 @@
+import logging
 from database.repositories.base_repository import BaseRepository
+from database.pool import get_db
+
+logger = logging.getLogger("dalet.repository.user")
 
 class UserRepository(BaseRepository):
     def __init__(self):
