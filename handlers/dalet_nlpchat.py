@@ -87,16 +87,17 @@ class DaletNLPChat(commands.Cog):
         try:
             is_reactive = await self.bot.user_repo.is_server_reactive(message.guild.id)
             if is_reactive and (self.bot.user.mentioned_in(message) or "dalet" in content_lower):
-                return await self.generate_response(message, is_direct_mention=True)
+                trigger_type = "mention" if self.bot.user.mentioned_in(message) else "name_trigger"
+                return await self.generate_response(message, is_direct_mention=True, trigger_type=trigger_type)
 
             is_proactive = await self.bot.user_repo.is_channel_proactive(message.channel.id)
             if is_proactive and self._should_respond():
-                await self.generate_response(message, is_direct_mention=False)
+                await self.generate_response(message, is_direct_mention=False, trigger_type="proactive")
         except Exception as e:
             logger.error(f"Error in decision logic: {e}")
             self.is_responding = False # Emergency reset if something fails early
 
-    async def generate_response(self, message, is_direct_mention: bool):
+    async def generate_response(self, message, is_direct_mention: bool, trigger_type: str = "mention"):
         if self.is_responding: return
         
         # Throttling ante rate limits previos
@@ -168,6 +169,9 @@ class DaletNLPChat(commands.Cog):
                     final_content, context, message.author.name, image_urls=image_urls
                 )
 
+                # Detectar proveedor activo para analytics
+                active_provider = getattr(self.bot.nlp_service, 'active_provider', 'gemini')
+
                 if reply:
                     # --- Extracción de Memoria Automática ---
                     memory_match = re.search(r"\[SAVE_MEMORY:\s*(.*?)\]", reply)
@@ -196,8 +200,18 @@ class DaletNLPChat(commands.Cog):
 
                     if reply:
                         try:
+                            t_send_start = time.time()
                             await message.channel.send(reply)
+                            response_ms = int((time.time() - t_send_start) * 1000)
                             self.consecutive_429s = 0
+                            # --- Loguear interacción exitosa ---
+                            try:
+                                await self.bot.analytics_repo.log_ai_interaction(
+                                    message.guild.id, message.channel.id,
+                                    trigger_type, active_provider, response_ms, True
+                                )
+                            except Exception:
+                                pass
                             try:
                                 await self.bot.user_repo.log_message(
                                     self.bot.user.id, self.bot.user.name,
@@ -213,6 +227,16 @@ class DaletNLPChat(commands.Cog):
                                 wait_secs = 30 * (2 ** (self.consecutive_429s - 1))
                                 self.error_cooldown = time.time() + wait_secs
                                 logger.error(f"429 Rate Limit on send. Throttling for {wait_secs}s")
+                                # --- Persistir error en BD ---
+                                try:
+                                    await self.bot.analytics_repo.log_error(
+                                        "discord_429",
+                                        f"Rate limited. Throttle: {wait_secs}s. Consecutive: {self.consecutive_429s}",
+                                        "dalet_nlpchat.generate_response",
+                                        message.guild.id
+                                    )
+                                except Exception:
+                                    pass
                             else:
                                 logger.error(f"Discord HTTP error sending message: {e}")
 

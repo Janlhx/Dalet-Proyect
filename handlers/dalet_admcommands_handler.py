@@ -160,5 +160,70 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
         embed.set_footer(text=f"ID del Shard: {self.bot.shard_id or 'N/A'}")
         await ctx.send(embed=embed)
 
+    @commands.command(name="dbstats")
+    @commands.has_permissions(administrator=True)
+    async def db_stats(self, ctx):
+        """[ADMIN] Muestra un resumen de analíticas de la BD: comandos, IA y errores."""
+        try:
+            ar = self.bot.analytics_repo
+
+            # 1. Top 5 comandos más usados
+            pool_conn = await __import__('database.pool', fromlist=['get_db']).get_db()
+            async with pool_conn.acquire() as conn:
+                top_cmds = await conn.fetch(
+                    "SELECT CommandName, total_uses, success_rate_pct FROM V_CommandStats LIMIT 5"
+                )
+                ai_today = await conn.fetch(
+                    """SELECT TriggerType, Provider, COUNT(*) as n, ROUND(AVG(ResponseTimeMs)) as avg_ms
+                       FROM AIInteractions
+                       WHERE InteractedAt > NOW() - INTERVAL '24 hours'
+                       GROUP BY TriggerType, Provider ORDER BY n DESC"""
+                )
+                recent_errors = await conn.fetch(
+                    "SELECT ErrorType, occurrences, last_seen FROM V_RecentErrors LIMIT 5"
+                )
+
+            embed = discord.Embed(
+                title="📊 Analíticas de la Base de Datos",
+                color=discord.Color.purple()
+            )
+
+            # Top comandos
+            if top_cmds:
+                cmd_text = "\n".join([
+                    f"`{r['commandname']}` — {r['total_uses']} usos ({r['success_rate_pct']}% éxito)"
+                    for r in top_cmds
+                ])
+            else:
+                cmd_text = "_Sin datos aún_"
+            embed.add_field(name="🏆 Top 5 Comandos", value=cmd_text, inline=False)
+
+            # IA hoy
+            if ai_today:
+                ai_text = "\n".join([
+                    f"`{r['triggertype']}` via **{r['provider']}** — {r['n']} resp. (~{r['avg_ms']}ms)"
+                    for r in ai_today
+                ])
+            else:
+                ai_text = "_Sin interacciones hoy_"
+            embed.add_field(name="🤖 Respuestas IA (últimas 24h)", value=ai_text, inline=False)
+
+            # Errores recientes
+            if recent_errors:
+                err_text = "\n".join([
+                    f"`{r['errortype']}` — {r['occurrences']}x (últ: {r['last_seen'].strftime('%d/%m %H:%M')})"
+                    for r in recent_errors
+                ])
+            else:
+                err_text = "✅ _Sin errores recientes_"
+            embed.add_field(name="⚠️ Errores (últimos 7 días)", value=err_text, inline=False)
+
+            embed.set_footer(text="Datos de CommandUsage · AIInteractions · BotErrors")
+            await ctx.send(embed=embed)
+
+        except Exception as e:
+            logger.error(f"Error in dbstats: {e}")
+            await ctx.send(f"❌ Error al obtener estadísticas:\n```{e}```")
+
 async def setup(bot):
     await bot.add_cog(AdminCommands(bot))

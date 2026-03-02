@@ -19,6 +19,50 @@ class OsuHandler(commands.Cog, name="osu!"):
         self.bot = bot
         self.osu_service = bot.osu_service
         self.repo = bot.osu_repo
+        # Cooldown para registros en OsuHistory: 5 minutos
+        # Para evitar spam de conexiones a la DB en un mismo minuto,
+        # pero permitiendo que el snapshot diario se actualice si sube de nivel más tarde.
+        self._snapshot_cooldowns = {}
+        self._snapshot_cooldown_secs = 300  # 5 minutos
+
+    async def _try_update_osu_snapshot(self, discord_user_id: int, osu_username_queried: str, user_data: dict):
+        """
+        1. Actualiza SIEMPRE OsuAccounts con los últimos datos de la API.
+        2. Guarda o actualiza un snapshot en OsuHistory (con cooldown de 5 min).
+        """
+        import time
+        try:
+            # Extraer stats del user_data
+            stats        = user_data.get('statistics', {})
+            pp           = stats.get('pp', 0.0)
+            global_rank  = stats.get('global_rank', None)
+            country_rank = stats.get('country_rank', None)
+            accuracy     = stats.get('hit_accuracy', 0.0)
+            play_mode    = user_data.get('playmode', 'osu')
+
+            # --- PARTE 1: Actualización de datos actuales (SIEMPRE) ---
+            # Solo si el usuario consultado es el vinculado al autor del comando
+            linked_username = await self.repo.get_linked_username(discord_user_id)
+            
+            if linked_username and linked_username.lower() == osu_username_queried.lower():
+                await self.repo.link_account(
+                    discord_user_id, user_data["username"], user_data["id"],
+                    play_mode, pp, global_rank, country_rank, accuracy
+                )
+                logger.debug(f"[OsuSync] Updated current stats for {discord_user_id}")
+
+                # --- PARTE 2: Historial diario (Cooldown de 5 min) ---
+                now = time.time()
+                last_snap = self._snapshot_cooldowns.get(discord_user_id, 0)
+                if now - last_snap >= self._snapshot_cooldown_secs:
+                    await self.bot.analytics_repo.record_osu_snapshot(
+                        discord_user_id, pp, global_rank, country_rank, accuracy, play_mode
+                    )
+                    self._snapshot_cooldowns[discord_user_id] = now
+                    logger.info(f"[OsuSnapshot] Snapshot updated in history for {discord_user_id}")
+        
+        except Exception as e:
+            logger.warning(f"[OsuSnapshot] Non-critical error: {e}")
 
     @commands.command(name="link")
     async def link(self, ctx, osu_username: str):
@@ -30,12 +74,25 @@ class OsuHandler(commands.Cog, name="osu!"):
                      return await ctx.send(f"❌ No se encontró un jugador con el nombre '{osu_username}'.")
 
                  stats = user_data.get('statistics', {})
+                 pp          = stats.get('pp', 0.0)
+                 global_rank = stats.get('global_rank', None)
+                 country_rank= stats.get('country_rank', None)
+                 accuracy    = stats.get('hit_accuracy', 0.0)
+                 play_mode   = user_data.get('playmode', 'osu')
+
                  await self.repo.link_account(
                      ctx.author.id, user_data["username"], user_data["id"],
-                     user_data.get('playmode', 'osu'), stats.get('pp', 0.0),
-                     stats.get('global_rank', None), stats.get('country_rank', None),
-                     stats.get('hit_accuracy', 0.0)
+                     play_mode, pp, global_rank, country_rank, accuracy
                  )
+
+                 # Guardar snapshot en historial de progreso osu!
+                 try:
+                     await self.bot.analytics_repo.record_osu_snapshot(
+                         ctx.author.id, pp, global_rank, country_rank, accuracy, play_mode
+                     )
+                 except Exception as snap_err:
+                     logger.warning(f"Could not save osu snapshot: {snap_err}")
+
                  await ctx.send(f"✅ ¡Tu cuenta ha sido vinculada con **{user_data['username']}**!")
              except Exception as e:
                  logger.error(f"Error in link: {e}")
@@ -175,6 +232,10 @@ class OsuHandler(commands.Cog, name="osu!"):
                     )
                 
                 await ctx.send(embed=embed)
+
+                # Actualizar snapshot si el autor está consultando su propia cuenta
+                await self._try_update_osu_snapshot(ctx.author.id, username, user)
+
             except Exception as e:
                 logger.error(f"Error in osuProfile: {e}")
                 await ctx.send(f"⚠️ Error al obtener el perfil de '{username}'.")
@@ -236,7 +297,10 @@ class OsuHandler(commands.Cog, name="osu!"):
                 else:
                     embed.description = "❌ Dalet se quedó dormida. No pude obtener el análisis."
                     await msg.edit(embed=embed)
-                    
+
+                # Actualizar snapshot si el autor está consultando su propia cuenta
+                await self._try_update_osu_snapshot(ctx.author.id, username, user)
+
             except Exception as e:
                 logger.error(f"Error in Super Analyze for {username}: {e}")
                 traceback.print_exc()

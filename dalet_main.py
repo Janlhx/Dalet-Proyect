@@ -80,6 +80,7 @@ async def main():
         from database.repositories.user_repository import UserRepository
         from database.repositories.osu_repository import OsuRepository
         from database.repositories.admin_repository import AdminRepository
+        from database.repositories.analytics_repository import AnalyticsRepository
         from services.nlp_service import NLPService
         from services.memory_service import MemoryService
         from services.osu_service import OsuService
@@ -98,6 +99,7 @@ async def main():
             bot._prev_flush_task = flush_task
             bot.osu_repo = OsuRepository()
             bot.admin_repo = AdminRepository()
+            bot.analytics_repo = AnalyticsRepository()
 
             # Instanciar Servicios para este bot
             bot.nlp_service = NLPService(GEMINI_API_KEY, user_repo=bot.user_repo)
@@ -106,7 +108,25 @@ async def main():
                 client_id=int(os.getenv("OSU_CLIENT_ID", 0)),
                 client_secret=os.getenv("OSU_CLIENT_SECRET", "")
             )
-            
+
+            # --- Tarea periódica: purgar mensajes expirados (TTL 48h) ---
+            async def _purge_expired_messages():
+                while True:
+                    await asyncio.sleep(3600)  # Cada hora
+                    try:
+                        pool = await DatabasePool.get_pool()
+                        async with pool.acquire() as conn:
+                            deleted = await conn.fetchval("SELECT fn_PurgeExpiredMessages()")
+                            if deleted and deleted > 0:
+                                logger.info(f"[Privacy] Purged {deleted} expired messages from DB.")
+                    except Exception as e:
+                        logger.error(f"[Privacy] Error purging messages: {e}")
+                        await bot.analytics_repo.log_error(
+                            "db_purge_error", str(e), "_purge_expired_messages"
+                        )
+
+            asyncio.get_event_loop().create_task(_purge_expired_messages())
+
             # Re-aplicar el Middleware de Seguridad
             @bot.check
             async def global_block_check(ctx):
@@ -119,6 +139,52 @@ async def main():
             try:
                 async with bot:
                     await load_extensions(bot)
+
+                    # --- Tracking automático de CommandUsage ---
+                    @bot.listen('on_command')
+                    async def on_command_usage(ctx):
+                        """Registra en CommandUsage cada comando ejecutado con éxito."""
+                        if not ctx.guild:
+                            return
+                        try:
+                            await bot.analytics_repo.log_command(
+                                ctx.command.qualified_name,
+                                ctx.author.id,
+                                str(ctx.author),
+                                ctx.guild.id,
+                                ctx.channel.id,
+                                success=True
+                            )
+                        except Exception:
+                            pass
+
+                    @bot.listen('on_command_error')
+                    async def on_command_error_tracking(ctx, error):
+                        """Registra comandos que fallaron (sin interferir con handlers de error existentes)."""
+                        if not ctx.guild or not ctx.command:
+                            return
+                        # Solo errores reales, no "CommandNotFound" o chequeos de permisos normales
+                        if isinstance(error, (commands.CommandNotFound, commands.CheckFailure,
+                                              commands.MissingPermissions, commands.CommandOnCooldown)):
+                            return
+                        try:
+                            await bot.analytics_repo.log_command(
+                                ctx.command.qualified_name,
+                                ctx.author.id,
+                                str(ctx.author),
+                                ctx.guild.id,
+                                ctx.channel.id,
+                                success=False
+                            )
+                            await bot.analytics_repo.log_error(
+                                "command_error",
+                                str(error),
+                                f"command:{ctx.command.qualified_name}",
+                                ctx.guild.id
+                            )
+                        except Exception:
+                            pass
+
                     await bot.start(DISCORD_TOKEN)
             except discord.HTTPException as e:
                 if e.status == 429:
