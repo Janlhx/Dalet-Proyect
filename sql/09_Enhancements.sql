@@ -58,6 +58,7 @@ END;
 $$;
 
 -- Vista mejorada: canales más activos (reemplaza V_ChannelActivity eliminada)
+DROP VIEW IF EXISTS V_ActiveChannels CASCADE;
 CREATE OR REPLACE VIEW V_ActiveChannels AS
 SELECT
     c.ChannelID,
@@ -113,6 +114,7 @@ END;
 $$;
 
 -- Vista mejorada del ranking osu! (incluye cuándo se actualizó)
+DROP VIEW IF EXISTS V_OsuRankingGlobal CASCADE;
 CREATE OR REPLACE VIEW V_OsuRankingGlobal AS
 SELECT
     u.UserName,

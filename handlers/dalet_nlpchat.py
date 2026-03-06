@@ -26,6 +26,37 @@ class DaletNLPChat(commands.Cog):
         self.error_cooldown = 0 # Cooldown dinámico ante errores 429
         self.consecutive_429s = 0
 
+    async def _handle_429(self, exception, source="unknown"):
+        """Centraliza la lógica de manejo de errores 429 (Rate Limit)."""
+        self.consecutive_429s += 1
+        
+        # Si es un error 1015 de Cloudflare, ser mucho más agresivos con el cooldown
+        is_cloudflare_1015 = "1015" in str(exception) or "Cloudflare" in str(exception)
+        
+        if is_cloudflare_1015:
+            # Cloudflare 1015 es un bloqueo duro. Cooldown largo de base.
+            wait_secs = 120 * (2 ** (self.consecutive_429s - 1)) # Empieza en 2 min
+            logger.error(f"HARD Rate Limit (Cloudflare 1015) in {source}. Throttling for {wait_secs}s")
+        else:
+            # Rate limit normal de Discord
+            wait_secs = 30 * (2 ** (self.consecutive_429s - 1)) # Empieza en 30s
+            logger.error(f"Discord 429 Rate Limit in {source}. Throttling for {wait_secs}s")
+
+        self.error_cooldown = time.time() + wait_secs
+        
+        # Persistir error en BD
+        try:
+            await self.bot.analytics_repo.log_error(
+                "discord_429_hard" if is_cloudflare_1015 else "discord_429",
+                f"Source: {source}. Throttle: {wait_secs}s. Consecutive: {self.consecutive_429s}",
+                f"dalet_nlpchat.{source}",
+                None # Guild ID a veces no está disponible aquí
+            )
+        except Exception:
+            pass
+        
+        return wait_secs
+
     def _should_respond(self):
         if self.is_responding: return False # Ignorar si ya está procesando
         
@@ -71,7 +102,12 @@ class DaletNLPChat(commands.Cog):
         quick_responses = {"dalet test": "si sirvo", "dalet on": "estoy on"}
         for trigger, response in quick_responses.items():
             if trigger in content_lower:
-                return await message.channel.send(response)
+                try:
+                    return await message.channel.send(response)
+                except discord.HTTPException as e:
+                    if e.status == 429:
+                        await self._handle_429(e, "quick_response")
+                    return
 
         # 2. Guardado de Memoria
         if "recuerda que" in content_lower or "mi nombre es" in content_lower:
@@ -79,7 +115,11 @@ class DaletNLPChat(commands.Cog):
                 await self.bot.memory_service.add_memory(
                     message.author.id, str(message.author.name), message.content
                 )
-                await message.add_reaction("✅")
+                try:
+                    await message.add_reaction("✅")
+                except discord.HTTPException as e:
+                    if e.status == 429:
+                        await self._handle_429(e, "reaction")
             except Exception as e:
                 logger.error(f"Error saving memory: {e}")
 
@@ -223,20 +263,7 @@ class DaletNLPChat(commands.Cog):
                                 logger.warning(f"Failed to log reply to DB: {db_err}")
                         except discord.HTTPException as e:
                             if e.status == 429:
-                                self.consecutive_429s += 1
-                                wait_secs = 30 * (2 ** (self.consecutive_429s - 1))
-                                self.error_cooldown = time.time() + wait_secs
-                                logger.error(f"429 Rate Limit on send. Throttling for {wait_secs}s")
-                                # --- Persistir error en BD ---
-                                try:
-                                    await self.bot.analytics_repo.log_error(
-                                        "discord_429",
-                                        f"Rate limited. Throttle: {wait_secs}s. Consecutive: {self.consecutive_429s}",
-                                        "dalet_nlpchat.generate_response",
-                                        message.guild.id
-                                    )
-                                except Exception:
-                                    pass
+                                await self._handle_429(e, "send_message")
                             else:
                                 logger.error(f"Discord HTTP error sending message: {e}")
 
@@ -244,15 +271,15 @@ class DaletNLPChat(commands.Cog):
                     self.last_reply_time = time.time()
                     self.message_counter = 0
 
-            # Ejecutar con typing si está disponible; si typing falla con 429, continuar igual
+            # Ejecutar con typing si está disponible; si typing falla con 429, ABORTAR para no empeorar el rate limit
             if typing_ctx:
                 try:
                     async with typing_ctx:
                         await _do_respond()
                 except discord.HTTPException as e:
                     if e.status == 429:
-                        logger.warning(f"429 on typing indicator, responding without typing indicator.")
-                        await _do_respond()
+                        await self._handle_429(e, "typing")
+                        logger.warning("Aborting response due to rate limit on typing indicator.")
                     else:
                         raise
                 except discord.Forbidden:
