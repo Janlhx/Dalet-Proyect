@@ -12,7 +12,7 @@ class MemoryService:
         self._local_history = {} # {channel_id: deque([msg1, msg2, ...])}
         from collections import deque
         self.history_class = deque
-        self.max_local_history = 10
+        self.max_local_history = 20
         
         # El cliente se inyectará desde nlp_service o se creará aquí si es necesario
         # Para ser consistente, usaremos la API KEY del .env
@@ -38,19 +38,30 @@ class MemoryService:
         memory_section = []
         history_section = []
 
-        # 1. Historial de chat
+        # 1. Obtener historial (DB + Buffer de repositorio)
         try:
-            chat_history = await self.repo.get_channel_messages(channel_id, 10)
-            if chat_history:
-                for record in reversed(chat_history):
+            # UserRepository.get_channel_messages ya combina buffer + DB
+            db_history = await self.repo.get_channel_messages(channel_id, 20)
+            if db_history:
+                # Invertir para orden cronológico: [antiguo, ..., reciente]
+                for record in reversed(db_history):
                     history_section.append(f"{record['username']}: {record['content']}")
-            else:
-                # Fallback al historial local si la DB retorna vacío o falla
-                if channel_id in self._local_history:
-                    history_section = list(self._local_history[channel_id])
+            
+            # 2. Sincronizar con local_history (Memoria inmediata del Cog)
+            # Esto nos asegura que si el ChatLogger aún no procesó el mensaje actual, 
+            # el Cog de NLP sí lo tiene.
+            if channel_id in self._local_history:
+                local_list = list(self._local_history[channel_id])
+                for msg in local_list:
+                    if msg not in history_section:
+                        # Si no está en lo que trajo la DB, es un mensaje ultra-reciente
+                        history_section.append(msg)
+            
+            # Mantener solo los últimos 20 para no saturar
+            history_section = history_section[-20:]
+
         except Exception as e:
             logger.error(f"Error getting channel context: {e}")
-            # Fallback al historial local en caso de error crítico de DB
             if channel_id in self._local_history:
                 history_section = list(self._local_history[channel_id])
 

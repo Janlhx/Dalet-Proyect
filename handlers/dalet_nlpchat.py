@@ -261,6 +261,9 @@ class DaletNLPChat(commands.Cog):
                                 )
                             except Exception as db_err:
                                 logger.warning(f"Failed to log reply to DB: {db_err}")
+                            
+                            # También guardar en historial local para coherencia inmediata
+                            self.bot.memory_service.add_to_local_history(message.channel.id, self.bot.user.name, reply)
                         except discord.HTTPException as e:
                             if e.status == 429:
                                 await self._handle_429(e, "send_message")

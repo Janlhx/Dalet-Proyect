@@ -28,7 +28,7 @@ class ResumenInteligente(commands.Cog, name="Resumen Inteligente"):
             # registers are in descending order, we want chronological for display
             display_list = list(registros)
             display_list.reverse()
-            historial_texto = "\n".join([f"{r[0]}: {r[1]}" for r in display_list])
+            historial_texto = "\n".join([f"{r['username']}: {r['content']}" for r in display_list])
 
             # 2. Generar resumen con NLPService
             prompt = (f"Analiza el siguiente historial de chat y genera un resumen conciso y neutral de los temas principales, "

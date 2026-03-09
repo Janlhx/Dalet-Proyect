@@ -13,6 +13,7 @@ class UserRepository(BaseRepository):
         self._flush_interval = 60 # Segundos
         self._max_buffer_size = 20
         self._flush_task = None
+        self._flushing_logs = [] # Buffer temporal durante la escritura en DB
 
     def start_flush_task(self, loop):
         """Inicia la tarea de vaciado del buffer si no está activa."""
@@ -26,19 +27,22 @@ class UserRepository(BaseRepository):
             await self.flush_logs()
 
     async def flush_logs(self):
-        if not self._log_buffer:
+        if not self._log_buffer and not self._flushing_logs:
             return
         
-        logs_to_process = list(self._log_buffer)
+        # Si ya hay un flush en curso, esperamos o simplemente dejamos que el siguiente se encargue
+        # aunque el semáforo de la conexión/transacción nos protege.
+        
+        self._flushing_logs = list(self._log_buffer)
         self._log_buffer.clear()
         
-        logger.info(f"Flushing {len(logs_to_process)} logs to DB...")
+        logger.info(f"Flushing {len(self._flushing_logs)} logs to DB...")
         # Nota: Idealmente usaríamos un 'INSERT ... VALUES (...), (...)' masivo
         # pero para mantener compatibilidad con el SP, los llamamos uno a uno en una sola conexión
         pool = await get_db()
         async with pool.acquire() as conn:
             async with conn.transaction():
-                for log in logs_to_process:
+                for log in self._flushing_logs:
                     try:
                         await conn.execute(
                             "CALL sp_LogMessage($1, $2, $3, $4, $5, $6, $7)",
@@ -46,6 +50,8 @@ class UserRepository(BaseRepository):
                         )
                     except Exception as e:
                         logger.error(f"Error flushing single log: {e}")
+        finally:
+            self._flushing_logs.clear()
 
     async def _get_cached(self, key, fetch_func, *args):
         import time
@@ -94,15 +100,41 @@ class UserRepository(BaseRepository):
             
         return await self._get_cached(f"memories_{user_id}", _fetch, user_id)
 
-    async def get_channel_messages(self, channel_id: int, limit: int = 10):
-        query = """
-            SELECT UserName, Content
-            FROM V_ChannelMessages
-            WHERE ChannelID = $1
-            ORDER BY Timestamp DESC
-            LIMIT $2
+    async def get_channel_messages(self, channel_id: int, limit: int = 20):
         """
-        return await self.fetch_all(query, channel_id, limit)
+        Obtiene los últimos mensajes de un canal, combinando los ya persistidos
+        en la BD con los que están aún en el buffer de memoria o en proceso de flush.
+        """
+        # 1. Combinar buffers de memoria (el buffer actual es más nuevo que el de flushing)
+        all_local = []
+        for log in reversed(self._log_buffer):
+            if log[4] == channel_id:
+                all_local.append({'username': log[1], 'content': log[6]})
+        
+        for log in reversed(self._flushing_logs):
+            if log[4] == channel_id:
+                all_local.append({'username': log[1], 'content': log[6]})
+        
+        # Recortar si ya tenemos suficientes
+        buffered_results = all_local[:limit]
+
+        # 2. Si faltan mensajes para llegar al límite, buscar en la BD
+        remaining_limit = limit - len(buffered_results)
+        db_results = []
+        if remaining_limit > 0:
+            query = """
+                SELECT UserName as username, Content as content
+                FROM V_ChannelMessages
+                WHERE ChannelID = $1
+                ORDER BY Timestamp DESC
+                LIMIT $2
+            """
+            rows = await self.fetch_all(query, channel_id, remaining_limit)
+            if rows:
+                db_results = [dict(r) for r in rows]
+
+        # 3. Combinar: Primero el buffer (más nuevo), luego la BD (más viejo)
+        return buffered_results + db_results
     
     async def log_message(self, user_id, user_name, server_id, server_name, channel_id, channel_name, content):
         self._log_buffer.append((user_id, user_name, server_id, server_name, channel_id, channel_name, content))
