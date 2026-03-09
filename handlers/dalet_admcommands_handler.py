@@ -15,14 +15,14 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
 
     # --- Comandos de Gestión del Bot ---
 
-    @commands.command()
+    @commands.command(hidden=True)
     @commands.has_permissions(administrator=True)
     async def restart(self, ctx):
         """[ADMIN] Reinicia el bot (solo para administradores)."""
         await ctx.send("Cerrando conexión... Render debería reiniciarme.")
         await self.bot.close()
 
-    @commands.command(name="reload")
+    @commands.command(name="reload", hidden=True)
     @commands.has_permissions(administrator=True)
     async def reload_cog(self, ctx, *, cog_name: str):
         """[ADMIN] Recarga un módulo/handler (Cog)."""
@@ -35,7 +35,7 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
 
     # --- Comandos de Base de Datos y Utilidad ---
 
-    @commands.command(name="sql")
+    @commands.command(name="sql", hidden=True)
     @commands.has_permissions(administrator=True)
     async def run_sql_select(self, ctx, *, query: str):
         """[ADMIN] Ejecuta una consulta SELECT en la BD."""
@@ -160,7 +160,7 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
         embed.set_footer(text=f"ID del Shard: {self.bot.shard_id or 'N/A'}")
         await ctx.send(embed=embed)
 
-    @commands.command(name="dbstats")
+    @commands.command(name="dbstats", hidden=True)
     @commands.has_permissions(administrator=True)
     async def db_stats(self, ctx):
         """[ADMIN] Muestra un resumen de analíticas de la BD: comandos, IA y errores."""

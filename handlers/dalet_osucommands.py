@@ -135,17 +135,16 @@ class OsuHandler(commands.Cog, name="osu!"):
                 if user.get("cover_url"):
                     embed.set_image(url=user.get("cover_url"))
                 
-                # === SECCIÓN 1: RENDIMIENTO ===
+                # === SECCIÓN 1: RENDIMIENTO (Ancho completo) ===
                 pp = stats.get('pp', 0)
                 global_rank = stats.get('global_rank', 0)
                 country_rank = stats.get('country_rank', 0)
                 
                 embed.add_field(
-                    name="💎 Performance",
-                    value=f"**{pp:,.0f}pp**\n"
-                          f"🌍 Global: **#{global_rank:,}**\n"
-                          f"🏳️ País: **#{country_rank:,}**",
-                    inline=True
+                    name="💎 Rendimiento & Ranking",
+                    value=f"**{pp:,.2f}pp**\n"
+                          f"🌍 Global: **#{global_rank:,}** | 🏳️ País: **#{country_rank:,}**",
+                    inline=False
                 )
                 
                 # === SECCIÓN 2: PRECISIÓN Y NIVEL ===
@@ -153,78 +152,55 @@ class OsuHandler(commands.Cog, name="osu!"):
                 level = stats.get('level', {})
                 current_level = level.get('current', 0)
                 level_progress = level.get('progress', 0)
-                
-                # Barra de progreso visual
-                progress_bar = self._create_progress_bar(level_progress)
+                progress_bar = self._create_progress_bar(level_progress, length=15)
                 
                 embed.add_field(
-                    name="🎯 Precisión & Nivel",
-                    value=f"**{accuracy:.2f}%**\n"
-                          f"📊 Nivel **{current_level}**\n"
-                          f"{progress_bar} {level_progress}%",
-                    inline=True
+                    name="🎯 Precisión & Progreso",
+                    value=f"✨ Precisión: **{accuracy:.2f}%**\n"
+                          f"📊 Nivel **{current_level}** ({level_progress}%)\n"
+                          f"{progress_bar}",
+                    inline=False
                 )
                 
-                # === SECCIÓN 3: ACTIVIDAD ===
+                # === SECCIÓN 3: ACTIVIDAD Y RANGOS (Lado a lado) ===
                 play_count = stats.get('play_count', 0)
                 play_time = stats.get('play_time', 0)
                 hours = play_time // 3600
-                total_hits = stats.get('total_hits', 0)
                 
+                grades = stats.get('grade_counts', {})
+                ssh, ss = grades.get('ssh', 0), grades.get('ss', 0)
+                sh, s = grades.get('sh', 0), grades.get('s', 0)
+                a = grades.get('a', 0)
+
                 embed.add_field(
                     name="⏱️ Actividad",
-                    value=f"🎵 **{play_count:,}** jugadas\n"
-                          f"⏰ **{hours:,}h** jugadas\n"
-                          f"🎯 **{total_hits:,}** hits totales",
+                    value=f"🎵 **{play_count:,}** plays\n⏰ **{hours:,}h** jugadas",
                     inline=True
                 )
-                
-                # === SECCIÓN 4: RANGOS ===
-                grades = stats.get('grade_counts', {})
-                ssh = grades.get('ssh', 0)
-                ss = grades.get('ss', 0)
-                sh = grades.get('sh', 0)
-                s = grades.get('s', 0)
-                a = grades.get('a', 0)
                 
                 embed.add_field(
-                    name="🏅 Rangos Obtenidos",
-                    value=f"🌟 **SS+**: {ssh:,} | **SS**: {ss:,}\n"
-                          f"⭐ **S+**: {sh:,} | **S**: {s:,}\n"
-                          f"✨ **A**: {a:,}",
+                    name="🏅 Récords",
+                    value=f"🌟 **SS+**: {ssh:,} | **SS**: {ss:,}\n⭐ **S+**: {sh:,} | **S**: {s:,}\n✨ **A**: {a:,}",
                     inline=True
                 )
                 
-                # === SECCIÓN 5: ESTADÍSTICAS AVANZADAS ===
+                # === SECCIÓN 4: ESTADÍSTICAS GLOBALES (Ancho completo) ===
                 ranked_score = stats.get('ranked_score', 0)
-                total_score = stats.get('total_score', 0)
-                max_combo = stats.get('maximum_combo', 0)
+                total_hits = stats.get('total_hits', 0)
                 replays_watched = stats.get('replays_watched_by_others', 0)
-                
-                embed.add_field(
-                    name="📈 Estadísticas Avanzadas",
-                    value=f"🎖️ Score Ranked: **{ranked_score:,}**\n"
-                          f"💯 Score Total: **{total_score:,}**\n"
-                          f"🔗 Combo Máximo: **{max_combo:,}x**",
-                    inline=True
-                )
-                
-                # === SECCIÓN 6: POPULARIDAD ===
                 followers = user.get('follower_count', 0)
                 medals = len(user.get('user_achievements', []))
                 
                 embed.add_field(
-                    name="🌟 Popularidad",
-                    value=f"👥 **{followers:,}** seguidores\n"
-                          f"🎖️ **{replays_watched:,}** replays vistos\n"
-                          f"🏆 **{medals}** medallas",
-                    inline=True
+                    name="🌐 Estadísticas del Jugador",
+                    value=f"🏅 Score Ranked: **{ranked_score:,}** | 🎯 Hits: **{total_hits:,}**\n"
+                          f"👥 **{followers:,}** seguidores | 👁️ **{replays_watched:,}** replays vistos | 🏆 **{medals}** medallas",
+                    inline=False
                 )
                 
                 # Footer con información adicional
                 join_date = user.get('join_date', '')
                 if join_date:
-                    from datetime import datetime
                     join_dt = datetime.fromisoformat(join_date.replace('Z', '+00:00'))
                     embed.set_footer(
                         text=f"Jugador desde {join_dt.strftime('%d/%m/%Y')} • ID: {user['id']}",
