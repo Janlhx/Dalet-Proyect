@@ -1,64 +1,64 @@
-# 📖 Documentación del Proyecto Dalet
+# 📖 Project Documentation Index
 
-Bienvenido a la documentación técnica de **Dalet**, un bot de Discord con IA conversacional, integración con osu!, y un sistema de memoria persistente.
-
----
-
-## 📂 Índice de Documentos
-
-| Archivo                                              | Descripción                                                               |
-| ---------------------------------------------------- | ------------------------------------------------------------------------- |
-| [01_ARQUITECTURA.md](./01_ARQUITECTURA.md)           | Visión general del proyecto, cómo funciona todo junto y el flujo de datos |
-| [02_PUNTO_DE_ENTRADA.md](./02_PUNTO_DE_ENTRADA.md)   | `dalet_main.py` — El arranque del bot                                     |
-| [03_HANDLERS.md](./03_HANDLERS.md)                   | Los Cogs/Handlers — cada módulo de comandos explicado                     |
-| [04_SERVICIOS.md](./04_SERVICIOS.md)                 | `NLPService` y `MemoryService` — la IA y la memoria                       |
-| [05_BASE_DE_DATOS.md](./05_BASE_DE_DATOS.md)         | Pool, Repositorios y Patrón Repository                                    |
-| [06_ESQUEMA_SQL.md](./06_ESQUEMA_SQL.md)             | Todas las tablas, vistas, procedimientos y funciones SQL                  |
-| [07_VARIABLES_ENTORNO.md](./07_VARIABLES_ENTORNO.md) | Variables `.env` necesarias para correr el bot                            |
-| [NEON_MIGRATION.md](./NEON_MIGRATION.md)             | Guía de migración a Neon (PostgreSQL en la nube)                          |
+Welcome to the technical documentation for **Dalet**, a conversational Discord bot featuring AI-driven dialogue, osu! integration, and a persistent memory system.
 
 ---
 
-## 🗺️ Mapa del Proyecto
+## 📂 Documentation Sections
+
+| File | Description |
+| ---- | ----------- |
+| [01 — Architecture](./01_ARCHITECTURE.md) | High-level system overview, data flow, and core logic patterns. |
+| [02 — Entry Point](./02_ENTRY_POINT.md) | Deep dive into `dalet_main.py` — how the bot starts and the keep-alive server. |
+| [03 — Handlers](./03_HANDLERS.md) | Cog breakdown — every command module and how they interact with users. |
+| [04 — Services](./04_SERVICES.md) | `NLPService` and `MemoryService` — the AI engine and persistent context logic. |
+| [05 — Database](./05_DATABASE.md) | Connection pooling, repositories, and the Repository Pattern implementation. |
+| [06 — SQL Schema](./06_SQL_SCHEMA.md) | Complete database reference: tables, views, procedures, and triggers. |
+| [07 — Environment Variables](./07_VARIABLES_ENVIRONMENT.md) | Reference for `.env` secrets and configurations. |
+| [Neon Migration Guide](./NEON_MIGRATION.md) | Step-by-step guide for cloud deployment on Neon.tech. |
+
+---
+
+## 🗺️ Project Structure
 
 ```
 Dalet-Proyect/
-├── dalet_main.py           ← Punto de entrada principal
-├── .env                    ← Variables de entorno (secretos)
-├── requirements.txt        ← Dependencias Python
+├── dalet_main.py           ← Main entry point
+├── .env                    ← Environment variables (secrets)
+├── requirements.txt        ← Python dependencies
 │
-├── handlers/               ← Módulos de comandos (Cogs de discord.py)
-│   ├── dalet_nlpchat.py        ← Motor de IA conversacional
-│   ├── dalet_chatlogger.py     ← Logger de mensajes en BD
-│   ├── dalet_admcommands_handler.py  ← Comandos admin
-│   ├── dalet_geminicommand.py  ← Config de IA (proactivo/reactivo)
-│   ├── dalet_commands_handlers.py    ← Comandos generales
-│   ├── dalet_helpcommands_handlers.py ← Sistema de ayuda
-│   ├── dalet_events_handlers.py      ← Eventos de Discord
-│   ├── dalet_osucommands.py    ← Comandos de osu!
-│   └── dalet_smartresume.py    ← Resúmenes de chat con IA
+├── handlers/               ← Feature modules (discord.py Cogs)
+│   ├── dalet_nlpchat.py        ← Conversational AI engine
+│   ├── dalet_chatlogger.py     ← Database message logging
+│   ├── dalet_admcommands_handler.py  ← Admin utility commands
+│   ├── dalet_geminicommand.py  ← AI mode config (proactive/reactive)
+│   ├── dalet_commands_handlers.py    ← General user commands
+│   ├── dalet_helpcommands_handlers.py ← Help system
+│   ├── dalet_events_handlers.py      ← Discord event listeners
+│   ├── dalet_osucommands.py    ← osu! API commands
+│   └── dalet_smartresume.py    ← AI chat summarization
 │
-├── services/               ← Lógica de negocio (IA, memoria)
-│   ├── nlp_service.py          ← Generación de respuestas con Gemini/Groq
-│   ├── memory_service.py       ← Gestión del contexto y recuerdos
-│   └── osu_service.py          ← Integración con la API de osu!
+├── services/               ← Core business logic
+│   ├── nlp_service.py          ← Response generation (Gemini/Groq)
+│   ├── memory_service.py       ← Persistent context & memories
+│   └── osu_service.py          ← osu! API integration client
 │
-├── database/               ← Capa de acceso a datos
-│   ├── pool.py                 ← Conexión/Pool de PostgreSQL
+├── database/               ← Data Access Layer (DAL)
+│   ├── pool.py                 ← PostgreSQL connection pooling
 │   └── repositories/
-│       ├── base_repository.py      ← Métodos SQL genéricos
-│       ├── user_repository.py      ← Usuarios, mensajes, memorias
-│       ├── admin_repository.py     ← Bloqueos de canales
-│       ├── osu_repository.py       ← Datos de osu!
-│       └── analytics_repository.py ← Métricas y errores
+│       ├── base_repository.py      ← Generic SQL execution
+│       ├── user_repository.py      ← User, message, and memory data
+│       ├── admin_repository.py     ← Server & channel settings
+│       ├── osu_repository.py       ← osu! accounts and scores
+│       └── analytics_repository.py ← Performance metrics & logs
 │
-├── sql/                    ← Scripts SQL del esquema de la BD
-│   ├── 01_Schema.sql           ← Tablas base
-│   ├── 03_Procedures_Functions.sql ← Procedimientos y funciones
-│   ├── 04_Views.sql            ← Vistas
-│   ├── 08_Privacy_TTL.sql      ← Política de retención de datos
-│   ├── 09_Enhancements.sql     ← Mejoras a tablas existentes
-│   └── 10_New_Tables.sql       ← Tablas de analítica
+├── sql/                    ← Database schema & migration scripts
+│   ├── 01_Schema.sql           ← Base tables
+│   ├── 03_Procedures_Functions.sql ← Business logic in SQL
+│   ├── 04_Views.sql            ← Efficient data views
+│   ├── 08_Privacy_TTL.sql      ← Automated data retention policy
+│   ├── 09_Enhancements.sql     ← Table improvements
+│   └── 10_New_Tables.sql       ← Analytics & tracking tables
 │
-└── docs/                   ← Esta carpeta (documentación)
+└── docs/                   ← Technical documentation (This folder)
 ```

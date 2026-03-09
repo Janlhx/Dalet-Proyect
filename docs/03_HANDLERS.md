@@ -1,202 +1,202 @@
-# 🧩 Handlers (Cogs) — Módulos de Comandos
+# 🧩 Handlers (Cogs) — Command Modules
 
-> Un **Cog** (Cogwheel/engranaje) es la forma que tiene discord.py de organizar comandos y eventos en clases separadas. Cada archivo en `/handlers/` es un Cog independiente.
-
----
-
-## Resumen de Handlers
-
-| Archivo                          | Clase                | Responsabilidad                                     |
-| -------------------------------- | -------------------- | --------------------------------------------------- |
-| `dalet_nlpchat.py`               | `DaletNLPChat`       | Motor principal de IA conversacional                |
-| `dalet_chatlogger.py`            | `ChatLogger`         | Guarda mensajes en la BD                            |
-| `dalet_admcommands_handler.py`   | `AdminCommands`      | Comandos de administración del bot                  |
-| `dalet_geminicommand.py`         | `AIConfigCommands`   | Configuración de modos proactivo/reactivo           |
-| `dalet_commands_handlers.py`     | `CommandsHandler`    | Comandos generales de utilidad                      |
-| `dalet_helpcommands_handlers.py` | `CustomHelpCommand`  | Sistema de ayuda interactivo paginado               |
-| `dalet_events_handlers.py`       | `EventsHandler`      | Eventos de Discord (on_ready, errores, bienvenidas) |
-| `dalet_osucommands.py`           | _(osu commands)_     | Todos los comandos relacionados con osu!            |
-| `dalet_smartresume.py`           | `ResumenInteligente` | Resúmenes de chat con IA                            |
+> A **Cog** is discord.py's way of organizing commands and events into separate classes. Every file in `/handlers/` is an independent Cog.
 
 ---
 
-## 🤖 `dalet_nlpchat.py` — El Cerebro Conversacional
+## Handler Overview
 
-**Este es el archivo más importante del bot.**
+| File | Class | Responsibility |
+| ---- | ----- | -------------- |
+| `dalet_nlpchat.py` | `DaletNLPChat` | Core conversational AI engine |
+| `dalet_chatlogger.py` | `ChatLogger` | Saves messages to the database |
+| `dalet_admcommands_handler.py` | `AdminCommands` | Bot administration commands |
+| `dalet_geminicommand.py` | `AIConfigCommands` | Proactive/Reactive mode configuration |
+| `dalet_commands_handlers.py` | `CommandsHandler` | General utility commands |
+| `dalet_helpcommands_handlers.py` | `CustomHelpCommand` | Paginated interactive help system |
+| `dalet_events_handlers.py` | `EventsHandler` | Discord events (on_ready, errors, welcomes) |
+| `dalet_osucommands.py` | _(osu commands)_ | All osu!-related commands |
+| `dalet_smartresume.py` | `ResumenInteligente` | AI-powered chat summaries |
 
-### ¿Qué hace?
+---
 
-Escucha **todos** los mensajes del servidor y decide cuándo Dalet debe responder con IA.
+## 🤖 `dalet_nlpchat.py` — The Conversational Brain
 
-### Constantes de Comportamiento (al inicio del archivo)
+**This is the most critical file in the bot.**
+
+### What does it do?
+
+It listens to **all** server messages and decides when Dalet should respond using AI.
+
+### Behavioral Constants (at the top of the file)
 
 ```python
-BASE_RESPONSE_RATE = 0.25       # 25% de probabilidad de respuesta proactiva
-COOLDOWN_TIME = 45              # Espera 45s entre respuestas proactivas
-MIN_MESSAGES_BETWEEN_REPLIES = 10  # Mínimo 10 mensajes antes de responder
-MAX_MESSAGES_WINDOW = 10        # Reset de contador si pasan 10 msgs sin responder
+BASE_RESPONSE_RATE = 0.25       # 25% proactive response probability
+COOLDOWN_TIME = 45              # Wait 45s between proactive replies
+MIN_MESSAGES_BETWEEN_REPLIES = 10  # Minimum 10 messages before replying
+MAX_MESSAGES_WINDOW = 10        # Reset counter if 10 msgs pass without reply
 ```
 
-### Flujo de `on_message` (cada mensaje que llega)
+### `on_message` Flow (triggered per message)
 
 ```
-1. ¿Es un bot o DM? → Ignorar
-2. ¿Empieza con prefijo de comando (d., /, !...)? → Ignorar
-3. Guardar en local_history (memoria inmediata en RAM)
-4. ¿Está en error_cooldown por un 429 reciente? → Ignorar
-5. ¿Es "dalet test" o "dalet on"? → Respuesta rápida sin IA
-6. ¿Dice "recuerda que" o "mi nombre es"? → Guardar en UserMemories
-7. ¿El servidor es reactivo Y la mencionan/dicen "dalet"? → generate_response()
-8. ¿El canal es proactivo Y _should_respond() dice sí? → generate_response()
+1. Is it a bot or DM? → Ignore
+2. Starts with a command prefix (d., /, !...)? → Ignore
+3. Store in local_history (immediate RAM memory)
+4. Is it on error_cooldown from a recent 429? → Ignore
+5. Is it "dalet test" or "dalet on"? → Fast non-AI reply
+6. Contains "remember that" or "my name is"? → Save to UserMemories
+7. Is the server reactive AND mentioned/called "dalet"? → generate_response()
+8. Is the channel proactive AND _should_respond() is true? → generate_response()
 ```
 
-### `_should_respond()` — El "dado" de la proactividad
+### `_should_respond()` — Proactivity logic
 
-Decide si Dalet responde de forma espontánea. Devolverá `True` solo si:
+Decides if Dalet should respond spontaneously. Returns `True` only if:
 
-- No está respondiendo ya (`is_responding = False`)
-- Han pasado 45s desde la última respuesta
-- Han llegado al menos 10 mensajes desde la última respuesta
-- Sale un número aleatorio entre 0 y 1 que cae en el 25% de probabilidad
+- It is not currently responding (`is_responding = False`)
+- 45s have passed since the last reply
+- At least 10 messages have arrived since the last reply
+- A random number between 0 and 1 falls within the 25% probability range
 
-### `generate_response()` — El proceso de respuesta
+### `generate_response()` — The response process
 
-1. Pone `is_responding = True` (flag para evitar responder dos veces a la vez)
-2. Detecta imágenes en el mensaje (attachments, embeds, replies)
-3. Limpia el contenido del mensaje (quita menciones y la palabra "dalet")
-4. Llama a `memory_service.get_relevant_context()` → obtiene el contexto
-5. Llama a `nlp_service.generate_reply()` → genera la respuesta con IA
-6. Si la respuesta contiene `[SAVE_MEMORY: ...]` → guarda el recuerdo y lo elimina del texto
-7. Si la respuesta contiene `[ACTION: ...]` → ejecuta un comando de Discord
-8. Envía el mensaje a Discord
-9. Guarda la respuesta en `local_history` (para que sepa lo que dijo ella misma)
-10. Loguea la interacción en `analytics_repo` y `user_repo`
+1. Sets `is_responding = True` (flag to prevent concurrent replies)
+2. Detects images in the message (attachments, embeds, replies)
+3. Cleans message content (removes mentions and the word "dalet")
+4. Calls `memory_service.get_relevant_context()` → retrieves context
+5. Calls `nlp_service.generate_reply()` → generates AI response
+6. If reply contains `[SAVE_MEMORY: ...]` → saves memory and strips it from text
+7. If reply contains `[ACTION: ...]` → executes a Discord command
+8. Sends message to Discord
+9. Saves response in `local_history` (so Dalet remembers what she said)
+10. Logs interaction in `analytics_repo` and `user_repo`
 
-### `_handle_429()` — Manejo de Rate Limits
+### `_handle_429()` — Rate Limit Management
 
-Cuando Discord devuelve un error 429 (demasiadas peticiones), activa un cooldown exponencial:
+When Discord returns a 429 error (Too Many Requests), it triggers an exponential cooldown:
 
-- Error normal: empieza en 30s, se duplica con cada error consecutivo
-- Error Cloudflare 1015: empieza en 120s (son bloqueos más severos)
+- Standard Error: starts at 30s, doubles with each consecutive error
+- Cloudflare 1015 Error: starts at 120s (more severe blocks)
 
-El cooldown se guarda en `self.error_cooldown` (timestamp Unix). Mientras `time.time() < error_cooldown`, el bot no intenta responder.
+The cooldown is stored in `self.error_cooldown` (Unix timestamp). While `time.time() < error_cooldown`, the bot won't attempt to reply.
 
 ---
 
-## 📝 `dalet_chatlogger.py` — El Registrador de Mensajes
+## 📝 `dalet_chatlogger.py` — The Message Logger
 
-### ¿Qué hace?
+### What does it do?
 
-Escucha **todos** los mensajes y los guarda en la base de datos de forma asíncrona. Trabaja en paralelo con `dalet_nlpchat.py`.
+Listens to **all** messages and saves them to the database asynchronously. It works in parallel with `dalet_nlpchat.py`.
 
 ### `on_message`
 
-- Ignora bots y DMs
-- Ignora mensajes que empiecen con `d.` o `D.` (son comandos, no conversación)
-- Llama a `repo.log_message()` que guarda en el `_log_buffer` (no escribe en la BD inmediatamente)
+- Ignores bots and DMs
+- Ignores messages starting with `d.` or `D.` (commands, not conversation)
+- Calls `repo.log_message()` which stores in `_log_buffer` (it doesn't write to DB immediately)
 
-### Comando `d.chatlog [cantidad]`
+### Command `d.chatlog [count]`
 
-Muestra los últimos N mensajes del canal actual (combinando buffer + BD).
-
----
-
-## 🛡️ `dalet_admcommands_handler.py` — Comandos de Administración
-
-Todos requieren permiso de administrador en el servidor, excepto `d.cs` y `d.status`.
-
-| Comando             | Descripción                                                                 |
-| ------------------- | --------------------------------------------------------------------------- |
-| `d.restart`         | Cierra el bot (Render lo reinicia automáticamente)                          |
-| `d.reload <modulo>` | Recarga un Cog sin reiniciar el bot. Ej: `d.reload handlers.dalet_nlpchat`  |
-| `d.sql <query>`     | Ejecuta una consulta SELECT en la BD directamente desde Discord             |
-| `d.lock`            | Bloquea todos los comandos en el canal actual                               |
-| `d.unlock`          | Desbloquea los comandos en el canal actual                                  |
-| `d.cs`              | Muestra el estado del canal: ¿bloqueado? ¿proactivo? ¿reactivo?             |
-| `d.status`          | Estado técnico del bot: BD, buffer de logs, caché, proveedor IA, throttling |
-| `d.dbstats`         | Panel de analíticas: top comandos, respuestas IA, errores recientes         |
+Shows the last N messages from the current channel (combining buffer + DB).
 
 ---
 
-## ⚙️ `dalet_geminicommand.py` — Configuración de IA
+## 🛡️ `dalet_admcommands_handler.py` — Admin Commands
 
-### Modo Proactivo (`d.proactive`)
+All require administrator permissions on the server, except `d.cs` and `d.status`.
 
-La IA "entra sola" en conversaciones sin que la mencionen. Solo funciona en canales que el admin haya configurado.
-
-| Subcomando                  | Descripción                                                              |
-| --------------------------- | ------------------------------------------------------------------------ |
-| `d.proactive add #canal`    | Activa la IA proactiva en ese canal                                      |
-| `d.proactive remove #canal` | Desactiva la IA proactiva en ese canal                                   |
-| `d.proactive list`          | Lista los canales con IA proactiva                                       |
-| `d.proactive clear`         | Desactiva la IA proactiva en todos los canales                           |
-| `d.proactive debug`         | Muestra el estado interno del sistema (contador, cooldown, probabilidad) |
-
-### Modo Reactivo (`d.reactive`)
-
-La IA responde cuando la mencionan o dicen "dalet". Está activo por defecto en todos los servidores.
-
-| Subcomando          | Descripción                             |
-| ------------------- | --------------------------------------- |
-| `d.reactive on`     | Activa respuestas a menciones/nombre    |
-| `d.reactive off`    | Desactiva respuestas a menciones/nombre |
-| `d.reactive status` | Muestra si está activo o no             |
+| Command | Description |
+| ------- | ----------- |
+| `d.restart` | Shuts down the bot (Render auto-restarts it) |
+| `d.reload <module>` | Reloads a Cog without restarting. E.g.: `d.reload handlers.dalet_nlpchat` |
+| `d.sql <query>` | Executes a SELECT query in the DB directly from Discord |
+| `d.lock` | Locks all commands in the current channel |
+| `d.unlock` | Unlocks commands in the current channel |
+| `d.cs` | Shows channel status: Locked? Proactive? Reactive? |
+| `d.status` | Technical status: DB, log buffer, cache, AI provider, throttling |
+| `d.dbstats` | Analytics dashboard: top commands, AI replies, recent errors |
 
 ---
 
-## 🔧 `dalet_commands_handlers.py` — Comandos Generales
+## ⚙️ `dalet_geminicommand.py` — AI Configuration
 
-| Comando                 | Descripción                                                                 |
-| ----------------------- | --------------------------------------------------------------------------- |
-| `d.ms`                  | Muestra la latencia del bot en ms (ping)                                    |
-| `d.userinfo [@usuario]` | Info de un usuario: ID, fecha de creación, cuándo se unió                   |
-| `d.serverinfo`          | Info del servidor: miembros, dueño, fecha de creación                       |
-| `d.say <texto>`         | Dalet repite el mensaje                                                     |
-| `d.lore <término>`      | Busca mensajes pasados sobre ese tema y genera un resumen sarcástico con IA |
+### Proactive Mode (`d.proactive`)
 
-> **`d.lore`** es uno de los comandos más creativos: busca en la BD mensajes que contengan el término (ILIKE), los manda a la IA con instrucciones de ser "cotilla y sarcástica", y genera una respuesta personalizada.
+The AI joins conversations spontaneously without being mentioned. Only works in channels specifically configured by an admin.
 
----
+| Subcommand | Description |
+| ---------- | ----------- |
+| `d.proactive add #channel` | Enables proactive AI in that channel |
+| `d.proactive remove #channel` | Disables proactive AI in that channel |
+| `d.proactive list` | Lists channels with proactive AI |
+| `d.proactive clear` | Disables proactive AI across all channels |
+| `d.proactive debug` | Shows internal system state (counters, cooldown, probability) |
 
-## ❓ `dalet_helpcommands_handlers.py` — Sistema de Ayuda
+### Reactive Mode (`d.reactive`)
 
-Reemplaza el `d.help` por defecto de discord.py con un sistema interactivo y paginado.
+The AI only responds when mentioned or called "dalet". This is active by default in all servers.
 
-### Componentes
-
-- **`CustomHelpCommand`**: Genera automáticamente una portada y una página por cada Cog
-- **`HelpPaginator`**: Vista con 4 botones (Anterior, Inicio, Ir a..., Siguiente). Se desactiva tras 3 minutos de inactividad
-- **`PageInputModal`**: Ventana emergente (Modal) que aparece al pulsar "Ir a..." y permite escribir el número de categoría
-
-### Cómo funciona la paginación
-
-1. `d.help` llama a `send_bot_help()`
-2. Se itera sobre todos los Cogs registrados
-3. Se crea un Embed por Cog con sus comandos
-4. Se añade una portada al inicio
-5. Se envía la portada con los botones de navegación
+| Subcommand | Description |
+| ---------- | ----------- |
+| `d.reactive on` | Enables replies to mentions/name |
+| `d.reactive off` | Disables replies to mentions/name |
+| `d.reactive status` | Shows if it's currently enabled |
 
 ---
 
-## 📡 `dalet_events_handlers.py` — Eventos Globales
+## 🔧 `dalet_commands_handlers.py` — General Commands
 
-| Evento             | Descripción                                                                     |
-| ------------------ | ------------------------------------------------------------------------------- |
-| `on_ready`         | Se ejecuta al conectar. Sincroniza los comandos de barra `/` con Discord        |
-| `on_command_error` | Maneja errores globales de comandos (comando no encontrado, sin permisos, etc.) |
-| `on_member_join`   | Envía bienvenida a un canal hardcodeado (ID: 790644877389201439)                |
-| `on_member_remove` | Envía despedida a un canal hardcodeado (ID: 790645132121604126)                 |
+| Command | Description |
+| ------- | ----------- |
+| `d.ms` | Displays bot latency in ms (ping) |
+| `d.userinfo [@user]` | User info: ID, creation date, joindate |
+| `d.serverinfo` | Server info: members, owner, creation date |
+| `d.say <text>` | Dalet repeats the message |
+| `d.lore <term>` | Searches past messages and generates a sarcastic AI summary |
 
-> ⚠️ **Nota**: Los IDs de canales de bienvenida/despedida están hardcodeados. Si el bot se mueve a otro servidor principal, habría que cambiarlos.
+> **`d.lore`** is one of the most creative commands: it searches the DB for messages containing the term (ILIKE), sends them to the AI with "gossipy and sarcastic" instructions, and generates a personalized summary.
 
 ---
 
-## 📊 `dalet_smartresume.py` — Resúmenes con IA
+## ❓ `dalet_helpcommands_handlers.py` — Help System
 
-| Comando                                  | Descripción                                                     |
-| ---------------------------------------- | --------------------------------------------------------------- |
-| `d.resumir_hibrido [N]`                  | Genera un resumen de los últimos N mensajes del canal usando IA |
-| `d.ver_resumenes_hibrido [N]`            | Muestra los últimos N resúmenes generados para este canal       |
-| `d.comparar_resumenes_hibrido <i1> <i2>` | Compara dos resúmenes usando IA                                 |
+Replaces the default `d.help` with an interactive, paginated system.
 
-El resumen se guarda en la tabla `Summaries` de la BD para que puedas ver la evolución de las conversaciones del canal a lo largo del tiempo.
+### Components
+
+- **`CustomHelpCommand`**: Automatically generates a cover page and one page per Cog
+- **`HelpPaginator`**: View with 4 buttons (Back, Home, Go to..., Next). Deactivates after 3 minutes of inactivity
+- **`PageInputModal`**: Popup window (Modal) that appears when clicking "Go to..." to enter a category number
+
+### How Paging Works
+
+1. `d.help` calls `send_bot_help()`
+2. Iterates over all registered Cogs
+3. Creates an Embed per Cog with its commands
+4. Adds a cover page at the beginning
+5. Sends the cover page with navigation buttons
+
+---
+
+## 📡 `dalet_events_handlers.py` — Global Events
+
+| Event | Description |
+| ----- | ----------- |
+| `on_ready` | Triggers on connection. Syncs Slash commands with Discord |
+| `on_command_error` | Handles global command errors (command not found, missing permissions, etc.) |
+| `on_member_join` | Sends a welcome message to a hardcoded channel (ID: 790644877389201439) |
+| `on_member_remove` | Sends a goodbye message to a hardcoded channel (ID: 790645132121604126) |
+
+> ⚠️ **Note**: Welcome/Goodbye channel IDs are currently hardcoded. They should be updated if the bot is moved to a different main server.
+
+---
+
+## 📊 `dalet_smartresume.py` — AI Summaries
+
+| Command | Description |
+| ------- | ----------- |
+| `d.resumir_hibrido [N]` | Generates an AI summary of the last N messages in the channel |
+| `d.ver_resumenes_hibrido [N]` | Shows the last N generated summaries for this channel |
+| `d.comparar_resumenes_hibrido <i1> <i2>` | Compares two summaries using AI |
+
+Summaries are stored in the `Summaries` database table, allowing you to track the evolution of channel conversations over time.
