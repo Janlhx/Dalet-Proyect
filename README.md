@@ -1,117 +1,234 @@
-# Bot de Discord "Dalet"
+<div align="center">
 
-## 1. Resumen del Proyecto
+<img src="docs/assets/dalet_oc.jpg" alt="Dalet" width="180" />
 
-Este repositorio contiene la implementación del bot de Discord "Dalet" y la arquitectura de su base de datos, desarrollado como proyecto final para el curso de Bases de Datos.
+# Dalet
 
-El objetivo central fue migrar la persistencia de datos del bot, que originalmente se basaba en múltiples archivos JSON, a una base de datos relacional centralizada. Se utilizó **PostgreSQL**, alojado en **Neon**, para construir un modelo de datos robusto que soporta las diversas funcionalidades del bot.
+**A conversational AI Discord bot with persistent memory, osu! integration, and a PostgreSQL backbone.**
 
-## 2. Funcionalidad del Bot
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![discord.py](https://img.shields.io/badge/discord.py-2.x-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discordpy.readthedocs.io)
+[![Google Gemini](https://img.shields.io/badge/Gemini-AI-4285F4?style=flat-square&logo=google&logoColor=white)](https://aistudio.google.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-336791?style=flat-square&logo=postgresql&logoColor=white)](https://neon.tech)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 
-El bot "Dalet" integra varias funciones que ahora dependen de la base de datos:
+[Features](#-features) · [Tech Stack](#-tech-stack) · [Getting Started](#-getting-started) · [Commands](#-commands) · [Architecture](#-architecture) · [Docs](#-documentation)
 
-* **Memoria Conversacional y de Usuario:** El bot utiliza la tabla `Messages` para obtener contexto de chat en vivo y la tabla `UserMemories` para almacenar información específica que los usuarios le solicitan recordar.
-* **Integración con API de Osu!:** Los usuarios vinculan sus perfiles de `osu!` (guardados en `OsuAccounts`). El bot obtiene y almacena *scores* relevantes (`OsuScores`) y estadísticas de perfil para su análisis.
-* **Análisis y Coaching de Rendimiento:** A través de comandos como `d.osuAnalyze` y `d.osuCoach`, el bot consulta los datos almacenados y las vistas para generar planes de coaching personalizados usando IA.
-* **Resúmenes de Chat:** El bot puede leer el historial de un canal (`V_ChannelMessages`), generar un resumen del mismo y almacenarlo en la tabla `Summaries`.
-* **Gestión de Configuración:** Los administradores del servidor pueden configurar el comportamiento del bot (ej. canales proactivos, modo reactivo) a través de comandos que modifican las tablas `Channels` y `Servers`.
+</div>
 
-## 3. Stack Técnico y Arquitectura de Despliegue
+---
 
-Este proyecto se apoya en tres servicios en la nube principales:
+## ✨ Features
 
-1.  **Neon (La Base de Datos):**
-    * **Rol:** Aloja nuestra base de datos PostgreSQL.
-    * **Implementación:** Neon provee una URL de conexión (`DATABASE_URL`) que el bot usa para conectarse y ejecutar todas las consultas, funciones y procedimientos almacenados.
+Dalet is more than a chatbot. It's a full-featured Discord companion designed to feel genuinely present in your server.
 
-2.  **Render (El Bot):**
-    * **Rol:** Aloja y ejecuta el código de Python (`dalet_main.py`).
-    * **Implementación:** Está configurado como un "Web Service".Para asegurar la alta disponibilidad, el script principal (`dalet_main.py`) inicia un servidor web **Flask** en un hilo secundario. Render monitorea el *endpoint* (`/`) de este servidor. Si el bot falla, el servidor Flask también lo hace, y Render reinicia automáticamente todo el servicio.
+- 🤖 **Conversational AI** — Powered by Google Gemini. Talks naturally, remembers context, and has its own personality.
+- 🧠 **Persistent Memory** — Dalet remembers things users explicitly ask it to. Memories survive restarts and persist across sessions.
+- 📝 **Smart Chat Summaries** — Can read a channel's history and generate an AI-powered summary on demand.
+- 🎮 **osu! Integration** — Link your osu! profile, fetch your top scores, and get personalised AI coaching and performance analysis.
+- 📊 **Analytics & Logging** — Tracks usage metrics and logs errors to the database for monitoring and insights.
+- ⚙️ **Admin Controls** — Configure proactive/reactive modes, restrict channels, and manage bot behaviour per-server.
+- 🔒 **Privacy-first** — Includes a data retention policy (TTL) that automatically purges old messages from the database.
 
-3.  **UptimeRobot (El "Despertador"):**
-    * **Rol:** Evita que el servicio de Render (en su plan gratuito) se "duerma" por inactividad.
-    * **Implementación:** UptimeRobot es un servicio externo configurado para hacer una petición HTTP a la URL de Render (`https://tu-bot.onrender.com`) cada 20-30 minutos. Esto simula tráfico constante y mantiene el bot despierto.
+---
 
-## 4. Guía de Replicación (Paso a Paso)
+## 🛠 Tech Stack
 
-Para replicar este bot desde cero, sigue estos pasos en orden.
+| Layer | Technology |
+|---|---|
+| Language | Python 3.11+ |
+| Discord Library | discord.py 2.x |
+| AI / NLP | Google Gemini (`google-genai`) + Groq (fallback) |
+| Database | PostgreSQL on [Neon](https://neon.tech) |
+| DB Driver | `asyncpg` (async connection pool) |
+| Hosting | [Render](https://render.com) (Web Service) |
+| Keep-alive | [UptimeRobot](https://uptimerobot.com) |
+| osu! Data | [osu! API v2](https://osu.ppy.sh/docs/index.html) |
 
-### Paso 1: Configuración de Servicios Externos (Obtener API Keys)
+---
 
-Antes de tocar el código, necesitas las 5 claves de tus servicios:
+## 🚀 Getting Started
 
-1.  **Discord (DISCORD_TOKEN):**
-    * Ve al [Portal de Desarrolladores de Discord](https://discord.com/developers/applications).
-    * Crea una "New Application".
-    * Ve a la pestaña "Bot".
-    * Activa los **"Privileged Gateway Intents"** (especialmente `MESSAGE CONTENT INTENT`). Esto es crucial para que el bot pueda leer mensajes.
-    * Haz clic en "Reset Token" para obtener tu `DISCORD_TOKEN`.
-    * Invita a tu bot a tu servidor usando la pestaña "OAuth2" > "URL Generator" (selecciona los permisos `bot` y `applications.commands`).
+### Prerequisites
 
-2.  **Neon (DATABASE_URL):**
-    * Crea una cuenta en [Neon](https://neon.tech).
-    * Crea un nuevo proyecto.
-    * En el dashboard de tu proyecto, busca la cadena de conexión (Connection String) que empieza por `postgres://...`. Esa es tu `DATABASE_URL`.
+- Python 3.11+
+- A PostgreSQL database (we recommend [Neon](https://neon.tech) — free tier works great)
+- API keys for: Discord, Google Gemini, and osu!
 
-3.  **Google Gemini (GEMINI_API_KEY):**
-    * Ve a [Google AI Studio](https://aistudio.google.com/).
-    * Crea una "API Key" para tu proyecto. Esa es tu `GEMINI_API_KEY`.
+### Step 1 — Get your API Keys
 
-4.  **Osu! (OSU_CLIENT_ID y OSU_CLIENT_SECRET):**
-    * Inicia sesión en [osu!](https://osu.ppy.sh/home).
-    * Ve a tu Configuración (Settings) > "OAuth" (al final).
-    * Registra una "new OAuth application".
-    * Esto te dará un `Client ID` y un `Client Secret`.
+You'll need the following credentials before anything else:
 
-### Paso 2: Configuración de la Base de Datos (SQL)
+| Variable | Where to get it |
+|---|---|
+| `DISCORD_TOKEN` | [Discord Developer Portal](https://discord.com/developers/applications) → Bot → Reset Token. Enable **Message Content Intent**. |
+| `DATABASE_URL` | [Neon](https://neon.tech) → Create project → copy the `postgres://...` connection string. |
+| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/) → Create API Key. |
+| `OSU_CLIENT_ID` | [osu! Settings](https://osu.ppy.sh/home/account/edit) → OAuth → New OAuth Application. |
+| `OSU_CLIENT_SECRET` | Same as above — generated alongside the Client ID. |
+| `GROQ_API_KEY` *(optional)* | [Groq Cloud](https://console.groq.com) — used as an AI fallback. |
 
-Ahora que tienes tu `DATABASE_URL`, necesitas construir las tablas.
+### Step 2 — Set up the Database
 
-1.  Conéctate a tu base de datos de Neon. Puedes usar su editor SQL web o un cliente de escritorio como DBeaver o PgAdmin.
-2.  Abre la carpeta `/sql` de este repositorio.
-3.  Ejecuta los scripts en tu base de datos en **estricto orden numérico**:
-    * `01_Schema.sql` (Crea las tablas)
-    * `02_Data.sql` (Inserta datos de muestra)
-    * `03_Procedures_Functions.sql` (Crea la lógica)
-    * `04_Views.sql` (Crea las vistas)
-    * `05_Triggers.sql` (Crea los triggers)
+Run the SQL scripts inside the `/sql` folder **in order** against your PostgreSQL database:
 
-### Paso 3: Instalación Local (Python)
+```
+01_Schema.sql               ← Creates all tables
+03_Procedures_Functions.sql ← Stored procedures & functions
+04_Views.sql                ← Useful views (e.g. V_ChannelMessages)
+08_Privacy_TTL.sql          ← Data retention policy
+09_Enhancements.sql         ← Column additions & improvements
+10_New_Tables.sql           ← Analytics tables
+```
 
-1.  Clona este repositorio: `git clone ...`
-2.  Crea un archivo llamado `.env` en la raíz del proyecto.
-3.  Copia y pega lo siguiente en ese archivo `.env`, llenando con las claves del Paso 1:
+You can use Neon's built-in SQL editor, DBeaver, or PgAdmin.
 
-    ```
-    DISCORD_TOKEN=...
-    GEMINI_API_KEY=...
-    DATABASE_URL=...
-    OSU_CLIENT_ID=...
-    OSU_CLIENT_SECRET=...
-    ```
-4.  Crea un entorno virtual (recomendado) e instala las dependencias (asegúrate de tener `requirements.txt`):
-    ```bash
-    pip install -r requirements.txt
-    ```
-5.  Ejecuta el bot localmente para probar:
-    ```bash
-    python dalet_main.py
-    ```
+### Step 3 — Configure Environment
 
-### Paso 4: Despliegue en Producción (Render)
+Clone the repo and create a `.env` file in the root:
 
-1.  Sube tu repositorio a GitHub.
-2.  En [Render](https://render.com/), crea un "New Web Service".
-3.  Conecta tu repositorio de GitHub.
-4.  Configura los siguientes ajustes:
-    * **Build Command:** `pip install -r requirements.txt`
-    * **Start Command:** `python dalet_main.py`
-5.  Ve a la pestaña "Environment" de tu servicio en Render.
-6.  Añade todas las variables de entorno del Paso 3 ( `DISCORD_TOKEN`, `GEMINI_API_KEY`, etc.) una por una.
-7.  Haz clic en "Create Web Service". Render hará el deploy.
-8.  Copia la URL de tu servicio (ej. `https://dalet-bot.onrender.com`).
-9.  (Opcional pero recomendado) Ve a [UptimeRobot](https://uptimerobot.com/), crea un monitor HTTP(s) y pégale la URL de Render para que la "despierte" cada 20 minutos.
+```bash
+git clone https://github.com/YOUR_USERNAME/Dalet-Proyect.git
+cd Dalet-Proyect
+```
 
-## 7. Documentación del Proyecto
+```env
+# .env
+DISCORD_TOKEN=your_discord_token
+GEMINI_API_KEY=your_gemini_key
+DATABASE_URL=postgres://user:pass@host/dbname
+OSU_CLIENT_ID=your_osu_client_id
+OSU_CLIENT_SECRET=your_osu_client_secret
+GROQ_API_KEY=your_groq_key   # optional
+```
 
-La justificación técnica detallada, el Diagrama Entidad-Relación (DER) y el análisis de cumplimiento de los requisitos del proyecto se encuentran en el archivo `Proyecto Final Bases De Datos.docx`.
+### Step 4 — Install & Run
+
+```bash
+# Create and activate a virtual environment (recommended)
+python -m venv venv
+venv\Scripts\activate      # Windows
+# source venv/bin/activate  # macOS/Linux
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the bot
+python dalet_main.py
+```
+
+### Step 5 — Deploy to Production (Render)
+
+1. Push the repo to GitHub.
+2. Go to [Render](https://render.com) → **New Web Service** → connect your GitHub repo.
+3. Set the following:
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `python dalet_main.py`
+4. Add all your `.env` variables in the **Environment** tab.
+5. Click **Create Web Service**. Render will deploy and restart automatically on crashes.
+6. *(Optional)* Set up a [UptimeRobot](https://uptimerobot.com) HTTP monitor pointing at your Render URL to prevent cold starts.
+
+---
+
+## 💬 Commands
+
+Dalet uses the prefix `d.` by default.
+
+| Command | Description |
+|---|---|
+| `d.help` | Shows all available commands |
+| `d.osuLink <username>` | Link your osu! account to Dalet |
+| `d.osuProfile` | View your linked osu! profile stats |
+| `d.osuScores` | Fetch and store your top osu! scores |
+| `d.osuAnalyze` | Get an AI analysis of your osu! performance |
+| `d.osuCoach` | Get a personalised osu! training plan from the AI |
+| `d.summary` | Generate an AI summary of the current channel |
+| `d.gemini proactive` | Switch Dalet to proactive mode (talks freely) |
+| `d.gemini reactive` | Switch Dalet to reactive mode (only on mention) |
+| `d.admin blockChannel` | Prevent Dalet from talking in a channel |
+| `d.admin unblockChannel` | Re-enable Dalet in a channel |
+
+> Dalet also responds naturally when **mentioned** (`@Dalet`) or when it detects it's being talked to, depending on the configured mode.
+
+---
+
+## 🏗 Architecture
+
+Dalet follows a layered architecture separating concerns cleanly:
+
+```
+Dalet-Proyect/
+├── dalet_main.py           ← Bot entry point & Flask keep-alive server
+│
+├── handlers/               ← discord.py Cogs (one per feature domain)
+│   ├── dalet_nlpchat.py        ← Core conversational AI engine
+│   ├── dalet_smartresume.py    ← AI-powered chat summaries
+│   ├── dalet_osucommands.py    ← osu! commands
+│   ├── dalet_chatlogger.py     ← Message logging to DB
+│   ├── dalet_geminicommand.py  ← AI mode configuration
+│   ├── dalet_commands_handlers.py
+│   ├── dalet_helpcommands_handlers.py
+│   ├── dalet_admcommands_handler.py
+│   └── dalet_events_handlers.py
+│
+├── services/               ← Business logic layer
+│   ├── nlp_service.py          ← Gemini/Groq response generation
+│   ├── memory_service.py       ← Context & persistent memory management
+│   └── osu_service.py          ← osu! API client
+│
+├── database/               ← Data access layer
+│   ├── pool.py                 ← asyncpg connection pool
+│   └── repositories/
+│       ├── base_repository.py
+│       ├── user_repository.py      ← Users, messages, memories
+│       ├── admin_repository.py     ← Channel blocks
+│       ├── osu_repository.py       ← osu! scores & accounts
+│       └── analytics_repository.py ← Metrics & error logs
+│
+├── sql/                    ← Database schema & migration scripts
+└── docs/                   ← Full technical documentation
+```
+
+For a deeper dive into how each layer works, see the [docs folder](docs/README.md).
+
+---
+
+## 📚 Documentation
+
+Technical documentation lives in the [`/docs`](docs/) folder:
+
+| Doc | Contents |
+|---|---|
+| [01 — Architecture](docs/01_ARQUITECTURA.md) | System overview and data flow |
+| [02 — Entry Point](docs/02_PUNTO_DE_ENTRADA.md) | How `dalet_main.py` bootstraps the bot |
+| [03 — Handlers](docs/03_HANDLERS.md) | Every Cog explained |
+| [04 — Services](docs/04_SERVICIOS.md) | NLPService and MemoryService |
+| [05 — Database](docs/05_BASE_DE_DATOS.md) | Pool, repositories, and the Repository pattern |
+| [06 — SQL Schema](docs/06_ESQUEMA_SQL.md) | All tables, views, procedures, and functions |
+| [07 — Environment Variables](docs/07_VARIABLES_ENTORNO.md) | Full `.env` reference |
+
+---
+
+## 🤝 Contributing
+
+Contributions, issues and feature requests are welcome!
+
+1. Fork the repository
+2. Create your feature branch: `git checkout -b feature/amazing-feature`
+3. Commit your changes: `git commit -m 'feat: add amazing feature'`
+4. Push to the branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+---
+
+<div align="center">
+
+Made with ❤️ by **Litxe** · Colombia 🇨🇴
+
+</div>
