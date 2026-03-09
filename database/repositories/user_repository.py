@@ -39,17 +39,18 @@ class UserRepository(BaseRepository):
         logger.info(f"Flushing {len(self._flushing_logs)} logs to DB...")
         # Nota: Idealmente usaríamos un 'INSERT ... VALUES (...), (...)' masivo
         # pero para mantener compatibilidad con el SP, los llamamos uno a uno en una sola conexión
-        pool = await get_db()
-        async with pool.acquire() as conn:
-            async with conn.transaction():
-                for log in self._flushing_logs:
-                    try:
-                        await conn.execute(
-                            "CALL sp_LogMessage($1, $2, $3, $4, $5, $6, $7)",
-                            *log
-                        )
-                    except Exception as e:
-                        logger.error(f"Error flushing single log: {e}")
+        try:
+            pool = await get_db()
+            async with pool.acquire() as conn:
+                async with conn.transaction():
+                    for log in self._flushing_logs:
+                        try:
+                            await conn.execute(
+                                "CALL sp_LogMessage($1, $2, $3, $4, $5, $6, $7)",
+                                *log
+                            )
+                        except Exception as e:
+                            logger.error(f"Error flushing single log: {e}")
         finally:
             self._flushing_logs.clear()
 
