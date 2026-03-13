@@ -108,7 +108,8 @@ ESTILO FINAL: Directa, mordaz, humana y una experta en tomar el pelo con eleganc
         prompt = f"Conversación reciente:\n{context}{vision_context}\n\nNuevo mensaje de {username}: \"{trigger}\""
         
         try:
-            model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-lite") # Forzando 2.0 lite para mayor calidad
+            # Volvemos al 2.5-flash como pediste y manejamos la cuota con el fallback mejorado
+            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
             logger.info(f"Calling Gemini with model: {model_name} and Tools enabled")
             
             tools_list = []
@@ -121,7 +122,7 @@ ESTILO FINAL: Directa, mordaz, humana y una experta en tomar el pelo con eleganc
                 system_instruction=system_prompt,
                 tools=tools_list,
                 automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=False),
-                temperature=0.9 # Más variedad para evitar respuestas robóticas
+                temperature=0.9
             )
             
             # Usar la interfaz asíncrona del nuevo SDK
@@ -135,7 +136,7 @@ ESTILO FINAL: Directa, mordaz, humana y una experta en tomar el pelo con eleganc
                 return response.text.strip()
             return None
         except Exception as e:
-            logger.error(f"Error calling Gemini: {e}", exc_info=True)
+            logger.error(f"Error calling Gemini: {e}")
             # Si falla Gemini por cuota, intentar Groq como fallback real
             if self.groq_api_key:
                 logger.warning("Gemini failed, falling back to Groq...")
@@ -143,27 +144,19 @@ ESTILO FINAL: Directa, mordaz, humana y una experta en tomar el pelo con eleganc
             return "Perdón, me he quedado un poco en blanco. ¿Me lo repites?"
 
     async def _generate_groq_reply(self, trigger: str, context: str, username: str, image_description: str = "", is_fallback=False, **kwargs):
-        model_name = os.getenv("GROQ_MODEL" if not is_fallback else "GROQ_MODEL_FALLBACK", 
-                               "llama-3.3-70b-versatile" if not is_fallback else "llama-3.1-8b-instant")
+        # Usamos un modelo más capaz en Groq si es posible
+        model_name = "llama-3.3-70b-versatile" if not is_fallback else "llama-3.1-8b-instant"
         url = "https://api.groq.com/openai/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.groq_api_key}",
             "Content-Type": "application/json"
         }
         
-        # Inyectar el mismo contexto que Gemini para mantener la personalidad
-        active_room_users = kwargs.get("active_room_users", "Desconocido")
-        server_emojis = kwargs.get("server_emojis", "No hay emojis personalizados")
-        user_id = kwargs.get("user_id", "N/A")
-        channel_id = kwargs.get("channel_id", "N/A")
-
+        # PROMPT DE EMERGENCIA: Ultra corto para que Llama no alucine
         dynamic_system_prompt = (
-            f"{self.personality}\n\n"
-            f"REGLA DE EMOJIS REALES: SOLO puedes usar emojis de esta lista: [{server_emojis}]. "
-            "Si la lista está vacía, NO USES NINGUNO. No te inventes nombres.\n"
-            f"Gente conectada ahora: {active_room_users}\n"
-            f"NOTA: Estás en modo de emergencia (Fallback). No tienes acceso a herramientas técnicas ahora, "
-            "así que si te piden datos de osu! o similar, di con sarcasmo que estás en mantenimiento mental."
+            f"ERES DALET. Personalidad: {self.personality}\n"
+            "REGLAS DE ORO: NO USES EMOJIS. Sé corta. No menciones herramientas. "
+            "Si no sabes algo, no te lo inventes, solo sé sarcástica."
         )
 
         vision_context = f"\n[DATOS DE IMAGEN: {image_description}]\n" if image_description else ""
