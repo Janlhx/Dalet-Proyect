@@ -80,95 +80,106 @@ async def main():
     # En Render, esto nos asegura que el health check solo lo tenga el proceso activo.
     _lock_socket = check_single_instance()
 
-    try:
-        # Inicializar el pool de base de datos UNA VEZ
-        await DatabasePool.get_pool()
+    retry_count = 0
+    while True:
+        try:
+            # Inicializar el pool de base de datos UNA VEZ
+            await DatabasePool.get_pool()
 
-        from database.repositories.user_repository import UserRepository
-        from database.repositories.osu_repository import OsuRepository
-        from database.repositories.admin_repository import AdminRepository
-        from database.repositories.analytics_repository import AnalyticsRepository
-        from services.nlp_service import NLPService
-        from services.memory_service import MemoryService
-        from services.osu_service import OsuService
+            from database.repositories.user_repository import UserRepository
+            from database.repositories.osu_repository import OsuRepository
+            from database.repositories.admin_repository import AdminRepository
+            from database.repositories.analytics_repository import AnalyticsRepository
+            from services.nlp_service import NLPService
+            from services.memory_service import MemoryService
+            from services.osu_service import OsuService
 
-        bot = commands.Bot(command_prefix=["D.","d."], intents=discord.Intents.all(), case_insensitive=True)
-        
-        # Inyectar Repositorios y Servicios
-        bot.user_repo = UserRepository()
-        bot.osu_repo = OsuRepository()
-        bot.admin_repo = AdminRepository()
-        bot.analytics_repo = AnalyticsRepository()
-
-        bot.nlp_service = NLPService(GEMINI_API_KEY, user_repo=bot.user_repo)
-        bot.memory_service = MemoryService(bot.user_repo)
-        bot.osu_service = OsuService(
-            client_id=int(os.getenv("OSU_CLIENT_ID", 0)),
-            client_secret=os.getenv("OSU_CLIENT_SECRET", "")
-        )
-
-        # Tareas de fondo
-        async def _purge_expired_messages():
-            while True:
-                await asyncio.sleep(3600)
-                try:
-                    pool = await DatabasePool.get_pool()
-                    async with pool.acquire() as conn:
-                        deleted = await conn.fetchval("SELECT fn_PurgeExpiredMessages()")
-                        if deleted and deleted > 0:
-                            logger.info(f"[Privacy] Purged {deleted} expired messages.")
-                except asyncio.CancelledError: break
-                except Exception as e: logger.error(f"Purge error: {e}")
-
-        purge_task = asyncio.create_task(_purge_expired_messages())
-        flush_task = asyncio.create_task(bot.user_repo._periodic_flush())
-
-        @bot.check
-        async def global_block_check(ctx):
-            allowed = ["unlock", "cs", "channelstatus"]
-            if ctx.command and ctx.command.name in allowed: return True
-            return not await bot.admin_repo.is_channel_locked(ctx.channel.id)
-
-        # --- Manejo de Cierre Elegante (SIGINT/SIGTERM) ---
-        stop_event = asyncio.Event()
-
-        def signal_handler():
-            logger.info("Señal de apagado recibida...")
-            stop_event.set()
-
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            try:
-                asyncio.get_event_loop().add_signal_handler(sig, signal_handler)
-            except NotImplementedError:
-                # Signal handlers no funcionan igual en Windows con ProactorEventLoop
-                pass
-
-        async with bot:
-            await load_extensions(bot)
+            bot = commands.Bot(command_prefix=["D.","d."], intents=discord.Intents.all(), case_insensitive=True)
             
-            # Tarea para correr el bot y esperar cierres
-            bot_task = asyncio.create_task(bot.start(DISCORD_TOKEN))
-            stop_task = asyncio.create_task(stop_event.wait())
-            
-            # Esperar a que el bot termine o recibamos señal
-            done, pending = await asyncio.wait(
-                [bot_task, stop_task],
-                return_when=asyncio.FIRST_COMPLETED
+            # Inyectar Repositorios y Servicios
+            bot.user_repo = UserRepository()
+            bot.osu_repo = OsuRepository()
+            bot.admin_repo = AdminRepository()
+            bot.analytics_repo = AnalyticsRepository()
+
+            bot.nlp_service = NLPService(GEMINI_API_KEY, user_repo=bot.user_repo)
+            bot.memory_service = MemoryService(bot.user_repo)
+            bot.osu_service = OsuService(
+                client_id=int(os.getenv("OSU_CLIENT_ID", 0)),
+                client_secret=os.getenv("OSU_CLIENT_SECRET", "")
             )
-            
-            if stop_event.is_set():
-                logger.info("Cerrando sesión de Discord...")
-                await bot.close()
-            else:
-                stop_task.cancel()
-            
-            # Limpieza final
-            purge_task.cancel()
-            flush_task.cancel()
-            await bot.user_repo.flush_logs() # Guardar lo último antes de irnos
 
-    except Exception as e:
-        logger.error(f"Error fatal en main: {e}", exc_info=True)
+            # Tareas de fondo
+            async def _purge_expired_messages():
+                while True:
+                    await asyncio.sleep(3600)
+                    try:
+                        pool = await DatabasePool.get_pool()
+                        async with pool.acquire() as conn:
+                            await conn.fetchval("SELECT fn_PurgeExpiredMessages()")
+                    except asyncio.CancelledError: break
+                    except Exception: pass
+
+            purge_task = asyncio.create_task(_purge_expired_messages())
+            flush_task = asyncio.create_task(bot.user_repo._periodic_flush())
+
+            @bot.check
+            async def global_block_check(ctx):
+                allowed = ["unlock", "cs", "channelstatus"]
+                if ctx.command and ctx.command.name in allowed: return True
+                return not await bot.admin_repo.is_channel_locked(ctx.channel.id)
+
+            # --- Manejo de Cierre Elegante (SIGINT/SIGTERM) ---
+            stop_event = asyncio.Event()
+
+            def signal_handler():
+                logger.info("Señal de apagado recibida...")
+                stop_event.set()
+
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                try:
+                    asyncio.get_event_loop().add_signal_handler(sig, signal_handler)
+                except NotImplementedError:
+                    pass
+
+            async with bot:
+                await load_extensions(bot)
+                
+                bot_task = asyncio.create_task(bot.start(DISCORD_TOKEN))
+                stop_task = asyncio.create_task(stop_event.wait())
+                
+                done, pending = await asyncio.wait(
+                    [bot_task, stop_task],
+                    return_when=asyncio.FIRST_COMPLETED
+                )
+                
+                if stop_event.is_set():
+                    logger.info("Cerrando sesión de Discord...")
+                    await bot.close()
+                else:
+                    stop_task.cancel()
+                    if bot_task.exception():
+                        raise bot_task.exception()
+                
+                purge_task.cancel()
+                flush_task.cancel()
+                await bot.user_repo.flush_logs()
+                break # Salir del while si todo terminó bien
+
+        except discord.HTTPException as e:
+            if e.status == 429:
+                retry_count += 1
+                wait = min(60 * retry_count, 300) # Máximo 5 minutos
+                logger.error(f"Rate Limit Detectado (429/1015). Reintentando en {wait}s... (Intento {retry_count})")
+                await asyncio.sleep(wait)
+            else:
+                logger.error(f"Error de Discord: {e}")
+                break
+        except Exception as e:
+            logger.error(f"Error inesperado: {e}", exc_info=True)
+            await asyncio.sleep(10)
+            retry_count += 1
+            if retry_count > 5: break
     finally:
         logger.info("Cerrando pool de base de datos...")
         await DatabasePool.close()
