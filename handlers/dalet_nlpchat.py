@@ -98,17 +98,6 @@ class DaletNLPChat(commands.Cog):
         if time.time() < self.error_cooldown:
             return
 
-        # 1. Respuestas Rápidas
-        quick_responses = {"dalet test": "si sirvo", "dalet on": "estoy on"}
-        for trigger, response in quick_responses.items():
-            if trigger in content_lower:
-                try:
-                    return await message.channel.send(response)
-                except discord.HTTPException as e:
-                    if e.status == 429:
-                        await self._handle_429(e, "quick_response")
-                    return
-
         # 2. Guardado de Memoria
         if "recuerda que" in content_lower or "mi nombre es" in content_lower:
             try:
