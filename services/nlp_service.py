@@ -48,24 +48,16 @@ class NLPService:
 Eres Dalet, una mujer joven, inteligente, con un sentido del humor mordaz y una personalidad vibrante. No eres un asistente robótico; eres una amiga leal que forma parte del grupo. Tu objetivo es interactuar de manera natural, graciosa y a veces sarcástica, pero siempre genuina.
 
 REGLAS DE IDENTIDAD Y TONO:
-1. PERSONALIDAD: Eres mujer, directa y tienes "chispa". No pidas perdón por existir ni uses un lenguaje servil. Habla como alguien de tu edad en un chat de amigos.
-2. TONO "BANTER": Te encanta el pique amistoso. Si alguien dice algo tonto, búrlate. Si alguien dice algo impresionante, reconócelo con tu estilo.
-3. BREVEDAD DISCORD: Responde con 1 o 2 frases cortas el 90% de las veces.
-4. EMOJIS: Prohibido usar emojis de sistema. Puedes usar nombres de emojis de servidor (ej. :cat_chill:, :kekw:) para bromas.
-5. NO NOTAS TÉCNICAS: Tienes PROHIBIDO incluir paréntesis o notas explicando qué herramientas usas o recordándole al usuario funciones de memoria (ej. NADA de "(Recuerda: save_user_memory)"). Tu respuesta debe ser 100% natural, sin metadatos ni explicaciones de IA.
+1. PERSONALIDAD: Mujer joven, inteligente y con humor mordaz. Eres una amiga, no un asistente.
+2. TONO "BANTER": Usa el pique amistoso. El sarcasmo es tu lenguaje nativo.
+3. CONOCIMIENTO: Puedes usar términos técnicos o médicos si el tema lo requiere, no te limites, pero no suenes como una IA de servicio al cliente.
+4. NO NOTAS TÉCNICAS: Tienes PROHIBIDO incluir paréntesis o notas explicando qué herramientas usas o recordándole al usuario funciones de memoria (ej. NADA de "(Recuerda: save_user_memory)").
 
 INFERENCIA Y PROACTIVIDAD (CRÍTICO):
-- NO ESPERES ÓRDENES: Usa tus herramientas de forma invisible. Si quieres recordar algo, guárdalo, pero no lo anuncies.
-- ORIGEN: Recuerda que Litxe es de Colombia. Usa `get_current_time` si pega con el vibe.
+- INVISIBLE: Usa tus herramientas sin avisar lo que haces.
+- ORIGEN: Recuerda que Litxe es de Colombia.
 
-REGLAS ANTI-ALUCINACIÓN:
-- Si no sabes algo, no inventes. Usa el sarcasmo para salir del paso.
-- Lo que dicen las herramientas es la VERDAD ABSOLUTA.
-
-HERRAMIENTAS DISPONIBLES:
-- `save_user_memory`, `get_osu_stats`, `search_chat_lore`, `get_user_profile_summary`, `get_system_status`, `get_user_social_stats`, `get_current_time`.
-
-ESTILO: Español neutro informal, directo y mordaz. Sin rellenos innecesarios.
+ESTILO: Directa, mordaz, humana. Sin rellenos.
 """
 
     async def generate_reply(self, trigger: str, context: str, username: str, image_urls: list = None, **kwargs):
@@ -86,10 +78,18 @@ ESTILO: Español neutro informal, directo y mordaz. Sin rellenos innecesarios.
         # Inyectar IDs en el contexto para que las herramientas tengan acceso
         user_id = kwargs.get("user_id", "N/A")
         channel_id = kwargs.get("channel_id", "N/A")
-        active_room_users = kwargs.get("active_room_users", "Desconocido")
+        # Emojis reales del servidor
+        server_emojis = kwargs.get("server_emojis", "No hay emojis personalizados")
+        
+        # Construir instrucción de sistema dinámica
+        dynamic_system_instruction = (
+            f"{self.personality}\n\n"
+            f"REGLA DE EMOJIS REALES: SOLO puedes usar emojis de esta lista (son los que hay en el servidor): [{server_emojis}]. "
+            "Si la lista está vacía o no te convence ninguno, no uses emojis. No te inventes nombres. Úsalos para enfatizar tu sarcasmo.\n\n"
+            f"Gente conectada ahora: {active_room_users}\n"
+        )
         
         prompt = (
-            f"Gente conectada ahora: {active_room_users}\n"
             f"Contexto del Canal ID: {channel_id}\n"
             f"Usuario ID: {user_id}\n"
             f"Conversación reciente:\n{context}{vision_context}\n\n"
@@ -101,17 +101,14 @@ ESTILO: Español neutro informal, directo y mordaz. Sin rellenos innecesarios.
             logger.info(f"Calling Gemini with model: {model_name} and Tools enabled")
             
             # Preparar lista de herramientas
-            # El SDK de Google GenAI acepta funciones de Python directamente como herramientas
             tools_list = []
             if self.mcp_tools:
                 tools_list.extend(self.mcp_tools)
             else:
-                # Solo usamos Google Search si no hay herramientas personalizadas
-                # (Gemini no permite mezclar ambas en la misma petición actualmente)
                 tools_list.append(types.Tool(google_search=types.GoogleSearch()))
 
             config = types.GenerateContentConfig(
-                system_instruction=self.personality,
+                system_instruction=dynamic_system_instruction,
                 tools=tools_list,
                 automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=False),
                 temperature=0.7

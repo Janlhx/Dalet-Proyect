@@ -198,12 +198,17 @@ class DaletNLPChat(commands.Cog):
                 members_list = [m.display_name for m in message.channel.members if not m.bot][:15]
                 active_users = ", ".join(members_list)
 
+                # Obtener emojis del servidor para que la IA los conozca
+                server_emojis = [f":{e.name}:" for e in message.guild.emojis if e.available][:30]
+                emojis_ctx = ", ".join(server_emojis)
+
                 reply = await self.bot.nlp_service.generate_reply(
                     final_content, context, message.author.name, 
                     image_urls=image_urls,
                     user_id=message.author.id,
                     channel_id=message.channel.id,
-                    active_room_users=active_users
+                    active_room_users=active_users,
+                    server_emojis=emojis_ctx
                 )
 
                 # Detectar proveedor activo para analytics
