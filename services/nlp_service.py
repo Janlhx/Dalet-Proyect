@@ -109,7 +109,9 @@ ESTILO FINAL: Directa, mordaz, humana y una experta en tomar el pelo con eleganc
         )
         
         try:
-            model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+            # gemini-2.5-flash-lite es el modelo con mejor cuota para Free Tier (1000/día aprox)
+            # gemini-2.5-flash normal está limitado a 20/día en muchas cuentas free.
+            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
             logger.info(f"Calling Gemini with model: {model_name} and Tools enabled")
             
             # Preparar lista de herramientas
@@ -141,10 +143,10 @@ ESTILO FINAL: Directa, mordaz, humana y una experta en tomar el pelo con eleganc
             # Si falla Gemini por cuota, intentar Groq como fallback real
             if self.groq_api_key:
                 logger.warning("Gemini failed, falling back to Groq...")
-                return await self._generate_groq_reply(trigger, context, username, image_description, is_fallback=True)
+                return await self._generate_groq_reply(trigger, context, username, image_description, is_fallback=True, **kwargs)
             return "Perdón, me he quedado un poco en blanco. ¿Me lo repites?"
 
-    async def _generate_groq_reply(self, trigger: str, context: str, username: str, image_description: str = "", is_fallback=False):
+    async def _generate_groq_reply(self, trigger: str, context: str, username: str, image_description: str = "", is_fallback=False, **kwargs):
         model_name = os.getenv("GROQ_MODEL" if not is_fallback else "GROQ_MODEL_FALLBACK", 
                                "llama-3.3-70b-versatile" if not is_fallback else "llama-3.1-8b-instant")
         url = "https://api.groq.com/openai/v1/chat/completions"
@@ -153,13 +155,28 @@ ESTILO FINAL: Directa, mordaz, humana y una experta en tomar el pelo con eleganc
             "Content-Type": "application/json"
         }
         
+        # Inyectar el mismo contexto que Gemini para mantener la personalidad
+        active_room_users = kwargs.get("active_room_users", "Desconocido")
+        server_emojis = kwargs.get("server_emojis", "No hay emojis personalizados")
+        user_id = kwargs.get("user_id", "N/A")
+        channel_id = kwargs.get("channel_id", "N/A")
+
+        dynamic_system_prompt = (
+            f"{self.personality}\n\n"
+            f"REGLA DE EMOJIS REALES: SOLO puedes usar emojis de esta lista: [{server_emojis}]. "
+            "Si la lista está vacía, NO USES NINGUNO. No te inventes nombres.\n"
+            f"Gente conectada ahora: {active_room_users}\n"
+            f"NOTA: Estás en modo de emergencia (Fallback). No tienes acceso a herramientas técnicas ahora, "
+            "así que si te piden datos de osu! o similar, di con sarcasmo que estás en mantenimiento mental."
+        )
+
         vision_context = f"\n[DATOS DE IMAGEN: {image_description}]\n" if image_description else ""
         
         data = {
             "model": model_name,
             "messages": [
-                {"role": "system", "content": self.personality},
-                {"role": "user", "content": f"Conversación reciente:\n{context}{vision_context}\n\nNuevo mensaje de {username}: \"{trigger}\""}
+                {"role": "system", "content": dynamic_system_prompt},
+                {"role": "user", "content": f"Contexto Canal: {channel_id} | Usuario ID: {user_id}\n\nConversación reciente:\n{context}{vision_context}\n\nNuevo mensaje de {username}: \"{trigger}\""}
             ],
             "temperature": 0.7,
             "max_tokens": 500
@@ -172,7 +189,7 @@ ESTILO FINAL: Directa, mordaz, humana y una experta en tomar el pelo con eleganc
                 
                 if response.status_code == 429:
                     if not is_fallback:
-                        return await self._generate_groq_reply(trigger, context, username, is_fallback=True)
+                        return await self._generate_groq_reply(trigger, context, username, image_description, is_fallback=True, **kwargs)
                     else:
                         return "Oye, dame un respiro. Me voy a fundir con tanto mensaje."
                 
