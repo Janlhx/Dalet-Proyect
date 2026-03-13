@@ -77,19 +77,22 @@ async def load_extensions(bot):
 # --- 4. Punto de Entrada Principal ---
 async def main():
     # En Render, durante un deploy, la instancia vieja sigue viva un momento.
-    # En lugar de suicidarnos, esperamos a que la vieja suelte el puerto.
+    # Esperamos a que la vieja suelte el puerto para no chocar.
     logger.info("Esperando disponibilidad de puerto 8080 (Cerrojo)...")
-    _lock_socket = None
-    while _lock_socket is None:
+    _temp_lock = None
+    while _temp_lock is None:
         try:
-            _lock_socket = check_single_instance(8080)
+            # check_single_instance bindea el puerto
+            _temp_lock = check_single_instance(8080)
         except SystemExit:
-            await asyncio.sleep(10)
+            await asyncio.sleep(5)
     
-    # Una vez tenemos el puerto, arrancamos Flask inmediatamente para que Render nos vea "Healthy"
-    # incluso si estamos en Rate Limit de Discord.
+    # Soltamos el puerto temporalmente para que Flask pueda usarlo
+    # Flask mismo servirá de cerrojo de ahora en adelante
+    _temp_lock.close()
+    
     keep_alive()
-    logger.info("Cerrojo activado y Health Check iniciado.")
+    logger.info("Health Check iniciado en puerto 8080.")
 
     retry_count = 0
     while True:
@@ -194,8 +197,6 @@ async def main():
         finally:
             logger.info("Cerrando pool de base de datos...")
             await DatabasePool.close()
-            if _lock_socket:
-                _lock_socket.close()
             logger.info("Apagado completo.")
 
 if __name__ == "__main__":
