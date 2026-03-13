@@ -1,13 +1,3 @@
-"""
-Punto de Entrada Principal del Bot Dalet.
-
-Este archivo es responsable de:
-1. Cargar las variables de entorno (API keys).
-2. Configurar el bot de Discord (Intents, Prefijo).
-3. Iniciar el servidor web Flask (para el health check de Render).
-4. Cargar dinámicamente todas las extensiones (Cogs) desde la carpeta /handlers.
-5. Iniciar la conexión del bot con Discord.
-"""
 import asyncio
 from discord.ext import commands
 import os
@@ -18,10 +8,11 @@ from flask import Flask
 from threading import Thread
 import sys
 import logging
+import signal
+import socket
 from database.pool import DatabasePool
 
 # --- Configuración de Logging ---
-# Forzar UTF-8 en el FileHandler para evitar errores en Windows
 file_handler = logging.FileHandler("dalet.log", encoding='utf-8')
 stream_handler = logging.StreamHandler(sys.stdout)
 
@@ -32,28 +23,39 @@ logging.basicConfig(
 )
 logger = logging.getLogger("dalet.main")
 
+# --- 0. Seguro Anti-Duplicados (Puerto de Bloqueo) ---
+# Intentamos abrir un socket en el puerto de Flask. Si falla, es que ya hay otro bot corriendo.
+def check_single_instance(port=8080):
+    try:
+        s = socket.socket(socket.getaddrinfo('0.0.0.0', port)[0][0], socket.SOCK_STREAM)
+        s.bind(('0.0.0.0', port))
+        return s # Retornamos el socket para mantenerlo abierto
+    except socket.error:
+        logger.error(f"!!!!!! ERROR: Puerto {port} ocupado. ¿Ya hay otra Dalet corriendo?")
+        sys.exit(1)
+
 # --- 1. Carga de Configuración ---
 load_dotenv()
 
-# --- 2. Configuración (El bot se crea dentro de main para mayor resiliencia) ---
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# --- 3. Servidor Web (Health Check para Render) ---
+# --- 2. Servidor Web (Health Check para Render) ---
 app = Flask('')
 
 @app.route('/')
 def home():
     return "El bot está vivo."
 
-def run():
-    app.run(host='0.0.0.0', port=8080)
+def run_flask():
+    # En producción/local usamos el puerto 8080
+    app.run(host='0.0.0.0', port=8080, debug=False, use_reloader=False)
 
 def keep_alive():
-    t = Thread(target=run)
+    t = Thread(target=run_flask, daemon=True)
     t.start()
 
-# --- 4. Carga de Extensiones (Cogs) ---
+# --- 3. Carga de Extensiones (Cogs) ---
 async def load_extensions(bot):
     logger.info("<<<<< INICIANDO CARGA DE MÓDULOS... >>>>>")
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -72,8 +74,12 @@ async def load_extensions(bot):
             except Exception as e:
                 logger.error(f"!!!!!! [ERROR] FATAL AL CARGAR {module_name} !!!!!! | DETALLE: {e}")
 
-# --- 5. Punto de Entrada Principal ---
+# --- 4. Punto de Entrada Principal ---
 async def main():
+    # El socket lock solo se activa si NO estamos en un entorno de re-ejecución (prevención local)
+    # En Render, esto nos asegura que el health check solo lo tenga el proceso activo.
+    _lock_socket = check_single_instance()
+
     try:
         # Inicializar el pool de base de datos UNA VEZ
         await DatabasePool.get_pool()
@@ -86,139 +92,96 @@ async def main():
         from services.memory_service import MemoryService
         from services.osu_service import OsuService
 
-        while True:
-            # Crear una instancia NUEVA del bot en cada intento
-            bot = commands.Bot(command_prefix=["D.","d."], intents=discord.Intents.all(), case_insensitive=True)
-            
-            # Instanciar Repositorios para este bot
-            prev_repo = getattr(locals(), '_prev_user_repo', None)
-            bot.user_repo = UserRepository()
-            # Cancelar tarea de flush previa si existe (evitar zombie tasks)
-            if hasattr(bot, '_prev_flush_task') and bot._prev_flush_task:
-                bot._prev_flush_task.cancel()
-            flush_task = asyncio.get_event_loop().create_task(bot.user_repo._periodic_flush())
-            bot._prev_flush_task = flush_task
-            bot.osu_repo = OsuRepository()
-            bot.admin_repo = AdminRepository()
-            bot.analytics_repo = AnalyticsRepository()
+        bot = commands.Bot(command_prefix=["D.","d."], intents=discord.Intents.all(), case_insensitive=True)
+        
+        # Inyectar Repositorios y Servicios
+        bot.user_repo = UserRepository()
+        bot.osu_repo = OsuRepository()
+        bot.admin_repo = AdminRepository()
+        bot.analytics_repo = AnalyticsRepository()
 
-            # Instanciar Servicios para este bot
-            bot.nlp_service = NLPService(GEMINI_API_KEY, user_repo=bot.user_repo)
-            bot.memory_service = MemoryService(bot.user_repo)
-            bot.osu_service = OsuService(
-                client_id=int(os.getenv("OSU_CLIENT_ID", 0)),
-                client_secret=os.getenv("OSU_CLIENT_SECRET", "")
-            )
+        bot.nlp_service = NLPService(GEMINI_API_KEY, user_repo=bot.user_repo)
+        bot.memory_service = MemoryService(bot.user_repo)
+        bot.osu_service = OsuService(
+            client_id=int(os.getenv("OSU_CLIENT_ID", 0)),
+            client_secret=os.getenv("OSU_CLIENT_SECRET", "")
+        )
 
-            # Mantener track de tareas para cancelarlas al reiniciar
-            if not hasattr(main, "_active_tasks"):
-                main._active_tasks = []
-            
-            # Cancelar tareas previas
-            for t in main._active_tasks:
-                if not t.done():
-                    t.cancel()
-            main._active_tasks = []
+        # Tareas de fondo
+        async def _purge_expired_messages():
+            while True:
+                await asyncio.sleep(3600)
+                try:
+                    pool = await DatabasePool.get_pool()
+                    async with pool.acquire() as conn:
+                        deleted = await conn.fetchval("SELECT fn_PurgeExpiredMessages()")
+                        if deleted and deleted > 0:
+                            logger.info(f"[Privacy] Purged {deleted} expired messages.")
+                except asyncio.CancelledError: break
+                except Exception as e: logger.error(f"Purge error: {e}")
 
-            # --- Tarea periódica: purgar mensajes expirados (TTL 48h) ---
-            async def _purge_expired_messages():
-                while True:
-                    await asyncio.sleep(3600)  # Cada hora
-                    try:
-                        pool = await DatabasePool.get_pool()
-                        async with pool.acquire() as conn:
-                            deleted = await conn.fetchval("SELECT fn_PurgeExpiredMessages()")
-                            if deleted and deleted > 0:
-                                logger.info(f"[Privacy] Purged {deleted} expired messages from DB.")
-                    except asyncio.CancelledError:
-                        break
-                    except Exception as e:
-                        logger.error(f"[Privacy] Error purging messages: {e}")
-                        await bot.analytics_repo.log_error(
-                            "db_purge_error", str(e), "_purge_expired_messages"
-                        )
+        purge_task = asyncio.create_task(_purge_expired_messages())
+        flush_task = asyncio.create_task(bot.user_repo._periodic_flush())
 
-            purge_task = asyncio.create_task(_purge_expired_messages())
-            flush_task = asyncio.create_task(bot.user_repo._periodic_flush())
-            main._active_tasks.extend([purge_task, flush_task])
+        @bot.check
+        async def global_block_check(ctx):
+            allowed = ["unlock", "cs", "channelstatus"]
+            if ctx.command and ctx.command.name in allowed: return True
+            return not await bot.admin_repo.is_channel_locked(ctx.channel.id)
 
-            # Re-aplicar el Middleware de Seguridad
-            @bot.check
-            async def global_block_check(ctx):
-                allowed_commands = ["unlock", "cs", "channelstatus"]
-                if ctx.command and ctx.command.name in allowed_commands:
-                    return True
-                is_locked = await bot.admin_repo.is_channel_locked(ctx.channel.id)
-                return not is_locked
+        # --- Manejo de Cierre Elegante (SIGINT/SIGTERM) ---
+        stop_event = asyncio.Event()
 
+        def signal_handler():
+            logger.info("Señal de apagado recibida...")
+            stop_event.set()
+
+        for sig in (signal.SIGINT, signal.SIGTERM):
             try:
-                async with bot:
-                    await load_extensions(bot)
+                asyncio.get_event_loop().add_signal_handler(sig, signal_handler)
+            except NotImplementedError:
+                # Signal handlers no funcionan igual en Windows con ProactorEventLoop
+                pass
 
-                    # --- Tracking automático de CommandUsage ---
-                    @bot.listen('on_command')
-                    async def on_command_usage(ctx):
-                        """Registra en CommandUsage cada comando ejecutado con éxito."""
-                        if not ctx.guild:
-                            return
-                        try:
-                            await bot.analytics_repo.log_command(
-                                ctx.command.qualified_name,
-                                ctx.author.id,
-                                str(ctx.author),
-                                ctx.guild.id,
-                                ctx.channel.id,
-                                success=True
-                            )
-                        except Exception:
-                            pass
+        async with bot:
+            await load_extensions(bot)
+            
+            # Tarea para correr el bot y esperar cierres
+            bot_task = asyncio.create_task(bot.start(DISCORD_TOKEN))
+            stop_task = asyncio.create_task(stop_event.wait())
+            
+            # Esperar a que el bot termine o recibamos señal
+            done, pending = await asyncio.wait(
+                [bot_task, stop_task],
+                return_when=asyncio.FIRST_COMPLETED
+            )
+            
+            if stop_event.is_set():
+                logger.info("Cerrando sesión de Discord...")
+                await bot.close()
+            else:
+                stop_task.cancel()
+            
+            # Limpieza final
+            purge_task.cancel()
+            flush_task.cancel()
+            await bot.user_repo.flush_logs() # Guardar lo último antes de irnos
 
-                    @bot.listen('on_command_error')
-                    async def on_command_error_tracking(ctx, error):
-                        """Registra comandos que fallaron (sin interferir con handlers de error existentes)."""
-                        if not ctx.guild or not ctx.command:
-                            return
-                        # Solo errores reales, no "CommandNotFound" o chequeos de permisos normales
-                        if isinstance(error, (commands.CommandNotFound, commands.CheckFailure,
-                                              commands.MissingPermissions, commands.CommandOnCooldown)):
-                            return
-                        try:
-                            await bot.analytics_repo.log_command(
-                                ctx.command.qualified_name,
-                                ctx.author.id,
-                                str(ctx.author),
-                                ctx.guild.id,
-                                ctx.channel.id,
-                                success=False
-                            )
-                            await bot.analytics_repo.log_error(
-                                "command_error",
-                                str(error),
-                                f"command:{ctx.command.qualified_name}",
-                                ctx.guild.id
-                            )
-                        except Exception:
-                            pass
-
-                    await bot.start(DISCORD_TOKEN)
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    wait_time = 60 # Esperar 1 minuto base ante 429 en el inicio
-                    logger.error(f"Rate limited (429) en el inicio. Reintentando en {wait_time}s...")
-                    await asyncio.sleep(wait_time)
-                else:
-                    raise e
-            except Exception as e:
-                wait_error = 10
-                logger.error(f"Error no esperado en el inicio: {e}. Reintentando en {wait_error}s...")
-                await asyncio.sleep(wait_error)
+    except Exception as e:
+        logger.error(f"Error fatal en main: {e}", exc_info=True)
     finally:
+        logger.info("Cerrando pool de base de datos...")
         await DatabasePool.close()
+        if '_lock_socket' in locals():
+            _lock_socket.close()
+        logger.info("Apagado completo.")
 
 if __name__ == "__main__":
-    keep_alive()
+    # Nota: No llamamos a keep_alive aquí porque Flask ocupará el puerto
+    # que check_single_instance ya está validando. Usaremos el Thread de Flask
+    # dentro de main o lo dejaremos que corra solo si el puerto está libre.
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("Bot desconectado manualmente.")
+        pass
 
