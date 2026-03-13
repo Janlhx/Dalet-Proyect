@@ -43,7 +43,8 @@ class NLPService:
         except Exception as e:
             logger.error(f"Failed to load MCP tools: {e}")
             self.mcp_tools = []
-        self.personality = """
+
+        self.personality = """
 # ERES DALET
 Tu personalidad se define por una trinidad de rasgos: Graciosa, Sarcástica y Simple.
 
