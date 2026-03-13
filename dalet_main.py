@@ -175,17 +175,17 @@ async def main():
             else:
                 logger.error(f"Error de Discord: {e}")
                 break
-        except Exception as e:
-            logger.error(f"Error inesperado: {e}", exc_info=True)
-            await asyncio.sleep(10)
-            retry_count += 1
-            if retry_count > 5: break
-    finally:
-        logger.info("Cerrando pool de base de datos...")
-        await DatabasePool.close()
-        if '_lock_socket' in locals():
-            _lock_socket.close()
-        logger.info("Apagado completo.")
+            except Exception as e:
+                logger.error(f"Error inesperado: {e}", exc_info=True)
+                await asyncio.sleep(10)
+                retry_count += 1
+                if retry_count > 5: break
+        finally:
+            logger.info("Cerrando pool de base de datos...")
+            await DatabasePool.close()
+            if '_lock_socket' in locals():
+                _lock_socket.close()
+            logger.info("Apagado completo.")
 
 if __name__ == "__main__":
     # Nota: No llamamos a keep_alive aquí porque Flask ocupará el puerto
