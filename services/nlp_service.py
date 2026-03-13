@@ -87,35 +87,30 @@ ESTILO FINAL: Directa, mordaz, humana y una experta en tomar el pelo con eleganc
     async def _generate_gemini_reply(self, trigger: str, context: str, username: str, image_description: str = "", **kwargs):
         vision_context = f"\n[IMAGEN DETECTADA: {image_description}]\n" if image_description else ""
         
-        # Inyectar IDs en el contexto para que las herramientas tengan acceso
         user_id = kwargs.get("user_id", "N/A")
         channel_id = kwargs.get("channel_id", "N/A")
-        # Emojis reales del servidor
-        server_emojis = kwargs.get("server_emojis", "No hay emojis personalizados")
         active_room_users = kwargs.get("active_room_users", "Desconocido")
         
-        # Construir instrucción de sistema dinámica
-        dynamic_system_instruction = (
+        # INSTRUCCIÓN FINAL: Sin añadidos que confundan a la IA. 
+        # Solo tu personalidad y los datos mínimos de contexto.
+        system_prompt = (
             f"{self.personality}\n\n"
-            f"REGLA DE EMOJIS REALES: SOLO puedes usar emojis de esta lista (son los que hay en el servidor): [{server_emojis}]. "
-            "Si la lista está vacía o no te convence ninguno, no uses emojis. No te inventes nombres. Úsalos para enfatizar tu sarcasmo.\n\n"
-            f"Gente conectada ahora: {active_room_users}\n"
+            f"REGLAS DE ESTILO CRÍTICAS:\n"
+            f"- NO EXAGERES puntuación (nada de !!! o ???). Usa minúsculas o puntuación casual.\n"
+            f"- SÉ ÚTIL PERO DIRECTA: Si te preguntan algo, explícalo de forma clara y pragmática (puedes usar datos), pero sin rellenos robóticos de '¡Hola amigo!' o similares.\n"
+            f"- PERSONALIDAD: El sarcasmo es tu toque, no una excusa para no responder. Responde y luego mete el zasca si queda bien.\n\n"
+            f"CONTEXTO ACTUAL:\n"
+            f"- Usuario que te habla: {username} (ID: {user_id})\n"
+            f"- Canal: {channel_id}\n"
+            f"- Gente en la sala: {active_room_users}\n"
         )
         
-        prompt = (
-            f"Contexto del Canal ID: {channel_id}\n"
-            f"Usuario ID: {user_id}\n"
-            f"Conversación reciente:\n{context}{vision_context}\n\n"
-            f"Nuevo mensaje de {username}: \"{trigger}\""
-        )
+        prompt = f"Conversación reciente:\n{context}{vision_context}\n\nNuevo mensaje de {username}: \"{trigger}\""
         
         try:
-            # gemini-2.5-flash-lite es el modelo con mejor cuota para Free Tier (1000/día aprox)
-            # gemini-2.5-flash normal está limitado a 20/día en muchas cuentas free.
-            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+            model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-lite") # Forzando 2.0 lite para mayor calidad
             logger.info(f"Calling Gemini with model: {model_name} and Tools enabled")
             
-            # Preparar lista de herramientas
             tools_list = []
             if self.mcp_tools:
                 tools_list.extend(self.mcp_tools)
@@ -123,10 +118,10 @@ ESTILO FINAL: Directa, mordaz, humana y una experta en tomar el pelo con eleganc
                 tools_list.append(types.Tool(google_search=types.GoogleSearch()))
 
             config = types.GenerateContentConfig(
-                system_instruction=dynamic_system_instruction,
+                system_instruction=system_prompt,
                 tools=tools_list,
                 automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=False),
-                temperature=0.7
+                temperature=0.9 # Más variedad para evitar respuestas robóticas
             )
             
             # Usar la interfaz asíncrona del nuevo SDK
