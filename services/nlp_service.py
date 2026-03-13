@@ -92,6 +92,7 @@ ESTILO FINAL: Directa, mordaz, humana y una experta en tomar el pelo con eleganc
         channel_id = kwargs.get("channel_id", "N/A")
         # Emojis reales del servidor
         server_emojis = kwargs.get("server_emojis", "No hay emojis personalizados")
+        active_room_users = kwargs.get("active_room_users", "Desconocido")
         
         # Construir instrucción de sistema dinámica
         dynamic_system_instruction = (

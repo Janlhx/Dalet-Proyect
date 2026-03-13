@@ -24,15 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger("dalet.main")
 
 # --- 0. Seguro Anti-Duplicados (Puerto de Bloqueo) ---
-# Intentamos abrir un socket en el puerto de Flask. Si falla, es que ya hay otro bot corriendo.
-def check_single_instance(port=8080):
-    try:
-        s = socket.socket(socket.getaddrinfo('0.0.0.0', port)[0][0], socket.SOCK_STREAM)
-        s.bind(('0.0.0.0', port))
-        return s # Retornamos el socket para mantenerlo abierto
-    except socket.error:
-        logger.error(f"!!!!!! ERROR: Puerto {port} ocupado. ¿Ya hay otra Dalet corriendo?")
-        sys.exit(1)
+# Flask servirá de cerrojo de ahora en adelante.
 
 # --- 1. Carga de Configuración ---
 load_dotenv()
@@ -48,8 +40,11 @@ def home():
     return "El bot está vivo."
 
 def run_flask():
-    # En producción/local usamos el puerto 8080
-    app.run(host='0.0.0.0', port=8080, debug=False, use_reloader=False)
+    try:
+        app.run(host='0.0.0.0', port=8080, debug=False, use_reloader=False)
+    except Exception as e:
+        logger.error(f"Error al arrancar Flask: {e}")
+        os._exit(1)
 
 def keep_alive():
     t = Thread(target=run_flask, daemon=True)
@@ -76,21 +71,7 @@ async def load_extensions(bot):
 
 # --- 4. Punto de Entrada Principal ---
 async def main():
-    # En Render, durante un deploy, la instancia vieja sigue viva un momento.
-    # Esperamos a que la vieja suelte el puerto para no chocar.
-    logger.info("Esperando disponibilidad de puerto 8080 (Cerrojo)...")
-    _temp_lock = None
-    while _temp_lock is None:
-        try:
-            # check_single_instance bindea el puerto
-            _temp_lock = check_single_instance(8080)
-        except SystemExit:
-            await asyncio.sleep(5)
-    
-    # Soltamos el puerto temporalmente para que Flask pueda usarlo
-    # Flask mismo servirá de cerrojo de ahora en adelante
-    _temp_lock.close()
-    
+    # Arrancamos Flask inmediatamente. Render necesita ver el puerto abierto para no dar timeout.
     keep_alive()
     logger.info("Health Check iniciado en puerto 8080.")
 
