@@ -6,6 +6,7 @@ por un sistema interactivo y paginado que usa Botones y Vistas.
 """
 import discord
 from discord.ext import commands
+from discord.ui import View, Button, Modal, TextInput
 from ui.organisms import DaletOrganisms
 from ui.molecules import DaletMolecules
 from ui.atoms import DaletAtoms

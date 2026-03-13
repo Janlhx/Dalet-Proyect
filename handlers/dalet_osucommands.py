@@ -162,7 +162,7 @@ class OsuHandler(commands.Cog, name="osu!"):
                 stats = user.get("statistics", {})
                 
                 # Crear embed inicial (Skeleton)
-                color = self._get_rank_color(stats.get('global_rank', 999999))
+                color = DaletAtoms.get_rank_color(stats.get('global_rank', 999999))
                 embed = discord.Embed(
                     title=f"📊 Reporte Dalet: {username}",
                     url=f"https://osu.ppy.sh/users/{user['id']}/{mode}",
@@ -207,11 +207,6 @@ class OsuHandler(commands.Cog, name="osu!"):
                 traceback.print_exc()
                 await ctx.send(f"⚠️ Error técnico en el Súper Análisis. Dile a Litxe que revise los logs.")
 
-    def _get_rank_color(self, rank):
-        if rank <= 1000: return 0xFFD700
-        if rank <= 10000: return 0xC0C0C0
-        if rank <= 100000: return 0xCD7F32
-        return 0xFF66AA
 
     def _parse_ai_response(self, text):
         """Divide la respuesta de la IA en secciones basadas en los delimitadores."""

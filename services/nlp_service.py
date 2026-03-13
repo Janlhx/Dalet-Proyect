@@ -111,9 +111,10 @@ ESTILO: Español de España/Latam mezclado (neutro informal), sin sonar a traduc
             tools_list = []
             if self.mcp_tools:
                 tools_list.extend(self.mcp_tools)
-            
-            # También incluimos Google Search
-            tools_list.append(types.Tool(google_search=types.GoogleSearch()))
+            else:
+                # Solo usamos Google Search si no hay herramientas personalizadas
+                # (Gemini no permite mezclar ambas en la misma petición actualmente)
+                tools_list.append(types.Tool(google_search=types.GoogleSearch()))
 
             config = types.GenerateContentConfig(
                 system_instruction=self.personality,

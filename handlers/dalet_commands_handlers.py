@@ -5,6 +5,10 @@ from discord.utils import format_dt
 
 logger = logging.getLogger("dalet.handlers.general")
 
+from ui.organisms import DaletOrganisms
+from ui.atoms import DaletAtoms
+from ui.molecules import DaletMolecules
+
 class CommandsHandler(commands.Cog, name="Comandos Generales"):
     """Comandos básicos de Dalet (utilidades, info y herramientas generales)."""
 
@@ -17,38 +21,52 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
     async def ms(self, ctx):
         """🏓 Muestra la latencia del bot en milisegundos."""
         latency = round(self.bot.latency * 1000)
-        await ctx.send(embed=discord.Embed(
-            title="🏓 Ping",
-            description=f"`{latency}ms`",
-            color=discord.Color.green()
-        ))
+        embed = DaletOrganisms.create_simple_embed(
+            f"{DaletAtoms.EMOJI_SUCCESS} Latencia",
+            f"Mi respuesta está tardando unos {DaletAtoms.code(f'{latency}ms')}. No me presiones."
+        )
+        await ctx.send(embed=embed)
+
+    @commands.command()
+    async def stats(self, ctx, member: discord.Member = None):
+        """📊 Muestra tus estadísticas sociales o las de otro usuario."""
+        member = member or ctx.author
+        async with ctx.typing():
+            try:
+                stats = await self.repo.get_user_social_stats(member.id)
+                avatar = member.avatar.url if member.avatar else None
+                embed = DaletOrganisms.create_user_stats_card(member.display_name, stats, avatar)
+                await ctx.send(embed=embed)
+            except Exception as e:
+                logger.error(f"Error en stats: {e}")
+                await ctx.send("No pude calcular tus vicios sociales hoy.")
 
     @commands.command()
     async def userinfo(self, ctx, member: discord.Member = None):
         """👤 Muestra información detallada de un usuario del servidor."""
         member = member or ctx.author
-        embed = discord.Embed(
-            title=f"👤 {member}",
-            color=discord.Color.random()
+        desc = (
+            f"{DaletAtoms.EMOJI_INFO} {DaletAtoms.bold('ID')}: {DaletAtoms.code(member.id)}\n"
+            f"📅 {DaletAtoms.bold('Cuenta creada')}: {format_dt(member.created_at, 'D')}\n"
+            f"🤝 {DaletAtoms.bold('Se unió al grupo')}: {format_dt(member.joined_at, 'D')}\n"
         )
-        embed.set_thumbnail(url=member.avatar.url if member.avatar else "")
-        embed.add_field(name="ID", value=member.id)
-        embed.add_field(name="Creado", value=member.created_at.strftime("%d/%m/%Y"))
-        embed.add_field(name="Unido", value=member.joined_at.strftime("%d/%m/%Y"))
+        embed = DaletOrganisms.create_simple_embed(f"Expediente: {member.display_name}", desc)
+        if member.avatar:
+            embed.set_thumbnail(url=member.avatar.url)
         await ctx.send(embed=embed)
 
     @commands.command()
     async def serverinfo(self, ctx):
         """🌐 Muestra información detallada del servidor actual."""
         g = ctx.guild
-        embed = discord.Embed(
-            title=f"🌐 {g.name}",
-            color=discord.Color.random()
+        desc = (
+            f"👥 {DaletAtoms.bold('Habitantes')}: {DaletAtoms.code(g.member_count)}\n"
+            f"👑 {DaletAtoms.bold('Dueño del lugar')}: {g.owner.mention}\n"
+            f"✨ {DaletAtoms.bold('Fundación')}: {format_dt(g.created_at, 'D')}\n"
         )
-        embed.set_thumbnail(url=g.icon.url if g.icon else "")
-        embed.add_field(name="Miembros", value=g.member_count)
-        embed.add_field(name="Dueño", value=g.owner.mention)
-        embed.add_field(name="Creado", value=g.created_at.strftime("%d/%m/%Y"))
+        embed = DaletOrganisms.create_simple_embed(f"Territorio: {g.name}", desc)
+        if g.icon:
+            embed.set_thumbnail(url=g.icon.url)
         await ctx.send(embed=embed)
 
     @commands.command()

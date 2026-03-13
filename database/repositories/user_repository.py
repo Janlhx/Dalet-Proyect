@@ -156,3 +156,22 @@ class UserRepository(BaseRepository):
         """
         search_term = f"%{query}%"
         return await self.fetch_all(sql_query, search_term, channel_id, limit)
+
+    async def get_user_social_stats(self, user_id: int):
+        """Calcula estadísticas agregadas sobre el comportamiento del usuario en el chat."""
+        query = """
+            SELECT 
+                COUNT(*) as total_messages,
+                COUNT(DISTINCT DATE(Timestamp)) as days_active,
+                AVG(LENGTH(Content)) as avg_len
+            FROM V_ChannelMessages
+            WHERE UserID = $1
+        """
+        result = await self.fetch_one(query, user_id)
+        if result:
+            return {
+                "total_messages": result['total_messages'],
+                "days_active": result['days_active'],
+                "avg_len": result['avg_len'] or 0.0
+            }
+        return {"total_messages": 0, "days_active": 0, "avg_len": 0.0}

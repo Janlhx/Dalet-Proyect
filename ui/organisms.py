@@ -115,3 +115,20 @@ class DaletOrganisms:
             embed.add_field(name="Recuerdos Registrados", value=memory_text)
             
         return DaletMolecules.add_standard_footer(embed)
+
+    @staticmethod
+    def create_user_stats_card(user_name, stats, avatar_url=None):
+        """Organismo para mostrar estadísticas sociales del usuario."""
+        embed = discord.Embed(
+            title=f"📊 Perfil Social de {user_name}",
+            color=DaletAtoms.COLOR_PRIMARY,
+            description="Aquí tienes un resumen de tu actividad en mis registros."
+        )
+        if avatar_url:
+            embed.set_thumbnail(url=avatar_url)
+            
+        embed.add_field(name="Mensajes", value=f"`{stats.get('total_messages', 0)}`", inline=True)
+        embed.add_field(name="Días Activo", value=f"`{stats.get('days_active', 0)}`", inline=True)
+        embed.add_field(name="Letras/Msg", value=f"`{stats.get('avg_len', 0):.1f}`", inline=True)
+        
+        return DaletMolecules.add_standard_footer(embed)

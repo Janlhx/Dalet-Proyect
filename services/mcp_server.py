@@ -169,5 +169,33 @@ async def get_osu_recent_activity(username: str, mode: str = "osu") -> str:
         logger.error(f"MCP Tool Error (get_osu_recent): {e}")
         return f"No pude espiar las jugadas de {username}."
 
+@mcp.tool()
+async def get_user_social_stats(user_id: int) -> str:
+    """
+    Obtiene estadísticas de qué tanto habla el usuario y cuántos días lleva activo.
+    Úalo para felicitar a alguien por ser un 'loro' o comentar si lleva mucho tiempo sin hablar.
+    """
+    try:
+        await DatabasePool.get_pool()
+        stats = await user_repo.get_user_social_stats(user_id)
+        return (f"Estadísticas sociales de {user_id}:\n"
+                f"- Mensajes totales: {stats['total_messages']}\n"
+                f"- Días de actividad: {stats['days_active']}\n"
+                f"- Promedio de letras por mensaje: {stats['avg_len']:.1f}")
+    except Exception as e:
+        return f"No pude leer el perfil social: {e}"
+
+@mcp.tool()
+async def get_current_time() -> str:
+    """
+    Devuelve la hora y fecha actual en Colombia (donde vive Litxe, el creador).
+    Muy útil para saber si es muy tarde para alguien o saludar apropiadamente.
+    """
+    import datetime
+    import pytz
+    col_tz = pytz.timezone('America/Bogota')
+    now = datetime.datetime.now(col_tz)
+    return f"En Colombia son las {now.strftime('%H:%M')} del {now.strftime('%d/%m/%Y')}."
+
 if __name__ == "__main__":
     mcp.run()
