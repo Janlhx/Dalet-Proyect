@@ -76,9 +76,20 @@ async def load_extensions(bot):
 
 # --- 4. Punto de Entrada Principal ---
 async def main():
-    # El socket lock solo se activa si NO estamos en un entorno de re-ejecución (prevención local)
-    # En Render, esto nos asegura que el health check solo lo tenga el proceso activo.
-    _lock_socket = check_single_instance()
+    # En Render, durante un deploy, la instancia vieja sigue viva un momento.
+    # En lugar de suicidarnos, esperamos a que la vieja suelte el puerto.
+    logger.info("Esperando disponibilidad de puerto 8080 (Cerrojo)...")
+    _lock_socket = None
+    while _lock_socket is None:
+        try:
+            _lock_socket = check_single_instance(8080)
+        except SystemExit:
+            await asyncio.sleep(10)
+    
+    # Una vez tenemos el puerto, arrancamos Flask inmediatamente para que Render nos vea "Healthy"
+    # incluso si estamos en Rate Limit de Discord.
+    keep_alive()
+    logger.info("Cerrojo activado y Health Check iniciado.")
 
     retry_count = 0
     while True:
@@ -183,7 +194,7 @@ async def main():
         finally:
             logger.info("Cerrando pool de base de datos...")
             await DatabasePool.close()
-            if '_lock_socket' in locals():
+            if _lock_socket:
                 _lock_socket.close()
             logger.info("Apagado completo.")
 
