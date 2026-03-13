@@ -7,6 +7,7 @@ import traceback
 from datetime import datetime, timezone
 from discord.utils import format_dt
 from ui.osu_ui import UniversalPaginator
+from ui.organisms import DaletOrganisms
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
 import re
 
@@ -117,93 +118,17 @@ class OsuHandler(commands.Cog, name="osu!"):
         async with ctx.typing():
             try:
                 user = await self.osu_service.get_user(username, mode)
-                stats = user.get("statistics", {})
                 
-                # Color basado en el rango
-                color = self._get_rank_color(stats.get('global_rank', 999999))
+                # Usar el organismo Atómico para crear la tarjeta de perfil
+                embed = DaletOrganisms.create_osu_card(user, mode)
                 
-                # Crear embed principal
-                embed = discord.Embed(
-                    title=f"🎮 {user['username']}",
-                    url=f"https://osu.ppy.sh/users/{user['id']}/{mode}",
-                    color=color,
-                    description=f"**{user.get('country', {}).get('name', '??')}** {user.get('country', {}).get('code', '??')} | Modo: **{mode.upper()}**"
-                )
-                
-                # Avatar y cover
-                embed.set_thumbnail(url=user.get("avatar_url", ""))
-                if user.get("cover_url"):
-                    embed.set_image(url=user.get("cover_url"))
-                
-                # === SECCIÓN 1: RENDIMIENTO (Ancho completo) ===
-                pp = stats.get('pp', 0)
-                global_rank = stats.get('global_rank', 0)
-                country_rank = stats.get('country_rank', 0)
-                
-                embed.add_field(
-                    name="💎 Rendimiento & Ranking",
-                    value=f"**{pp:,.2f}pp**\n"
-                          f"🌍 Global: **#{global_rank:,}** | 🏳️ País: **#{country_rank:,}**",
-                    inline=False
-                )
-                
-                # === SECCIÓN 2: PRECISIÓN Y NIVEL ===
-                accuracy = stats.get('hit_accuracy', 0)
-                level = stats.get('level', {})
-                current_level = level.get('current', 0)
-                level_progress = level.get('progress', 0)
-                progress_bar = self._create_progress_bar(level_progress, length=15)
-                
-                embed.add_field(
-                    name="🎯 Precisión & Progreso",
-                    value=f"✨ Precisión: **{accuracy:.2f}%**\n"
-                          f"📊 Nivel **{current_level}** ({level_progress}%)\n"
-                          f"{progress_bar}",
-                    inline=False
-                )
-                
-                # === SECCIÓN 3: ACTIVIDAD Y RANGOS (Lado a lado) ===
-                play_count = stats.get('play_count', 0)
-                play_time = stats.get('play_time', 0)
-                hours = play_time // 3600
-                
-                grades = stats.get('grade_counts', {})
-                ssh, ss = grades.get('ssh', 0), grades.get('ss', 0)
-                sh, s = grades.get('sh', 0), grades.get('s', 0)
-                a = grades.get('a', 0)
-
-                embed.add_field(
-                    name="⏱️ Actividad",
-                    value=f"🎵 **{play_count:,}** plays\n⏰ **{hours:,}h** jugadas",
-                    inline=True
-                )
-                
-                embed.add_field(
-                    name="🏅 Récords",
-                    value=f"🌟 **SS+**: {ssh:,} | **SS**: {ss:,}\n⭐ **S+**: {sh:,} | **S**: {s:,}\n✨ **A**: {a:,}",
-                    inline=True
-                )
-                
-                # === SECCIÓN 4: ESTADÍSTICAS GLOBALES (Ancho completo) ===
-                ranked_score = stats.get('ranked_score', 0)
-                total_hits = stats.get('total_hits', 0)
-                replays_watched = stats.get('replays_watched_by_others', 0)
-                followers = user.get('follower_count', 0)
-                medals = len(user.get('user_achievements', []))
-                
-                embed.add_field(
-                    name="🌐 Estadísticas del Jugador",
-                    value=f"🏅 Score Ranked: **{ranked_score:,}** | 🎯 Hits: **{total_hits:,}**\n"
-                          f"👥 **{followers:,}** seguidores | 👁️ **{replays_watched:,}** replays vistos | 🏆 **{medals}** medallas",
-                    inline=False
-                )
-                
-                # Footer con información adicional
+                # Personalización adicional si es necesario
                 join_date = user.get('join_date', '')
                 if join_date:
                     join_dt = datetime.fromisoformat(join_date.replace('Z', '+00:00'))
+                    footer_text = embed.footer.text if embed.footer else ""
                     embed.set_footer(
-                        text=f"Jugador desde {join_dt.strftime('%d/%m/%Y')} • ID: {user['id']}",
+                        text=f"{footer_text} • Desde {join_dt.strftime('%d/%m/%Y')}",
                         icon_url=user.get('country', {}).get('flag_url', '')
                     )
                 

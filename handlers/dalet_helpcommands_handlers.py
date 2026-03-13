@@ -6,7 +6,9 @@ por un sistema interactivo y paginado que usa Botones y Vistas.
 """
 import discord
 from discord.ext import commands
-from discord.ui import View, Button, Modal, TextInput
+from ui.organisms import DaletOrganisms
+from ui.molecules import DaletMolecules
+from ui.atoms import DaletAtoms
 
 class PageInputModal(Modal, title="Ir a Categoría"):
     """Un Modal (ventana emergente) que pide al usuario un número de página."""
@@ -109,7 +111,7 @@ class CustomHelpCommand(commands.HelpCommand):
         pages = []
         categorias = []
 
-        # 1. Crear una página de Embed para cada Cog
+        # 1. Crear una página para cada Cog
         for cog, cmds in mapping.items():
             visible_cmds = [cmd for cmd in cmds if not cmd.hidden]
             if not visible_cmds:
@@ -119,42 +121,37 @@ class CustomHelpCommand(commands.HelpCommand):
             categorias.append(category_name)
             
             embed = discord.Embed(
-                title=f"📘 {category_name}",
-                color=discord.Color.blurple()
+                title=f"📘 Categoría: {category_name}",
+                color=DaletAtoms.COLOR_PRIMARY
             )
-            embed.set_footer(text=f"Usa {prefix}help <comando> para más detalles.")
             
             for cmd in visible_cmds:
+                desc = cmd.help or cmd.brief or 'Sin descripción.'
                 embed.add_field(
                     name=f"🔹 {prefix}{cmd.name}",
-                    value=cmd.help or cmd.brief or 'Sin descripción.',
+                    value=f"> {desc}",
                     inline=False
                 )
-            pages.append(embed)
+            
+            pages.append(DaletMolecules.add_standard_footer(embed))
 
         # 2. Crear la Portada
-        categorias_texto = "\n".join([f"**{i+1}.** {cat}" for i, cat in enumerate(categorias)]) or "*No hay categorías disponibles.*"
-
-        portada = discord.Embed(
-            title="✨ Centro de Ayuda de Dalet",
-            description=(
-                "Bienvenido al sistema de ayuda interactivo.\n\n"
-                f"📂 **Categorías disponibles:**\n{categorias_texto}\n\n"
-                "💡 Usa los botones `⬅️` y `➡️` para navegar.\n"
-                "🔢 Usa el botón **`Ir a...`** para saltar a una categoría por su número.\n"
-                f"🏠 Vuelve aquí con el botón de inicio.\n\n"
-                f"📘 Escribe `{prefix}help <comando>` para más información."
-            ),
-            color=discord.Color.blurple()
+        categorias_texto = "\n".join([f"**{i+1}.** {cat}" for i, cat in enumerate(categorias)])
+        
+        description = (
+            f"Bienvenido al sistema de ayuda de {DaletAtoms.bold('Dalet')}.\n\n"
+            f"📂 **Categorías:**\n{categorias_texto}\n\n"
+            f"💡 Navega con {DaletAtoms.code('Anterior')} y {DaletAtoms.code('Siguiente')}.\n"
+            f"🏠 {DaletAtoms.italic('Vuelve a esta portada en cualquier momento.')}\n"
         )
-        portada.set_footer(text=f"Total: {len(categorias) + 1} páginas disponibles.")
+        
+        portada = DaletOrganisms.create_simple_embed("Centro de Control de Dalet", description)
         pages.insert(0, portada)
 
-        # 3. Enviar la primera página con la Vista del Paginador
+        # 3. Enviar
         view = HelpPaginator(pages)
         await ctx.send(embed=pages[0], view=view)
 
 
 async def setup(bot):
-    """Función 'setup' que reemplaza el comando de ayuda del bot."""
     bot.help_command = CustomHelpCommand()

@@ -21,13 +21,14 @@ import logging
 from database.pool import DatabasePool
 
 # --- Configuración de Logging ---
+# Forzar UTF-8 en el FileHandler para evitar errores en Windows
+file_handler = logging.FileHandler("dalet.log", encoding='utf-8')
+stream_handler = logging.StreamHandler(sys.stdout)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler("dalet.log")
-    ]
+    handlers=[stream_handler, file_handler]
 )
 logger = logging.getLogger("dalet.main")
 
@@ -67,9 +68,9 @@ async def load_extensions(bot):
             module_name = f"handlers.{filename[:-3]}"
             try:
                 await bot.load_extension(module_name)
-                logger.info(f"--- ✅ Cargado: {module_name}")
+                logger.info(f"--- [OK] Cargado: {module_name}")
             except Exception as e:
-                logger.error(f"!!!!!! ❌ ERROR FATAL AL CARGAR {module_name} !!!!!! | DETALLE: {e}")
+                logger.error(f"!!!!!! [ERROR] FATAL AL CARGAR {module_name} !!!!!! | DETALLE: {e}")
 
 # --- 5. Punto de Entrada Principal ---
 async def main():
@@ -109,6 +110,16 @@ async def main():
                 client_secret=os.getenv("OSU_CLIENT_SECRET", "")
             )
 
+            # Mantener track de tareas para cancelarlas al reiniciar
+            if not hasattr(main, "_active_tasks"):
+                main._active_tasks = []
+            
+            # Cancelar tareas previas
+            for t in main._active_tasks:
+                if not t.done():
+                    t.cancel()
+            main._active_tasks = []
+
             # --- Tarea periódica: purgar mensajes expirados (TTL 48h) ---
             async def _purge_expired_messages():
                 while True:
@@ -119,13 +130,17 @@ async def main():
                             deleted = await conn.fetchval("SELECT fn_PurgeExpiredMessages()")
                             if deleted and deleted > 0:
                                 logger.info(f"[Privacy] Purged {deleted} expired messages from DB.")
+                    except asyncio.CancelledError:
+                        break
                     except Exception as e:
                         logger.error(f"[Privacy] Error purging messages: {e}")
                         await bot.analytics_repo.log_error(
                             "db_purge_error", str(e), "_purge_expired_messages"
                         )
 
-            asyncio.get_event_loop().create_task(_purge_expired_messages())
+            purge_task = asyncio.create_task(_purge_expired_messages())
+            flush_task = asyncio.create_task(bot.user_repo._periodic_flush())
+            main._active_tasks.extend([purge_task, flush_task])
 
             # Re-aplicar el Middleware de Seguridad
             @bot.check

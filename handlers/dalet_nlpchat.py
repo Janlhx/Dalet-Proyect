@@ -205,70 +205,54 @@ class DaletNLPChat(commands.Cog):
                     message.channel.id, message.author.id, final_content
                 )
                 
+                # Obtener lista de usuarios activos para contexto de grupo
+                members_list = [m.display_name for m in message.channel.members if not m.bot][:15]
+                active_users = ", ".join(members_list)
+
                 reply = await self.bot.nlp_service.generate_reply(
-                    final_content, context, message.author.name, image_urls=image_urls
+                    final_content, context, message.author.name, 
+                    image_urls=image_urls,
+                    user_id=message.author.id,
+                    channel_id=message.channel.id,
+                    active_room_users=active_users
                 )
 
                 # Detectar proveedor activo para analytics
                 active_provider = getattr(self.bot.nlp_service, 'active_provider', 'gemini')
 
                 if reply:
-                    # --- Extracción de Memoria Automática ---
-                    memory_match = re.search(r"\[SAVE_MEMORY:\s*(.*?)\]", reply)
-                    if memory_match:
-                        memory_content = memory_match.group(1).strip()
+                    # Las memorias y acciones técnicas ahora se manejan vía MCP Tools dentro de nlp_service
+                    # No es necesario el parseo manual de [SAVE_MEMORY] o [ACTION]
+                    try:
+                        t_send_start = time.time()
+                        await message.channel.send(reply)
+                        response_ms = int((time.time() - t_send_start) * 1000)
+                        self.consecutive_429s = 0
+                        # --- Loguear interacción exitosa ---
                         try:
-                            logger.info(f"Auto-Memory detected: {memory_content} for {message.author.name}")
-                            await self.bot.memory_service.add_memory(
-                                message.author.id, str(message.author.name), memory_content
+                            await self.bot.analytics_repo.log_ai_interaction(
+                                message.guild.id, message.channel.id,
+                                trigger_type, active_provider, response_ms, True
                             )
-                            reply = re.sub(r"\[SAVE_MEMORY:.*?\]", "", reply).strip()
-                        except Exception as e:
-                            logger.error(f"Error saving auto-memory: {e}")
-
-                    # --- Ejecución de Acciones por Intención ---
-                    action_match = re.search(r"(\[ACTION:\s*(\w+)(?:,\s*.*?)?\])", reply)
-                    if action_match:
-                        full_tag = action_match.group(1)
-                        action_name = action_match.group(2).lower()
-                        params = {}
-                        param_matches = re.findall(r"(\w+):\s*([^,\]]+)", full_tag)
-                        for k, v in param_matches:
-                            params[k.strip()] = v.strip()
-                        reply = re.sub(r"\[ACTION:.*?\]", "", reply).strip()
-                        await self._execute_action(message, action_name, params)
-
-                    if reply:
+                        except Exception:
+                            pass
                         try:
-                            t_send_start = time.time()
-                            await message.channel.send(reply)
-                            response_ms = int((time.time() - t_send_start) * 1000)
-                            self.consecutive_429s = 0
-                            # --- Loguear interacción exitosa ---
-                            try:
-                                await self.bot.analytics_repo.log_ai_interaction(
-                                    message.guild.id, message.channel.id,
-                                    trigger_type, active_provider, response_ms, True
-                                )
-                            except Exception:
-                                pass
-                            try:
-                                await self.bot.user_repo.log_message(
-                                    self.bot.user.id, self.bot.user.name,
-                                    message.guild.id, message.guild.name,
-                                    message.channel.id, message.channel.name,
-                                    reply
-                                )
-                            except Exception as db_err:
-                                logger.warning(f"Failed to log reply to DB: {db_err}")
-                            
-                            # También guardar en historial local para coherencia inmediata
-                            self.bot.memory_service.add_to_local_history(message.channel.id, self.bot.user.name, reply)
-                        except discord.HTTPException as e:
-                            if e.status == 429:
-                                await self._handle_429(e, "send_message")
-                            else:
-                                logger.error(f"Discord HTTP error sending message: {e}")
+                            await self.bot.user_repo.log_message(
+                                self.bot.user.id, self.bot.user.name,
+                                message.guild.id, message.guild.name,
+                                message.channel.id, message.channel.name,
+                                reply
+                            )
+                        except Exception as db_err:
+                            logger.warning(f"Failed to log reply to DB: {db_err}")
+                        
+                        # También guardar en historial local para coherencia inmediata
+                        self.bot.memory_service.add_to_local_history(message.channel.id, self.bot.user.name, reply)
+                    except discord.HTTPException as e:
+                        if e.status == 429:
+                            await self._handle_429(e, "send_message")
+                        else:
+                            logger.error(f"Discord HTTP error sending message: {e}")
 
                 if not is_direct_mention:
                     self.last_reply_time = time.time()

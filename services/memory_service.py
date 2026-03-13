@@ -12,7 +12,10 @@ class MemoryService:
         self._local_history = {} # {channel_id: deque([msg1, msg2, ...])}
         from collections import deque
         self.history_class = deque
-        self.max_local_history = 20
+        self.history_class = deque
+        self.max_local_history = 30 # Aumentamos el historial local
+        self.max_db_history = 25    # Aumentamos el historial de DB
+        self.similarity_threshold = 0.65 # Un poco más permisivo para no perder contexto
         
         # El cliente se inyectará desde nlp_service o se creará aquí si es necesario
         # Para ser consistente, usaremos la API KEY del .env
@@ -35,44 +38,40 @@ class MemoryService:
             return 0.0
 
     async def get_relevant_context(self, channel_id: int, user_id: int, current_message: str, check_user_memory: bool = True):
-        memory_section = []
+        # 1. Obtener Historial Extendido (Combinando DB y Memoria)
         history_section = []
-
-        # 1. Obtener historial (DB + Buffer de repositorio)
+        recent_users = set()
+        recent_users.add(user_id) # Siempre incluimos al autor del mensaje actual
+        
         try:
-            # UserRepository.get_channel_messages ya combina buffer + DB
-            db_history = await self.repo.get_channel_messages(channel_id, 20)
+            db_history = await self.repo.get_channel_messages(channel_id, self.max_db_history)
             if db_history:
-                # Invertir para orden cronológico: [antiguo, ..., reciente]
                 for record in reversed(db_history):
                     history_section.append(f"{record['username']}: {record['content']}")
+                    # Extraer usuarios recientes para saber de quién necesitamos memoria
+                    # Nota: Aquí idealmente necesitaríamos el ID, pero usaremos el username para inferir si es necesario
+                    # o simplemente confiar en que el repo nos de más adelante una forma de mapear.
+                    # Por ahora, nos centramos en el user_id activo.
             
-            # 2. Sincronizar con local_history (Memoria inmediata del Cog)
-            # Esto nos asegura que si el ChatLogger aún no procesó el mensaje actual, 
-            # el Cog de NLP sí lo tiene.
             if channel_id in self._local_history:
-                local_list = list(self._local_history[channel_id])
-                for msg in local_list:
+                for msg in list(self._local_history[channel_id]):
                     if msg not in history_section:
-                        # Si no está en lo que trajo la DB, es un mensaje ultra-reciente
                         history_section.append(msg)
             
-            # Mantener solo los últimos 20 para no saturar
-            history_section = history_section[-20:]
-
+            history_section = history_section[-self.max_local_history:]
         except Exception as e:
-            logger.error(f"Error getting channel context: {e}")
-            if channel_id in self._local_history:
-                history_section = list(self._local_history[channel_id])
+            logger.error(f"Error getting history: {e}")
 
-        # 2. Recuerdos de usuario (Embeddings)
+        # 2. Recuerdos de Usuario (Búsqueda por Relevancia / Embeddings)
+        memory_section = []
         if check_user_memory and self.client:
             try:
+                # Intentar obtener memorias para el usuario actual
                 memories_raw = await self.repo.get_all_user_memories(user_id)
                 if memories_raw:
+                    # Preparar textos para embeddings
                     texts = [current_message] + [m['content'] for m in memories_raw]
                     
-                    # Usar executor para no bloquear el event loop con la llamada síncrona
                     import asyncio
                     loop = asyncio.get_event_loop()
                     res = await loop.run_in_executor(
@@ -89,16 +88,20 @@ class MemoryService:
                     
                     for i, memory in enumerate(memories_raw):
                         vec_memory = embeddings[i + 1].values
-                        if self._calculate_similarity(vec_query, vec_memory) >= 0.70:
-                            memory_section.append(f"- {memory['content']}")
+                        if self._calculate_similarity(vec_query, vec_memory) >= self.similarity_threshold:
+                            memory_section.append(f"Sobre este usuario: {memory['content']}")
+                
+                # En un grupo, también es útil tener "Hechos generales" o de otros participantes si hay pocos
+                # Pero para no saturar, nos limitamos al autor por ahora o temas clave.
             except Exception as e:
-                logger.error(f"Error processing user memories: {e}")
+                logger.error(f"Error processing memories: {e}")
 
-        final_context = ""
+        # Construir el prompt de contexto enriquecido
+        final_context = "--- CONTEXTO DE CONVERSACIÓN EN GRUPO ---\n"
         if memory_section:
-            final_context += "DATOS RELEVANTES (MEMORIA):\n" + "\n".join(memory_section[:3]) + "\n\n"
+            final_context += "HECHOS RECORDADOS (MEMORIA):\n" + "\n".join(memory_section[:5]) + "\n\n"
         
-        final_context += "HISTORIAL RECIENTE DEL CHAT:\n" + "\n".join(history_section)
+        final_context += "HISTORIAL RECIENTE (Cronológico):\n" + "\n".join(history_section)
         
         return final_context
 

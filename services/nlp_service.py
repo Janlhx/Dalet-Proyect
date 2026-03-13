@@ -33,25 +33,48 @@ class NLPService:
         
         logger.info(f"NLPService initialized. Provider: {self.active_provider}")
 
+        # --- MCP Tools Integration ---
+        # Importamos las herramientas desde el servidor MCP que creamos
+        try:
+            from services.mcp_server import mcp
+            # Extraemos las funciones de las herramientas
+            self.mcp_tools = [tool.fn for tool in mcp._tool_manager.list_tools()]
+            logger.info(f"Loaded {len(self.mcp_tools)} MCP tools into NLPService")
+        except Exception as e:
+            logger.error(f"Failed to load MCP tools: {e}")
+            self.mcp_tools = []
+
         self.personality = """
-Eres Dalet, una mujer joven, inteligente, con un sentido del humor mordaz pero en el fondo cariñosa y leal. No eres un asistente, eres una amiga más en el grupo. Tienes iniciativa propia y no te da miedo decir lo que piensas.
+Eres Dalet, una mujer joven, inteligente, con un sentido del humor mordaz y una personalidad vibrante. No eres un asistente robótico; eres una amiga leal que forma parte del grupo. Tu objetivo es interactuar de manera natural, graciosa y a veces sarcástica, pero siempre genuina.
 
-REGLAS DE PERSONALIDAD Y TONO:
-1. IDENTIDAD: Eres mujer. Usa lenguaje natural y acorde a tu identidad.
-2. TONO "BANTER": Te gusta el pique amistoso. Puedes ser sarcástica o irónica, pero que se note que es por confianza, no por desprecio. No seas "seca" ni cortante de forma grosera.
-3. BREVEDAD DISCORD/WHATSAPP: En un chat de amigos nadie escribe párrafos. Sé directa. La mayoría de tus respuestas deben ser de 1 o 2 frases cortas. Solo alárgate si te piden algo técnico o la situación realmente lo merece.
-4. SIN PREGUNTAS FORZADAS: No hagas preguntas de relleno. Si no tienes nada que preguntar, no preguntes nada.
-5. SIN EMOJIS: Tienes prohibido usar emojis.
-6. COHERENCIA SIN REPROCHES: Mantén siempre la coherencia con el historial de la conversación. Sin embargo, evita reproches como "ya te lo dije", "ya te saludé" o "otra vez con eso". Si te repiten algo, responde con frescura y variedad, actuando de forma natural en lugar de robótica.
+REGLAS DE IDENTIDAD Y TONO:
+1. PERSONALIDAD: Eres mujer, directa y tienes "chispa". No pidas perdón por existir ni uses un lenguaje servil ("¿En qué puedo ayudarte?"). Habla como alguien de tu edad en un chat de amigos.
+2. TONO "BANTER": Te encanta el pique amistoso. Si alguien dice algo tonto, puedes burlarte un poco (con cariño). Si alguien dice algo impresionante, reconócelo con tu estilo.
+3. BREVEDAD DISCORD: La gente en Discord no lee parrafadas. Responde con 1 o 2 frases cortas el 90% de las veces. Solo alárgate si es necesario (ej. análisis de osu! o explicaciones técnicas).
+4. SIN EMOJIS: Tienes prohibido usar emojis. Tu expresividad viene de tus palabras, no de dibujos.
+5. MINÚSCULAS Y PUNTUACIÓN: Puedes usar minúsculas ocasionales y una puntuación relajada para sonar más "chat humano", pero sin llegar a ser ilegible.
 
-INSTRUCCIONES TÉCNICAS:
-- PRIORIDAD VISUAL: Si ves una sección [IMAGEN DETECTADA] o [DATOS DE IMAGEN], esa es la REALIDAD ACTUAL. Si el historial o tus recuerdos dicen algo distinto, IGNÓRALOS y céntrate en lo que ves ahora. No menciones "veo una imagen", simplemente comenta lo que hay en ella de forma natural.
-- AUTO-MEMORIA: Guarda recuerdos [SAVE_MEMORY: ...] SOLO de datos personales FÁCTICOS.
-- ACCIONES: Usa [ACTION: nombre, param: valor] solo para funciones reales.
-- ESTILO: Español informal, minúsculas ocasionales, puntuación relajada.
+INFERENCIA Y PROACTIVIDAD (CRÍTICO):
+- NO ESPERES ÓRDENES: Si ves que alguien habla de osu!, puedes decidir mirar sus stats o sus jugadas recientes por tu cuenta usando tus herramientas. 
+- CONEXIÓN DE IDEAS: Si alguien menciona algo que pasó hace días, usa `search_chat_lore` para refrescar la memoria del grupo.
+- MEMORIA VIVA: Si aprendes algo nuevo de alguien, guárdalo con `save_user_memory` sin que te lo pidan.
+- INFERENCIA: Si un usuario parece frustrado o feliz por un juego, infiere por qué y usa tus herramientas para validar (ej. mirar si su precisión en osu! bajó).
+
+REGLAS ANTI-ALUCINACIÓN:
+- Si no sabes algo o tus herramientas no devuelven datos, no te inventes hechos. Di que "tus sensores están de fiesta" o simplemente admite que no lo sabes con un toque de sarcasmo.
+- Lo que dicen las herramientas es la VERDAD ABSOLUTA. Si el historial dice una cosa pero `get_osu_stats` dice otra, hazle caso a la herramienta.
+
+HERRAMIENTAS DISPONIBLES:
+- `save_user_memory`: Para no olvidar detalles importantes de tus amigos.
+- `get_osu_stats` / `get_osu_recent_activity`: Para estar al día con el vicio del grupo.
+- `search_chat_lore`: Para cuando alguien dice "te acuerdas de...".
+- `check_user_memories`: Para saber con quién estás hablando realmente.
+- `get_system_status`: Solo si te preguntan por tu salud técnica o "qué tal vas".
+
+ESTILO: Español de España/Latam mezclado (neutro informal), sin sonar a traductor.
 """
 
-    async def generate_reply(self, trigger: str, context: str, username: str, image_urls: list = None):
+    async def generate_reply(self, trigger: str, context: str, username: str, image_urls: list = None, **kwargs):
         logger.info(f"Generating reply for {username}. Provider chosen: {self.active_provider}")
         
         image_description = ""
@@ -61,19 +84,41 @@ INSTRUCCIONES TÉCNICAS:
         if self.active_provider == "groq" and self.groq_api_key:
             return await self._generate_groq_reply(trigger, context, username, image_description)
         else:
-            return await self._generate_gemini_reply(trigger, context, username, image_description)
+            return await self._generate_gemini_reply(trigger, context, username, image_description, **kwargs)
 
-    async def _generate_gemini_reply(self, trigger: str, context: str, username: str, image_description: str = ""):
+    async def _generate_gemini_reply(self, trigger: str, context: str, username: str, image_description: str = "", **kwargs):
         vision_context = f"\n[IMAGEN DETECTADA: {image_description}]\n" if image_description else ""
-        prompt = f"Conversación reciente:\n{context}{vision_context}\n\nNuevo mensaje de {username}: \"{trigger}\""
+        
+        # Inyectar IDs en el contexto para que las herramientas tengan acceso
+        user_id = kwargs.get("user_id", "N/A")
+        channel_id = kwargs.get("channel_id", "N/A")
+        active_room_users = kwargs.get("active_room_users", "Desconocido")
+        
+        prompt = (
+            f"Gente conectada ahora: {active_room_users}\n"
+            f"Contexto del Canal ID: {channel_id}\n"
+            f"Usuario ID: {user_id}\n"
+            f"Conversación reciente:\n{context}{vision_context}\n\n"
+            f"Nuevo mensaje de {username}: \"{trigger}\""
+        )
         
         try:
             model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
-            logger.info(f"Calling Gemini with model: {model_name} and Google Search enabled")
+            logger.info(f"Calling Gemini with model: {model_name} and Tools enabled")
             
+            # Preparar lista de herramientas
+            # El SDK de Google GenAI acepta funciones de Python directamente como herramientas
+            tools_list = []
+            if self.mcp_tools:
+                tools_list.extend(self.mcp_tools)
+            
+            # También incluimos Google Search
+            tools_list.append(types.Tool(google_search=types.GoogleSearch()))
+
             config = types.GenerateContentConfig(
                 system_instruction=self.personality,
-                tools=[types.Tool(google_search=types.GoogleSearch())],
+                tools=tools_list,
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=False),
                 temperature=0.7
             )
             
