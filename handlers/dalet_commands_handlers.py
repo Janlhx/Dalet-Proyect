@@ -31,7 +31,7 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
     async def stats(self, ctx, member: discord.Member = None):
         """📊 Muestra tus estadísticas sociales o las de otro usuario."""
         member = member or ctx.author
-        async with ctx.typing():
+        async with await self.bot.safe_typing(ctx):
             try:
                 stats = await self.repo.get_user_social_stats(member.id)
                 avatar = member.avatar.url if member.avatar else None
@@ -78,7 +78,7 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def lore(self, ctx, *, busqueda: str):
         """📜 Investiga el pasado del servidor sobre un tema específico."""
-        async with ctx.typing():
+        async with await self.bot.safe_typing(ctx):
             try:
                 # 1. Buscar en la DB
                 resultados = await self.repo.search_lore(busqueda, ctx.channel.id, limit=25)

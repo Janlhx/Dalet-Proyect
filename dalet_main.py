@@ -91,6 +91,37 @@ async def main():
 
             bot = commands.Bot(command_prefix=["D.","d."], intents=discord.Intents.all(), case_insensitive=True)
             
+            # --- Protección Global contra Rate Limits (429/1015) ---
+            bot.global_error_cooldown = 0
+            bot.global_consecutive_429s = 0
+
+            async def safe_typing(ctx_or_message):
+                """Context manager seguro que omite el typing si hay estrés de rate limit."""
+                import time
+                from contextlib import asynccontextmanager
+
+                @asynccontextmanager
+                async def _empty_typing():
+                    yield
+
+                # Si estamos en cooldown activo, no enviar typing
+                if time.time() < bot.global_error_cooldown:
+                    return _empty_typing()
+                
+                # Si hemos tenido muchos errores seguidos, ser más conservadores
+                # (ej: solo 1 typing cada 3 mensajes o algo así, o simplemente desactivarlo)
+                if bot.global_consecutive_429s >= 3:
+                    return _empty_typing()
+
+                try:
+                    # Funciona tanto con Context como con Message
+                    channel = getattr(ctx_or_message, "channel", ctx_or_message)
+                    return channel.typing()
+                except Exception:
+                    return _empty_typing()
+
+            bot.safe_typing = safe_typing
+
             # Inyectar Repositorios y Servicios
             bot.user_repo = UserRepository()
             bot.osu_repo = OsuRepository()

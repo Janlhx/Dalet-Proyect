@@ -28,14 +28,15 @@ class DaletNLPChat(commands.Cog):
 
     async def _handle_429(self, exception, source="unknown"):
         """Centraliza la lógica de manejo de errores 429 (Rate Limit)."""
-        self.consecutive_429s += 1
+        self.bot.global_consecutive_429s += 1
+        self.consecutive_429s = self.bot.global_consecutive_429s
         
         # Si es un error 1015 de Cloudflare, ser mucho más agresivos con el cooldown
         is_cloudflare_1015 = "1015" in str(exception) or "Cloudflare" in str(exception)
         
         if is_cloudflare_1015:
             # Cloudflare 1015 es un bloqueo duro. Cooldown largo de base.
-            wait_secs = 120 * (2 ** (self.consecutive_429s - 1)) # Empieza en 2 min
+            wait_secs = 180 * (2 ** (self.consecutive_429s - 1)) # Empieza en 3 min
             logger.error(f"HARD Rate Limit (Cloudflare 1015) in {source}. Throttling for {wait_secs}s")
         else:
             # Rate limit normal de Discord
@@ -43,6 +44,7 @@ class DaletNLPChat(commands.Cog):
             logger.error(f"Discord 429 Rate Limit in {source}. Throttling for {wait_secs}s")
 
         self.error_cooldown = time.time() + wait_secs
+        self.bot.global_error_cooldown = self.error_cooldown
         
         # Persistir error en BD
         try:
@@ -252,21 +254,18 @@ class DaletNLPChat(commands.Cog):
                     self.last_reply_time = time.time()
                     self.message_counter = 0
 
-            # Ejecutar con typing si está disponible; si typing falla con 429, ABORTAR para no empeorar el rate limit
-            if typing_ctx:
-                try:
-                    async with typing_ctx:
-                        await _do_respond()
-                except discord.HTTPException as e:
-                    if e.status == 429:
-                        await self._handle_429(e, "typing")
-                        logger.warning("Aborting response due to rate limit on typing indicator.")
-                    else:
-                        raise
-                except discord.Forbidden:
-                    logger.warning(f"Missing permissions for typing in #{message.channel.name}, responding anyway.")
+            # Ejecutar con safe_typing; si falla con 429, ABORTAR para no empeorar el rate limit
+            try:
+                async with await self.bot.safe_typing(message):
                     await _do_respond()
-            else:
+            except discord.HTTPException as e:
+                if e.status == 429:
+                    await self._handle_429(e, "typing")
+                    logger.warning("Aborting response due to rate limit on typing indicator.")
+                else:
+                    raise
+            except discord.Forbidden:
+                logger.warning(f"Missing permissions for typing in #{message.channel.name}, responding anyway.")
                 await _do_respond()
 
         except Exception as e:

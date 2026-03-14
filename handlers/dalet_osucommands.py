@@ -68,7 +68,7 @@ class OsuHandler(commands.Cog, name="osu!"):
     @commands.command(name="link")
     async def link(self, ctx, osu_username: str):
          """Vincula tu cuenta de Discord con tu perfil de osu! y guarda tus stats."""
-         async with ctx.typing():
+         async with await self.bot.safe_typing(ctx):
              try:
                  user_data = await self.osu_service.get_user(osu_username)
                  if not user_data or 'statistics' not in user_data:
@@ -115,7 +115,7 @@ class OsuHandler(commands.Cog, name="osu!"):
         username, mode = await self._parse_args(ctx, args)
         if not username: return
 
-        async with ctx.typing():
+        async with await self.bot.safe_typing(ctx):
             try:
                 user = await self.osu_service.get_user(username, mode)
                 
@@ -153,7 +153,7 @@ class OsuHandler(commands.Cog, name="osu!"):
         username, mode = await self._parse_args(ctx, args)
         if not username: return
 
-        async with ctx.typing():
+        async with await self.bot.safe_typing(ctx):
             try:
                 # 1. Recolección de Datos (Enriquecida)
                 user = await self.osu_service.get_user(username, mode)

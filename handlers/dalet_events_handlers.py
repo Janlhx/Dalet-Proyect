@@ -37,6 +37,13 @@ class EventsHandler(commands.Cog):
             await ctx.send(f"Te faltan argumentos. Revisa el comando con `d.help {ctx.command.name}`")
         elif isinstance(error, commands.NotOwner) or isinstance(error, commands.MissingPermissions):
              await ctx.send("No tienes permiso para usar ese comando.")
+        elif isinstance(error, commands.CommandInvokeError):
+            original = getattr(error, 'original', error)
+            if isinstance(original, discord.HTTPException) and original.status == 429:
+                print(f"!!!!!! [EventsHandler] Rate limit 429 (Too Many Requests) excedido en el comando '{ctx.command}'. Ignorando traceback gigante.")
+                return
+            print(f"!!!!!! [EventsHandler] Error inesperado en on_command_error: {error}")
+            traceback.print_exc()
         else:
             # Errores más serios se imprimen en la consola
             print(f"!!!!!! [EventsHandler] Error inesperado en on_command_error: {error}")
