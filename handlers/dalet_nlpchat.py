@@ -94,11 +94,20 @@ class DaletNLPChat(commands.Cog):
         # 0. Registro en historial local (Emergencia/Resiliencia)
         self.bot.memory_service.add_to_local_history(message.channel.id, message.author.name, message.content)
 
-        content_lower = message.content.lower()
+        content_lower = message.content.lower().strip()
+
+        # --- DALET ON: Respuesta instantánea sin IA ---
+        if content_lower in ("dalet on", "dalet, on", "dale on"):
+            try:
+                await message.channel.send("estoy on")
+            except discord.HTTPException:
+                pass
+            return
         
         # Throttling global ante errores 429 registrados
         if time.time() < self.error_cooldown:
             return
+
 
         # 2. Guardado de Memoria
         if "recuerda que" in content_lower or "mi nombre es" in content_lower:
@@ -134,145 +143,124 @@ class DaletNLPChat(commands.Cog):
         # Throttling ante rate limits previos
         if time.time() < self.error_cooldown:
             if is_direct_mention:
-                logger.warning("Throttling active due to recent 429 errors. Skipping response.")
+                logger.warning("Throttling activo por erores 429 previos. Ignorando respuesta.")
             return
 
         self.is_responding = True
         try:
-            # Usar typing() como context manager correcto para evitar errores con __aenter__/__aexit__ manual
-            try:
-                typing_ctx = message.channel.typing()
-            except Exception:
-                typing_ctx = None
+            # --- Deteccion de Imágenes ---
+            image_urls = []
+            if message.attachments:
+                for attachment in message.attachments:
+                    if attachment.content_type and attachment.content_type.startswith('image/'):
+                        image_urls.append(attachment.url)
+                    elif any(attachment.filename.lower().endswith(ext) for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+                        image_urls.append(attachment.url)
 
-            async def _do_respond():
-                """Lógica interna de respuesta, envuelta para poder usar typing correctamente."""
-                # --- Detección de Imágenes ---
-                image_urls = []
-                
-                # 1. Archivos adjuntos (Attachments)
-                if message.attachments:
-                    logger.info(f"Checking attachments: {len(message.attachments)}")
-                    for attachment in message.attachments:
-                        if attachment.content_type and attachment.content_type.startswith('image/'):
+            if message.embeds:
+                for embed in message.embeds:
+                    if embed.image and embed.image.url:
+                        image_urls.append(embed.image.url)
+
+            if not image_urls and message.reference and message.reference.resolved:
+                ref_msg = message.reference.resolved
+                if isinstance(ref_msg, discord.Message):
+                    for attachment in ref_msg.attachments:
+                        if any(attachment.filename.lower().endswith(ext) for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp')):
                             image_urls.append(attachment.url)
-                        elif any(attachment.filename.lower().endswith(ext) for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp')):
-                            image_urls.append(attachment.url)
 
-                # 2. Enlaces incrustados (Embeds - tipo imagen o miniatura)
-                if message.embeds:
-                    logger.info(f"Checking embeds: {len(message.embeds)}")
-                    for embed in message.embeds:
-                        if embed.image and embed.image.url:
-                            image_urls.append(embed.image.url)
-                        elif embed.thumbnail and embed.thumbnail.url:
-                            image_urls.append(embed.thumbnail.url)
+            if image_urls:
+                image_urls = list(dict.fromkeys(image_urls))[:1]  # Solo 1 imagen para ahorrar cuota
 
-                # 3. Respuesta a un mensaje con imagen (Reference/Reply)
-                if not image_urls and message.reference and message.reference.resolved:
-                    ref_msg = message.reference.resolved
-                    if isinstance(ref_msg, discord.Message):
-                        logger.info(f"Checking referenced message (reply) for images")
-                        for attachment in ref_msg.attachments:
-                            if any(attachment.filename.lower().endswith(ext) for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp')):
-                                image_urls.append(attachment.url)
-                        for embed in ref_msg.embeds:
-                            if embed.image and embed.image.url:
-                                image_urls.append(embed.image.url)
+            # --- Limpieza de Contenido ---
+            clean_content = re.sub(r"<@!?\d+>", "", message.content)
+            clean_content = re.compile(re.escape("dalet"), re.IGNORECASE).sub("", clean_content)
+            clean_content = clean_content.strip()
+            final_content = clean_content if clean_content else message.content
 
-                if image_urls:
-                    image_urls = list(dict.fromkeys(image_urls))
-                    logger.info(f"Final valid images to analyze: {image_urls}")
-                elif message.attachments or message.embeds or message.reference:
-                    logger.info("Potential visual content detected but no valid image URLs extracted.")
+            context = await self.bot.memory_service.get_relevant_context(
+                message.channel.id, message.author.id, final_content
+            )
+            
+            # Contexto de sala (leve, no gastar tokens de más)
+            members_list = [m.display_name for m in message.channel.members if not m.bot][:10]
+            active_users = ", ".join(members_list)
 
-                # --- Limpieza de Contenido ---
-                clean_content = re.sub(r"<@!?\d+>", "", message.content)
-                clean_content = re.compile(re.escape("dalet"), re.IGNORECASE).sub("", clean_content)
-                clean_content = clean_content.strip()
-                final_content = clean_content if clean_content else message.content
-
-                context = await self.bot.memory_service.get_relevant_context(
-                    message.channel.id, message.author.id, final_content
-                )
-                
-                # Obtener lista de usuarios activos para contexto de grupo
-                members_list = [m.display_name for m in message.channel.members if not m.bot][:15]
-                active_users = ", ".join(members_list)
-
-                # Obtener emojis del servidor para que la IA los conozca
-                server_emojis = [f":{e.name}:" for e in message.guild.emojis if e.available][:30]
-                emojis_ctx = ", ".join(server_emojis)
-
-                reply = await self.bot.nlp_service.generate_reply(
-                    final_content, context, message.author.name, 
-                    image_urls=image_urls,
-                    user_id=message.author.id,
-                    channel_id=message.channel.id,
-                    active_room_users=active_users,
-                    server_emojis=emojis_ctx
-                )
-
-                # Detectar proveedor activo para analytics
-                active_provider = getattr(self.bot.nlp_service, 'active_provider', 'gemini')
-
-                if reply:
-                    # Las memorias y acciones técnicas ahora se manejan vía MCP Tools dentro de nlp_service
-                    # No es necesario el parseo manual de [SAVE_MEMORY] o [ACTION]
-                    try:
-                        t_send_start = time.time()
-                        await message.channel.send(reply)
-                        response_ms = int((time.time() - t_send_start) * 1000)
-                        self.consecutive_429s = 0
-                        # --- Loguear interacción exitosa ---
-                        try:
-                            await self.bot.analytics_repo.log_ai_interaction(
-                                message.guild.id, message.channel.id,
-                                trigger_type, active_provider, response_ms, True
-                            )
-                        except Exception:
-                            pass
-                        try:
-                            await self.bot.user_repo.log_message(
-                                self.bot.user.id, self.bot.user.name,
-                                message.guild.id, message.guild.name,
-                                message.channel.id, message.channel.name,
-                                reply
-                            )
-                        except Exception as db_err:
-                            logger.warning(f"Failed to log reply to DB: {db_err}")
-                        
-                        # También guardar en historial local para coherencia inmediata
-                        self.bot.memory_service.add_to_local_history(message.channel.id, self.bot.user.name, reply)
-                    except discord.HTTPException as e:
-                        if e.status == 429:
-                            await self._handle_429(e, "send_message")
-                        else:
-                            logger.error(f"Discord HTTP error sending message: {e}")
-
-                if not is_direct_mention:
-                    self.last_reply_time = time.time()
-                    self.message_counter = 0
-
-            # Ejecutar con safe_typing; si falla con 429, ABORTAR para no empeorar el rate limit
+            # Indicador de escritura — directo y simple, sin wrappers complejos
             try:
-                async with await self.bot.safe_typing(message):
-                    await _do_respond()
+                async with message.channel.typing():
+                    reply = await self.bot.nlp_service.generate_reply(
+                        final_content, context, message.author.display_name,
+                        image_urls=image_urls,
+                        user_id=message.author.id,
+                        channel_id=message.channel.id,
+                        active_room_users=active_users
+                    )
             except discord.HTTPException as e:
                 if e.status == 429:
                     await self._handle_429(e, "typing")
-                    logger.warning("Aborting response due to rate limit on typing indicator.")
-                else:
-                    raise
-            except discord.Forbidden:
-                logger.warning(f"Missing permissions for typing in #{message.channel.name}, responding anyway.")
-                await _do_respond()
+                    return
+                # Si falla el typing() por permisos, intentar sin el
+                reply = await self.bot.nlp_service.generate_reply(
+                    final_content, context, message.author.display_name,
+                    image_urls=image_urls,
+                    user_id=message.author.id,
+                    channel_id=message.channel.id,
+                    active_room_users=active_users
+                )
+
+            active_provider = getattr(self.bot.nlp_service, 'active_provider', 'gemini')
+
+            if reply:
+                try:
+                    await message.channel.send(reply)
+                    self.consecutive_429s = 0
+                    self.bot.global_consecutive_429s = 0
+                    
+                    # Log asincrónico no-bloqueante
+                    asyncio.create_task(self._log_interaction(
+                        message, trigger_type, active_provider, reply
+                    ))
+                    
+                    # Guardar en historial local
+                    self.bot.memory_service.add_to_local_history(
+                        message.channel.id, self.bot.user.name, reply
+                    )
+                except discord.HTTPException as e:
+                    if e.status == 429:
+                        await self._handle_429(e, "send_message")
+                    else:
+                        logger.error(f"Error HTTP enviando mensaje: {e}")
+
+            if not is_direct_mention:
+                self.last_reply_time = time.time()
+                self.message_counter = 0
 
         except Exception as e:
-            logger.error(f"Error generating response: {e}")
+            logger.error(f"Error generando respuesta: {e}")
             traceback.print_exc()
         finally:
             self.is_responding = False
+
+    async def _log_interaction(self, message, trigger_type, provider, reply):
+        """Log de interacción en BD de forma asíncrona no-bloqueante."""
+        try:
+            await self.bot.analytics_repo.log_ai_interaction(
+                message.guild.id, message.channel.id,
+                trigger_type, provider, 0, True
+            )
+        except Exception:
+            pass
+        try:
+            await self.bot.user_repo.log_message(
+                self.bot.user.id, self.bot.user.name,
+                message.guild.id, message.guild.name,
+                message.channel.id, message.channel.name,
+                reply
+            )
+        except Exception as db_err:
+            logger.warning(f"No se pudo loguear la respuesta en BD: {db_err}")
+
 
     async def _execute_action(self, message, action_name, params):
         """Mapea y ejecuta comandos de Discord basados en la intención de la IA."""
