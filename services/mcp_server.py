@@ -26,7 +26,10 @@ async def save_user_memory(user_id: int, username: str, memory_content: str) -> 
     Usa esto cuando el usuario te cuente algo personal o que pidió recordar explícitamente.
     """
     try:
-        await DatabasePool.get_pool()
+        pool = await DatabasePool.get_pool()
+        if not pool:
+            return "Mi memoria a largo plazo está en mantenimiento (BD desconectada). No puedo guardar esto ahora."
+            
         await user_repo.add_user_memory(user_id, username, memory_content)
         logger.info(f"MCP Tool: Memory saved for {username}")
         return f"He guardado esto en mi memoria: '{memory_content}'"
@@ -64,7 +67,10 @@ async def search_chat_lore(query: str, channel_id: int) -> str:
         cid = int(channel_id) if channel_id != "N/A" else None
         if not cid: return "No tengo un ID de canal válido para buscar."
         
-        await DatabasePool.get_pool()
+        pool = await DatabasePool.get_pool()
+        if not pool:
+            return "Mis archivos históricos no están disponibles ahora mismo (BD desconectada)."
+            
         results = await user_repo.search_lore(query, cid, limit=5)
         if not results:
             return f"He buscado '{query}' pero no hay rastro en mis registros de este canal."
@@ -88,7 +94,10 @@ async def check_user_memories(user_id: int) -> str:
         uid = int(user_id) if user_id != "N/A" else None
         if not uid: return "No puedo buscar recuerdos sin un ID de usuario."
         
-        await DatabasePool.get_pool()
+        pool = await DatabasePool.get_pool()
+        if not pool:
+            return "No tengo acceso a mis bancos de memoria ahora mismo (BD desconectada)."
+            
         memories = await user_repo.get_all_user_memories(uid)
         if not memories:
             return "No tengo recuerdos guardados sobre este usuario aún."
@@ -111,13 +120,14 @@ async def get_user_profile_summary(user_id: int) -> str:
         uid = int(user_id) if user_id != "N/A" else None
         if not uid: return "No puedo analizar a un fantasma sin ID."
         
-        await DatabasePool.get_pool()
+        pool = await DatabasePool.get_pool()
+        if not pool:
+            return "No puedo generar perfiles sin acceso a la base de datos."
+            
         memories = await user_repo.get_all_user_memories(uid)
         if not memories:
             return "No sé nada de este usuario aún. Es un libro en blanco."
         
-        # En el futuro esto podría ser un call a Gemini para resumir, 
-        # por ahora devolvemos los puntos clave.
         count = len(memories)
         last_m = memories[-1]['content']
         return f"Perfil de {uid}: Tengo {count} recuerdos. Lo último que sé: '{last_m}'."
@@ -131,14 +141,15 @@ async def get_system_status() -> str:
     Úsalo si alguien te pregunta '¿cómo estás?' desde un punto de vista técnico.
     """
     try:
+        db_status = "✅ Activa" if DatabasePool.is_available() else "❌ Desconectada (Cuota agotada o mantenimiento)"
         pool = await DatabasePool.get_pool()
-        pool_size = len(pool._holders) if hasattr(pool, '_holders') else "Desconocido"
+        pool_size = len(pool._holders) if pool and hasattr(pool, '_holders') else 0
         
         proc = psutil.Process(os.getpid())
         ram_usage = proc.memory_info().rss / (1024 * 1024) # MB
         
         return (f"Estado de mis sistemas:\n"
-                f"- Base de Datos (Neon): ✅ Activa (Pool: {pool_size})\n"
+                f"- Base de Datos (Neon): {db_status} (Conexiones: {pool_size})\n"
                 f"- Consumo de RAM: {ram_usage:.2f} MB\n"
                 f"- Estado del modelo: {DaletAtoms.EMOJI_DALET} Operativo")
     except Exception as e:
@@ -176,7 +187,10 @@ async def get_user_social_stats(user_id: int) -> str:
     Úalo para felicitar a alguien por ser un 'loro' o comentar si lleva mucho tiempo sin hablar.
     """
     try:
-        await DatabasePool.get_pool()
+        pool = await DatabasePool.get_pool()
+        if not pool:
+            return "No puedo acceder a las estadísticas sociales sin base de datos."
+            
         stats = await user_repo.get_user_social_stats(user_id)
         return (f"Estadísticas sociales de {user_id}:\n"
                 f"- Mensajes totales: {stats['total_messages']}\n"

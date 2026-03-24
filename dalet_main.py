@@ -141,19 +141,30 @@ async def main():
                     await asyncio.sleep(3600)
                     try:
                         pool = await DatabasePool.get_pool()
-                        async with pool.acquire() as conn:
-                            await conn.fetchval("SELECT fn_PurgeExpiredMessages()")
+                        if pool:
+                            async with pool.acquire() as conn:
+                                await conn.execute("SELECT fn_PurgeExpiredMessages()")
                     except asyncio.CancelledError: break
-                    except Exception: pass
+                    except Exception as e:
+                        logger.debug(f"Purge task skipped: {e}")
 
             purge_task = asyncio.create_task(_purge_expired_messages())
+            # Periodic flush ya maneja internamente si el pool es None a través de get_db()
             flush_task = asyncio.create_task(bot.user_repo._periodic_flush())
 
             @bot.check
             async def global_block_check(ctx):
                 allowed = ["unlock", "cs", "channelstatus"]
                 if ctx.command and ctx.command.name in allowed: return True
-                return not await bot.admin_repo.is_channel_locked(ctx.channel.id)
+                
+                # Si la BD no está disponible, permitimos comandos básicos
+                if not DatabasePool.is_available():
+                    return True
+                
+                try:
+                    return not await bot.admin_repo.is_channel_locked(ctx.channel.id)
+                except Exception:
+                    return True
 
             # --- Manejo de Cierre Elegante (SIGINT/SIGTERM) ---
             stop_event = asyncio.Event()

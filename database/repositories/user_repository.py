@@ -41,6 +41,12 @@ class UserRepository(BaseRepository):
         # pero para mantener compatibilidad con el SP, los llamamos uno a uno en una sola conexión
         try:
             pool = await get_db()
+            if not pool:
+                logger.info("DB not available, leaving logs in buffer.")
+                # Restauramos los logs al buffer principal para intentar después
+                self._log_buffer.extend(self._flushing_logs)
+                return
+
             async with pool.acquire() as conn:
                 async with conn.transaction():
                     for log in self._flushing_logs:
