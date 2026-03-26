@@ -1,6 +1,7 @@
 import logging
 from database.repositories.base_repository import BaseRepository
 from database.pool import get_db
+from database.sqlite_manager import SQLiteManager
 
 logger = logging.getLogger("dalet.repository.user")
 
@@ -30,33 +31,25 @@ class UserRepository(BaseRepository):
         if not self._log_buffer and not self._flushing_logs:
             return
         
-        # Si ya hay un flush en curso, esperamos o simplemente dejamos que el siguiente se encargue
-        # aunque el semáforo de la conexión/transacción nos protege.
-        
         self._flushing_logs = list(self._log_buffer)
         self._log_buffer.clear()
         
-        logger.info(f"Flushing {len(self._flushing_logs)} logs to DB...")
-        # Nota: Idealmente usaríamos un 'INSERT ... VALUES (...), (...)' masivo
-        # pero para mantener compatibilidad con el SP, los llamamos uno a uno en una sola conexión
+        logger.info(f"Flushing {len(self._flushing_logs)} logs to SQLite...")
+        
         try:
-            pool = await get_db()
-            if not pool:
-                logger.info("DB not available, leaving logs in buffer.")
-                # Restauramos los logs al buffer principal para intentar después
-                self._log_buffer.extend(self._flushing_logs)
-                return
-
-            async with pool.acquire() as conn:
-                async with conn.transaction():
-                    for log in self._flushing_logs:
-                        try:
-                            await conn.execute(
-                                "CALL sp_LogMessage($1, $2, $3, $4, $5, $6, $7)",
-                                *log
-                            )
-                        except Exception as e:
-                            logger.error(f"Error flushing single log: {e}")
+            # Usamos inserción masiva en SQLite para mayor eficiencia
+            query = """
+                INSERT INTO Messages (UserID, UserName, ServerID, ServerName, ChannelID, ChannelName, Content)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """
+            for log in self._flushing_logs:
+                await SQLiteManager.execute(query, *log)
+                
+            logger.info("Logs flushed to SQLite successfully.")
+        except Exception as e:
+            logger.error(f"Error flushing logs to SQLite: {e}")
+            # En caso de error crítico, intentamos devolver al buffer
+            self._log_buffer.extend(self._flushing_logs)
         finally:
             self._flushing_logs.clear()
 
@@ -109,10 +102,9 @@ class UserRepository(BaseRepository):
 
     async def get_channel_messages(self, channel_id: int, limit: int = 20):
         """
-        Obtiene los últimos mensajes de un canal, combinando los ya persistidos
-        en la BD con los que están aún en el buffer de memoria o en proceso de flush.
+        Obtiene los últimos mensajes de un canal desde SQLite y el buffer de memoria.
         """
-        # 1. Combinar buffers de memoria (el buffer actual es más nuevo que el de flushing)
+        # 1. Combinar buffers de memoria
         all_local = []
         for log in reversed(self._log_buffer):
             if log[4] == channel_id:
@@ -122,26 +114,24 @@ class UserRepository(BaseRepository):
             if log[4] == channel_id:
                 all_local.append({'username': log[1], 'content': log[6]})
         
-        # Recortar si ya tenemos suficientes
         buffered_results = all_local[:limit]
 
-        # 2. Si faltan mensajes para llegar al límite, buscar en la BD
+        # 2. Si faltan mensajes, buscar en SQLite
         remaining_limit = limit - len(buffered_results)
-        db_results = []
         if remaining_limit > 0:
             query = """
                 SELECT UserName as username, Content as content
-                FROM V_ChannelMessages
-                WHERE ChannelID = $1
+                FROM Messages
+                WHERE ChannelID = ?
                 ORDER BY Timestamp DESC
-                LIMIT $2
+                LIMIT ?
             """
-            rows = await self.fetch_all(query, channel_id, remaining_limit)
+            rows = await SQLiteManager.fetch_all(query, channel_id, remaining_limit)
             if rows:
                 db_results = [dict(r) for r in rows]
+                return buffered_results + db_results
 
-        # 3. Combinar: Primero el buffer (más nuevo), luego la BD (más viejo)
-        return buffered_results + db_results
+        return buffered_results
     
     async def log_message(self, user_id, user_name, server_id, server_name, channel_id, channel_name, content):
         self._log_buffer.append((user_id, user_name, server_id, server_name, channel_id, channel_name, content))
@@ -151,29 +141,30 @@ class UserRepository(BaseRepository):
         return True
 
     async def search_lore(self, query: str, channel_id: int, limit: int = 25):
-        """Busca fragmentos de mensajes pasados que coincidan con un término."""
+        """Busca fragmentos de mensajes pasados en SQLite."""
         sql_query = """
             SELECT UserName, Content, Timestamp
-            FROM V_ChannelMessages
-            WHERE Content ILIKE $1
-            AND ChannelID = $2
+            FROM Messages
+            WHERE Content LIKE ?
+            AND ChannelID = ?
             ORDER BY Timestamp DESC
-            LIMIT $3
+            LIMIT ?
         """
         search_term = f"%{query}%"
-        return await self.fetch_all(sql_query, search_term, channel_id, limit)
+        rows = await SQLiteManager.fetch_all(sql_query, search_term, channel_id, limit)
+        return rows
 
     async def get_user_social_stats(self, user_id: int):
-        """Calcula estadísticas agregadas sobre el comportamiento del usuario en el chat."""
+        """Calcula estadísticas agregadas desde SQLite."""
         query = """
             SELECT 
                 COUNT(*) as total_messages,
                 COUNT(DISTINCT DATE(Timestamp)) as days_active,
                 AVG(LENGTH(Content)) as avg_len
-            FROM V_ChannelMessages
-            WHERE UserID = $1
+            FROM Messages
+            WHERE UserID = ?
         """
-        result = await self.fetch_one(query, user_id)
+        result = await SQLiteManager.fetch_one(query, user_id)
         if result:
             return {
                 "total_messages": result['total_messages'],

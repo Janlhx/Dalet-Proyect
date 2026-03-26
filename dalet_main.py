@@ -11,6 +11,7 @@ import logging
 import signal
 import socket
 from database.pool import DatabasePool
+from database.sqlite_manager import SQLiteManager
 
 # --- Configuración de Logging ---
 file_handler = logging.FileHandler("dalet.log", encoding='utf-8')
@@ -201,6 +202,7 @@ async def main():
                 purge_task.cancel()
                 flush_task.cancel()
                 await bot.user_repo.flush_logs()
+                await SQLiteManager.close()
                 break # Salir del while si todo terminó bien
 
         except discord.HTTPException as e:
@@ -218,8 +220,9 @@ async def main():
             retry_count += 1
             if retry_count > 5: break
         finally:
-            logger.info("Cerrando pool de base de datos...")
+            logger.info("Cerrando pools de base de datos...")
             await DatabasePool.close()
+            await SQLiteManager.close()
             logger.info("Apagado completo.")
 
 if __name__ == "__main__":
