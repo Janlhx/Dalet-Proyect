@@ -206,6 +206,13 @@ async def main():
                 break # Salir del while si todo terminó bien
 
         except discord.HTTPException as e:
+            # Asegurar cierre de sesión si el bot llegó a inicializarse parcialmente
+            try:
+                if 'bot' in locals() and not bot.is_closed():
+                    await bot.close()
+            except Exception:
+                pass
+
             if e.status == 429:
                 retry_count += 1
                 wait = min(60 * retry_count, 300) # Máximo 5 minutos
