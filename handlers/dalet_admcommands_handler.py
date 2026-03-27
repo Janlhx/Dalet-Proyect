@@ -128,12 +128,16 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
         """Muestra el estado técnico global del bot (DB, Caché, IA)."""
         import time
         from database.pool import DatabasePool
+        from database.sqlite_manager import SQLiteManager
         
         embed = discord.Embed(title="💾 Estado del Sistema Dalet", color=discord.Color.blue())
         
-        # 1. Base de Datos
-        db_status = "✅ CONECTADA" if DatabasePool._pool else "❌ DESCONECTADA"
-        embed.add_field(name="Base de Datos", value=db_status, inline=True)
+        # 1. Base de Datos (Postgres & SQLite)
+        pg_status = "✅ CONECTADA" if DatabasePool.is_available() else "⚠️ OFFLINE (Neon Quota/Error)"
+        sqlite_status = "✅ OPERATIVA (Local)"
+        
+        embed.add_field(name="Base de Datos (Neon)", value=pg_status, inline=True)
+        embed.add_field(name="Base de Datos (Local)", value=sqlite_status, inline=True)
         
         # 2. Caché y Batching
         log_buffer_size = len(self.bot.user_repo._log_buffer)

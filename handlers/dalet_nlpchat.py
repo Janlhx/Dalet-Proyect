@@ -82,6 +82,10 @@ class DaletNLPChat(commands.Cog):
         return False
 
 
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        if message.author.bot or not message.guild: return
+        
         # 0. Registro de entrada de mensaje para depuración
         logger.debug(f"Mensaje recibido en #{message.channel.name} de {message.author.name}: {message.content[:50]}")
 
