@@ -23,22 +23,31 @@ class DatabasePool:
         Devuelve el pool de conexiones. Si la BD no está disponible, devuelve None.
         NUNCA lanza excepciones — el bot sigue funcionando sin BD.
         """
-        if cls._pool is not None:
+        import time
+        
+        # Si el pool ya existe y está disponible, devolverlo
+        if cls._pool is not None and cls._db_available:
             return cls._pool
 
-        # Si estamos en periodo de espera por cuota, no intentar
-        import time
+        # Si estamos en periodo de espera por cuota o error previo, no intentar
         if time.time() < cls._retry_after:
             return None
 
         try:
+            # Si el pool existe pero no está disponible (ej. conexión perdida), cerrarlo primero
+            if cls._pool is not None:
+                await cls.close()
+
             logger.info("Initializing asyncpg connection pool...")
-            cls._pool = await asyncpg.create_pool(
-                DATABASE_URL,
-                min_size=1,
-                max_size=3,          # Reducido para gastar menos CU de Neon
-                max_inactive_connection_lifetime=300,  # Liberar conexiones inactivas
-                command_timeout=30
+            cls._pool = await asyncio.wait_for(
+                asyncpg.create_pool(
+                    DATABASE_URL,
+                    min_size=1,
+                    max_size=3,
+                    max_inactive_connection_lifetime=300,
+                    command_timeout=30
+                ),
+                timeout=10.0 # Timeout agresivo para no bloquear el bot
             )
             cls._db_available = True
             logger.info("Database pool initialized successfully.")
@@ -52,20 +61,19 @@ class DatabasePool:
                 wait_minutes = 30
                 cls._retry_after = time.time() + (wait_minutes * 60)
                 logger.warning(
-                    f"Neon quota exceeded. Bot will run without DB for {wait_minutes} min. "
-                    f"Features requiring DB will be unavailable."
+                    f"Neon quota exceeded. Bot will run in OFFLINE mode for {wait_minutes} min."
                 )
             else:
-                # Error de conexión genérico — reintentar más pronto
-                cls._retry_after = time.time() + 120  # 2 minutos
-                logger.error(f"Failed to initialize database pool: {e}. Retry in 2 min.")
+                # Error de conexión genérico — reintentar en 2 min
+                cls._retry_after = time.time() + 120
+                logger.error(f"Failed to initialize database pool: {e}. Bot in OFFLINE mode for 2 min.")
 
         return cls._pool
 
     @classmethod
     def is_available(cls):
-        """Devuelve True si la BD está disponible."""
-        return cls._pool is not None and cls._db_available
+        """Devuelve True si la BD está conectada y disponible."""
+        return cls._db_available and cls._pool is not None
 
     @classmethod
     async def close(cls):

@@ -155,7 +155,7 @@ async def main():
 
             @bot.check
             async def global_block_check(ctx):
-                allowed = ["unlock", "cs", "channelstatus"]
+                allowed = ["unlock", "cs", "channelstatus", "status"]
                 if ctx.command and ctx.command.name in allowed: return True
                 
                 # Si la BD no está disponible, permitimos comandos básicos

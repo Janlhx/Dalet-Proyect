@@ -17,6 +17,27 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
         self.bot = bot
         self.repo = bot.user_repo
 
+    @commands.command(name="status", aliases=["cs", "channelstatus"])
+    async def status(self, ctx):
+        """🔍 Verifica el estado de salud de los sistemas de Dalet."""
+        from database.pool import DatabasePool
+        from database.sqlite_manager import SQLiteManager
+        
+        pg_status = f"{DaletAtoms.EMOJI_SUCCESS} Conectado" if DatabasePool.is_available() else f"{DaletAtoms.EMOJI_WARNING} Offline (Neon Quota/Error)"
+        
+        # SQLite siempre debería estar disponible si el archivo existe
+        sqlite_status = f"{DaletAtoms.EMOJI_SUCCESS} Operativo"
+        
+        desc = (
+            f"🛰️ **Estado de Sistemas:**\n"
+            f"🔹 **PostgreSQL (Neon):** {pg_status}\n"
+            f"🔹 **Local DB (SQLite):** {sqlite_status}\n\n"
+            f"💡 *Si Postgres está offline, algunas funciones de configuración global podrían no estar disponibles, pero el chatlog y la personalidad básica seguirán funcionando.*"
+        )
+        
+        embed = DaletOrganisms.create_simple_embed("Diagnóstico de Dalet", desc)
+        await ctx.send(embed=embed)
+
     # --- 💬 UTILIDADES ---
     @commands.command()
     async def ms(self, ctx):

@@ -82,27 +82,25 @@ class DaletNLPChat(commands.Cog):
         return False
 
 
-    @commands.Cog.listener()
-    async def on_message(self, message):
-        if message.author.bot or not message.guild: return
-        
-        # Ignorar si el mensaje es un comando del bot o de otros bots comunes
-        bot_prefixes = ("d.", "D.", "!", "/", ".", "?", "$", ">", "-", "+")
-        if message.content.startswith(bot_prefixes): return
-
-
-        # 0. Registro en historial local (Emergencia/Resiliencia)
-        self.bot.memory_service.add_to_local_history(message.channel.id, message.author.name, message.content)
+        # 0. Registro de entrada de mensaje para depuración
+        logger.debug(f"Mensaje recibido en #{message.channel.name} de {message.author.name}: {message.content[:50]}")
 
         content_lower = message.content.lower().strip()
 
-        # --- DALET ON: Respuesta instantánea sin IA ---
+        # --- DALET ON: Respuesta instantánea PRIORITARIA ---
+        # Se movió aquí para que funcione antes de cualquier filtro de prefijos o throttles
         if content_lower in ("dalet on", "dalet, on", "dale on"):
+            logger.info(f"Trigger 'dalet on' detectado en #{message.channel.name}")
             try:
                 await message.channel.send("estoy on")
-            except discord.HTTPException:
-                pass
-            return
+                return
+            except discord.HTTPException as e:
+                logger.error(f"Error al responder 'dalet on': {e}")
+                return
+
+        # Ignorar si el mensaje es un comando del bot o de otros bots comunes
+        bot_prefixes = ("d.", "D.", "!", "/", ".", "?", "$", ">", "-", "+")
+        if message.content.startswith(bot_prefixes): return
         
         # Throttling global ante errores 429 registrados
         if time.time() < self.error_cooldown:
@@ -123,19 +121,31 @@ class DaletNLPChat(commands.Cog):
             except Exception as e:
                 logger.error(f"Error saving memory: {e}")
 
-        # 3. Lógica de Decisión
+        # 3. Lógica de Decisión (Resistente a fallos de DB)
         try:
-            is_reactive = await self.bot.user_repo.is_server_reactive(message.guild.id)
+            # Si la DB no está disponible, asumimos que el servidor es reactivo por defecto
+            is_reactive = True
+            try:
+                is_reactive = await self.bot.user_repo.is_server_reactive(message.guild.id)
+            except Exception as db_err:
+                logger.warning(f"Error consultando reactividad (usando default=True): {db_err}")
+
             if is_reactive and (self.bot.user.mentioned_in(message) or "dalet" in content_lower):
                 trigger_type = "mention" if self.bot.user.mentioned_in(message) else "name_trigger"
                 return await self.generate_response(message, is_direct_mention=True, trigger_type=trigger_type)
 
-            is_proactive = await self.bot.user_repo.is_channel_proactive(message.channel.id)
+            # Para proactividad, somos más conservadores si no hay DB (usamos False)
+            is_proactive = False
+            try:
+                is_proactive = await self.bot.user_repo.is_channel_proactive(message.channel.id)
+            except Exception as db_err:
+                logger.warning(f"Error consultando proactividad (usando default=False): {db_err}")
+
             if is_proactive and self._should_respond():
                 await self.generate_response(message, is_direct_mention=False, trigger_type="proactive")
         except Exception as e:
-            logger.error(f"Error in decision logic: {e}")
-            self.is_responding = False # Emergency reset if something fails early
+            logger.error(f"Error crítico en lógica de decisión: {e}")
+            self.is_responding = False
 
     async def generate_response(self, message, is_direct_mention: bool, trigger_type: str = "mention"):
         if self.is_responding: return
