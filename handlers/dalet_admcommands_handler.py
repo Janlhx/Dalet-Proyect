@@ -22,6 +22,18 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
         await ctx.send("Cerrando conexión... Render debería reiniciarme.")
         await self.bot.close()
 
+    @commands.command(name="sync", hidden=True)
+    @commands.has_permissions(administrator=True)
+    async def sync_slash_commands(self, ctx):
+        """[ADMIN] Sincroniza los slash commands globalmente con Discord."""
+        try:
+            msg = await ctx.send("Sincronizando slash commands globalmente... (esto puede tardar unos segundos)")
+            synced = await self.bot.tree.sync()
+            await msg.edit(content=f"✅ Sincronización completada. {len(synced)} slash commands disponibles en todos los servidores.")
+        except Exception as e:
+            logger.error(f"Error syncing commands: {e}")
+            await ctx.send(f"❌ Error al sincronizar: {e}")
+
     @commands.command(name="reload", hidden=True)
     @commands.has_permissions(administrator=True)
     async def reload_cog(self, ctx, *, cog_name: str):
@@ -103,6 +115,28 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
             logger.error(f"Error in setname: {e}")
             await ctx.send("❌ Ocurrió un error al guardar mi nuevo nombre.")
 
+    @commands.command(name="setwelcome")
+    @commands.has_permissions(administrator=True)
+    async def set_welcome(self, ctx):
+        """[ADMIN] Establece el canal actual para las bienvenidas y despedidas."""
+        try:
+            await self.bot.admin_repo.set_welcome_channel(ctx.guild.id, ctx.channel.id)
+            await ctx.send("🎉 **¡Canal establecido!** A partir de ahora, humillaré/saludaré a los que entren o salgan por este canal.")
+        except Exception as e:
+            logger.error(f"Error setwelcome: {e}")
+            await ctx.send("❌ Error al configurar el canal de bienvenida.")
+
+    @commands.command(name="removewelcome")
+    @commands.has_permissions(administrator=True)
+    async def remove_welcome(self, ctx):
+        """[ADMIN] Desactiva las bienvenidas y despedidas en el servidor."""
+        try:
+            await self.bot.admin_repo.set_welcome_channel(ctx.guild.id, None)
+            await ctx.send("🔇 **Bienvenidas desactivadas.** Volveré a ignorar civilizadamente a la gente que entra y sale.")
+        except Exception as e:
+            logger.error(f"Error removewelcome: {e}")
+            await ctx.send("❌ Error al eliminar el canal de bienvenida.")
+
     @commands.command(name="cs", aliases=["channelstatus"])
     async def channel_status(self, ctx):
         """Muestra el estado de seguridad y IA del canal actual."""
@@ -171,9 +205,8 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
             throttling = f"⚠️ ACTIVO ({cooldown}s)" if cooldown > 0 else "✅ NINGUNO"
             embed.add_field(name="Throttling Discord", value=throttling, inline=True)
 
-        # 5. Memoria Local
-        local_hist_count = sum(len(d) for d in self.bot.memory_service._local_history.values())
-        embed.add_field(name="Mensajes en RAM", value=f"{local_hist_count}", inline=True)
+        # 5. Memoria Local (Unificada en Buffer)
+        embed.add_field(name="Buffer/RAM", value=f"{log_buffer_size}", inline=True)
 
         embed.set_footer(text=f"ID del Shard: {self.bot.shard_id or 'N/A'}")
         await ctx.send(embed=embed)

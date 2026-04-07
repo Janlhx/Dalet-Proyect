@@ -261,29 +261,37 @@ class OsuAnalyzer:
         if not recommended_maps:
             maps_text = "No se encontraron mapas específicos."
 
-        # 3. Construir el Prompt — SIN etiquetas de página (el paginador fue eliminado)
-        prompt = f"""Eres Dalet, analista de osu! técnica y sarcástica. Haz un análisis compacto de {self.user.get("username")}.
+        # 3. Construir el Prompt — SIN etiquetas de página, pero CON toda la personalidad
+        prompt = f"""**ROL:** Eres Dalet, la analista y coach de osu! más respetada, ácida y despiadada del mundo.
+**OBJETIVO:** Realiza un reporte total del jugador {self.user.get("username")}. Quieres ayudarle, pero se lo dirás con sarcasmo crudo y directo.
 
-DATOS:
-• PP: {stats.get('pp', 0):.0f} | Acc: {stats.get('hit_accuracy', 0):.2f}% | Rank: #{stats.get('global_rank', 0):,}
-• Tendencia de rank: {rank_trend} | Peak: {rank_highest_text}
-• Plays: {stats.get('play_count', 0):,} ({stats.get('play_time', 0) // 3600}h jugadas)
-• Estilo top plays: {best_playstyle['detected_style']} | Mods: {', '.join(best_playstyle['dominant_mods'])}
-• Estilo reciente: {recent_playstyle['detected_style']} | Consistencia: {trends.get('consistency', 'N/A')}
-• AR promedio: {best_beatmap_stats['avg_ar']:.1f} | OD: {best_beatmap_stats['avg_od']:.1f}
-• Área débil detectada: {focus.upper()}
+**DATOS CRÍTICOS DEL JUGADOR:**
+- **PP:** {stats.get('pp', 0):.0f} | **Acc Global:** {stats.get('hit_accuracy', 0):.2f}%
+- **Rank Actual:** #{stats.get('global_rank', 0):,} | **Tendencia:** {rank_trend}
+- **Peak Rank:** {rank_highest_text}
+- **Hits Totales:** {hits_profile}
+- **Play Count:** {stats.get('play_count', 0):,} | **Play Time:** {stats.get('play_time', 0)//3600}h
 
-MAPAS RECOMENDADOS:
+**COMPORTAMIENTO TÉCNICO:**
+- **Estilo Top Plays:** {best_playstyle['detected_style']} (AR: {best_beatmap_stats['avg_ar']:.1f}, OD: {best_beatmap_stats['avg_od']:.1f})
+- **Consistencia Reciente:** {trends.get('consistency', 'N/A')}
+- **Área Débil Detectada:** {focus.upper()}
+
+**MAPAS RECOMENDADOS:**
 {maps_text}
 
-Escribe el análisis en este orden:
-1. Intro sarcástica de 2-3 líneas sobre su rank actual y si está mejorando o hardstuck
-2. Fortalezas técnicas (2 puntos concretos)
-3. Debilidades críticas (sé directo)
-4. Un consejo de coaching técnico sobre {focus} y por qué los mapas de arriba le ayudarán
-5. Cierre breve con tu estilo
+**ESTRUCTURA DE TU RESPUESTA:** (Escribe en formato markdown, un solo bloque coherente, sin separar por [PAGES])
+### 🧠 Diagnóstico
+- Empieza con una intro brutal. Evalúa su Rank vs sus horas de juego (¿es un hardstuck o promete?).
+- Lista 2 de sus fortalezas técnicas reales.
+- Destroza su área más débil ({focus}) sin piedad. Sé muy directa si su acc apesta o si pierde combo tontamente.
 
-IMPORTANTE: Responde en español. No uses etiquetas como [PAGE1]. Texto plano con negritas markdown."""
+### 🎯 Plan de Acción
+- Dale un consejo de coaching puro y duro sobre cómo arreglar su debilidad en {focus}.
+- Añade una nota técnica exigiendo que juegue los **Mapas Recomendados** de arriba.
+- Despídete con una sola frase cínica animándolo a mejorar.
+
+[No uses roleplay ni asteriscos para acciones, solo habla directo]"""
         return prompt
     
 async def setup(bot):

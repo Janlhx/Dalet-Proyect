@@ -429,8 +429,6 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         cooldown = max(0, int((nlp_cog.error_cooldown if nlp_cog else 0) - time.time()))
         throttle = f"⚠️ {cooldown}s" if cooldown > 0 else "✅ ninguno"
 
-        local_hist = sum(len(d) for d in self.bot.memory_service._local_history.values())
-
         embed = discord.Embed(title="💾 Estado del Sistema Dalet", color=0x3498DB)
         embed.add_field(name="Neon DB",     value=pg_status,        inline=True)
         embed.add_field(name="SQLite",      value="✅ local",        inline=True)
@@ -438,7 +436,6 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         embed.add_field(name="Caché",       value=f"{cache} items",  inline=True)
         embed.add_field(name="Proveedor IA",value=f"🤖 {provider}", inline=True)
         embed.add_field(name="Throttling",  value=throttle,          inline=True)
-        embed.add_field(name="Msgs en RAM", value=f"{local_hist}",   inline=True)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 

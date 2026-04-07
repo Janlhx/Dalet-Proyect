@@ -11,9 +11,8 @@ class MemoryService:
     """
     def __init__(self, user_repo):
         self.repo = user_repo
-        self._local_history = {}  # {channel_id: deque([msg1, msg2, ...])}
-        self.max_local_history = 15   # Mensajes en RAM por canal
-        self.max_db_history = 10      # Mensajes de BD (menos tokens sin perder contexto)
+        self.repo = user_repo
+        self.max_db_history = 15      # Mensajes cronológicos (incluyen ahora al bot)
 
     async def get_relevant_context(self, channel_id: int, user_id: int, current_message: str, check_user_memory: bool = True):
         """
@@ -23,23 +22,16 @@ class MemoryService:
         """
         history_section = []
         
-        # 1. Historial de BD (más antiguo)
+        # 1. Historial Unificado (BD + Buffer, que ahora incluye a Dalet)
         try:
             db_history = await self.repo.get_channel_messages(channel_id, self.max_db_history)
             if db_history:
                 for record in reversed(db_history):
-                    history_section.append(f"{record['username']}: {record['content']}")
+                    usr = record.get('username') or record.get('UserName') or 'Desconocido'
+                    cnt = record.get('content') or record.get('Content') or ''
+                    history_section.append(f"{usr}: {cnt}")
         except Exception as e:
-            logger.error(f"Error obteniendo historial de BD: {e}")
-
-        # 2. Historial local en RAM (más reciente, sin duplicados)
-        if channel_id in self._local_history:
-            for msg in list(self._local_history[channel_id]):
-                if msg not in history_section:
-                    history_section.append(msg)
-        
-        # Recortar al máximo configurado
-        history_section = history_section[-self.max_local_history:]
+            logger.error(f"Error obteniendo historial: {e}")
 
         # 3. Memorias de usuario — búsqueda simple por palabras clave (SIN embeddings/API)
         memory_section = []
@@ -77,9 +69,3 @@ class MemoryService:
     async def add_memory(self, user_id, user_name, content, topic="general"):
         """Guarda una memoria sobre el usuario en la BD."""
         return await self.repo.add_user_memory(user_id, user_name, content, topic)
-
-    def add_to_local_history(self, channel_id, username, content):
-        """Guarda un mensaje en el buffer local (RAM) para contexto inmediato."""
-        if channel_id not in self._local_history:
-            self._local_history[channel_id] = deque(maxlen=self.max_local_history)
-        self._local_history[channel_id].append(f"{username}: {content}")

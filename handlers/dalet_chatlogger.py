@@ -17,6 +17,7 @@ class ChatLogger(commands.Cog, name="Memoria Global"):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         """Guarda mensajes de usuarios (no comandos, no bots) en el buffer de SQLite."""
+        # Ignorar mensajes de bots
         if message.author.bot or not message.guild:
             return
 

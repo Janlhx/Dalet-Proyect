@@ -22,8 +22,19 @@ class OsuRepository(BaseRepository):
         )
 
     async def get_ranking(self, limit: int = 10):
-        # Incluye UserID (Discord ID) para filtrar por servidor en d.rank
-        query = "SELECT UserID, UserName, PP, Accuracy, CalculatedRank FROM V_OsuRankingGlobal LIMIT $1"
+        # Usamos join manual en lugar de la vista para poder leer UserID (el Discord ID)
+        query = """
+            SELECT 
+                u.UserID,
+                u.UserName,
+                oa.PP,
+                oa.Accuracy,
+                RANK() OVER (ORDER BY oa.PP DESC) AS CalculatedRank
+            FROM OsuAccounts oa
+            JOIN Users u ON oa.UserID = u.UserID
+            WHERE oa.PP > 0
+            LIMIT $1
+        """
         return await self.fetch_all(query, limit)
 
     async def get_score_history(self, user_id: int, limit: int = 10):

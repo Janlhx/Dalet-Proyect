@@ -26,3 +26,16 @@ class AdminRepository(BaseRepository):
             "sp_SetServerCustomName",
             server_id, custom_name
         )
+
+    async def get_welcome_channel(self, server_id: int):
+        """Obtiene el ID del canal de bienvenida de un servidor."""
+        query = "SELECT fn_GetWelcomeChannel($1)"
+        result = await self.fetch_one(query, server_id)
+        return result[0] if result else None
+
+    async def set_welcome_channel(self, server_id: int, channel_id: int | None):
+        """Establece o elimina el canal de bienvenida para un servidor."""
+        return await self.call_procedure(
+            "sp_SetWelcomeChannel",
+            server_id, channel_id
+        )

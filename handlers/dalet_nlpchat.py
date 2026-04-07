@@ -245,9 +245,15 @@ class DaletNLPChat(commands.Cog):
                     self.consecutive_429s = 0
                     self.bot.global_consecutive_429s = 0
 
-                    # Guardar respuesta en historial local (RAM)
-                    self.bot.memory_service.add_to_local_history(
-                        message.channel.id, bot_name, reply
+                    # Guardar respuesta en SQLite/Buffer para tener el contexto cronológico perfecto
+                    await self.bot.user_repo.log_message(
+                        self.bot.user.id,
+                        bot_name,
+                        message.guild.id,
+                        str(message.guild.name),
+                        message.channel.id,
+                        str(message.channel.name),
+                        reply.strip()
                     )
 
                     # Log asíncrono no-bloqueante
