@@ -3,13 +3,11 @@ from discord.ext import commands
 import os
 import discord
 from dotenv import load_dotenv
-from google import genai
 from flask import Flask
 from threading import Thread
 import sys
 import logging
 import signal
-import socket
 from database.pool import DatabasePool
 from database.sqlite_manager import SQLiteManager
 
@@ -24,62 +22,64 @@ logging.basicConfig(
 )
 logger = logging.getLogger("dalet.main")
 
-# --- 0. Seguro Anti-Duplicados (Puerto de Bloqueo) ---
-# Flask servirá de cerrojo de ahora en adelante.
-
-# --- 1. Carga de Configuración ---
+# --- Carga de Configuración ---
 load_dotenv()
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# --- 2. Servidor Web (Health Check para Render) ---
+# --- Servidor Web (Health Check para Render) ---
 app = Flask('')
+
 
 @app.route('/')
 def home():
-    return "El bot está vivo."
+    return "dalet está viva."
+
 
 def run_flask():
     try:
         app.run(host='0.0.0.0', port=8080, debug=False, use_reloader=False)
     except Exception as e:
-        logger.error(f"Error al arrancar Flask: {e}")
+        logger.error(f"Error iniciando Flask: {e}")
         os._exit(1)
+
 
 def keep_alive():
     t = Thread(target=run_flask, daemon=True)
     t.start()
 
-# --- 3. Carga de Extensiones (Cogs) ---
+
+# --- Carga de Extensiones (Cogs) ---
 async def load_extensions(bot):
-    logger.info("<<<<< INICIANDO CARGA DE MÓDULOS... >>>>>")
+    logger.info("<<< INICIANDO CARGA DE MÓDULOS >>>")
     script_dir = os.path.dirname(os.path.abspath(__file__))
     handlers_path = os.path.join(script_dir, "handlers")
 
     if not os.path.exists(handlers_path):
-        logger.error("!!!!!! ERROR GRAVE: La carpeta 'handlers' no se encontró.")
+        logger.error("ERROR GRAVE: La carpeta 'handlers' no existe.")
         return
 
     for filename in os.listdir(handlers_path):
-        if filename.endswith(".py") and not filename.startswith("__") and filename != "db_connector.py":
+        if filename.endswith(".py") and not filename.startswith("__"):
             module_name = f"handlers.{filename[:-3]}"
             try:
                 await bot.load_extension(module_name)
-                logger.info(f"--- [OK] Cargado: {module_name}")
+                logger.info(f"[OK] Cargado: {module_name}")
             except Exception as e:
-                logger.error(f"!!!!!! [ERROR] FATAL AL CARGAR {module_name} !!!!!! | DETALLE: {e}")
+                logger.error(f"[ERROR] Fallo cargando {module_name}: {e}")
 
-# --- 4. Punto de Entrada Principal ---
+
+# --- Punto de Entrada Principal ---
 async def main():
-    # Arrancamos Flask inmediatamente. Render necesita ver el puerto abierto para no dar timeout.
+    # Abrir Flask primero (Render necesita ver el puerto)
     keep_alive()
     logger.info("Health Check iniciado en puerto 8080.")
 
     retry_count = 0
     while True:
         try:
-            # Inicializar el pool de base de datos UNA VEZ
+            # Intentar conectar a Neon (sin bloquear si no está disponible)
             await DatabasePool.get_pool()
 
             from database.repositories.user_repository import UserRepository
@@ -90,40 +90,17 @@ async def main():
             from services.memory_service import MemoryService
             from services.osu_service import OsuService
 
-            bot = commands.Bot(command_prefix=["D.","d."], intents=discord.Intents.all(), case_insensitive=True)
-            
-            # --- Protección Global contra Rate Limits (429/1015) ---
+            bot = commands.Bot(
+                command_prefix=["D.", "d."],
+                intents=discord.Intents.all(),
+                case_insensitive=True
+            )
+
+            # Contadores globales de rate limit
             bot.global_error_cooldown = 0
             bot.global_consecutive_429s = 0
 
-            async def safe_typing(ctx_or_message):
-                """Context manager seguro que omite el typing si hay estrés de rate limit."""
-                import time
-                from contextlib import asynccontextmanager
-
-                @asynccontextmanager
-                async def _empty_typing():
-                    yield
-
-                # Si estamos en cooldown activo, no enviar typing
-                if time.time() < bot.global_error_cooldown:
-                    return _empty_typing()
-                
-                # Si hemos tenido muchos errores seguidos, ser más conservadores
-                # (ej: solo 1 typing cada 3 mensajes o algo así, o simplemente desactivarlo)
-                if bot.global_consecutive_429s >= 3:
-                    return _empty_typing()
-
-                try:
-                    # Funciona tanto con Context como con Message
-                    channel = getattr(ctx_or_message, "channel", ctx_or_message)
-                    return channel.typing()
-                except Exception:
-                    return _empty_typing()
-
-            bot.safe_typing = safe_typing
-
-            # Inyectar Repositorios y Servicios
+            # Inyección de dependencias
             bot.user_repo = UserRepository()
             bot.osu_repo = OsuRepository()
             bot.admin_repo = AdminRepository()
@@ -136,7 +113,7 @@ async def main():
                 client_secret=os.getenv("OSU_CLIENT_SECRET", "")
             )
 
-            # Tareas de fondo
+            # Tarea de purga de mensajes expirados (Postgres, cada hora)
             async def _purge_expired_messages():
                 while True:
                     await asyncio.sleep(3600)
@@ -145,52 +122,53 @@ async def main():
                         if pool:
                             async with pool.acquire() as conn:
                                 await conn.execute("SELECT fn_PurgeExpiredMessages()")
-                    except asyncio.CancelledError: break
+                    except asyncio.CancelledError:
+                        break
                     except Exception as e:
                         logger.debug(f"Purge task skipped: {e}")
 
             purge_task = asyncio.create_task(_purge_expired_messages())
-            # Periodic flush ya maneja internamente si el pool es None a través de get_db()
             flush_task = asyncio.create_task(bot.user_repo._periodic_flush())
 
+            # Check global: bloqueo de canales
             @bot.check
             async def global_block_check(ctx):
                 allowed = ["unlock", "cs", "channelstatus", "status"]
-                if ctx.command and ctx.command.name in allowed: return True
-                
-                # Si la BD no está disponible, permitimos comandos básicos
-                if not DatabasePool.is_available():
+                if ctx.command and ctx.command.name in allowed:
                     return True
-                
+
+                if not DatabasePool.is_available():
+                    return True  # Sin BD, permitir todo
+
                 try:
                     return not await bot.admin_repo.is_channel_locked(ctx.channel.id)
                 except Exception:
                     return True
 
-            # --- Manejo de Cierre Elegante (SIGINT/SIGTERM) ---
+            # --- Manejo de Cierre Elegante ---
             stop_event = asyncio.Event()
 
             def signal_handler():
-                logger.info("Señal de apagado recibida...")
+                logger.info("Señal de apagado recibida.")
                 stop_event.set()
 
             for sig in (signal.SIGINT, signal.SIGTERM):
                 try:
                     asyncio.get_event_loop().add_signal_handler(sig, signal_handler)
                 except NotImplementedError:
-                    pass
+                    pass  # Windows no soporta add_signal_handler plenamente
 
             async with bot:
                 await load_extensions(bot)
-                
+
                 bot_task = asyncio.create_task(bot.start(DISCORD_TOKEN))
                 stop_task = asyncio.create_task(stop_event.wait())
-                
+
                 done, pending = await asyncio.wait(
                     [bot_task, stop_task],
                     return_when=asyncio.FIRST_COMPLETED
                 )
-                
+
                 if stop_event.is_set():
                     logger.info("Cerrando sesión de Discord...")
                     await bot.close()
@@ -198,15 +176,16 @@ async def main():
                     stop_task.cancel()
                     if bot_task.exception():
                         raise bot_task.exception()
-                
+
                 purge_task.cancel()
                 flush_task.cancel()
+
+                # Flush final del buffer de logs antes de cerrar
                 await bot.user_repo.flush_logs()
                 await SQLiteManager.close()
-                break # Salir del while si todo terminó bien
+                break  # Fin normal
 
         except discord.HTTPException as e:
-            # Asegurar cierre de sesión si el bot llegó a inicializarse parcialmente
             try:
                 if 'bot' in locals() and not bot.is_closed():
                     await bot.close()
@@ -215,29 +194,30 @@ async def main():
 
             if e.status == 429:
                 retry_count += 1
-                wait = min(60 * retry_count, 300) # Máximo 5 minutos
-                logger.error(f"Rate Limit Detectado (429/1015). Reintentando en {wait}s... (Intento {retry_count})")
+                wait = min(60 * retry_count, 300)
+                logger.error(f"Rate Limit 429. Reintentando en {wait}s (intento {retry_count})...")
                 await asyncio.sleep(wait)
             else:
-                logger.error(f"Error de Discord: {e}")
+                logger.error(f"Error de Discord HTTP: {e}")
                 break
+
         except Exception as e:
             logger.error(f"Error inesperado: {e}", exc_info=True)
             await asyncio.sleep(10)
             retry_count += 1
-            if retry_count > 5: break
+            if retry_count > 5:
+                logger.critical("Demasiados errores consecutivos. Deteniendo.")
+                break
+
         finally:
             logger.info("Cerrando pools de base de datos...")
             await DatabasePool.close()
             await SQLiteManager.close()
             logger.info("Apagado completo.")
 
+
 if __name__ == "__main__":
-    # Nota: No llamamos a keep_alive aquí porque Flask ocupará el puerto
-    # que check_single_instance ya está validando. Usaremos el Thread de Flask
-    # dentro de main o lo dejaremos que corra solo si el puerto está libre.
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         pass
-

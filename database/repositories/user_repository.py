@@ -30,28 +30,25 @@ class UserRepository(BaseRepository):
     async def flush_logs(self):
         if not self._log_buffer and not self._flushing_logs:
             return
-        
+
         self._flushing_logs = list(self._log_buffer)
         self._log_buffer.clear()
-        
+
         logger.info(f"Flushing {len(self._flushing_logs)} logs to SQLite...")
-        
-        try:
-            # Usamos inserción masiva en SQLite para mayor eficiencia
-            query = """
-                INSERT INTO Messages (UserID, UserName, ServerID, ServerName, ChannelID, ChannelName, Content)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """
-            for log in self._flushing_logs:
-                await SQLiteManager.execute(query, *log)
-                
-            logger.info("Logs flushed to SQLite successfully.")
-        except Exception as e:
-            logger.error(f"Error flushing logs to SQLite: {e}")
-            # En caso de error crítico, intentamos devolver al buffer
+
+        query = """
+            INSERT INTO Messages (UserID, UserName, ServerID, ServerName, ChannelID, ChannelName, Content)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """
+        # executemany: una sola transacción atómica para todos los logs
+        success = await SQLiteManager.executemany(query, self._flushing_logs)
+        if success:
+            logger.info(f"Flushed {len(self._flushing_logs)} logs correctamente.")
+        else:
+            logger.error("Error flushing logs. Devolviendo al buffer para reintentar.")
             self._log_buffer.extend(self._flushing_logs)
-        finally:
-            self._flushing_logs.clear()
+
+        self._flushing_logs.clear()
 
     async def _get_cached(self, key, fetch_func, *args):
         import time

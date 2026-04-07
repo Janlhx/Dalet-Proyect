@@ -89,6 +89,20 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
             logger.error(f"Error in unlock: {e}")
             await ctx.send("❌ Error al desbloquear el canal.")
 
+    @commands.command(name="setname")
+    @commands.has_permissions(administrator=True)
+    async def set_bot_name(self, ctx, *, new_name: str):
+        """[ADMIN] Cambia mi nombre en este servidor (máx 25 caracteres)."""
+        if len(new_name) > 25:
+            return await ctx.send("❌ El nombre es demasiado largo. El máximo son 25 caracteres.")
+        
+        try:
+            await self.bot.admin_repo.set_server_custom_name(ctx.guild.id, new_name)
+            await ctx.send(f"✅ ¡Entendido! En este servidor ahora respondo al nombre de **{new_name}**. (Y sigo siendo Dalet también).")
+        except Exception as e:
+            logger.error(f"Error in setname: {e}")
+            await ctx.send("❌ Ocurrió un error al guardar mi nuevo nombre.")
+
     @commands.command(name="cs", aliases=["channelstatus"])
     async def channel_status(self, ctx):
         """Muestra el estado de seguridad y IA del canal actual."""
@@ -167,35 +181,53 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
     @commands.command(name="dbstats", hidden=True)
     @commands.has_permissions(administrator=True)
     async def db_stats(self, ctx):
-        """[ADMIN] Muestra un resumen de analíticas de la BD: comandos, IA y errores."""
-        try:
-            ar = self.bot.analytics_repo
+        """[ADMIN] Muestra un resumen de analíticas de SQLite: comandos, IA y errores."""
+        from database.sqlite_manager import SQLiteManager
 
-            # 1. Top 5 comandos más usados
-            pool_conn = await __import__('database.pool', fromlist=['get_db']).get_db()
-            async with pool_conn.acquire() as conn:
-                top_cmds = await conn.fetch(
-                    "SELECT CommandName, total_uses, success_rate_pct FROM V_CommandStats LIMIT 5"
-                )
-                ai_today = await conn.fetch(
-                    """SELECT TriggerType, Provider, COUNT(*) as n, ROUND(AVG(ResponseTimeMs)) as avg_ms
-                       FROM AIInteractions
-                       WHERE InteractedAt > NOW() - INTERVAL '24 hours'
-                       GROUP BY TriggerType, Provider ORDER BY n DESC"""
-                )
-                recent_errors = await conn.fetch(
-                    "SELECT ErrorType, occurrences, last_seen FROM V_RecentErrors LIMIT 5"
-                )
+        try:
+            # Top 5 comandos más usados (SQLite)
+            top_cmds = await SQLiteManager.fetch_all("""
+                SELECT CommandName,
+                       COUNT(*) as total_uses,
+                       ROUND(100.0 * SUM(Success) / COUNT(*), 1) as success_rate
+                FROM CommandUsage
+                GROUP BY CommandName
+                ORDER BY total_uses DESC
+                LIMIT 5
+            """)
+
+            # Respuestas de IA en las últimas 24h (SQLite)
+            ai_today = await SQLiteManager.fetch_all("""
+                SELECT TriggerType, Provider,
+                       COUNT(*) as n,
+                       ROUND(AVG(ResponseTimeMs)) as avg_ms
+                FROM AIInteractions
+                WHERE InteractedAt >= datetime('now', '-24 hours')
+                GROUP BY TriggerType, Provider
+                ORDER BY n DESC
+            """)
+
+            # Errores recientes (últimos 7 días)
+            recent_errors = await SQLiteManager.fetch_all("""
+                SELECT ErrorType,
+                       COUNT(*) as occurrences,
+                       MAX(OccurredAt) as last_seen
+                FROM BotErrors
+                WHERE OccurredAt >= datetime('now', '-7 days')
+                GROUP BY ErrorType
+                ORDER BY occurrences DESC
+                LIMIT 5
+            """)
 
             embed = discord.Embed(
-                title="📊 Analíticas de la Base de Datos",
+                title="📊 Analíticas (SQLite Local)",
                 color=discord.Color.purple()
             )
 
             # Top comandos
             if top_cmds:
                 cmd_text = "\n".join([
-                    f"`{r['commandname']}` — {r['total_uses']} usos ({r['success_rate_pct']}% éxito)"
+                    f"`{r['CommandName']}` — {r['total_uses']} usos ({r['success_rate']}% éxito)"
                     for r in top_cmds
                 ])
             else:
@@ -205,28 +237,28 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
             # IA hoy
             if ai_today:
                 ai_text = "\n".join([
-                    f"`{r['triggertype']}` via **{r['provider']}** — {r['n']} resp. (~{r['avg_ms']}ms)"
+                    f"`{r['TriggerType']}` via **{r['Provider']}** — {r['n']} respuestas"
                     for r in ai_today
                 ])
             else:
                 ai_text = "_Sin interacciones hoy_"
-            embed.add_field(name="🤖 Respuestas IA (últimas 24h)", value=ai_text, inline=False)
+            embed.add_field(name="🤖 Respuestas IA (24h)", value=ai_text, inline=False)
 
             # Errores recientes
             if recent_errors:
                 err_text = "\n".join([
-                    f"`{r['errortype']}` — {r['occurrences']}x (últ: {r['last_seen'].strftime('%d/%m %H:%M')})"
+                    f"`{r['ErrorType']}` — {r['occurrences']}x"
                     for r in recent_errors
                 ])
             else:
-                err_text = "✅ _Sin errores recientes_"
-            embed.add_field(name="⚠️ Errores (últimos 7 días)", value=err_text, inline=False)
+                err_text = "✅ Sin errores recientes"
+            embed.add_field(name="⚠️ Errores (7 días)", value=err_text, inline=False)
 
-            embed.set_footer(text="Datos de CommandUsage · AIInteractions · BotErrors")
+            embed.set_footer(text="Fuente: SQLite local · CommandUsage · AIInteractions · BotErrors")
             await ctx.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"Error in dbstats: {e}")
+            logger.error(f"Error en dbstats: {e}")
             await ctx.send(f"❌ Error al obtener estadísticas:\n```{e}```")
 
 async def setup(bot):

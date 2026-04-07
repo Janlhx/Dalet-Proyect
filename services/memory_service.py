@@ -12,8 +12,8 @@ class MemoryService:
     def __init__(self, user_repo):
         self.repo = user_repo
         self._local_history = {}  # {channel_id: deque([msg1, msg2, ...])}
-        self.max_local_history = 20   # Máximo de mensajes en RAM por canal
-        self.max_db_history = 15      # Mensajes de BD (reducido para menos tokens)
+        self.max_local_history = 15   # Mensajes en RAM por canal
+        self.max_db_history = 10      # Mensajes de BD (menos tokens sin perder contexto)
 
     async def get_relevant_context(self, channel_id: int, user_id: int, current_message: str, check_user_memory: bool = True):
         """

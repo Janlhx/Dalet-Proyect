@@ -13,3 +13,16 @@ class AdminRepository(BaseRepository):
             "sp_SetChannelLock",
             channel_id, channel_name, server_id, server_name, is_locked
         )
+
+    async def get_server_custom_name(self, server_id: int):
+        """Obtiene el nombre personalizado del bot para un servidor."""
+        query = "SELECT fn_GetServerCustomName($1)"
+        result = await self.fetch_one(query, server_id)
+        return result[0] if result else "Dalet"
+
+    async def set_server_custom_name(self, server_id: int, custom_name: str):
+        """Establece un nombre personalizado para el bot en un servidor."""
+        return await self.call_procedure(
+            "sp_SetServerCustomName",
+            server_id, custom_name
+        )
