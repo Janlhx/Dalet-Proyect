@@ -261,18 +261,24 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     async def slash_rank(self, interaction: discord.Interaction):
         await interaction.response.defer()
         try:
-            rows = await self.bot.osu_repo.get_ranking(limit=10)
-            if not rows:
+            guild_member_ids = [str(m.id) for m in interaction.guild.members if not m.bot]
+            all_rows = await self.bot.osu_repo.get_ranking(limit=200)
+            server_rows = [
+                row for row in all_rows
+                if str(row.get("UserID") or row.get("userid") or "") in guild_member_ids
+            ][:10]
+
+            if not server_rows:
                 return await interaction.followup.send(
-                    "nadie tiene cuenta vinculada aún. usa `/link` para entrar al ranking."
+                    "nadie en este servidor tiene cuenta vinculada aún. usa `/link` para entrar al ranking."
                 )
             medals = ["🥇", "🥈", "🥉"]
             lines  = []
-            for i, row in enumerate(rows):
+            for i, row in enumerate(server_rows):
                 medal = medals[i] if i < 3 else f"`{i+1}.`"
-                name  = row.get("UserName") or row.get("username", "??")
-                pp    = row.get("PP") or row.get("pp", 0)
-                acc   = row.get("Accuracy") or row.get("accuracy", 0)
+                name  = row.get("UserName") or row.get("username") or row.get("osuusername") or "??"
+                pp    = float(row.get("PP") or row.get("pp") or 0)
+                acc   = float(row.get("Accuracy") or row.get("accuracy") or 0)
                 lines.append(f"{medal} **{name}** — {pp:,.0f}pp • {acc:.2f}%")
             embed = discord.Embed(
                 title="🏆 Ranking osu! del Servidor",
@@ -378,14 +384,18 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             if not registros:
                 return await interaction.followup.send("no hay suficientes mensajes para resumir.")
 
-            historial = "\n".join(
-                reversed([f"{r['username']}: {r['content']}" for r in registros])
-            )
+            display_list = list(registros)
+            display_list.reverse()
+            historial = "\n".join([f"{r.get('username') or r.get('UserName') or 'Desconocido'}: {r.get('content') or r.get('Content') or ''}" for r in display_list])
+
             prompt = (
                 f"Genera un resumen conciso y directo de esta conversación. "
                 f"Tono casual, sin florituras:\n\n{historial}\n\nResumen:"
             )
-            resumen = await self.bot.nlp_service.generate_reply(prompt, "Resumen", "Sistema")
+            resumen = await self.bot.nlp_service.generate_reply(
+                prompt, "Resumen", "Sistema",
+                system_prompt_override="Eres un asistente analítico y neutral especializado en resumir conversaciones. No tienes personalidad, no haces chistes."
+            )
             if not resumen:
                 return await interaction.followup.send("no pude generar el resumen.")
 

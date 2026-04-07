@@ -261,46 +261,29 @@ class OsuAnalyzer:
         if not recommended_maps:
             maps_text = "No se encontraron mapas específicos."
 
-        # 3. Construir el Prompt
-        prompt = f"""
-        **ROL:** Eres Dalet, la analista y coach de osu! más respetada, ácida y técnica del mundo.
-        **OBJETIVO:** Realiza un reporte total del jugador {self.user.get("username")}.
-        
-        **DATOS CRÍTICOS DEL JUGADOR:**
-        - **PP:** {stats.get('pp', 0):.2f} | **Acc Global:** {stats.get('hit_accuracy', 0):.2f}%
-        - **Rank Actual:** #{stats.get('global_rank', 0):,} | **Tendencia:** {rank_trend}
-        - **Peak Rank:** {rank_highest_text}
-        - **Hits Totales:** {hits_profile}
-        - **Play Count:** {stats.get('play_count', 0):,} | **Play Time:** {stats.get('play_time', 0)//3600}h
-        
-        **COMPORTAMIENTO TÉCNICO:**
-        - **Estilo Histórico (Top 50):** {best_playstyle['detected_style']} (AR: {best_beatmap_stats['avg_ar']:.1f}, OD: {best_beatmap_stats['avg_od']:.1f})
-        - **Hábitos Recientes (Recent 50):** {recent_playstyle['detected_style']} (AR: {recent_beatmap_stats['avg_ar']:.1f}, OD: {recent_beatmap_stats['avg_od']:.1f})
-        - **Consistencia Reciente:** {trends.get('consistency', 'N/A')} (Acc Promedio: {trends.get('avg_recent_acc', 'N/A')}%)
-        - **Área de Enfoque Deducida:** {focus.upper()}
-        
-        **ESTRUCTURA DE RESPUESTA (OBLIGATORIA CON SEPARADORES):**
-        Divide tu respuesta exactamente con estos separadores. Sé concisa y usa un formato visualmente limpio (negritas, listas).
-        
-        [PAGE1_INTRO]
-        (Escribe una introducción sarcástica sobre su perfil actual. Menciona su rank, su tendencia y su peak rank. Hazle saber si está mejorando o si es un "hardstuck".)
-        
-        [PAGE2_ANALYSIS]
-        ### 🧠 Diagnóstico de Dalet
-        - **Análisis de Potencial vs. Hábito**: (¿Qué dicen sus Top Plays vs sus jugadas recientes? ¿Está perdiendo el toque?)
-        - **Fortalezas**: (Lista técnica de 2-3 puntos)
-        - **Debilidades Criticas**: (Sé brutalmente honesta aquí sobre su acc, stamina o lectura)
-        
-        [PAGE3_COACHING]
-        ### 🎯 Plan de Acción: {focus.capitalize()}
-        - **Consejo Maestro**: (Un párrafo de coaching técnico puro basado en su área de enfoque)
-        - **Entrenamiento Recomendado**:
-        {maps_text}
-        (Añade una breve nota técnica sobre por qué estos mapas le servirán)
-        
-        [FOOTER]
-        (Una frase final corta que sirva de cierre sarcástico/motivador)
-        """
+        # 3. Construir el Prompt — SIN etiquetas de página (el paginador fue eliminado)
+        prompt = f"""Eres Dalet, analista de osu! técnica y sarcástica. Haz un análisis compacto de {self.user.get("username")}.
+
+DATOS:
+• PP: {stats.get('pp', 0):.0f} | Acc: {stats.get('hit_accuracy', 0):.2f}% | Rank: #{stats.get('global_rank', 0):,}
+• Tendencia de rank: {rank_trend} | Peak: {rank_highest_text}
+• Plays: {stats.get('play_count', 0):,} ({stats.get('play_time', 0) // 3600}h jugadas)
+• Estilo top plays: {best_playstyle['detected_style']} | Mods: {', '.join(best_playstyle['dominant_mods'])}
+• Estilo reciente: {recent_playstyle['detected_style']} | Consistencia: {trends.get('consistency', 'N/A')}
+• AR promedio: {best_beatmap_stats['avg_ar']:.1f} | OD: {best_beatmap_stats['avg_od']:.1f}
+• Área débil detectada: {focus.upper()}
+
+MAPAS RECOMENDADOS:
+{maps_text}
+
+Escribe el análisis en este orden:
+1. Intro sarcástica de 2-3 líneas sobre su rank actual y si está mejorando o hardstuck
+2. Fortalezas técnicas (2 puntos concretos)
+3. Debilidades críticas (sé directo)
+4. Un consejo de coaching técnico sobre {focus} y por qué los mapas de arriba le ayudarán
+5. Cierre breve con tu estilo
+
+IMPORTANTE: Responde en español. No uses etiquetas como [PAGE1]. Texto plano con negritas markdown."""
         return prompt
     
 async def setup(bot):

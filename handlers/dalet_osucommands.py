@@ -486,10 +486,18 @@ class OsuHandler(commands.Cog, name="osu!"):
 
         try:
             async with ctx.typing():
-                # Obtener ranking de Neon
-                rows = await self.repo.get_ranking(limit=15)
+                # Obtener todos los IDs de Discord de los miembros del servidor
+                guild_member_ids = [str(m.id) for m in ctx.guild.members if not m.bot]
 
-            if not rows:
+                # Obtener ranking solo de los miembros del servidor
+                # Filtramos en Python desde el ranking global (evita query compleja)
+                all_rows = await self.repo.get_ranking(limit=200)  # Traer más para filtrar
+                server_rows = [
+                    row for row in all_rows
+                    if str(row.get("UserID") or row.get("userid") or "") in guild_member_ids
+                ][:15]  # Limitar a top 15 del servidor
+
+            if not server_rows:
                 return await ctx.send(
                     "nadie en este servidor tiene cuenta vinculada todavía. "
                     "usa `d.link <usuario>` para entrar al ranking."
@@ -502,17 +510,15 @@ class OsuHandler(commands.Cog, name="osu!"):
 
             lines = []
             medals = ["🥇", "🥈", "🥉"]
-            for i, row in enumerate(rows):
+            for i, row in enumerate(server_rows):
                 medal = medals[i] if i < 3 else f"`{i+1}.`"
-                name  = row.get("UserName") or row["username"]
-                pp    = row.get("PP") or row.get("pp", 0)
-                acc   = row.get("Accuracy") or row.get("accuracy", 0)
-                lines.append(
-                    f"{medal} **{name}** — {pp:,.0f}pp • {acc:.2f}%"
-                )
+                name  = row.get("UserName") or row.get("username") or row.get("osuusername") or "??"
+                pp    = float(row.get("PP") or row.get("pp") or 0)
+                acc   = float(row.get("Accuracy") or row.get("accuracy") or 0)
+                lines.append(f"{medal} **{name}** — {pp:,.0f}pp • {acc:.2f}%")
 
             embed.description = "\n".join(lines)
-            embed.set_footer(text="datos de cuentas vinculadas con d.link")
+            embed.set_footer(text=f"{len(server_rows)} jugadores vinculados en este servidor")
             await ctx.send(embed=embed)
 
         except Exception as e:
@@ -677,11 +683,12 @@ class OsuHandler(commands.Cog, name="osu!"):
             embed.add_field(name="Acc",  value=f"`{stats.get('hit_accuracy', 0):.2f}%`", inline=True)
             msg = await ctx.send(embed=embed)
 
-            # Generar análisis IA
+            # Generar análisis IA — con más tokens que una respuesta normal
             analyzer = OsuAnalyzer(self.osu, user, recent, best)
             prompt   = await analyzer.generate_super_prompt()
             response = await self.bot.nlp_service.generate_reply(
-                prompt, "Análisis osu!", username
+                prompt, "Análisis osu!", username,
+                max_tokens_override=1200  # El análisis necesita más espacio
             )
 
             if response:

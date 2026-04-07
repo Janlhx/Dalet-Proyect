@@ -74,11 +74,13 @@ class NLPService:
         active_room_users = kwargs.get("active_room_users", "")
         server_emojis = kwargs.get("server_emojis", "")
 
-        system_prompt = DALET_PERSONALITY.format(bot_name=bot_name)
-        if active_room_users:
-            system_prompt += f"\n\nGente presente: {active_room_users}"
-        if server_emojis:
-            system_prompt += f"\nEmojis del servidor (úsalos con moderación): {server_emojis}"
+        system_prompt = kwargs.get("system_prompt_override")
+        if not system_prompt:
+            system_prompt = DALET_PERSONALITY.format(bot_name=bot_name)
+            if active_room_users:
+                system_prompt += f"\n\nGente presente: {active_room_users}"
+            if server_emojis:
+                system_prompt += f"\nEmojis del servidor (úsalos con moderación): {server_emojis}"
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         prompt = f"Conversación reciente:\n{context}{vision_context}\n\n{username}: \"{trigger}\""
@@ -87,11 +89,12 @@ class NLPService:
             model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
             logger.info(f"Llamando Gemini: {model_name}")
 
+            max_tokens = kwargs.get("max_tokens_override", 700)
             config = types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 temperature=0.85,
-                max_output_tokens=700,  # Aumentado para evitar respuestas cortadas
-                tools=[types.Tool(google_search=types.GoogleSearch())]  # Búsqueda web nativa
+                max_output_tokens=max_tokens,  # Puede ser sobreescrito para análisis largos
+                tools=[types.Tool(google_search=types.GoogleSearch())]
             )
 
             response = await self.client.aio.models.generate_content(
@@ -132,13 +135,16 @@ class NLPService:
             "Content-Type": "application/json"
         }
 
-        groq_system = DALET_PERSONALITY.format(bot_name=bot_name)
-        if active_room_users:
-            groq_system += f"\n\nGente presente: {active_room_users}"
+        groq_system = kwargs.get("system_prompt_override")
+        if not groq_system:
+            groq_system = DALET_PERSONALITY.format(bot_name=bot_name)
+            if active_room_users:
+                groq_system += f"\n\nGente presente: {active_room_users}"
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         user_msg = f"Conversación reciente:\n{context}{vision_context}\n\n{username}: \"{trigger}\""
 
+        max_tokens = kwargs.get("max_tokens_override", 600)
         data = {
             "model": model_name,
             "messages": [
@@ -146,7 +152,7 @@ class NLPService:
                 {"role": "user", "content": user_msg}
             ],
             "temperature": 0.75,
-            "max_tokens": 600
+            "max_tokens": max_tokens
         }
 
         try:

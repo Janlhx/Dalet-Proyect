@@ -25,17 +25,23 @@ class ResumenInteligente(commands.Cog, name="Resumen Inteligente"):
             if not registros:
                 return await ctx.send("No hay suficientes mensajes en este canal para generar un resumen.")
 
-            # registers are in descending order, we want chronological for display
+            # registros son en orden descendiente, queremos cronológico para mostrar
             display_list = list(registros)
             display_list.reverse()
-            historial_texto = "\n".join([f"{r['username']}: {r['content']}" for r in display_list])
+            # Seguridad de keys por si SQLite trae 'UserName' en vez de 'username'
+            historial_texto = "\n".join([f"{r.get('username') or r.get('UserName') or 'Desconocido'}: {r.get('content') or r.get('Content') or ''}" for r in display_list])
 
             # 2. Generar resumen con NLPService
             prompt = (f"Analiza el siguiente historial de chat y genera un resumen conciso y neutral de los temas principales, "
                      f"eventos importantes y el tono general de la conversación. Sé breve y directo.\n\n"
                      f"Historial:\n{historial_texto}\n\nResumen:")
             
-            resumen_generado = await self.nlp.generate_reply(prompt, "Resumen de Chat", "Sistema")
+            resumen_generado = await self.nlp.generate_reply(
+                prompt,
+                "Resumen de Chat",
+                "Sistema",
+                system_prompt_override="Eres un asistente analítico y neutral especializado en resumir conversaciones. No tienes personalidad, no haces chistes, no interactúas con los usuarios. Tu única función es extraer la información clave de forma estructurada y objetiva."
+            )
 
             if not resumen_generado:
                  return await ctx.send("La IA no pudo generar un resumen esta vez.")
