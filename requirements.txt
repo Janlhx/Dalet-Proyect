@@ -51,5 +51,6 @@ asyncpg
 httpx
 psutil
 pytz
-mcp
 aiosqlite
+matplotlib
+numpy

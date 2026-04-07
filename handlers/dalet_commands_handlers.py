@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 import logging
-import asyncio
 from discord.utils import format_dt
 
 logger = logging.getLogger("dalet.handlers.general")
@@ -10,6 +9,7 @@ from ui.organisms import DaletOrganisms
 from ui.atoms import DaletAtoms
 from ui.molecules import DaletMolecules
 
+
 class CommandsHandler(commands.Cog, name="Comandos Generales"):
     """Comandos básicos de Dalet (utilidades, info y herramientas generales)."""
 
@@ -17,7 +17,6 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
         self.bot = bot
         self.repo = bot.user_repo
 
-    # --- 💬 UTILIDADES ---
     @commands.command()
     async def ms(self, ctx):
         """🏓 Muestra la latencia del bot en milisegundos."""
@@ -32,15 +31,15 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
     async def stats(self, ctx, member: discord.Member = None):
         """📊 Muestra tus estadísticas sociales o las de otro usuario."""
         member = member or ctx.author
-        async with await self.bot.safe_typing(ctx):
-            try:
+        try:
+            async with ctx.typing():
                 stats = await self.repo.get_user_social_stats(member.id)
-                avatar = member.avatar.url if member.avatar else None
-                embed = DaletOrganisms.create_user_stats_card(member.display_name, stats, avatar)
-                await ctx.send(embed=embed)
-            except Exception as e:
-                logger.error(f"Error en stats: {e}")
-                await ctx.send("No pude calcular tus vicios sociales hoy.")
+            avatar = member.avatar.url if member.avatar else None
+            embed = DaletOrganisms.create_user_stats_card(member.display_name, stats, avatar)
+            await ctx.send(embed=embed)
+        except Exception as e:
+            logger.error(f"Error en stats: {e}")
+            await ctx.send("No pude calcular tus vicios sociales hoy.")
 
     @commands.command()
     async def userinfo(self, ctx, member: discord.Member = None):
@@ -79,40 +78,55 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def lore(self, ctx, *, busqueda: str):
         """📜 Investiga el pasado del servidor sobre un tema específico."""
-        async with await self.bot.safe_typing(ctx):
-            try:
-                # 1. Buscar en la DB
+        try:
+            async with ctx.typing():
+                # 1. Buscar en SQLite
                 resultados = await self.repo.search_lore(busqueda, ctx.channel.id, limit=25)
-                
+
                 if not resultados:
-                    await ctx.send(f"Ni idea de qué es '{busqueda}'. Ese lore te lo has inventado tú o es demasiado aburrido para que lo guarde.")
+                    await ctx.send(
+                        f"Ni idea de qué es '{busqueda}'. Ese lore te lo has inventado tú "
+                        f"o es demasiado aburrido para que lo guarde."
+                    )
                     return
 
-                # 2. Formatear contexto para la IA
-                contexto_lore = "\n".join([f"[{r['timestamp'].strftime('%d/%m/%Y')}] {r['username']}: {r['content']}" for r in resultados])
-                
-                # 3. Generar respuesta con personalidad
-                prompt_especial = f"""
-ESTÁS INVESTIGANDO EL "LORE" DEL SERVIDOR.
-Fragmentos encontrados en la base de datos sobre "{busqueda}":
-{contexto_lore}
+                # 2. Formatear — SQLite devuelve timestamps como string, no datetime
+                lineas = []
+                for r in resultados:
+                    ts = r['Timestamp'] if isinstance(r, dict) else r[2]
+                    # El timestamp puede venir como string "2025-01-15 12:30:00" o similar
+                    if hasattr(ts, 'strftime'):
+                        fecha = ts.strftime('%d/%m/%Y')
+                    else:
+                        # Es string de SQLite — cortamos los primeros 10 chars (YYYY-MM-DD)
+                        fecha = str(ts)[:10] if ts else "??/??/????"
+                    username = r['UserName'] if isinstance(r, dict) else r[0]
+                    content = r['Content'] if isinstance(r, dict) else r[1]
+                    lineas.append(f"[{fecha}] {username}: {content}")
 
-INSTRUCCIONES DE RESPUESTA:
-- Responde a la pregunta o comenta sobre el tema "{busqueda}" usando estos datos.
-- Sé sarcástica, un poco cínica y directa.
-- Si los mensajes son vergonzosos, búrlate de los usuarios implicados.
-- No parezcas una enciclopedia, parece una persona cotilla que revisó los archivos.
-"""
-                respuesta = await self.bot.nlp_service.generate_reply(prompt_especial, "", ctx.author.display_name)
-                
+                contexto_lore = "\n".join(lineas)
+
+                # 3. Generar respuesta con personalidad
+                prompt_especial = (
+                    f"ESTÁS INVESTIGANDO EL \"LORE\" DEL SERVIDOR.\n"
+                    f"Fragmentos encontrados en la base de datos sobre \"{busqueda}\":\n"
+                    f"{contexto_lore}\n\n"
+                    f"Responde sobre el tema \"{busqueda}\" usando estos datos. "
+                    f"Sé sarcástica, directa y cotilla — como alguien que revisó los archivos del servidor."
+                )
+                respuesta = await self.bot.nlp_service.generate_reply(
+                    prompt_especial, "", ctx.author.display_name
+                )
+
                 if respuesta:
                     await ctx.send(respuesta)
                 else:
                     await ctx.send("Me dio pereza terminar de leer los archivos. Pregúntame otra vez.")
 
-            except Exception as e:
-                logger.error(f"Error en comando lore: {e}")
-                await ctx.send("Se me han empolvado los archivos y no puedo leer nada ahora mismo.")
+        except Exception as e:
+            logger.error(f"Error en lore: {e}")
+            await ctx.send("Se me han empolvado los archivos y no puedo leer nada ahora mismo.")
+
 
 async def setup(bot):
     await bot.add_cog(CommandsHandler(bot))
