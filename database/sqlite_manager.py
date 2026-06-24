@@ -89,6 +89,21 @@ class SQLiteManager:
                 OccurredAt DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """,
+            # Recordatorios diarios/semanales
+            """
+            CREATE TABLE IF NOT EXISTS Reminders (
+                ReminderID INTEGER PRIMARY KEY AUTOINCREMENT,
+                ServerID INTEGER NOT NULL,
+                ChannelID INTEGER NOT NULL,
+                UserID INTEGER NOT NULL,
+                ReminderTime TEXT NOT NULL,
+                ReminderDays TEXT NOT NULL,
+                Message TEXT DEFAULT '¡Es hora del mapa del día!',
+                Timezone TEXT DEFAULT 'America/Bogota',
+                Active BOOLEAN DEFAULT 1,
+                CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
             # Historial osu! (snapshots diarios)
             """
             CREATE TABLE IF NOT EXISTS OsuHistory (
