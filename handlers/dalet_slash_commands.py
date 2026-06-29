@@ -410,7 +410,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             await interaction.followup.send("error generando el resumen.", ephemeral=True)
 
     # ------------------------------------------------------------------
-    # Admin (solo muestra informe efímero)
+    # Admin: Estado técnico del bot
     # ------------------------------------------------------------------
 
     @app_commands.command(name="status", description="Estado técnico del bot (DB, IA, caché).")
@@ -418,7 +418,6 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         """Versión slash del d.status — solo visible para ti."""
         import time
         from database.pool import DatabasePool
-        from ui.atoms import DaletAtoms
 
         pg_status = "✅ CONECTADA" if DatabasePool.is_available() else "⚠️ OFFLINE"
         buf = len(self.bot.user_repo._log_buffer)
@@ -430,14 +429,144 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         throttle = f"⚠️ {cooldown}s" if cooldown > 0 else "✅ ninguno"
 
         embed = discord.Embed(title="💾 Estado del Sistema Dalet", color=0x3498DB)
-        embed.add_field(name="Neon DB",     value=pg_status,        inline=True)
-        embed.add_field(name="SQLite",      value="✅ local",        inline=True)
-        embed.add_field(name="Logs buffer", value=f"{buf}/20",       inline=True)
-        embed.add_field(name="Caché",       value=f"{cache} items",  inline=True)
-        embed.add_field(name="Proveedor IA",value=f"🤖 {provider}", inline=True)
-        embed.add_field(name="Throttling",  value=throttle,          inline=True)
+        embed.add_field(name="Neon DB",      value=pg_status,       inline=True)
+        embed.add_field(name="SQLite",       value="✅ local",       inline=True)
+        embed.add_field(name="Logs buffer",  value=f"{buf}/20",      inline=True)
+        embed.add_field(name="Caché",        value=f"{cache} items", inline=True)
+        embed.add_field(name="Proveedor IA", value=f"🤖 {provider}", inline=True)
+        embed.add_field(name="Throttling",   value=throttle,         inline=True)
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    # ------------------------------------------------------------------
+    # Admin: Lock / Unlock
+    # ------------------------------------------------------------------
+
+    @app_commands.command(name="lock", description="[ADMIN] Bloquea los comandos de Dalet en este canal.")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def slash_lock(self, interaction: discord.Interaction):
+        try:
+            await self.bot.admin_repo.set_channel_lock(
+                interaction.channel_id, interaction.channel.name,
+                interaction.guild_id, interaction.guild.name, True
+            )
+            await interaction.response.send_message(
+                f"🔒 Canal **{interaction.channel.mention}** bloqueado. Los comandos de Dalet están desactivados.",
+                ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Error en /lock: {e}")
+            await interaction.response.send_message("❌ error al bloquear el canal.", ephemeral=True)
+
+    @app_commands.command(name="unlock", description="[ADMIN] Desbloquea los comandos de Dalet en este canal.")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def slash_unlock(self, interaction: discord.Interaction):
+        try:
+            await self.bot.admin_repo.set_channel_lock(
+                interaction.channel_id, interaction.channel.name,
+                interaction.guild_id, interaction.guild.name, False
+            )
+            await interaction.response.send_message(
+                f"🔓 Canal **{interaction.channel.mention}** desbloqueado.",
+                ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Error en /unlock: {e}")
+            await interaction.response.send_message("❌ error al desbloquear el canal.", ephemeral=True)
+
+    # ------------------------------------------------------------------
+    # Admin: Proactive / Reactive
+    # ------------------------------------------------------------------
+
+    @app_commands.command(name="proactive", description="[ADMIN] Activa o desactiva el modo proactivo en este canal.")
+    @app_commands.describe(activar="True para activar, False para desactivar")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def slash_proactive(self, interaction: discord.Interaction, activar: bool):
+        try:
+            await self.bot.user_repo.call_procedure(
+                "sp_SetChannelProactive",
+                interaction.channel_id, interaction.channel.name,
+                interaction.guild_id, interaction.guild.name, activar
+            )
+            estado = "activado ✅" if activar else "desactivado 🛑"
+            await interaction.response.send_message(
+                f"Modo proactivo **{estado}** en {interaction.channel.mention}.",
+                ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Error en /proactive: {e}")
+            await interaction.response.send_message("❌ error configurando el modo proactivo.", ephemeral=True)
+
+    @app_commands.command(name="reactive", description="[ADMIN] Activa o desactiva el modo reactivo (respuesta a menciones) en el servidor.")
+    @app_commands.describe(activar="True para activar, False para desactivar")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def slash_reactive(self, interaction: discord.Interaction, activar: bool):
+        try:
+            await self.bot.user_repo.call_procedure(
+                "sp_SetServerReactive", interaction.guild_id, interaction.guild.name, activar
+            )
+            estado = "activado ✅" if activar else "desactivado 🛑"
+            await interaction.response.send_message(
+                f"Modo reactivo **{estado}** en este servidor.",
+                ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Error en /reactive: {e}")
+            await interaction.response.send_message("❌ error configurando el modo reactivo.", ephemeral=True)
+
+    # ------------------------------------------------------------------
+    # Admin: Welcome Channel
+    # ------------------------------------------------------------------
+
+    @app_commands.command(name="setwelcome", description="[ADMIN] Establece el canal de bienvenida del servidor.")
+    @app_commands.describe(canal="Canal donde Dalet enviará los mensajes de bienvenida")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def slash_setwelcome(self, interaction: discord.Interaction, canal: discord.TextChannel):
+        try:
+            await self.bot.admin_repo.set_welcome_channel(interaction.guild_id, canal.id)
+            await interaction.response.send_message(
+                f"✅ Canal de bienvenida establecido en {canal.mention}.",
+                ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Error en /setwelcome: {e}")
+            await interaction.response.send_message("❌ error al configurar el canal de bienvenida.", ephemeral=True)
+
+    @app_commands.command(name="removewelcome", description="[ADMIN] Elimina el canal de bienvenida del servidor.")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def slash_removewelcome(self, interaction: discord.Interaction):
+        try:
+            await self.bot.admin_repo.set_welcome_channel(interaction.guild_id, None)
+            await interaction.response.send_message(
+                "🗑️ Canal de bienvenida eliminado. Ya no se enviarán bienvenidas.",
+                ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Error en /removewelcome: {e}")
+            await interaction.response.send_message("❌ error al eliminar el canal de bienvenida.", ephemeral=True)
+
+    # ------------------------------------------------------------------
+    # Admin: Nombre personalizado del bot
+    # ------------------------------------------------------------------
+
+    @app_commands.command(name="setname", description="[ADMIN] Establece un nombre personalizado para Dalet en este servidor.")
+    @app_commands.describe(nombre="Nombre personalizado (máx. 32 caracteres)")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def slash_setname(self, interaction: discord.Interaction, nombre: str):
+        if len(nombre) > 32:
+            return await interaction.response.send_message(
+                "❌ el nombre no puede superar los 32 caracteres.", ephemeral=True
+            )
+        try:
+            await self.bot.admin_repo.set_server_custom_name(interaction.guild_id, nombre)
+            await interaction.response.send_message(
+                f"✅ Ahora me llamo **{nombre}** en este servidor.",
+                ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Error en /setname: {e}")
+            await interaction.response.send_message("❌ error al cambiar el nombre.", ephemeral=True)
 
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(SlashCommands(bot))
+

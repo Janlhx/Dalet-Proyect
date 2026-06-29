@@ -5,7 +5,7 @@ class AdminRepository(BaseRepository):
         """Verifica si los comandos están bloqueados en un canal."""
         query = "SELECT fn_IsChannelLocked($1)"
         result = await self.fetch_one(query, channel_id)
-        return result[0] if result else True
+        return result[0] if result else False
 
     async def set_channel_lock(self, channel_id: int, channel_name: str, server_id: int, server_name: str, is_locked: bool):
         """Activa o desactiva el bloqueo de comandos en un canal."""

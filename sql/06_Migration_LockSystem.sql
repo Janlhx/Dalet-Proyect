@@ -4,7 +4,7 @@
 
 -- 1. Añadir columna a Channels
 ALTER TABLE Channels 
-ADD COLUMN IF NOT EXISTS CommandsLocked BOOLEAN DEFAULT TRUE;
+ADD COLUMN IF NOT EXISTS CommandsLocked BOOLEAN DEFAULT FALSE;
 
 -- 2. Función para verificar si el canal está bloqueado
 CREATE OR REPLACE FUNCTION fn_IsChannelLocked(
@@ -20,8 +20,8 @@ BEGIN
     FROM Channels
     WHERE ChannelID = p_ChannelID;
     
-    -- Si el canal no existe en la tabla, se considera BLOQUEADO por seguridad.
-    RETURN COALESCE(v_IsLocked, TRUE);
+    -- Si el canal no existe en la tabla, se considera DESBLOQUEADO por defecto.
+    RETURN COALESCE(v_IsLocked, FALSE);
 END;
 $$;
 

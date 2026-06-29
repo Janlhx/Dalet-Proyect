@@ -9,7 +9,7 @@
 CREATE TABLE IF NOT EXISTS Servers (
   ServerID BIGINT PRIMARY KEY,
   ServerName VARCHAR(255) NOT NULL,
-  IsReactive BOOLEAN DEFAULT TRUE
+  IsReactive BOOLEAN DEFAULT FALSE
 );
 
 -- -----------------------------------------------------

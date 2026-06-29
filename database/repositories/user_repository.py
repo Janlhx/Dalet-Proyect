@@ -72,7 +72,7 @@ class UserRepository(BaseRepository):
         async def _fetch(sid):
             query = "SELECT fn_IsServerReactive($1)"
             result = await self.fetch_one(query, sid)
-            return result[0] if result else True
+            return result[0] if result else False
         
         return await self._get_cached(f"reactive_{server_id}", _fetch, server_id)
 

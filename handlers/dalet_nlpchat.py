@@ -13,7 +13,7 @@ logger = logging.getLogger("dalet.handlers.nlp")
 BASE_RESPONSE_RATE = 0.25          # 25% de probabilidad de responder
 COOLDOWN_TIME = 45                 # Segundos mínimos entre respuestas proactivas
 MIN_MESSAGES_BETWEEN_REPLIES = 10  # Mensajes mínimos antes de considerar responder
-MAX_MESSAGES_WINDOW = 10           # Ventana de reset si no respondió
+MAX_MESSAGES_WINDOW = 30           # Ventana de reset si no respondió (más grande para dar espacio a la probabilidad)
 
 
 class DaletNLPChat(commands.Cog):
@@ -26,6 +26,47 @@ class DaletNLPChat(commands.Cog):
         self.is_responding = False
         self.error_cooldown = 0
         self.consecutive_429s = 0
+        
+        # --- Rate Limiter (Token Bucket) ---
+        # {channel_id: (tokens, last_update_time)}
+        self.channel_ratelimits = {}
+        # {user_id: (tokens, last_update_time)}
+        self.user_ratelimits = {}
+
+    def _check_rate_limit(self, channel_id: int, user_id: int) -> bool:
+        """
+        Aplica un rate limiter usando Token Bucket.
+        Límite por canal: máx 5 tokens, se regenera 1 token cada 12 segundos (5 por min).
+        Límite por usuario: máx 3 tokens, se regenera 1 token cada 20 segundos.
+        Retorna True si puede pasar (tiene tokens), False si es limitado.
+        """
+        now = time.time()
+        
+        # 1. Límite de Canal
+        c_tokens, c_last = self.channel_ratelimits.get(channel_id, (5.0, now))
+        # Regenerar tokens
+        elapsed = now - c_last
+        c_tokens = min(5.0, c_tokens + elapsed * (1.0 / 12.0))
+        self.channel_ratelimits[channel_id] = (c_tokens, now)
+        
+        if c_tokens < 1.0:
+            logger.warning(f"Rate limit excedido para canal {channel_id} (Tokens: {c_tokens:.2f})")
+            return False
+            
+        # 2. Límite de Usuario
+        u_tokens, u_last = self.user_ratelimits.get(user_id, (3.0, now))
+        elapsed = now - u_last
+        u_tokens = min(3.0, u_tokens + elapsed * (1.0 / 20.0))
+        self.user_ratelimits[user_id] = (u_tokens, now)
+        
+        if u_tokens < 1.0:
+            logger.warning(f"Rate limit excedido para usuario {user_id} (Tokens: {u_tokens:.2f})")
+            return False
+            
+        # Consumir un token de cada uno
+        self.channel_ratelimits[channel_id] = (c_tokens - 1.0, now)
+        self.user_ratelimits[user_id] = (u_tokens - 1.0, now)
+        return True
 
     async def _handle_429(self, exception, source="unknown"):
         """Centraliza el manejo de errores 429 con backoff exponencial."""
@@ -63,14 +104,13 @@ class DaletNLPChat(commands.Cog):
 
         self.message_counter += 1
 
-        # Si superamos la ventana sin responder, reset silencioso
-        if self.message_counter > MAX_MESSAGES_WINDOW:
-            self.message_counter = 0
-            return False
-
         now = time.time()
         if now - self.last_reply_time < COOLDOWN_TIME:
             return False
+
+        # Si ya pasamos la ventana de reset, reiniciamos el contador de mensajes
+        if self.message_counter > MAX_MESSAGES_WINDOW:
+            self.message_counter = 1
 
         if (self.message_counter >= MIN_MESSAGES_BETWEEN_REPLIES
                 and random.random() < BASE_RESPONSE_RATE):
@@ -133,6 +173,21 @@ class DaletNLPChat(commands.Cog):
             )
 
             if name_mentioned:
+                # Verificar si tiene activada la reactividad en el servidor
+                is_reactive = False
+                try:
+                    is_reactive = await self.bot.user_repo.is_server_reactive(message.guild.id)
+                except Exception:
+                    pass
+
+                if not is_reactive:
+                    # Si no es reactivo el servidor, ignoramos la mención silenciosamente
+                    return
+
+                # Aplicar Rate Limit a menciones
+                if not self._check_rate_limit(message.channel.id, message.author.id):
+                    return
+
                 trigger_type = "mention" if self.bot.user.mentioned_in(message) else "name_trigger"
                 return await self.generate_response(
                     message, is_direct_mention=True,
@@ -147,6 +202,10 @@ class DaletNLPChat(commands.Cog):
                 logger.debug(f"Error consultando proactividad (usando False): {e}")
 
             if is_proactive and self._should_respond():
+                # Aplicar Rate Limit también a proactividad por seguridad
+                if not self._check_rate_limit(message.channel.id, self.bot.user.id):
+                    return
+
                 await self.generate_response(
                     message, is_direct_mention=False,
                     trigger_type="proactive", bot_name=custom_name

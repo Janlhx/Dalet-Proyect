@@ -87,7 +87,7 @@ class NLPService:
         prompt = f"Conversación reciente:\n{context}{vision_context}\n\n{username}: \"{trigger}\""
 
         try:
-            model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
             logger.info(f"Llamando Gemini: {model_name}")
 
             max_tokens = kwargs.get("max_tokens_override", 700)
@@ -125,9 +125,9 @@ class NLPService:
     ):
         active_room_users = kwargs.get("active_room_users", "")
 
-        # Modelos desde .env, con valores por defecto
-        model_primary = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-        model_fallback = os.getenv("GROQ_MODEL_FALLBACK", "llama-3.1-8b-instant")
+        # Modelos desde .env, con valores por defecto de alta fidelidad (DeepSeek R1 Distill / Qwen Coder)
+        model_primary = os.getenv("GROQ_MODEL", "deepseek-r1-distill-llama-70b")
+        model_fallback = os.getenv("GROQ_MODEL_FALLBACK", "qwen-2.5-coder-32b")
         model_name = model_fallback if is_fallback else model_primary
 
         url = "https://api.groq.com/openai/v1/chat/completions"
