@@ -186,7 +186,7 @@ class DaletNLPChat(commands.Cog):
 
             if name_mentioned:
                 # Verificar si tiene activada la reactividad en el servidor
-                is_reactive = True
+                is_reactive = False
                 try:
                     is_reactive = await self.bot.user_repo.is_server_reactive(
                         message.guild.id
