@@ -10,10 +10,10 @@ import re
 logger = logging.getLogger("dalet.handlers.nlp")
 
 # --- Configuración de Comportamiento Proactivo ---
-BASE_RESPONSE_RATE = 0.25          # 25% de probabilidad de responder
-COOLDOWN_TIME = 45                 # Segundos mínimos entre respuestas proactivas
+BASE_RESPONSE_RATE = 0.25  # 25% de probabilidad de responder
+COOLDOWN_TIME = 45  # Segundos mínimos entre respuestas proactivas
 MIN_MESSAGES_BETWEEN_REPLIES = 10  # Mensajes mínimos antes de considerar responder
-MAX_MESSAGES_WINDOW = 30           # Ventana de reset si no respondió (más grande para dar espacio a la probabilidad)
+MAX_MESSAGES_WINDOW = 30  # Ventana de reset si no respondió (más grande para dar espacio a la probabilidad)
 
 
 class DaletNLPChat(commands.Cog):
@@ -26,7 +26,7 @@ class DaletNLPChat(commands.Cog):
         self.is_responding = False
         self.error_cooldown = 0
         self.consecutive_429s = 0
-        
+
         # --- Rate Limiter (Token Bucket) ---
         # {channel_id: (tokens, last_update_time)}
         self.channel_ratelimits = {}
@@ -41,28 +41,32 @@ class DaletNLPChat(commands.Cog):
         Retorna True si puede pasar (tiene tokens), False si es limitado.
         """
         now = time.time()
-        
+
         # 1. Límite de Canal
         c_tokens, c_last = self.channel_ratelimits.get(channel_id, (5.0, now))
         # Regenerar tokens
         elapsed = now - c_last
         c_tokens = min(5.0, c_tokens + elapsed * (1.0 / 12.0))
         self.channel_ratelimits[channel_id] = (c_tokens, now)
-        
+
         if c_tokens < 1.0:
-            logger.warning(f"Rate limit excedido para canal {channel_id} (Tokens: {c_tokens:.2f})")
+            logger.warning(
+                f"Rate limit excedido para canal {channel_id} (Tokens: {c_tokens:.2f})"
+            )
             return False
-            
+
         # 2. Límite de Usuario
         u_tokens, u_last = self.user_ratelimits.get(user_id, (3.0, now))
         elapsed = now - u_last
         u_tokens = min(3.0, u_tokens + elapsed * (1.0 / 20.0))
         self.user_ratelimits[user_id] = (u_tokens, now)
-        
+
         if u_tokens < 1.0:
-            logger.warning(f"Rate limit excedido para usuario {user_id} (Tokens: {u_tokens:.2f})")
+            logger.warning(
+                f"Rate limit excedido para usuario {user_id} (Tokens: {u_tokens:.2f})"
+            )
             return False
-            
+
         # Consumir un token de cada uno
         self.channel_ratelimits[channel_id] = (c_tokens - 1.0, now)
         self.user_ratelimits[user_id] = (u_tokens - 1.0, now)
@@ -77,7 +81,9 @@ class DaletNLPChat(commands.Cog):
 
         if is_hard_limit:
             wait_secs = min(180 * (2 ** (self.consecutive_429s - 1)), 1800)
-            logger.error(f"HARD Rate Limit (Cloudflare 1015) en {source}. Throttle: {wait_secs}s")
+            logger.error(
+                f"HARD Rate Limit (Cloudflare 1015) en {source}. Throttle: {wait_secs}s"
+            )
         else:
             wait_secs = min(30 * (2 ** (self.consecutive_429s - 1)), 600)
             logger.warning(f"Discord 429 en {source}. Throttle: {wait_secs}s")
@@ -90,7 +96,7 @@ class DaletNLPChat(commands.Cog):
                 "discord_429_hard" if is_hard_limit else "discord_429",
                 f"Source: {source}. Throttle: {wait_secs}s. Consecutivos: {self.consecutive_429s}",
                 f"dalet_nlpchat.{source}",
-                None
+                None,
             )
         except Exception:
             pass
@@ -112,8 +118,10 @@ class DaletNLPChat(commands.Cog):
         if self.message_counter > MAX_MESSAGES_WINDOW:
             self.message_counter = 1
 
-        if (self.message_counter >= MIN_MESSAGES_BETWEEN_REPLIES
-                and random.random() < BASE_RESPONSE_RATE):
+        if (
+            self.message_counter >= MIN_MESSAGES_BETWEEN_REPLIES
+            and random.random() < BASE_RESPONSE_RATE
+        ):
             return True
 
         return False
@@ -135,7 +143,9 @@ class DaletNLPChat(commands.Cog):
             return
 
         # Ignorar comandos del bot y prefijos comunes de otros bots
-        if message.content.startswith(("d.", "D.", "!", "/", ".", "?", "$", ">", "-", "+")):
+        if message.content.startswith(
+            ("d.", "D.", "!", "/", ".", "?", "$", ">", "-", "+")
+        ):
             return
 
         # Throttling por rate limits previos
@@ -161,7 +171,9 @@ class DaletNLPChat(commands.Cog):
             # Nombre personalizado del servidor (con fallback seguro)
             custom_name = "Dalet"
             try:
-                custom_name = await self.bot.admin_repo.get_server_custom_name(message.guild.id)
+                custom_name = await self.bot.admin_repo.get_server_custom_name(
+                    message.guild.id
+                )
             except Exception:
                 pass
 
@@ -174,9 +186,11 @@ class DaletNLPChat(commands.Cog):
 
             if name_mentioned:
                 # Verificar si tiene activada la reactividad en el servidor
-                is_reactive = False
+                is_reactive = True
                 try:
-                    is_reactive = await self.bot.user_repo.is_server_reactive(message.guild.id)
+                    is_reactive = await self.bot.user_repo.is_server_reactive(
+                        message.guild.id
+                    )
                 except Exception:
                     pass
 
@@ -188,16 +202,22 @@ class DaletNLPChat(commands.Cog):
                 if not self._check_rate_limit(message.channel.id, message.author.id):
                     return
 
-                trigger_type = "mention" if self.bot.user.mentioned_in(message) else "name_trigger"
+                trigger_type = (
+                    "mention" if self.bot.user.mentioned_in(message) else "name_trigger"
+                )
                 return await self.generate_response(
-                    message, is_direct_mention=True,
-                    trigger_type=trigger_type, bot_name=custom_name
+                    message,
+                    is_direct_mention=True,
+                    trigger_type=trigger_type,
+                    bot_name=custom_name,
                 )
 
             # ¿El canal tiene modo proactivo activo?
             is_proactive = False
             try:
-                is_proactive = await self.bot.user_repo.is_channel_proactive(message.channel.id)
+                is_proactive = await self.bot.user_repo.is_channel_proactive(
+                    message.channel.id
+                )
             except Exception as e:
                 logger.debug(f"Error consultando proactividad (usando False): {e}")
 
@@ -207,8 +227,10 @@ class DaletNLPChat(commands.Cog):
                     return
 
                 await self.generate_response(
-                    message, is_direct_mention=False,
-                    trigger_type="proactive", bot_name=custom_name
+                    message,
+                    is_direct_mention=False,
+                    trigger_type="proactive",
+                    bot_name=custom_name,
                 )
 
         except Exception as e:
@@ -216,15 +238,20 @@ class DaletNLPChat(commands.Cog):
             self.is_responding = False
 
     async def generate_response(
-        self, message: discord.Message,
-        is_direct_mention: bool, trigger_type: str = "mention", bot_name: str = "Dalet"
+        self,
+        message: discord.Message,
+        is_direct_mention: bool,
+        trigger_type: str = "mention",
+        bot_name: str = "Dalet",
     ):
         if self.is_responding:
             return
 
         if time.time() < self.error_cooldown:
             if is_direct_mention:
-                logger.warning("Throttling activo por 429 previos. Ignorando respuesta.")
+                logger.warning(
+                    "Throttling activo por 429 previos. Ignorando respuesta."
+                )
             return
 
         self.is_responding = True
@@ -235,8 +262,10 @@ class DaletNLPChat(commands.Cog):
                 for att in message.attachments:
                     if att.content_type and att.content_type.startswith("image/"):
                         image_urls.append(att.url)
-                    elif any(att.filename.lower().endswith(ext)
-                             for ext in (".png", ".jpg", ".jpeg", ".gif", ".webp")):
+                    elif any(
+                        att.filename.lower().endswith(ext)
+                        for ext in (".png", ".jpg", ".jpeg", ".gif", ".webp")
+                    ):
                         image_urls.append(att.url)
 
             if message.embeds:
@@ -249,17 +278,23 @@ class DaletNLPChat(commands.Cog):
                 ref = message.reference.resolved
                 if isinstance(ref, discord.Message):
                     for att in ref.attachments:
-                        if any(att.filename.lower().endswith(ext)
-                               for ext in (".png", ".jpg", ".jpeg", ".gif", ".webp")):
+                        if any(
+                            att.filename.lower().endswith(ext)
+                            for ext in (".png", ".jpg", ".jpeg", ".gif", ".webp")
+                        ):
                             image_urls.append(att.url)
 
             image_urls = list(dict.fromkeys(image_urls))[:1]  # Solo 1 imagen
 
             # Limpiar menciones y nombre del bot del contenido
             clean_content = re.sub(r"<@!?\d+>", "", message.content)
-            clean_content = re.compile(re.escape("dalet"), re.IGNORECASE).sub("", clean_content)
+            clean_content = re.compile(re.escape("dalet"), re.IGNORECASE).sub(
+                "", clean_content
+            )
             if custom_name := bot_name if bot_name.lower() != "dalet" else None:
-                clean_content = re.compile(re.escape(custom_name), re.IGNORECASE).sub("", clean_content)
+                clean_content = re.compile(re.escape(custom_name), re.IGNORECASE).sub(
+                    "", clean_content
+                )
             clean_content = clean_content.strip() or message.content
 
             # Obtener contexto de conversación del canal
@@ -268,20 +303,23 @@ class DaletNLPChat(commands.Cog):
             )
 
             # Lista ligera de miembros activos en el canal
-            members_list = [m.display_name for m in message.channel.members if not m.bot][:8]
+            members_list = [
+                m.display_name for m in message.channel.members if not m.bot
+            ][:8]
             active_users = ", ".join(members_list)
 
             # Generar respuesta con typing activo
             try:
                 async with message.channel.typing():
                     reply = await self.bot.nlp_service.generate_reply(
-                        clean_content, context,
+                        clean_content,
+                        context,
                         message.author.display_name,
                         bot_name=bot_name,
                         image_urls=image_urls,
                         user_id=message.author.id,
                         channel_id=message.channel.id,
-                        active_room_users=active_users
+                        active_room_users=active_users,
                     )
             except discord.HTTPException as e:
                 if e.status == 429:
@@ -289,13 +327,14 @@ class DaletNLPChat(commands.Cog):
                     return
                 # Si falla el typing (permisos), intentar sin él
                 reply = await self.bot.nlp_service.generate_reply(
-                    clean_content, context,
+                    clean_content,
+                    context,
                     message.author.display_name,
                     bot_name=bot_name,
                     image_urls=image_urls,
                     user_id=message.author.id,
                     channel_id=message.channel.id,
-                    active_room_users=active_users
+                    active_room_users=active_users,
                 )
 
             if reply:
@@ -312,15 +351,18 @@ class DaletNLPChat(commands.Cog):
                         str(message.guild.name),
                         message.channel.id,
                         str(message.channel.name),
-                        reply.strip()
+                        reply.strip(),
                     )
 
                     # Log asíncrono no-bloqueante
-                    asyncio.create_task(self._log_interaction(
-                        message, trigger_type,
-                        getattr(self.bot.nlp_service, "active_provider", "gemini"),
-                        reply
-                    ))
+                    asyncio.create_task(
+                        self._log_interaction(
+                            message,
+                            trigger_type,
+                            getattr(self.bot.nlp_service, "active_provider", "gemini"),
+                            reply,
+                        )
+                    )
 
                 except discord.HTTPException as e:
                     if e.status == 429:
@@ -338,12 +380,13 @@ class DaletNLPChat(commands.Cog):
         finally:
             self.is_responding = False
 
-    async def _log_interaction(self, message: discord.Message, trigger_type: str, provider: str, reply: str):
+    async def _log_interaction(
+        self, message: discord.Message, trigger_type: str, provider: str, reply: str
+    ):
         """Registra la interacción de IA en BD de forma no-bloqueante."""
         try:
             await self.bot.analytics_repo.log_ai_interaction(
-                message.guild.id, message.channel.id,
-                trigger_type, provider, 0, True
+                message.guild.id, message.channel.id, trigger_type, provider, 0, True
             )
         except Exception:
             pass
