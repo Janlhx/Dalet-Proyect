@@ -9,7 +9,7 @@ class DaletOrganisms:
     def create_simple_embed(title, description, color=DaletAtoms.COLOR_PRIMARY, author_name=None):
         """El organismo más básico: Un embed estándar de Dalet."""
         embed = discord.Embed(
-            title=f"{DaletAtoms.EMOJI_DALET} {title}",
+            title=title,
             description=description,
             color=color
         )
@@ -31,9 +31,9 @@ class DaletOrganisms:
         else: color = DaletAtoms.COLOR_PRIMARY
         
         embed = discord.Embed(
-            title=f"🎮 {username}",
+            title=username,
             url=f"https://osu.ppy.sh/users/{user_id}/{mode}",
-            description=f"**{country.get('name', '??')}** {country.get('code', '??')} | Modo: **{mode.upper()}**",
+            description=f"{country.get('name', '??')} ({country.get('code', '??')}) • Modo: {mode.upper()}",
             color=color
         )
         
@@ -48,8 +48,8 @@ class DaletOrganisms:
         country_rank = stats.get('country_rank', 0)
         
         embed.add_field(
-            name="💎 Rendimiento & Ranking",
-            value=f"**{pp:,.2f}pp**\n🌍 Global: **#{global_rank:,}** | 🏳️ País: **#{country_rank:,}**",
+            name="Rendimiento & Ranking",
+            value=f"**{pp:,.2f}pp**\n• Global: `#{global_rank:,}`\n• País: `#{country_rank:,}`",
             inline=False
         )
         
@@ -63,8 +63,8 @@ class DaletOrganisms:
         bar = f"[{'█' * filled}{'░' * (12 - filled)}]"
         
         embed.add_field(
-            name="🎯 Precisión & Progreso",
-            value=f"✨ Precisión: **{accuracy:.2f}%**\n📊 Nivel **{level}** ({progress}%)\n`{bar}`",
+            name="Precisión & Progreso",
+            value=f"• Precisión: **{accuracy:.2f}%**\n• Nivel **{level}** ({progress}%)\n`{bar}`",
             inline=False
         )
         
@@ -73,8 +73,8 @@ class DaletOrganisms:
         hours = (stats.get('play_time', 0) or 0) // 3600
         
         embed.add_field(
-            name="⏱️ Actividad",
-            value=f"🎵 **{play_count:,}** plays\n⏰ **{hours:,}h** jugadas",
+            name="Actividad",
+            value=f"• plays: **{play_count:,}**\n• tiempo: **{hours:,}h**",
             inline=True
         )
         
@@ -85,8 +85,8 @@ class DaletOrganisms:
         a = grades.get('a', 0)
 
         embed.add_field(
-            name="🏅 Récords",
-            value=f"🌟 **SS+**: {ssh:,} | **SS**: {ss:,}\n⭐ **S+**: {sh:,} | **S**: {s:,}\n✨ **A**: {a:,}",
+            name="Récords",
+            value=f"• **SS+**: {ssh:,} | **SS**: {ss:,}\n• **S+**: {sh:,} | **S**: {s:,}\n• **A**: {a:,}",
             inline=True
         )
             
@@ -96,13 +96,13 @@ class DaletOrganisms:
     def create_memory_list_embed(user_name, memories):
         """Organismo para visualizar los recuerdos guardados."""
         embed = discord.Embed(
-            title=f"{DaletAtoms.EMOJI_MEMORY} Archivos sobre {user_name}",
-            description="He revisado mis bancos de datos y esto es lo que sé:",
+            title=f"Archivos sobre {user_name}",
+            description="Información registrada en los bancos de datos:",
             color=DaletAtoms.COLOR_INFO
         )
         
         if not memories:
-            embed.description = "Mis archivos están vacíos sobre este usuario... por ahora. Tendré que fijarme más en lo que dice."
+            embed.description = "No hay recuerdos registrados sobre este usuario todavía."
         else:
             memory_text = ""
             for i, m in enumerate(memories):
@@ -110,9 +110,9 @@ class DaletOrganisms:
                 if i >= 15:
                     memory_text += "... y algunas cosas más que me reservo."
                     break
-                memory_text += f"{DaletAtoms.EMOJI_DALET} {m['content']}\n"
+                memory_text += f"• {m['content']}\n"
             
-            embed.add_field(name="Recuerdos Registrados", value=memory_text)
+            embed.add_field(name="Recuerdos", value=memory_text)
             
         return DaletMolecules.add_standard_footer(embed)
 
@@ -120,9 +120,9 @@ class DaletOrganisms:
     def create_user_stats_card(user_name, stats, avatar_url=None):
         """Organismo para mostrar estadísticas sociales del usuario."""
         embed = discord.Embed(
-            title=f"📊 Perfil Social de {user_name}",
+            title=f"Actividad Social · {user_name}",
             color=DaletAtoms.COLOR_PRIMARY,
-            description="Aquí tienes un resumen de tu actividad en mis registros."
+            description="Resumen de actividad registrada en mis bases de datos."
         )
         if avatar_url:
             embed.set_thumbnail(url=avatar_url)

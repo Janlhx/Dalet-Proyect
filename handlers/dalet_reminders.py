@@ -165,10 +165,9 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
 
             if channel:
                 user_ping = f"<@{r['UserID']}>"
-                message_content = f"🔔 {user_ping} {r['Message']}"
                 
                 embed = discord.Embed(
-                    title="⏰ Recordatorio Programado",
+                    title="Recordatorio Programado",
                     description=r["Message"],
                     color=DaletAtoms.COLOR_PRIMARY
                 )
@@ -248,7 +247,7 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
         if reminder_id:
             readable_days = format_days_readable(parsed_days)
             embed = discord.Embed(
-                title="✅ Recordatorio Creado",
+                title="Recordatorio Creado",
                 description=f"Se ha programado el recordatorio correctamente.",
                 color=DaletAtoms.COLOR_SUCCESS
             )
@@ -262,7 +261,7 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
             await interaction.response.send_message(embed=embed)
         else:
             await interaction.response.send_message(
-                "❌ Ocurrió un error al guardar el recordatorio en la base de datos.",
+                "Ocurrió un error al guardar el recordatorio en la base de datos.",
                 ephemeral=True
             )
 
@@ -275,12 +274,12 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
                 return await interaction.followup.send("No hay recordatorios configurados en este servidor.")
 
             embed = discord.Embed(
-                title=f"⏰ Recordatorios Programados — {interaction.guild.name}",
+                title=f"Recordatorios Programados — {interaction.guild.name}",
                 color=DaletAtoms.COLOR_PRIMARY
             )
 
             for r in reminders:
-                status = "🟢 Activo" if r["Active"] else "🔴 Inactivo"
+                status = "Activo" if r["Active"] else "Inactivo"
                 readable_days = format_days_readable(r["ReminderDays"])
                 channel_mention = f"<#{r['ChannelID']}>"
                 user_mention = f"<@{r['UserID']}>"
@@ -293,7 +292,7 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
                     f"**Estado**: {status}"
                 )
                 embed.add_field(
-                    name=f"📌 Recordatorio #{r['ReminderID']}",
+                    name=f"Recordatorio #{r['ReminderID']}",
                     value=val,
                     inline=False
                 )
@@ -301,7 +300,7 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /reminder list: {e}")
-            await interaction.followup.send("⚠️ Ocurrió un error al obtener la lista de recordatorios.")
+            await interaction.followup.send("Ocurrió un error al obtener la lista de recordatorios.")
 
     @reminder_group.command(name="remove", description="Elimina un recordatorio por su ID.")
     @app_commands.describe(id="ID del recordatorio a eliminar (ej: 1)")
@@ -310,15 +309,15 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
         reminder = await self.repo.get_reminder(id)
         if not reminder or reminder["ServerID"] != interaction.guild_id:
             return await interaction.response.send_message(
-                f"❌ No se encontró ningún recordatorio con el ID `#{id}` en este servidor.",
+                f"No se encontró ningún recordatorio con el ID `#{id}` en este servidor.",
                 ephemeral=True
             )
 
         success = await self.repo.delete_reminder(id)
         if success:
-            await interaction.response.send_message(f"🗑️ Recordatorio `#{id}` eliminado con éxito.")
+            await interaction.response.send_message(f"Recordatorio `#{id}` eliminado con éxito.")
         else:
-            await interaction.response.send_message("❌ Error al eliminar el recordatorio de la base de datos.", ephemeral=True)
+            await interaction.response.send_message("Error al eliminar el recordatorio de la base de datos.", ephemeral=True)
 
     @reminder_group.command(name="toggle", description="Activa o desactiva un recordatorio por su ID.")
     @app_commands.describe(id="ID del recordatorio a activar/desactivar (ej: 1)")
@@ -326,16 +325,16 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
         reminder = await self.repo.get_reminder(id)
         if not reminder or reminder["ServerID"] != interaction.guild_id:
             return await interaction.response.send_message(
-                f"❌ No se encontró ningún recordatorio con el ID `#{id}` en este servidor.",
+                f"No se encontró ningún recordatorio con el ID `#{id}` en este servidor.",
                 ephemeral=True
             )
 
         new_state = await self.repo.toggle_reminder(id)
         if new_state is not None:
-            status_str = "activado (🟢)" if new_state else "desactivado (🔴)"
-            await interaction.response.send_message(f"⚙️ El recordatorio `#{id}` ha sido {status_str}.")
+            status_str = "activado" if new_state else "desactivado"
+            await interaction.response.send_message(f"El recordatorio `#{id}` ha sido {status_str}.")
         else:
-            await interaction.response.send_message("❌ Error al cambiar el estado del recordatorio.", ephemeral=True)
+            await interaction.response.send_message("Error al cambiar el estado del recordatorio.", ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

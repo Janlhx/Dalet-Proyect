@@ -4,19 +4,19 @@ class DaletAtoms:
     """Los ladrillos básicos de la identidad visual de Dalet."""
     
     # --- Colores ---
-    COLOR_PRIMARY = discord.Color.from_rgb(255, 105, 180)  # Hot Pink (Dalet Pink)
-    COLOR_DARK = discord.Color.from_rgb(31, 31, 31)       # Charcoal para embeds sobrios
-    COLOR_SUCCESS = discord.Color.green()
-    COLOR_ERROR = discord.Color.red()
-    COLOR_INFO = discord.Color.blue()
+    COLOR_PRIMARY = discord.Color.from_rgb(255, 105, 180)  # Dalet Pink
+    COLOR_DARK = discord.Color.from_rgb(28, 28, 30)        # Charcoal premium (iOS dark mode)
+    COLOR_SUCCESS = discord.Color.from_rgb(46, 204, 113)   # Emerald Green
+    COLOR_ERROR = discord.Color.from_rgb(231, 76, 60)      # Crimson Coral
+    COLOR_INFO = discord.Color.from_rgb(52, 152, 219)      # Soft Blue
     
     # --- Emojis Significativos ---
-    EMOJI_DALET = "✨"
-    EMOJI_OSU = "🍥"
+    EMOJI_DALET = "✦"
+    EMOJI_OSU = "▫️"
     EMOJI_MEMORY = "🧠"
-    EMOJI_ERROR = "❌"
-    EMOJI_SUCCESS = "✅"
-    EMOJI_INFO = "ℹ️"
+    EMOJI_ERROR = "⚙️"
+    EMOJI_SUCCESS = "✦"
+    EMOJI_INFO = "▫️"
     EMOJI_SEARCH = "🔍"
     
     # --- Estilos de Texto ---

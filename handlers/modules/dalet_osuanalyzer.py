@@ -213,7 +213,7 @@ class OsuAnalyzer:
             for m in results:
                 bm = m.get("beatmaps", [{}])[0]
                 maps.append({"title": m.get("title", "Desconocido"), "artist": m.get("artist", "Desconocido"),
-                             "stars": round(bm.get("difficulty_rating", 0), 2), "url": f"https://osu_ppy_sh/beatmapsets/{m.get('id')}"})
+                             "stars": round(bm.get("difficulty_rating", 0), 2), "url": f"https://osu.ppy.sh/beatmapsets/{m.get('id')}"})
             
             return random.sample(maps, k=min(5, len(maps)))
         except Exception as e:

@@ -69,7 +69,7 @@ class HelpPaginator(View):
         else:
             await interaction.edit_original_response(embed=self.pages[self.index], view=self)
 
-    @discord.ui.button(label="⬅️ Anterior", style=discord.ButtonStyle.grey)
+    @discord.ui.button(label="Anterior", style=discord.ButtonStyle.grey)
     async def previous_button(self, interaction: discord.Interaction, button: Button):
         if self.index > 0:
             self.index -= 1
@@ -77,7 +77,7 @@ class HelpPaginator(View):
         else:
             await interaction.response.defer() # No hacer nada si ya está en la primera
 
-    @discord.ui.button(label="🏠 Inicio", style=discord.ButtonStyle.blurple)
+    @discord.ui.button(label="Inicio", style=discord.ButtonStyle.blurple)
     async def home_button(self, interaction: discord.Interaction, button: Button):
         self.index = 0
         await self.update_page(interaction)
@@ -88,7 +88,7 @@ class HelpPaginator(View):
         modal = PageInputModal(self)
         await interaction.response.send_modal(modal)
 
-    @discord.ui.button(label="Siguiente ➡️", style=discord.ButtonStyle.grey)
+    @discord.ui.button(label="Siguiente", style=discord.ButtonStyle.grey)
     async def next_button(self, interaction: discord.Interaction, button: Button):
         if self.index < len(self.pages) - 1:
             self.index += 1
@@ -122,14 +122,14 @@ class CustomHelpCommand(commands.HelpCommand):
             categorias.append(category_name)
             
             embed = discord.Embed(
-                title=f"📘 Categoría: {category_name}",
+                title=f"Categoría: {category_name}",
                 color=DaletAtoms.COLOR_PRIMARY
             )
             
             for cmd in visible_cmds:
                 desc = cmd.help or cmd.brief or 'Sin descripción.'
                 embed.add_field(
-                    name=f"🔹 {prefix}{cmd.name}",
+                    name=f"{prefix}{cmd.name}",
                     value=f"> {desc}",
                     inline=False
                 )
@@ -140,13 +140,13 @@ class CustomHelpCommand(commands.HelpCommand):
         categorias_texto = "\n".join([f"**{i+1}.** {cat}" for i, cat in enumerate(categorias)])
         
         description = (
-            f"Bienvenido al sistema de ayuda de {DaletAtoms.bold('Dalet')}.\n\n"
-            f"📂 **Categorías:**\n{categorias_texto}\n\n"
-            f"💡 Navega con {DaletAtoms.code('Anterior')} y {DaletAtoms.code('Siguiente')}.\n"
-            f"🏠 {DaletAtoms.italic('Vuelve a esta portada en cualquier momento.')}\n"
+            f"Bienvenido al sistema de comandos de {DaletAtoms.bold('Dalet')}.\n\n"
+            f"Categorías:\n{categorias_texto}\n\n"
+            f"Navegación: Usa {DaletAtoms.code('Anterior')} y {DaletAtoms.code('Siguiente')} para navegar.\n"
+            f"{DaletAtoms.italic('Vuelve a esta portada en cualquier momento con Inicio.')}\n"
         )
         
-        portada = DaletOrganisms.create_simple_embed("Centro de Control de Dalet", description)
+        portada = DaletOrganisms.create_simple_embed("Centro de Control · Dalet", description)
         pages.insert(0, portada)
 
         # 3. Enviar

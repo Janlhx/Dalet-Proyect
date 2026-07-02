@@ -118,11 +118,11 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
                 "SELECT fn_IsChannelProactive($1)", ctx.channel.id
             )
             channel_is_proactive = bool(is_proactive and is_proactive[0])
-            channel_status = "✅ SÍ" if channel_is_proactive else "❌ NO"
+            channel_status = "Activa" if channel_is_proactive else "Inactiva"
 
             # Verificar si el canal está bloqueado (Lock)
             is_locked = await self.bot.admin_repo.is_channel_locked(ctx.channel.id)
-            lock_status = "🔒 BLOQUEADO" if is_locked else "🔓 LIBRE"
+            lock_status = "Bloqueado" if is_locked else "Libre"
 
             # Rate Limit Info — calcular tokens actuales del canal
             rl_entry = nlp_cog.channel_ratelimits.get(ctx.channel.id)
@@ -133,11 +133,11 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
                 c_tokens = 5.0  # Canal fresco, bucket lleno
 
             embed = discord.Embed(
-                title=f"{DaletAtoms.EMOJI_DALET} Diagnóstico del Sistema Proactivo",
+                title=f"Diagnóstico del Sistema Proactivo",
                 color=DaletAtoms.COLOR_PRIMARY
             )
             embed.add_field(
-                name="📊 Ajustes Técnicos",
+                name="Ajustes Técnicos",
                 value=(
                     f"• Probabilidad: `{int(BASE_RESPONSE_RATE * 100)}%` por mensaje\n"
                     f"• Cooldown mínimo: `{COOLDOWN_TIME}s` entre respuestas\n"
@@ -147,7 +147,7 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
                 inline=False
             )
             embed.add_field(
-                name="📈 Estado en Tiempo Real",
+                name="Estado en Tiempo Real",
                 value=(
                     f"• Mensajes acumulados: **{nlp_cog.message_counter}** / {MIN_MESSAGES_BETWEEN_REPLIES}\n"
                     f"• Última respuesta: {time_text}\n"
@@ -157,7 +157,7 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
                 inline=False
             )
             embed.add_field(
-                name="🎯 Estado del Canal",
+                name="Estado del Canal",
                 value=(
                     f"• Proactividad: {channel_status}\n"
                     f"• Candado (Lock): {lock_status}"
@@ -176,7 +176,7 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
 
             if can_respond:
                 embed.add_field(
-                    name="🟢 Disponibilidad",
+                    name="Disponibilidad",
                     value=f"Dalet **puede hablar** en el próximo mensaje (probabilidad `{int(BASE_RESPONSE_RATE * 100)}%`).",
                     inline=False
                 )
@@ -195,8 +195,8 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
                     reasons.append("rate limit de canal activo (bucket vacío)")
 
                 embed.add_field(
-                    name="⏳ Bloqueos Activos",
-                    value="\n".join(f"• {r}" for r in reasons) if reasons else "desconocido",
+                    name="Bloqueos Activos",
+                    value="\n".join(f"• {r}" for r in reasons) if reasons else "Ninguno",
                     inline=False
                 )
 

@@ -218,63 +218,105 @@ class OsuHandler(commands.Cog, name="osu!"):
             if not recent:
                 return await ctx.send(f"**{username}** no tiene jugadas recientes en {mode}.")
 
-            score = recent[0]
-            bmap  = score.get("beatmap", {})
-            bset  = score.get("beatmapset", {})
-            stats_score = score.get("statistics", {})
+            score_data = recent[0]
+            bmap  = score_data.get("beatmap", {})
+            bset  = score_data.get("beatmapset", {})
+            stats_score = score_data.get("statistics", {})
 
-            grade = score.get("rank", "?")
+            grade = score_data.get("rank", "?")
             grade_emoji = GRADE_EMOJIS.get(grade, "❓")
-            mods  = _mods_str(score.get("mods", []))
-            acc   = _acc_str(score.get("accuracy", 0))
-            pp    = score.get("pp")
-            pp_str = f"**{pp:.2f}pp**" if pp else "*(sin pp — fail o no ranked)*"
-            combo = score.get("max_combo", 0)
+            mods  = _mods_str(score_data.get("mods", []))
+            acc   = _acc_str(score_data.get("accuracy", 0))
+            pp    = score_data.get("pp")
+            pp_str = f"**{pp:.2f}pp**" if pp else "*(sin pp)*"
+            
+            combo = score_data.get("max_combo", 0)
             max_combo = bmap.get("max_combo") or "?"
+            total_score = score_data.get("score", 0)
 
             title_name  = bset.get("title", "??")
             artist_name = bset.get("artist", "??")
             version     = bmap.get("version", "??")
-            stars        = bmap.get("difficulty_rating", 0)
+            stars       = bmap.get("difficulty_rating", 0)
             bmap_url    = f"https://osu.ppy.sh/b/{bmap.get('id', 0)}"
+            mapper      = bset.get("creator", "Desconocido")
+            map_status  = bset.get("status", "unknown").upper()
 
-            # Hits
+            # Atributos técnicos del mapa
+            bpm = bmap.get("bpm", 0)
+            cs = bmap.get("cs", 0.0)
+            ar = bmap.get("ar", 0.0)
+            od = bmap.get("accuracy", 0.0) # OD en osu v2 se llama accuracy en beatmaps
+            hp = bmap.get("drain", 0.0)    # HP en osu v2 se llama drain
+            
+            # Hits detallados
             n300 = stats_score.get("count_300", 0)
             n100 = stats_score.get("count_100", 0)
             n50  = stats_score.get("count_50", 0)
             nmiss = stats_score.get("count_miss", 0)
+            ngeki = stats_score.get("count_geki", 0) # MAX en mania / 300g
+            nkatu = stats_score.get("count_katu", 0) # 200 en mania/taiko
 
             embed = discord.Embed(
-                title=f"{grade_emoji} {title_name} [{version}]",
+                title=f"{title_name} [{version}]",
                 url=bmap_url,
                 description=f"**{artist_name}** • {stars:.2f}★ • {mods}",
                 color=_rank_color(user.get("statistics", {}).get("global_rank"))
             )
-            embed.set_thumbnail(url=user.get("avatar_url", ""))
-            if bset.get("covers", {}).get("cover"):
-                embed.set_image(url=bset["covers"]["cover"])
+            embed.set_author(name=f"Jugada Reciente · {user.get('username')} ({mode.upper()})", icon_url=user.get("avatar_url", ""))
+            
+            # Usar la imagen de portada del mapa como thumbnail lateral
+            cover_url = bset.get("covers", {}).get("list") or bset.get("covers", {}).get("cover")
+            if cover_url:
+                embed.set_thumbnail(url=cover_url)
+            else:
+                embed.set_thumbnail(url=user.get("avatar_url", ""))
+
+            # Formatear Hits según el modo para más precisión técnica
+            if mode == "mania":
+                hits_str = f"MAX: `{ngeki}` • 300: `{n300}` • 200: `{nkatu}`\n100: `{n100}` • 50: `{n50}` • Miss: `{nmiss}`"
+            elif mode == "taiko":
+                hits_str = f"GREAT: `{n300}` • GOOD: `{n100}` • Miss: `{nmiss}`"
+            else: # Standard / Catch
+                hits_str = f"300: `{n300}` • 100: `{n100}` • 50: `{n50}` • Miss: `{nmiss}`"
 
             embed.add_field(
                 name="Resultado",
                 value=(
-                    f"{pp_str}\n"
-                    f"**{acc}** — {grade_emoji} {grade}\n"
-                    f"Combo: **{combo}x** / {max_combo}x"
+                    f"Rango: **{grade_emoji} {grade}**\n"
+                    f"Precisión: **{acc}**\n"
+                    f"PP: {pp_str}"
+                ),
+                inline=True
+            )
+            embed.add_field(
+                name="Puntuación & Combo",
+                value=(
+                    f"Puntaje: `{total_score:,}`\n"
+                    f"Combo: **{combo}x** / {max_combo}x\n"
+                    f"Estado: `{map_status}`"
                 ),
                 inline=True
             )
             embed.add_field(
                 name="Hits",
-                value=f"✅ {n300} • 🟡 {n100} • 🟠 {n50} • 💀 {nmiss}",
-                inline=True
+                value=hits_str,
+                inline=False
+            )
+            embed.add_field(
+                name="Información del Mapa",
+                value=f"• BPM: `{bpm}` • CS: `{cs:.1f}` • AR: `{ar:.1f}` • OD: `{od:.1f}` • HP: `{hp:.1f}`",
+                inline=False
             )
 
-            # Tiempo relativo
-            played_at = score.get("created_at", "")
+            # Tiempo relativo y Mapper en footer
+            played_at = score_data.get("created_at", "")
             if played_at:
                 played_dt = datetime.fromisoformat(played_at.replace("Z", "+00:00"))
-                embed.set_footer(text=f"Jugada por {username}")
+                embed.set_footer(text=f"Mapeado por {mapper} · Jugado por {username}")
                 embed.timestamp = played_dt
+            else:
+                embed.set_footer(text=f"Mapeado por {mapper}")
 
             await ctx.send(embed=embed)
 
@@ -692,22 +734,41 @@ class OsuHandler(commands.Cog, name="osu!"):
             )
 
             if response:
-                # Dividir respuesta si es muy larga para Discord (2000 chars max)
-                if len(response) <= 3800:
-                    embed.description = response[:3800]
-                else:
-                    embed.description = response[:1900] + "\n*(continuación en el siguiente mensaje)*"
-                    # Segunda parte
-                    embed2 = discord.Embed(
-                        description=response[1900:3800],
+                # Dividir el reporte por secciones de Markdown (usualmente empiezan con '###')
+                # O por bloques de 1900 caracteres como fallback
+                sections = []
+                current_section = ""
+                
+                for line in response.split("\n"):
+                    if line.startswith("###") and current_section:
+                        sections.append(current_section.strip())
+                        current_section = line + "\n"
+                    else:
+                        current_section += line + "\n"
+                if current_section:
+                    sections.append(current_section.strip())
+
+                # Si no se dividió bien en secciones, dividimos por caracteres
+                if len(sections) <= 1 and len(response) > 1900:
+                    sections = [response[i:i+1900] for i in range(0, len(response), 1900)]
+
+                # Primer bloque va en el embed original
+                embed.description = sections[0] if sections else "Error al procesar el análisis."
+                embed.set_footer(text=f"Análisis generado por Dalet · Página 1/{len(sections)}")
+                await msg.edit(embed=embed)
+
+                # Los bloques siguientes se envían como nuevos embeds en el orden correcto
+                for idx, sec in enumerate(sections[1:], start=2):
+                    next_embed = discord.Embed(
+                        description=sec,
                         color=embed.color
                     )
-                    await ctx.send(embed=embed2)
+                    next_embed.set_footer(text=f"Análisis generado por Dalet · Página {idx}/{len(sections)}")
+                    await ctx.send(embed=next_embed)
             else:
                 embed.description = "no pude generar el análisis esta vez — inténtalo de nuevo."
+                await msg.edit(embed=embed)
 
-            embed.set_footer(text=f"análisis generado por Dalet para {username}")
-            await msg.edit(embed=embed)
             await self._maybe_snapshot(ctx.author.id, username, user)
 
         except Exception as e:

@@ -43,12 +43,12 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
 
     @commands.command()
     async def userinfo(self, ctx, member: discord.Member = None):
-        """👤 Muestra información detallada de un usuario del servidor."""
+        """Muestra información detallada de un usuario del servidor."""
         member = member or ctx.author
         desc = (
-            f"{DaletAtoms.EMOJI_INFO} {DaletAtoms.bold('ID')}: {DaletAtoms.code(member.id)}\n"
-            f"📅 {DaletAtoms.bold('Cuenta creada')}: {format_dt(member.created_at, 'D')}\n"
-            f"🤝 {DaletAtoms.bold('Se unió al grupo')}: {format_dt(member.joined_at, 'D')}\n"
+            f"• {DaletAtoms.bold('ID')}: {DaletAtoms.code(member.id)}\n"
+            f"• {DaletAtoms.bold('Cuenta creada')}: {format_dt(member.created_at, 'D')}\n"
+            f"• {DaletAtoms.bold('Se unió al grupo')}: {format_dt(member.joined_at, 'D')}\n"
         )
         embed = DaletOrganisms.create_simple_embed(f"Expediente: {member.display_name}", desc)
         if member.avatar:
@@ -57,12 +57,12 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
 
     @commands.command()
     async def serverinfo(self, ctx):
-        """🌐 Muestra información detallada del servidor actual."""
+        """Muestra información detallada del servidor actual."""
         g = ctx.guild
         desc = (
-            f"👥 {DaletAtoms.bold('Habitantes')}: {DaletAtoms.code(g.member_count)}\n"
-            f"👑 {DaletAtoms.bold('Dueño del lugar')}: {g.owner.mention}\n"
-            f"✨ {DaletAtoms.bold('Fundación')}: {format_dt(g.created_at, 'D')}\n"
+            f"• {DaletAtoms.bold('Miembros')}: {DaletAtoms.code(g.member_count)}\n"
+            f"• {DaletAtoms.bold('Propietario')}: {g.owner.mention}\n"
+            f"• {DaletAtoms.bold('Fundación')}: {format_dt(g.created_at, 'D')}\n"
         )
         embed = DaletOrganisms.create_simple_embed(f"Territorio: {g.name}", desc)
         if g.icon:

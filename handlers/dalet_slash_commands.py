@@ -178,36 +178,106 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             # Reusar la lógica de embed del handler de prefijos
             osu_cog = self.bot.get_cog("osu!")
             if osu_cog:
-                # Crear un FakeContext para llamar al método privado
-                score = recent[0]
-                bmap  = score.get("beatmap", {})
-                bset  = score.get("beatmapset", {})
-                ss    = score.get("statistics", {})
+                score_data = recent[0]
+                bmap  = score_data.get("beatmap", {})
+                bset  = score_data.get("beatmapset", {})
+                stats_score = score_data.get("statistics", {})
 
-                from datetime import datetime
-                GRADE = {"XH": "🌟", "X": "⭐", "SH": "🥈", "S": "🏅",
-                         "A": "🎯", "B": "🔵", "C": "🟡", "D": "🔴", "F": "💀"}
-                grade = GRADE.get(score.get("rank", "?"), "❓")
-                acc   = f"{score.get('accuracy', 0) * 100:.2f}%"
-                pp    = score.get("pp")
+                GRADE = {"XH": "🌟", "X": "⭐", "SH": "🥈", "S": "🏅", "A": "🎯",
+                         "B": "🔵", "C": "🟡", "D": "🔴", "F": "💀"}
+                grade = score_data.get("rank", "?")
+                grade_emoji = GRADE.get(grade, "❓")
+                mods  = "+" + "".join(score_data.get("mods", [])) if score_data.get("mods") else "+NM"
+                acc   = f"{score_data.get('accuracy', 0) * 100:.2f}%"
+                pp    = score_data.get("pp")
                 pp_str = f"**{pp:.2f}pp**" if pp else "*(sin pp)*"
+                
+                combo = score_data.get("max_combo", 0)
+                max_combo = bmap.get("max_combo") or "?"
+                total_score = score_data.get("score", 0)
+
+                title_name  = bset.get("title", "??")
+                artist_name = bset.get("artist", "??")
+                version     = bmap.get("version", "??")
+                stars       = bmap.get("difficulty_rating", 0)
+                bmap_url    = f"https://osu.ppy.sh/b/{bmap.get('id', 0)}"
+                mapper      = bset.get("creator", "Desconocido")
+                map_status  = bset.get("status", "unknown").upper()
+
+                # Atributos técnicos
+                bpm = bmap.get("bpm", 0)
+                cs = bmap.get("cs", 0.0)
+                ar = bmap.get("ar", 0.0)
+                od = bmap.get("accuracy", 0.0)
+                hp = bmap.get("drain", 0.0)
+                
+                # Hits
+                n300 = stats_score.get("count_300", 0)
+                n100 = stats_score.get("count_100", 0)
+                n50  = stats_score.get("count_50", 0)
+                nmiss = stats_score.get("count_miss", 0)
+                ngeki = stats_score.get("count_geki", 0)
+                nkatu = stats_score.get("count_katu", 0)
 
                 embed = discord.Embed(
-                    title=f"{grade} {bset.get('title', '??')} [{bmap.get('version', '??')}]",
-                    url=f"https://osu.ppy.sh/b/{bmap.get('id', 0)}",
-                    description=(
-                        f"**{bset.get('artist', '??')}** • "
-                        f"{bmap.get('difficulty_rating', 0):.2f}★ • "
-                        f"+{''.join(score.get('mods', [])) or 'NM'}"
-                    ),
+                    title=f"{title_name} [{version}]",
+                    url=bmap_url,
+                    description=f"**{artist_name}** • {stars:.2f}★ • {mods}",
                     color=0x7289DA
                 )
-                embed.set_thumbnail(url=user.get("avatar_url", ""))
+                embed.set_author(name=f"Jugada Reciente · {user.get('username')} ({modo.upper()})", icon_url=user.get("avatar_url", ""))
+                
+                cover_url = bset.get("covers", {}).get("list") or bset.get("covers", {}).get("cover")
+                if cover_url:
+                    embed.set_thumbnail(url=cover_url)
+                else:
+                    embed.set_thumbnail(url=user.get("avatar_url", ""))
+
+                if modo == "mania":
+                    hits_str = f"MAX: `{ngeki}` • 300: `{n300}` • 200: `{nkatu}`\n100: `{n100}` • 50: `{n50}` • Miss: `{nmiss}`"
+                elif modo == "taiko":
+                    hits_str = f"GREAT: `{n300}` • GOOD: `{n100}` • Miss: `{nmiss}`"
+                else:
+                    hits_str = f"300: `{n300}` • 100: `{n100}` • 50: `{n50}` • Miss: `{nmiss}`"
+
                 embed.add_field(
                     name="Resultado",
-                    value=f"{pp_str}\n**{acc}** | Combo: **{score.get('max_combo', 0)}x**",
+                    value=(
+                        f"Rango: **{grade_emoji} {grade}**\n"
+                        f"Precisión: **{acc}**\n"
+                        f"PP: {pp_str}"
+                    ),
                     inline=True
                 )
+                embed.add_field(
+                    name="Puntuación & Combo",
+                    value=(
+                        f"Puntaje: `{total_score:,}`\n"
+                        f"Combo: **{combo}x** / {max_combo}x\n"
+                        f"Estado: `{map_status}`"
+                    ),
+                    inline=True
+                )
+                embed.add_field(
+                    name="Hits",
+                    value=hits_str,
+                    inline=False
+                )
+                embed.add_field(
+                    name="Información del Mapa",
+                    value=f"• BPM: `{bpm}` • CS: `{cs:.1f}` • AR: `{ar:.1f}` • OD: `{od:.1f}` • HP: `{hp:.1f}`",
+                    inline=False
+                )
+
+                from datetime import datetime
+                played_at = score_data.get("created_at", "")
+                if played_at:
+                    played_dt = datetime.fromisoformat(played_at.replace("Z", "+00:00"))
+                    embed.set_footer(text=f"Mapeado por {mapper} · Jugado por {username}")
+                    embed.timestamp = played_dt
+                else:
+                    embed.set_footer(text=f"Mapeado por {mapper}")
+
                 await interaction.followup.send(embed=embed)
 
         except Exception as e:

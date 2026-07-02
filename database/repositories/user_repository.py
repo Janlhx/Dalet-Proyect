@@ -84,6 +84,23 @@ class UserRepository(BaseRepository):
             
         return await self._get_cached(f"proactive_{channel_id}", _fetch, channel_id)
 
+    async def call_procedure(self, procedure_name, *args):
+        # Primero ejecutamos el procedimiento en la BD
+        res = await super().call_procedure(procedure_name, *args)
+        
+        # Invalidamos la caché de acuerdo al SP llamado
+        if procedure_name == "sp_SetServerReactive" and len(args) >= 1:
+            server_id = args[0]
+            self._cache.pop(f"reactive_{server_id}", None)
+            logger.info(f"Caché reactiva invalidada para servidor: {server_id}")
+            
+        elif procedure_name == "sp_SetChannelProactive" and len(args) >= 1:
+            channel_id = args[0]
+            self._cache.pop(f"proactive_{channel_id}", None)
+            logger.info(f"Caché proactiva invalidada para canal: {channel_id}")
+            
+        return res
+
     async def add_user_memory(self, user_id, user_name, content, topic="general"):
         return await self.call_procedure(
             "sp_AddUserMemory",
