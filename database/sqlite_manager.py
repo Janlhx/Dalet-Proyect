@@ -101,6 +101,7 @@ class SQLiteManager:
                 Message TEXT DEFAULT '¡Es hora del mapa del día!',
                 Timezone TEXT DEFAULT 'America/Bogota',
                 Active BOOLEAN DEFAULT 1,
+                CreatedBy INTEGER,
                 CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """,
@@ -131,6 +132,19 @@ class SQLiteManager:
             for query in queries:
                 await cls._connection.execute(query)
             await cls._connection.commit()
+
+            # Migraciones incrementales de columnas
+            try:
+                await cls._connection.execute(
+                    "ALTER TABLE Reminders ADD COLUMN CreatedBy INTEGER"
+                )
+                await cls._connection.execute(
+                    "UPDATE Reminders SET CreatedBy = UserID WHERE CreatedBy IS NULL"
+                )
+                await cls._connection.commit()
+            except Exception:
+                pass
+
             logger.info("Esquema de SQLite inicializado correctamente.")
         except Exception as e:
             logger.error(f"Error al inicializar el esquema de SQLite: {e}")

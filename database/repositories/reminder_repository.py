@@ -10,8 +10,9 @@ class ReminderRepository(BaseRepository):
         super().__init__()
 
     async def add_reminder(
-        self, server_id: int, channel_id: int, user_id: int, 
-        time_str: str, days_str: str, message: str, timezone: str
+        self, server_id: int, channel_id: int, user_id: int,
+        time_str: str, days_str: str, message: str, timezone: str,
+        created_by: int
     ) -> int | None:
         """
         Guarda un nuevo recordatorio en la base de datos remota PostgreSQL (Neon) 
@@ -22,12 +23,14 @@ class ReminderRepository(BaseRepository):
             try:
                 # En Postgres usamos una query con RETURNING para obtener el ID insertado
                 query = """
-                    INSERT INTO Reminders (ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
+                    INSERT INTO Reminders (ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, $8)
                     RETURNING ReminderID
                 """
                 # Intentamos insertar y obtener el ID retornado
-                row = await self.fetch_one(query, server_id, channel_id, user_id, time_str, days_str, message, timezone)
+                row = await self.fetch_one(
+                    query, server_id, channel_id, user_id, time_str, days_str, message, timezone, created_by
+                )
                 if row:
                     return row[0]
             except Exception as e:
@@ -36,47 +39,45 @@ class ReminderRepository(BaseRepository):
         # Fallback a SQLite local
         logger.info("Usando SQLite local para guardar recordatorio.")
         query = """
-            INSERT INTO Reminders (ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+            INSERT INTO Reminders (ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
         """
         cursor = await SQLiteManager.execute(
-            query, server_id, channel_id, user_id, time_str, days_str, message, timezone
+            query, server_id, channel_id, user_id, time_str, days_str, message, timezone, created_by
         )
         if cursor:
             return cursor.lastrowid
         return None
 
-    async def get_reminders_by_server(self, server_id: int) -> list:
+    async def get_reminders_by_creator(self, server_id: int, created_by: int) -> list:
         """
-        Retorna todos los recordatorios configurados para un servidor específico.
-        Intenta obtenerlos de Postgres si está disponible, o de SQLite local en su defecto.
+        Retorna los recordatorios creados por un usuario en un servidor específico.
         """
         if DatabasePool.is_available():
             try:
                 query = """
-                    SELECT ReminderID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active
+                    SELECT ReminderID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy
                     FROM Reminders
-                    WHERE ServerID = $1
+                    WHERE ServerID = $1 AND CreatedBy = $2
                     ORDER BY CreatedAt DESC
                 """
-                rows = await self.fetch_all(query, server_id)
+                rows = await self.fetch_all(query, server_id, created_by)
                 if rows:
                     return [{
                         "ReminderID": r[0], "ChannelID": r[1], "UserID": r[2],
                         "ReminderTime": r[3], "ReminderDays": r[4], "Message": r[5],
-                        "Timezone": r[6], "Active": r[7]
+                        "Timezone": r[6], "Active": r[7], "CreatedBy": r[8]
                     } for r in rows]
             except Exception as e:
                 logger.error(f"Error al leer recordatorios de Postgres: {e}")
 
-        # Fallback a SQLite local
         query = """
-            SELECT ReminderID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active
+            SELECT ReminderID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy
             FROM Reminders
-            WHERE ServerID = ?
+            WHERE ServerID = ? AND CreatedBy = ?
             ORDER BY CreatedAt DESC
         """
-        rows = await SQLiteManager.fetch_all(query, server_id)
+        rows = await SQLiteManager.fetch_all(query, server_id, created_by)
         return [dict(row) for row in rows]
 
     async def get_active_reminders(self) -> list:
@@ -127,22 +128,22 @@ class ReminderRepository(BaseRepository):
         if DatabasePool.is_available():
             try:
                 query = """
-                    SELECT ReminderID, ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active
+                    SELECT ReminderID, ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy
                     FROM Reminders
                     WHERE ReminderID = $1
                 """
                 r = await self.fetch_one(query, reminder_id)
                 if r:
                     return {
-                        "ReminderID": r[0], "ServerID": r[1], "ChannelID": r[2], 
-                        "UserID": r[3], "ReminderTime": r[4], "ReminderDays": r[5], 
-                        "Message": r[6], "Timezone": r[7], "Active": r[8]
+                        "ReminderID": r[0], "ServerID": r[1], "ChannelID": r[2],
+                        "UserID": r[3], "ReminderTime": r[4], "ReminderDays": r[5],
+                        "Message": r[6], "Timezone": r[7], "Active": r[8], "CreatedBy": r[9]
                     }
             except Exception as e:
                 logger.error(f"Error leyendo recordatorio de Postgres: {e}")
 
         query = """
-            SELECT ReminderID, ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active
+            SELECT ReminderID, ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy
             FROM Reminders
             WHERE ReminderID = ?
         """

@@ -241,7 +241,8 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
             time_str=parsed_time,
             days_str=parsed_days,
             message=mensaje,
-            timezone=timezone
+            timezone=timezone,
+            created_by=interaction.user.id
         )
 
         if reminder_id:
@@ -265,16 +266,18 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
                 ephemeral=True
             )
 
-    @reminder_group.command(name="list", description="Muestra los recordatorios configurados en este servidor.")
+    @reminder_group.command(name="list", description="Muestra los recordatorios que tú has creado en este servidor.")
     async def reminder_list(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         try:
-            reminders = await self.repo.get_reminders_by_server(interaction.guild_id)
+            reminders = await self.repo.get_reminders_by_creator(
+                interaction.guild_id, interaction.user.id
+            )
             if not reminders:
-                return await interaction.followup.send("No hay recordatorios configurados en este servidor.")
+                return await interaction.followup.send("No tienes recordatorios creados en este servidor.")
 
             embed = discord.Embed(
-                title=f"Recordatorios Programados — {interaction.guild.name}",
+                title=f"Tus recordatorios — {interaction.guild.name}",
                 color=DaletAtoms.COLOR_PRIMARY
             )
 
@@ -305,11 +308,15 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
     @reminder_group.command(name="remove", description="Elimina un recordatorio por su ID.")
     @app_commands.describe(id="ID del recordatorio a eliminar (ej: 1)")
     async def reminder_remove(self, interaction: discord.Interaction, id: int):
-        # Verificar existencia y pertenencia al servidor actual
         reminder = await self.repo.get_reminder(id)
         if not reminder or reminder["ServerID"] != interaction.guild_id:
             return await interaction.response.send_message(
                 f"No se encontró ningún recordatorio con el ID `#{id}` en este servidor.",
+                ephemeral=True
+            )
+        if reminder.get("CreatedBy") != interaction.user.id:
+            return await interaction.response.send_message(
+                f"Solo puedes eliminar recordatorios que tú hayas creado.",
                 ephemeral=True
             )
 
@@ -326,6 +333,11 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
         if not reminder or reminder["ServerID"] != interaction.guild_id:
             return await interaction.response.send_message(
                 f"No se encontró ningún recordatorio con el ID `#{id}` en este servidor.",
+                ephemeral=True
+            )
+        if reminder.get("CreatedBy") != interaction.user.id:
+            return await interaction.response.send_message(
+                f"Solo puedes modificar recordatorios que tú hayas creado.",
                 ephemeral=True
             )
 
