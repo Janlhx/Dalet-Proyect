@@ -61,7 +61,11 @@ class ReminderRepository(BaseRepository):
                 """
                 rows = await self.fetch_all(query, server_id)
                 if rows:
-                    return [dict(r) for r in rows]
+                    return [{
+                        "ReminderID": r[0], "ChannelID": r[1], "UserID": r[2],
+                        "ReminderTime": r[3], "ReminderDays": r[4], "Message": r[5],
+                        "Timezone": r[6], "Active": r[7]
+                    } for r in rows]
             except Exception as e:
                 logger.error(f"Error al leer recordatorios de Postgres: {e}")
 
