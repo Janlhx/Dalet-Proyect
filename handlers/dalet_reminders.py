@@ -278,6 +278,7 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
 
             embed = discord.Embed(
                 title=f"Tus recordatorios — {interaction.guild.name}",
+                description="Usa el **ID** con `/reminder remove` o `/reminder toggle`.",
                 color=DaletAtoms.COLOR_PRIMARY
             )
 
@@ -288,6 +289,7 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
                 user_mention = f"<@{r['UserID']}>"
                 
                 val = (
+                    f"**ID**: `{r['ReminderID']}`\n"
                     f"**Hora**: `{r['ReminderTime']}` ({r['Timezone']})\n"
                     f"**Frecuencia**: {readable_days}\n"
                     f"**Para**: {user_mention} en {channel_mention}\n"
