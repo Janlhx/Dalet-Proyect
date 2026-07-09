@@ -145,6 +145,14 @@ class SQLiteManager:
             except Exception:
                 pass
 
+            try:
+                await cls._connection.execute(
+                    "ALTER TABLE Reminders ADD COLUMN Pings TEXT"
+                )
+                await cls._connection.commit()
+            except Exception:
+                pass
+
             logger.info("Esquema de SQLite inicializado correctamente.")
         except Exception as e:
             logger.error(f"Error al inicializar el esquema de SQLite: {e}")

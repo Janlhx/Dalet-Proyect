@@ -12,7 +12,7 @@ class ReminderRepository(BaseRepository):
     async def add_reminder(
         self, server_id: int, channel_id: int, user_id: int,
         time_str: str, days_str: str, message: str, timezone: str,
-        created_by: int
+        created_by: int, pings: str = None
     ) -> int | None:
         """
         Guarda un nuevo recordatorio en la base de datos remota PostgreSQL (Neon) 
@@ -23,13 +23,13 @@ class ReminderRepository(BaseRepository):
             try:
                 # En Postgres usamos una query con RETURNING para obtener el ID insertado
                 query = """
-                    INSERT INTO Reminders (ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, $8)
+                    INSERT INTO Reminders (ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy, Pings)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, $8, $9)
                     RETURNING ReminderID
                 """
                 # Intentamos insertar y obtener el ID retornado
                 row = await self.fetch_one(
-                    query, server_id, channel_id, user_id, time_str, days_str, message, timezone, created_by
+                    query, server_id, channel_id, user_id, time_str, days_str, message, timezone, created_by, pings
                 )
                 if row:
                     return row[0]
@@ -39,11 +39,11 @@ class ReminderRepository(BaseRepository):
         # Fallback a SQLite local
         logger.info("Usando SQLite local para guardar recordatorio.")
         query = """
-            INSERT INTO Reminders (ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+            INSERT INTO Reminders (ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy, Pings)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
         """
         cursor = await SQLiteManager.execute(
-            query, server_id, channel_id, user_id, time_str, days_str, message, timezone, created_by
+            query, server_id, channel_id, user_id, time_str, days_str, message, timezone, created_by, pings
         )
         if cursor:
             return cursor.lastrowid
@@ -56,7 +56,7 @@ class ReminderRepository(BaseRepository):
         if DatabasePool.is_available():
             try:
                 query = """
-                    SELECT ReminderID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy
+                    SELECT ReminderID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy, Pings
                     FROM Reminders
                     WHERE ServerID = $1 AND CreatedBy = $2
                     ORDER BY CreatedAt DESC
@@ -66,13 +66,13 @@ class ReminderRepository(BaseRepository):
                     return [{
                         "ReminderID": r[0], "ChannelID": r[1], "UserID": r[2],
                         "ReminderTime": r[3], "ReminderDays": r[4], "Message": r[5],
-                        "Timezone": r[6], "Active": r[7], "CreatedBy": r[8]
+                        "Timezone": r[6], "Active": r[7], "CreatedBy": r[8], "Pings": r[9]
                     } for r in rows]
             except Exception as e:
                 logger.error(f"Error al leer recordatorios de Postgres: {e}")
 
         query = """
-            SELECT ReminderID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy
+            SELECT ReminderID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy, Pings
             FROM Reminders
             WHERE ServerID = ? AND CreatedBy = ?
             ORDER BY CreatedAt DESC
@@ -91,7 +91,7 @@ class ReminderRepository(BaseRepository):
         if DatabasePool.is_available():
             try:
                 query = """
-                    SELECT ReminderID, ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active
+                    SELECT ReminderID, ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, Pings
                     FROM Reminders
                     WHERE Active = TRUE
                 """
@@ -100,7 +100,7 @@ class ReminderRepository(BaseRepository):
                     active.append({
                         "ReminderID": r[0], "ServerID": r[1], "ChannelID": r[2], 
                         "UserID": r[3], "ReminderTime": r[4], "ReminderDays": r[5], 
-                        "Message": r[6], "Timezone": r[7], "Active": r[8]
+                        "Message": r[6], "Timezone": r[7], "Active": r[8], "Pings": r[9]
                     })
                     seen_ids.add(r[0])
             except Exception as e:
@@ -108,7 +108,7 @@ class ReminderRepository(BaseRepository):
 
         # Fallback/Combinación con SQLite local
         query = """
-            SELECT ReminderID, ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active
+            SELECT ReminderID, ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, Pings
             FROM Reminders
             WHERE Active = 1
         """
@@ -128,7 +128,7 @@ class ReminderRepository(BaseRepository):
         if DatabasePool.is_available():
             try:
                 query = """
-                    SELECT ReminderID, ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy
+                    SELECT ReminderID, ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy, Pings
                     FROM Reminders
                     WHERE ReminderID = $1
                 """
@@ -137,13 +137,13 @@ class ReminderRepository(BaseRepository):
                     return {
                         "ReminderID": r[0], "ServerID": r[1], "ChannelID": r[2],
                         "UserID": r[3], "ReminderTime": r[4], "ReminderDays": r[5],
-                        "Message": r[6], "Timezone": r[7], "Active": r[8], "CreatedBy": r[9]
+                        "Message": r[6], "Timezone": r[7], "Active": r[8], "CreatedBy": r[9], "Pings": r[10]
                     }
             except Exception as e:
                 logger.error(f"Error leyendo recordatorio de Postgres: {e}")
 
         query = """
-            SELECT ReminderID, ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy
+            SELECT ReminderID, ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy, Pings
             FROM Reminders
             WHERE ReminderID = ?
         """
@@ -200,4 +200,48 @@ class ReminderRepository(BaseRepository):
             success = True
 
         return new_state if success else None
+
+    async def update_reminder(self, reminder_id: int, updates: dict) -> bool:
+        """
+        Actualiza los campos especificados en `updates` para el recordatorio `reminder_id`.
+        """
+        if not updates:
+            return False
+
+        success = False
+        if DatabasePool.is_available():
+            try:
+                set_clauses = []
+                params = []
+                for i, (field, val) in enumerate(updates.items(), start=1):
+                    set_clauses.append(f"{field} = ${i}")
+                    params.append(val)
+                params.append(reminder_id)
+                query = f"UPDATE Reminders SET {', '.join(set_clauses)} WHERE ReminderID = ${len(params)}"
+                res = await self.execute(query, *params)
+                if res and "UPDATE" in res:
+                    success = True
+            except Exception as e:
+                logger.error(f"Error actualizando recordatorio en Postgres: {e}")
+
+        # Local SQLite
+        try:
+            set_clauses = []
+            params = []
+            for field, val in updates.items():
+                set_clauses.append(f"{field} = ?")
+                # En SQLite, BOOLEAN se almacena como 1/0
+                if field == "Active":
+                    params.append(1 if val else 0)
+                else:
+                    params.append(val)
+            params.append(reminder_id)
+            query = f"UPDATE Reminders SET {', '.join(set_clauses)} WHERE ReminderID = ?"
+            cursor = await SQLiteManager.execute(query, *params)
+            if cursor and cursor.rowcount > 0:
+                success = True
+        except Exception as e:
+            logger.error(f"Error actualizando recordatorio en SQLite: {e}")
+
+        return success
 
