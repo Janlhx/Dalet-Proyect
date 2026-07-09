@@ -612,23 +612,23 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
         ]
         return matches[:25]
 
+    @reminder_add.autocomplete("timezone")
+    async def reminder_add_timezone_autocomplete(self, interaction: discord.Interaction, current: str):
+        return await self.timezone_autocomplete(interaction, current)
+
+    @reminder_add.autocomplete("dias")
+    async def reminder_add_dias_autocomplete(self, interaction: discord.Interaction, current: str):
+        return await self.dias_autocomplete(interaction, current)
+
+    @reminder_edit.autocomplete("timezone")
+    async def reminder_edit_timezone_autocomplete(self, interaction: discord.Interaction, current: str):
+        return await self.timezone_autocomplete(interaction, current)
+
+    @reminder_edit.autocomplete("dias")
+    async def reminder_edit_dias_autocomplete(self, interaction: discord.Interaction, current: str):
+        return await self.dias_autocomplete(interaction, current)
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(DaletReminders(bot))
 
-# Decoradores de Autocompletado registrados después de definir la clase y sus métodos
-@DaletReminders.reminder_add.autocomplete("timezone")
-async def reminder_add_timezone_autocomplete(self, interaction: discord.Interaction, current: str):
-    return await self.timezone_autocomplete(interaction, current)
-
-@DaletReminders.reminder_add.autocomplete("dias")
-async def reminder_add_dias_autocomplete(self, interaction: discord.Interaction, current: str):
-    return await self.dias_autocomplete(interaction, current)
-
-@DaletReminders.reminder_edit.autocomplete("timezone")
-async def reminder_edit_timezone_autocomplete(self, interaction: discord.Interaction, current: str):
-    return await self.timezone_autocomplete(interaction, current)
-
-@DaletReminders.reminder_edit.autocomplete("dias")
-async def reminder_edit_dias_autocomplete(self, interaction: discord.Interaction, current: str):
-    return await self.dias_autocomplete(interaction, current)
