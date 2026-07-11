@@ -382,9 +382,15 @@ class DaletNLPChat(commands.Cog):
             ][:8]
             active_users = ", ".join(members_list)
 
-            # Generar respuesta con typing activo
-            try:
-                async with message.channel.typing():
+            # Generar respuesta (máx 2 en paralelo en todo el bot)
+            async with self.bot.discord_semaphore:
+                # Un único typing indicator — no repite cada 5s como el context manager
+                try:
+                    await message.channel.trigger_typing()
+                except discord.HTTPException:
+                    pass  # Si falla el typing (permisos), continuar igual
+
+                try:
                     reply = await self.bot.nlp_service.generate_reply(
                         clean_content,
                         context,
@@ -396,22 +402,9 @@ class DaletNLPChat(commands.Cog):
                         active_room_users=active_users,
                         is_reactive=is_reactive,
                     )
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    await self._handle_429(e, "typing")
-                    return
-                # Si falla el typing (permisos), intentar sin él
-                reply = await self.bot.nlp_service.generate_reply(
-                    clean_content,
-                    context,
-                    message.author.display_name,
-                    bot_name=bot_name,
-                    image_urls=image_urls,
-                    user_id=message.author.id,
-                    channel_id=message.channel.id,
-                    active_room_users=active_users,
-                    is_reactive=is_reactive,
-                )
+                except Exception as e:
+                    logger.error(f"Error llamando nlp_service: {e}")
+                    reply = None
 
             if reply:
                 try:
