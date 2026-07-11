@@ -3,7 +3,7 @@ from database.repositories.base_repository import BaseRepository
 class AdminRepository(BaseRepository):
     async def is_channel_locked(self, channel_id: int):
         """Verifica si los comandos están bloqueados en un canal."""
-        query = "SELECT fn_IsChannelLocked($1)"
+        query = "SELECT fn_IsChannelLocked($1::BIGINT)"
         result = await self.fetch_one(query, channel_id)
         return result[0] if result else False
 
@@ -16,7 +16,7 @@ class AdminRepository(BaseRepository):
 
     async def get_server_custom_name(self, server_id: int):
         """Obtiene el nombre personalizado del bot para un servidor."""
-        query = "SELECT fn_GetServerCustomName($1)"
+        query = "SELECT fn_GetServerCustomName($1::BIGINT)"
         result = await self.fetch_one(query, server_id)
         return result[0] if result else "Dalet"
 
@@ -29,7 +29,7 @@ class AdminRepository(BaseRepository):
 
     async def get_welcome_channel(self, server_id: int):
         """Obtiene el ID del canal de bienvenida de un servidor."""
-        query = "SELECT fn_GetWelcomeChannel($1)"
+        query = "SELECT fn_GetWelcomeChannel($1::BIGINT)"
         result = await self.fetch_one(query, server_id)
         return result[0] if result else None
 

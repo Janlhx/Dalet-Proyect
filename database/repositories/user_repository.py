@@ -70,7 +70,7 @@ class UserRepository(BaseRepository):
 
     async def is_server_reactive(self, server_id: int):
         async def _fetch(sid):
-            query = "SELECT fn_IsServerReactive($1)"
+            query = "SELECT fn_IsServerReactive($1::BIGINT)"
             result = await self.fetch_one(query, sid)
             return result[0] if result else False
         
@@ -78,7 +78,7 @@ class UserRepository(BaseRepository):
 
     async def is_channel_proactive(self, channel_id: int):
         async def _fetch(cid):
-            query = "SELECT fn_IsChannelProactive($1)"
+            query = "SELECT fn_IsChannelProactive($1::BIGINT)"
             result = await self.fetch_one(query, cid)
             return result[0] if result else False
             

@@ -100,6 +100,10 @@ async def main():
             bot.global_error_cooldown = 0
             bot.global_consecutive_429s = 0
 
+            # Semáforo global: máx 2 respuestas de IA generándose en paralelo
+            # Evita bursts de typing indicators y mensajes que desencadenan rate limits de Discord
+            bot.discord_semaphore = asyncio.Semaphore(2)
+
             # Inyección de dependencias
             bot.user_repo = UserRepository()
             bot.osu_repo = OsuRepository()
