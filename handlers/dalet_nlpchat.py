@@ -15,6 +15,20 @@ COOLDOWN_TIME = 45  # Segundos mínimos entre respuestas proactivas
 MIN_MESSAGES_BETWEEN_REPLIES = 10  # Mensajes mínimos antes de considerar responder
 MAX_MESSAGES_WINDOW = 30  # Ventana de reset si no respondió (más grande para dar espacio a la probabilidad)
 
+# --- Configuración de Sesiones Reactive ---
+REACTIVE_SESSION_MAX = 5       # Máx respuestas reactive por sesión/usuario
+REACTIVE_SESSION_COOLDOWN = 8  # Minutos de cooldown post-sesión
+
+# Frases de cierre cuando la sesión llega al límite
+REACTIVE_CLOSING_PHRASES = [
+    "ya, hasta aquí por ahora.",
+    "ok ya fue, hablamos luego.",
+    "me cansé un rato, vuelve después.",
+    "suficiente por ahora.",
+    "ya me agotaste, luego seguimos.",
+    "hasta aquí llegué, vuelvo en un rato.",
+]
+
 
 class DaletNLPChat(commands.Cog):
     """Maneja el listener 'on_message' para las respuestas de IA."""
@@ -32,6 +46,10 @@ class DaletNLPChat(commands.Cog):
         self.channel_ratelimits = {}
         # {user_id: (tokens, last_update_time)}
         self.user_ratelimits = {}
+
+        # --- Sesiones Reactive (por usuario/servidor) ---
+        # {(guild_id, user_id): {"count": int, "cooldown_until": float}}
+        self.reactive_sessions = {}
 
     def _check_rate_limit(self, channel_id: int, user_id: int) -> bool:
         """
@@ -71,6 +89,44 @@ class DaletNLPChat(commands.Cog):
         self.channel_ratelimits[channel_id] = (c_tokens - 1.0, now)
         self.user_ratelimits[user_id] = (u_tokens - 1.0, now)
         return True
+
+    def _check_reactive_session(self, guild_id: int, user_id: int) -> str:
+        """
+        Controla las sesiones reactive por usuario/servidor.
+        Retorna:
+          'ok'      → responder normalmente
+          'last'    → último mensaje permitido, enviar frase de cierre e iniciar cooldown
+          'blocked' → usuario en cooldown, ignorar
+        """
+        now = time.time()
+        key = (guild_id, user_id)
+        session = self.reactive_sessions.get(key)
+
+        if session is not None:
+            cooldown_until = session.get("cooldown_until", 0)
+
+            if cooldown_until > now:
+                # En cooldown activo
+                return "blocked"
+
+            if cooldown_until > 0:
+                # Cooldown expirado → resetear sesión
+                self.reactive_sessions[key] = {"count": 1, "cooldown_until": 0}
+                return "ok"
+
+            # Sesión activa sin cooldown — incrementar contador
+            session["count"] += 1
+            if session["count"] >= REACTIVE_SESSION_MAX:
+                session["cooldown_until"] = now + REACTIVE_SESSION_COOLDOWN * 60
+                return "last"
+            return "ok"
+
+        # Sesión nueva
+        self.reactive_sessions[key] = {"count": 1, "cooldown_until": 0}
+        if REACTIVE_SESSION_MAX <= 1:
+            self.reactive_sessions[key]["cooldown_until"] = now + REACTIVE_SESSION_COOLDOWN * 60
+            return "last"
+        return "ok"
 
     async def _handle_429(self, exception, source="unknown"):
         """Centraliza el manejo de errores 429 con backoff exponencial."""
@@ -198,6 +254,22 @@ class DaletNLPChat(commands.Cog):
                     # Si no es reactivo el servidor, ignoramos la mención silenciosamente
                     return
 
+                # Verificar sesión reactive del usuario
+                session_status = self._check_reactive_session(
+                    message.guild.id, message.author.id
+                )
+                if session_status == "blocked":
+                    return
+                if session_status == "last":
+                    # Último mensaje permitido — cerrar con frase ácida
+                    phrase = random.choice(REACTIVE_CLOSING_PHRASES)
+                    try:
+                        await message.reply(phrase)
+                    except discord.HTTPException as e:
+                        if e.status == 429:
+                            await self._handle_429(e, "session_closing")
+                    return
+
                 # Aplicar Rate Limit a menciones
                 if not self._check_rate_limit(message.channel.id, message.author.id):
                     return
@@ -210,6 +282,7 @@ class DaletNLPChat(commands.Cog):
                     is_direct_mention=True,
                     trigger_type=trigger_type,
                     bot_name=custom_name,
+                    is_reactive=True,
                 )
 
             # ¿El canal tiene modo proactivo activo?
@@ -243,6 +316,7 @@ class DaletNLPChat(commands.Cog):
         is_direct_mention: bool,
         trigger_type: str = "mention",
         bot_name: str = "Dalet",
+        is_reactive: bool = False,
     ):
         if self.is_responding:
             return
@@ -320,6 +394,7 @@ class DaletNLPChat(commands.Cog):
                         user_id=message.author.id,
                         channel_id=message.channel.id,
                         active_room_users=active_users,
+                        is_reactive=is_reactive,
                     )
             except discord.HTTPException as e:
                 if e.status == 429:
@@ -335,6 +410,7 @@ class DaletNLPChat(commands.Cog):
                     user_id=message.author.id,
                     channel_id=message.channel.id,
                     active_room_users=active_users,
+                    is_reactive=is_reactive,
                 )
 
             if reply:

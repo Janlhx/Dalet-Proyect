@@ -8,6 +8,9 @@ from database.repositories.user_repository import UserRepository
 
 logger = logging.getLogger("dalet.services.nlp")
 
+# Líneas del historial de canal a incluir en respuestas reactive (canal completo, todos los usuarios)
+REACTIVE_MAX_CONTEXT_LINES = 6
+
 # Personalidad de Dalet — comprimida y eficiente en tokens
 DALET_PERSONALITY = """Eres {bot_name}, una persona más del grupo de Discord. No eres un asistente ni una IA para el grupo — eres alguien con carácter propio.
 
@@ -51,7 +54,7 @@ class NLPService:
 
     async def generate_reply(
         self, trigger: str, context: str, username: str,
-        bot_name: str = "Dalet", image_urls: list = None, **kwargs
+        bot_name: str = "Dalet", image_urls: list = None, is_reactive: bool = False, **kwargs
     ):
         logger.info(f"Generando respuesta para {username}. BotName: {bot_name}. Proveedor: {self.active_provider}")
 
@@ -59,18 +62,23 @@ class NLPService:
         if image_urls:
             image_description = await self._get_images_description(image_urls)
 
+        if is_reactive:
+            context = self._trim_context_for_reactive(context)
+
         if self.active_provider == "groq" and self.groq_api_key:
             return await self._generate_groq_reply(
-                trigger, context, username, bot_name, image_description, **kwargs
+                trigger, context, username, bot_name, image_description,
+                is_reactive=is_reactive, **kwargs
             )
         else:
             return await self._generate_gemini_reply(
-                trigger, context, username, bot_name, image_description, **kwargs
+                trigger, context, username, bot_name, image_description,
+                is_reactive=is_reactive, **kwargs
             )
 
     async def _generate_gemini_reply(
         self, trigger: str, context: str, username: str,
-        bot_name: str, image_description: str = "", **kwargs
+        bot_name: str, image_description: str = "", is_reactive: bool = False, **kwargs
     ):
         active_room_users = kwargs.get("active_room_users", "")
         server_emojis = kwargs.get("server_emojis", "")
@@ -90,7 +98,7 @@ class NLPService:
             model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
             logger.info(f"Llamando Gemini: {model_name}")
 
-            max_tokens = kwargs.get("max_tokens_override", 700)
+            max_tokens = kwargs.get("max_tokens_override", 420 if is_reactive else 700)
             config = types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 temperature=0.85,
@@ -115,13 +123,14 @@ class NLPService:
                 logger.warning("Gemini falló, usando Groq como fallback...")
                 return await self._generate_groq_reply(
                     trigger, context, username, bot_name, image_description,
-                    is_fallback=True, **kwargs
+                    is_fallback=True, is_reactive=is_reactive, **kwargs
                 )
             return None
 
     async def _generate_groq_reply(
         self, trigger: str, context: str, username: str,
-        bot_name: str, image_description: str = "", is_fallback: bool = False, **kwargs
+        bot_name: str, image_description: str = "", is_fallback: bool = False,
+        is_reactive: bool = False, **kwargs
     ):
         active_room_users = kwargs.get("active_room_users", "")
 
@@ -145,7 +154,7 @@ class NLPService:
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         user_msg = f"Conversación reciente:\n{context}{vision_context}\n\n{username}: \"{trigger}\""
 
-        max_tokens = kwargs.get("max_tokens_override", 600)
+        max_tokens = kwargs.get("max_tokens_override", 420 if is_reactive else 600)
         data = {
             "model": model_name,
             "messages": [
@@ -166,7 +175,7 @@ class NLPService:
                         # Intentar con modelo más pequeño
                         return await self._generate_groq_reply(
                             trigger, context, username, bot_name, image_description,
-                            is_fallback=True, **kwargs
+                            is_fallback=True, is_reactive=is_reactive, **kwargs
                         )
                     else:
                         logger.warning("Groq también con rate limit. Silencio.")
@@ -179,6 +188,35 @@ class NLPService:
         except Exception as e:
             logger.error(f"Groq falló ({model_name}): {e}")
             return None
+
+    def _trim_context_for_reactive(self, context: str) -> str:
+        """
+        Recorta el contexto a las últimas REACTIVE_MAX_CONTEXT_LINES líneas del canal.
+        El historial siempre es del canal completo (todos los usuarios), no solo de quien habla,
+        para que Dalet pueda seguir la conversación de forma natural.
+        Preserva los datos de memoria del usuario si existen.
+        """
+        lines = context.split("\n")
+
+        # Buscar el marcador del historial de chat
+        chat_marker_idx = None
+        for i, line in enumerate(lines):
+            if "CHAT RECIENTE" in line:
+                chat_marker_idx = i
+                break
+
+        if chat_marker_idx is None:
+            # Sin marcador — recortar directamente las últimas N líneas
+            return "\n".join(lines[-REACTIVE_MAX_CONTEXT_LINES:])
+
+        user_data_lines = lines[:chat_marker_idx]   # Datos del usuario (memorias, si existen)
+        chat_lines = lines[chat_marker_idx:]         # "CHAT RECIENTE:" + historial del canal
+
+        # Mantener encabezado + últimas N líneas del canal
+        if len(chat_lines) > REACTIVE_MAX_CONTEXT_LINES + 1:
+            chat_lines = [chat_lines[0]] + chat_lines[-REACTIVE_MAX_CONTEXT_LINES:]
+
+        return "\n".join(user_data_lines + chat_lines)
 
     async def _get_images_description(self, image_urls: list):
         """Describe brevemente una imagen usando Gemini (solo 1 para ahorrar cuota)."""
