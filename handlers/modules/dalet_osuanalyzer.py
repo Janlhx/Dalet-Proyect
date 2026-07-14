@@ -208,7 +208,7 @@ class OsuAnalyzer:
         selected_keyword = random.choice(FOCUS_KEYWORDS.get(focus, ["osu"]))
         
         try:
-            results = await self.osu_api.async_search_beatmaps(self.mode, min_s, max_s, keyword=selected_keyword)
+            results = await self.osu_api.search_beatmaps(self.mode, min_s, max_s, keyword=selected_keyword)
             maps = []
             for m in results:
                 bm = m.get("beatmaps", [{}])[0]
