@@ -170,32 +170,102 @@ class OsuAnalyzer:
     # --- LÓGICA DE DECISIÓN Y BÚSQUEDA ---
 
     def _determine_focus(self, trends: dict, pp_spread: dict, recent_beatmap_stats: dict) -> str:
-        """Determina el área de enfoque basado en HÁBITOS RECIENTES."""
+        """
+        Determina el área de enfoque (debilidad) de manera inteligente.
+        Calcula una puntuación de prioridad para cada área débil para evitar falsos positivos
+        y que no siempre sea "consistencia".
+        """
         if self.user_focus and self.user_focus in FOCUS_KEYWORDS:
             return self.user_focus
+
+        # Extraer estadísticas base
+        global_acc = self.stats.get("hit_accuracy", 96.0)
+        total_s = self.grades.get('s', 0) + self.grades.get('sh', 0)
+        total_ss = self.grades.get('ss', 0) + self.grades.get('ssh', 0)
+        total_a = self.grades.get('a', 0)
         
-        if trends.get("consistency") == "Baja (Inconsistente)":
-            return "consistencia"
+        # Estadísticas de Best Plays
+        bp_lengths = [p['beatmap'].get('total_length', 180) for p in self.best if 'beatmap' in p]
+        avg_bp_length = statistics.mean(bp_lengths) if bp_lengths else 180
         
-        avg_acc = trends.get("avg_recent_acc")
-        if avg_acc is not None and avg_acc < 96 and recent_beatmap_stats['avg_od'] > 8:
-            return "precisión"
-            
-        if recent_beatmap_stats['avg_ar'] < 9.3:
-            return "lectura"
+        bp_bpms = [p['beatmap'].get('bpm', 170) for p in self.best if 'beatmap' in p]
+        avg_bp_bpm = statistics.mean(bp_bpms) if bp_bpms else 170
+
+        bp_ars = [p['beatmap'].get('ar', 9.0) for p in self.best if 'beatmap' in p]
+        avg_bp_ar = statistics.mean(bp_ars) if bp_ars else 9.0
+
+        # Estadísticas de Recents
+        avg_recent_acc = trends.get("avg_recent_acc") # accuracy promedio de pasados
+        recent_acc_consistency = trends.get("consistency", "Media")
         
+        # Inicializar pesos de debilidades
+        scores = {
+            "precisión": 0.0,
+            "consistencia": 0.0,
+            "lectura": 0.0,
+            "velocidad": 0.0,
+            "stamina": 0.0
+        }
+
+        # --- EVALUAR PRECISIÓN (ACCURACY) ---
+        # Si la acc global es baja, es prioridad
+        if global_acc < 95.0:
+            scores["precisión"] += (97.0 - global_acc) * 1.5
+        if avg_recent_acc is not None and avg_recent_acc < 96.0:
+            scores["precisión"] += (96.0 - avg_recent_acc) * 1.2
+        # Si tiene muchos rango A comparado con S/SS
+        if total_a > (total_s + total_ss) * 0.7:
+            scores["precisión"] += 2.0
+
+        # --- EVALUAR CONSISTENCIA (COMBO / LARGOS) ---
+        # Si la inconsistencia de acc es alta
+        if recent_acc_consistency == "Baja (Inconsistente)":
+            scores["consistencia"] += 2.5
+        # Si la duración promedio de sus mejores jugadas es muy baja (farm short maps < 110s)
+        if avg_bp_length < 110:
+            scores["consistencia"] += (110 - avg_bp_length) * 0.05 + 1.5
+        # Si es un farmer top-heavy (pocos scores altos y el resto basura)
         if pp_spread.get("spread_type") == "Farmer (Top-heavy)":
-            return "consistencia"
+            scores["consistencia"] += 2.0
+
+        # --- EVALUAR LECTURA (READING) ---
+        # Si el AR promedio de sus mejores mapas es muy alto (>9.4) pero juega reciente en AR más bajo
+        if avg_bp_ar > 9.4 and recent_beatmap_stats.get('avg_ar', 9.0) < 9.2:
+            scores["lectura"] += 2.5
+        # Si el AR promedio general es bajo pero tiene mala acc
+        if recent_beatmap_stats.get('avg_ar', 9.0) < 9.0:
+            scores["lectura"] += 1.5
+
+        # --- EVALUAR VELOCIDAD (SPEED / HIGH BPM) ---
+        # Si sus top plays son lentas (<165 bpm) y queremos empujarlo a mejorar velocidad
+        if avg_bp_bpm < 165:
+            scores["velocidad"] += (170 - avg_bp_bpm) * 0.1
+        # Si juega reciente con DT pero su acc en recents es mala
+        recent_mods = [m for p in self.recent for m in p.get('mods', [])]
+        if any(m in ["DT", "NC"] for m in recent_mods):
+            if avg_recent_acc is not None and avg_recent_acc < 94.0:
+                scores["velocidad"] += 2.0
+
+        # --- EVALUAR STAMINA (STREAMS / LONG MAPS) ---
+        # Si juega mapas largos pero con muchos fails/misses
+        recent_fails = sum(1 for p in self.recent if p.get('pass') == False)
+        if recent_fails > 15 and avg_bp_length > 150:
+            scores["stamina"] += 2.5
+        # Si su BPM promedio es alto (>180) y la acc reciente baja
+        if avg_bp_bpm > 185 and avg_recent_acc is not None and avg_recent_acc < 95.0:
+            scores["stamina"] += 2.0
+
+        # Encontrar el área de mayor puntaje
+        best_focus = max(scores, key=scores.get)
+        
+        # Si el puntaje más alto es muy bajo, ir por consistencia general
+        if scores[best_focus] < 1.0:
+            return "consistencia general"
             
-        total_s_ranks = self.grades.get('s', 0) + self.grades.get('sh', 0)
-        total_a_ranks = self.grades.get('a', 0)
-        if total_a_ranks > total_s_ranks * 0.5:
-            return "precisión"
-            
-        return "consistencia general"
+        return best_focus
 
     async def _search_recommended_maps(self, focus: str) -> list:
-        """Busca 5 mapas recomendados (sin cambios v3.0)."""
+        """Busca 5 mapas recomendados de la base de datos (con fallback a la API de osu!)."""
         avg_stars = statistics.mean([p['beatmap']['difficulty_rating'] for p in self.best if 'beatmap' in p]) if self.best else 4.5
         
         min_s = avg_stars - 0.4
@@ -205,8 +275,26 @@ class OsuAnalyzer:
             min_s = avg_stars
             max_s = avg_stars + 0.5
         
+        # 1. Intentar buscar en la Base de Datos local
+        try:
+            from database.repositories.osu_repository import OsuRepository
+            repo = OsuRepository()
+            db_maps = await repo.get_recommended_maps(min_s, max_s, focus, limit=5)
+            if db_maps:
+                formatted_maps = []
+                for r in db_maps:
+                    formatted_maps.append({
+                        "title": r["title"],
+                        "artist": r["artist"],
+                        "stars": round(r["stars"], 2),
+                        "url": f"https://osu.ppy.sh/beatmapsets/{r['beatmapsetid']}"
+                    })
+                return formatted_maps
+        except Exception as e:
+            print(f"!!!!!! [OsuAnalyzer] Error en DB Map Search: {e}")
+
+        # 2. Fallback a la API de osu! si la BD falla o no tiene mapas
         selected_keyword = random.choice(FOCUS_KEYWORDS.get(focus, ["osu"]))
-        
         try:
             results = await self.osu_api.search_beatmaps(self.mode, min_s, max_s, keyword=selected_keyword)
             maps = []
@@ -217,7 +305,7 @@ class OsuAnalyzer:
             
             return random.sample(maps, k=min(5, len(maps)))
         except Exception as e:
-            print(f"!!!!!! [OsuAnalyzer] Error en Map Search: {e}"); 
+            print(f"!!!!!! [OsuAnalyzer] Error en API Map Search Fallback: {e}"); 
             return []
 
     # --- GENERADOR DE PROMPT UNIFICADO (v5.0 - SUPER ANALYZE) ---

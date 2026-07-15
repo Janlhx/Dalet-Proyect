@@ -40,3 +40,35 @@ class OsuRepository(BaseRepository):
     async def get_score_history(self, user_id: int, limit: int = 10):
         query = "SELECT * FROM fn_GetScoreHistory($1, $2)"
         return await self.fetch_all(query, user_id, limit)
+
+    async def get_recommended_maps(self, min_stars: float, max_stars: float, focus: str, limit: int = 5) -> list:
+        # Intentamos obtener mapas que coincidan con la debilidad y el rango de estrellas
+        query = """
+            SELECT beatmapid, beatmapsetid, title, artist, version, stars
+            FROM osurecommendedmaps
+            WHERE stars BETWEEN $1 AND $2
+              AND $3 = ANY(skills)
+            ORDER BY RANDOM()
+            LIMIT $4
+        """
+        results = await self.fetch_all(query, min_stars, max_stars, focus, limit)
+        if results:
+            return [dict(r) for r in results]
+            
+        # Fallback 1: Si no hay mapas con esa debilidad específica, buscar con "consistencia general"
+        if focus != "consistencia general":
+            results = await self.fetch_all(query, min_stars, max_stars, "consistencia general", limit)
+            if results:
+                return [dict(r) for r in results]
+                
+        # Fallback 2: Buscar cualquier mapa en ese rango de estrellas
+        query_any = """
+            SELECT beatmapid, beatmapsetid, title, artist, version, stars
+            FROM osurecommendedmaps
+            WHERE stars BETWEEN $1 AND $2
+            ORDER BY RANDOM()
+            LIMIT $3
+        """
+        results = await self.fetch_all(query_any, min_stars, max_stars, limit)
+        return [dict(r) for r in results]
+

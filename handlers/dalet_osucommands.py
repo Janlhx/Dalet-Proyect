@@ -730,7 +730,7 @@ class OsuHandler(commands.Cog, name="osu!"):
             prompt   = await analyzer.generate_super_prompt()
             response = await self.bot.nlp_service.generate_reply(
                 prompt, "Análisis osu!", username,
-                max_tokens_override=1200  # El análisis necesita más espacio
+                max_tokens_override=2000  # El análisis necesita más espacio
             )
 
             if response:
