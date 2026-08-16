@@ -328,9 +328,9 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.command(name="status", description="Estado técnico del bot (DB, IA, caché).")
     async def slash_status(self, interaction: discord.Interaction):
         import time
-        from database.pool import DatabasePool
+        from database.turso_client import TursoClient
 
-        pg_status = "✅ CONECTADA" if DatabasePool.is_available() else "⚠️ OFFLINE"
+        turso_status = "✅ CONECTADA" if TursoClient.is_available() else "⚠️ OFFLINE"
         buf = len(self.bot.user_repo._log_buffer)
         cache = len(self.bot.user_repo._cache)
         provider = getattr(self.bot.nlp_service, "active_provider", "?").upper()
@@ -340,7 +340,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         throttle = f"⚠️ {cooldown}s" if cooldown > 0 else "✅ ninguno"
 
         embed = discord.Embed(title="💾 Estado del Sistema Dalet", color=0x3498DB)
-        embed.add_field(name="Neon DB",      value=pg_status,       inline=True)
+        embed.add_field(name="Turso DB",     value=turso_status,    inline=True)
         embed.add_field(name="SQLite",       value="✅ local",       inline=True)
         embed.add_field(name="Logs buffer",  value=f"{buf}/20",      inline=True)
         embed.add_field(name="Caché",        value=f"{cache} items", inline=True)
