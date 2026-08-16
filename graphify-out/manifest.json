@@ -250,8 +250,8 @@
     "semantic_hash": ""
   },
   "database/turso_client.py": {
-    "mtime": 1786847873.0425239,
-    "ast_hash": "54c64db7123373c95ac7f13605682474",
+    "mtime": 1786848863.4939518,
+    "ast_hash": "701f99ba539c874a6b1784d0bb5515f3",
     "semantic_hash": ""
   },
   "handlers/dalet_osu_presenter.py": {
