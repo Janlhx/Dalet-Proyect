@@ -71,7 +71,10 @@ class UserRepository(BaseRepository):
         async def _fetch(sid):
             query = "SELECT IsReactive FROM Servers WHERE ServerID = ?"
             result = await self.fetch_one(query, sid)
-            return bool(result[0]) if result and result[0] is not None else False
+            # Si el servidor no está registrado, asumir reactivo (True) por defecto
+            if result is None:
+                return True
+            return bool(result[0]) if result[0] is not None else True
         
         return await self._get_cached(f"reactive_{server_id}", _fetch, server_id)
 

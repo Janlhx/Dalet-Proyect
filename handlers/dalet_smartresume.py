@@ -50,14 +50,7 @@ class ResumenInteligente(commands.Cog, name="Resumen Inteligente"):
             if not resumen_generado:
                 return await ctx.send("La IA no pudo generar un resumen esta vez.")
 
-            # Guardar en Postgres (no crítico — si Neon está offline, el resumen igual se muestra)
-            try:
-                await self.repo.call_procedure(
-                    "sp_SaveSummary",
-                    ctx.channel.id, resumen_generado, len(registros)
-                )
-            except Exception as save_err:
-                logger.debug(f"No se pudo guardar resumen en Postgres (no crítico): {save_err}")
+            # Nota: guardado de resumen en DB omitido (no implementado en SQLite/Turso)
 
             embed = discord.Embed(
                 title=f"📄 Resumen de los últimos {len(registros)} mensajes",

@@ -393,10 +393,9 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.checks.has_permissions(administrator=True)
     async def slash_proactive(self, interaction: discord.Interaction, activar: bool):
         try:
-            await self.bot.user_repo.call_procedure(
-                "sp_SetChannelProactive",
+            await self.bot.user_repo.set_channel_proactive(
                 interaction.channel_id, interaction.channel.name,
-                interaction.guild_id, interaction.guild.name, activar
+                interaction.guild_id, activar
             )
             estado = "activado ✅" if activar else "desactivado 🛑"
             await interaction.response.send_message(
@@ -412,8 +411,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.checks.has_permissions(administrator=True)
     async def slash_reactive(self, interaction: discord.Interaction, activar: bool):
         try:
-            await self.bot.user_repo.call_procedure(
-                "sp_SetServerReactive", interaction.guild_id, interaction.guild.name, activar
+            await self.bot.user_repo.set_server_reactive(
+                interaction.guild_id, interaction.guild.name, activar
             )
             estado = "activado ✅" if activar else "desactivado 🛑"
             await interaction.response.send_message(
@@ -423,6 +422,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         except Exception as e:
             logger.error(f"Error en /reactive: {e}")
             await interaction.response.send_message("❌ error configurando el modo reactivo.", ephemeral=True)
+
 
     # ------------------------------------------------------------------
     # Admin: Welcome Channel
