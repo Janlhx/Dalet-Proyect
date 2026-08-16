@@ -50,12 +50,16 @@ class TursoClient:
             logger.error("No se encontró TURSO_URL en las variables de entorno. El bot funcionará en modo offline.")
             return None
 
+        # Convertir libsql:// a https:// para usar el API HTTP de Turso en lugar de WebSockets (evita WSS 400 Bad Request)
+        if turso_url.startswith("libsql://"):
+            turso_url = turso_url.replace("libsql://", "https://", 1)
+
         try:
             # Si el cliente existe pero no está disponible (ej. conexión perdida), cerrarlo primero
             if cls._client is not None:
                 cls.close()
 
-            logger.info("Initializing Turso client...")
+            logger.info(f"Initializing Turso client ({turso_url})...")
             cls._client = libsql_client.create_client(
                 url=turso_url,
                 auth_token=turso_token
