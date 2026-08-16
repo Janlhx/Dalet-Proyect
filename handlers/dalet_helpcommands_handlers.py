@@ -12,11 +12,12 @@ from ui.molecules import DaletMolecules
 from ui.atoms import DaletAtoms
 
 # ─── URL pública del banner ───────────────────────────────────────────────────
-BANNER_URL: str | None = "https://i.imgur.com/Gng663Z.jpeg"
+BANNER_URL: str | None = "https://imgur.com/a/dalet-banner-Gng663Z"
 BANNER_FILE_PATH = "assets/bannersito.png"
 
 # ─── Definición de categorías del menú ──────────────────────────────────────
 
+# Comandos exactamente como están registrados en Discord
 SLASH_CATEGORIES = {
     "osu!": {
         "color": discord.Color.from_rgb(255, 102, 170),
@@ -35,7 +36,6 @@ SLASH_CATEGORIES = {
             ("/resumir",            "Resume el chat reciente del canal con IA"),
             ("/lore <búsqueda>",    "Busca fragmentos del pasado del servidor"),
             ("@Dalet",              "Hablar directamente con Dalet (IA conversacional)"),
-            ("/gemini <prompt>",    "Consulta rápida a Gemini"),
         ]
     },
     "Servidor": {
@@ -52,10 +52,10 @@ SLASH_CATEGORIES = {
         "color": discord.Color.from_rgb(255, 165, 0),
         "commands": [
             ("/reminder add",       "Crea un recordatorio diario, semanal o para fecha específica"),
-            ("/reminder list",      "Lista tus recordatorios activos"),
+            ("/reminder list",      "Lista tus recordatorios activos en este servidor"),
             ("/reminder edit",      "Edita un recordatorio existente"),
-            ("/reminder delete",    "Elimina un recordatorio por ID"),
-            ("/reminder toggle",    "Activa o desactiva un recordatorio"),
+            ("/reminder remove",    "Elimina un recordatorio por su ID"),
+            ("/reminder toggle",    "Activa o desactiva un recordatorio por su ID"),
         ]
     },
     "Admin": {
@@ -63,13 +63,11 @@ SLASH_CATEGORIES = {
         "commands": [
             ("/lock",               "Bloquea los comandos de Dalet en este canal"),
             ("/unlock",             "Desbloquea los comandos de Dalet en este canal"),
-            ("/proactive",          "Activa/desactiva el modo proactivo en el canal"),
-            ("/reactive",           "Activa/desactiva la respuesta a menciones"),
-            ("/setwelcome",         "Establece el canal de bienvenida"),
-            ("/removewelcome",      "Elimina el canal de bienvenida"),
-            ("/setname <nombre>",   "Nombre personalizado de Dalet en el servidor"),
-            ("d.sync",              "Sincroniza slash commands al instante (solo bot owner)"),
-            ("d.reload <módulo>",   "Recarga un módulo del bot (solo bot owner)"),
+            ("/proactive",          "Activa o desactiva el modo proactivo en el canal"),
+            ("/reactive",           "Activa o desactiva la respuesta a menciones en el servidor"),
+            ("/setwelcome",         "Establece el canal de bienvenida del servidor"),
+            ("/removewelcome",      "Elimina el canal de bienvenida del servidor"),
+            ("/setname <nombre>",   "Nombre personalizado de Dalet en este servidor"),
         ]
     },
 }
