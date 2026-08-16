@@ -1,9 +1,10 @@
 import logging
 from database.repositories.base_repository import BaseRepository
 from database.sqlite_manager import SQLiteManager
-from database.pool import DatabasePool
+from database.turso_client import TursoClient
 
 logger = logging.getLogger("dalet.repository.reminder")
+
 
 class ReminderRepository(BaseRepository):
     def __init__(self):
@@ -19,7 +20,7 @@ class ReminderRepository(BaseRepository):
         o hace un fallback a SQLite local si no está disponible.
         Retorna el ID del recordatorio creado.
         """
-        if DatabasePool.is_available():
+        if TursoClient.is_available():
             try:
                 # En Postgres usamos una query con RETURNING para obtener el ID insertado
                 query = """
@@ -53,7 +54,7 @@ class ReminderRepository(BaseRepository):
         """
         Retorna los recordatorios creados por un usuario en un servidor específico.
         """
-        if DatabasePool.is_available():
+        if TursoClient.is_available():
             try:
                 query = """
                     SELECT ReminderID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy, Pings
@@ -88,7 +89,7 @@ class ReminderRepository(BaseRepository):
         active = []
         seen_ids = set()
 
-        if DatabasePool.is_available():
+        if TursoClient.is_available():
             try:
                 query = """
                     SELECT ReminderID, ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, Pings
@@ -125,7 +126,7 @@ class ReminderRepository(BaseRepository):
         """
         Obtiene un recordatorio específico por su ID.
         """
-        if DatabasePool.is_available():
+        if TursoClient.is_available():
             try:
                 query = """
                     SELECT ReminderID, ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy, Pings
@@ -155,7 +156,7 @@ class ReminderRepository(BaseRepository):
         Elimina un recordatorio de la base de datos (Postgres y SQLite fallback).
         """
         success = False
-        if DatabasePool.is_available():
+        if TursoClient.is_available():
             try:
                 query = "DELETE FROM Reminders WHERE ReminderID = $1"
                 # Postgres execute retorna una cadena de status como "DELETE 1"
@@ -184,7 +185,7 @@ class ReminderRepository(BaseRepository):
         new_state = not reminder["Active"]
         success = False
 
-        if DatabasePool.is_available():
+        if TursoClient.is_available():
             try:
                 query = "UPDATE Reminders SET Active = $1 WHERE ReminderID = $2"
                 res = await self.execute(query, new_state, reminder_id)
@@ -209,7 +210,7 @@ class ReminderRepository(BaseRepository):
             return False
 
         success = False
-        if DatabasePool.is_available():
+        if TursoClient.is_available():
             try:
                 set_clauses = []
                 params = []

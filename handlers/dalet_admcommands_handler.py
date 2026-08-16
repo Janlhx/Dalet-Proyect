@@ -48,9 +48,9 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
     # --- Comandos de Base de Datos y Utilidad ---
 
     @commands.command(name="sql", hidden=True)
-    @commands.has_permissions(administrator=True)
+    @commands.is_owner()
     async def run_sql_select(self, ctx, *, query: str):
-        """[ADMIN] Ejecuta una consulta SELECT en la BD."""
+        """[ADMIN] Ejecuta una consulta SELECT en la BD (solo Owner)."""
         if not query.lower().strip().startswith("select"):
             return await ctx.send("❌ Este comando solo permite consultas `SELECT`.")
 
@@ -175,16 +175,16 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
     async def system_status(self, ctx):
         """Muestra el estado técnico global del bot (DB, Caché, IA)."""
         import time
-        from database.pool import DatabasePool
+        from database.turso_client import TursoClient
         from database.sqlite_manager import SQLiteManager
         
         embed = discord.Embed(title="💾 Estado del Sistema Dalet", color=discord.Color.blue())
         
-        # 1. Base de Datos (Postgres & SQLite)
-        pg_status = "✅ CONECTADA" if DatabasePool.is_available() else "⚠️ OFFLINE (Neon Quota/Error)"
+        # 1. Base de Datos (Turso & SQLite)
+        turso_status = "✅ CONECTADA" if TursoClient.is_available() else "⚠️ OFFLINE (Turso Error)"
         sqlite_status = "✅ OPERATIVA (Local)"
         
-        embed.add_field(name="Base de Datos (Neon)", value=pg_status, inline=True)
+        embed.add_field(name="Base de Datos (Turso)", value=turso_status, inline=True)
         embed.add_field(name="Base de Datos (Local)", value=sqlite_status, inline=True)
         
         # 2. Caché y Batching

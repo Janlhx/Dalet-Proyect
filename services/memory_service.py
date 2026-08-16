@@ -11,8 +11,8 @@ class MemoryService:
     """
     def __init__(self, user_repo):
         self.repo = user_repo
-        self.repo = user_repo
         self.max_db_history = 15      # Mensajes cronológicos (incluyen ahora al bot)
+
 
     async def get_relevant_context(self, channel_id: int, user_id: int, current_message: str, check_user_memory: bool = True):
         """

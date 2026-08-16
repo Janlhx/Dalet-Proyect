@@ -291,7 +291,7 @@ class OsuAnalyzer:
                     })
                 return formatted_maps
         except Exception as e:
-            print(f"!!!!!! [OsuAnalyzer] Error en DB Map Search: {e}")
+            logger.error(f"[OsuAnalyzer] Error en DB Map Search: {e}")
 
         # 2. Fallback a la API de osu! si la BD falla o no tiene mapas
         selected_keyword = random.choice(FOCUS_KEYWORDS.get(focus, ["osu"]))
@@ -305,8 +305,9 @@ class OsuAnalyzer:
             
             return random.sample(maps, k=min(5, len(maps)))
         except Exception as e:
-            print(f"!!!!!! [OsuAnalyzer] Error en API Map Search Fallback: {e}"); 
+            logger.error(f"[OsuAnalyzer] Error en API Map Search Fallback: {e}") 
             return []
+
 
     # --- GENERADOR DE PROMPT UNIFICADO (v5.0 - SUPER ANALYZE) ---
 

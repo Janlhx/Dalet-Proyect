@@ -25,10 +25,7 @@ class DaletOrganisms:
         
         # Determinar color basado en el rank global (Átomo dinámico)
         rank_val = stats.get('global_rank') or 9999999
-        if rank_val <= 1000: color = 0xFFD700 # Dorado
-        elif rank_val <= 10000: color = 0xC0C0C0 # Plata
-        elif rank_val <= 100000: color = 0xCD7F32 # Bronce
-        else: color = DaletAtoms.COLOR_PRIMARY
+        color = DaletAtoms.get_rank_color(rank_val)
         
         embed = discord.Embed(
             title=username,
