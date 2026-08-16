@@ -1,6 +1,5 @@
 import logging
 from database.repositories.base_repository import BaseRepository
-from database.pool import get_db
 from database.sqlite_manager import SQLiteManager
 
 logger = logging.getLogger("dalet.repository.user")

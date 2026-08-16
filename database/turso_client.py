@@ -31,6 +31,25 @@ class TursoClient:
         if time.time() < cls._retry_after:
             return None
 
+        # Obtener variables de entorno (soporta varios nombres comunes)
+        turso_url = (
+            os.getenv("TURSO_URL") or 
+            os.getenv("TURSO_DATABASE_URL") or 
+            os.getenv("LIBSQL_URL")
+        )
+        turso_token = (
+            os.getenv("TURSO_AUTH_TOKEN") or 
+            os.getenv("TURSO_TOKEN") or 
+            os.getenv("LIBSQL_AUTH_TOKEN")
+        )
+
+        if not turso_url:
+            cls._client = None
+            cls._db_available = False
+            cls._retry_after = time.time() + 60
+            logger.error("No se encontró TURSO_URL en las variables de entorno. El bot funcionará en modo offline.")
+            return None
+
         try:
             # Si el cliente existe pero no está disponible (ej. conexión perdida), cerrarlo primero
             if cls._client is not None:
@@ -38,8 +57,8 @@ class TursoClient:
 
             logger.info("Initializing Turso client...")
             cls._client = libsql_client.create_client(
-                url=TURSO_URL,
-                auth_token=TURSO_AUTH_TOKEN
+                url=turso_url,
+                auth_token=turso_token
             )
             cls._db_available = True
             logger.info("Turso client initialized successfully.")

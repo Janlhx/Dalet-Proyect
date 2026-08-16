@@ -8,7 +8,7 @@ import re
 import asyncio
 
 from database.repositories.reminder_repository import ReminderRepository
-from database.pool import DatabasePool
+from database.turso_client import TursoClient
 from ui.atoms import DaletAtoms
 from ui.organisms import DaletOrganisms
 
@@ -164,7 +164,7 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
     async def _run_postgres_migrations(self):
         # Esperar un poco a que el bot se inicialice y la BD esté disponible
         await asyncio.sleep(5)
-        if DatabasePool.is_available():
+        if TursoClient.is_available():
             try:
                 await self.repo.execute("ALTER TABLE Reminders ADD COLUMN IF NOT EXISTS Pings VARCHAR(255) DEFAULT NULL;")
                 logger.info("Postgres Reminders migration successful (Pings column added/exists).")
@@ -224,7 +224,7 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
 
                         # Si era una fecha específica, desactivarlo
                         if is_specific_date:
-                            if DatabasePool.is_available():
+                            if TursoClient.is_available():
                                 try:
                                     await self.repo.execute("UPDATE Reminders SET Active = FALSE WHERE ReminderID = $1", reminder_id)
                                 except Exception:
