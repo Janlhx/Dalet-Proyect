@@ -133,3 +133,8 @@ class OsuPresenter:
         )
 
         return DaletMolecules.add_standard_footer(embed)
+
+
+async def setup(bot):
+    pass
+

@@ -351,6 +351,8 @@ class DaletNLPChat(commands.Cog):
                     trigger_type="proactive",
                     bot_name=custom_name,
                 )
+        except Exception as e:
+            logger.error(f"Error procesando on_message en DaletNLPChat: {e}")
 
     async def generate_response(
         self,
