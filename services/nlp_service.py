@@ -4,12 +4,10 @@ import os
 import httpx
 import logging
 import asyncio
+import hashlib
 from database.repositories.user_repository import UserRepository
 
 logger = logging.getLogger("dalet.services.nlp")
-
-# Líneas del historial de canal a incluir en respuestas reactive (canal completo, todos los usuarios)
-REACTIVE_MAX_CONTEXT_LINES = 6
 
 # Personalidad de Dalet — comprimida y eficiente en tokens
 DALET_PERSONALITY = """Eres {bot_name}, una persona más del grupo de Discord. No eres un asistente ni una IA para el grupo — eres alguien con carácter propio.
@@ -50,7 +48,17 @@ class NLPService:
         env_provider = os.getenv("AI_PROVIDER", "gemini").lower()
         self.active_provider = env_provider
 
+        # Cliente HTTP persistente
+        self._http_client = httpx.AsyncClient(timeout=25.0)
+        # Caché de visión en RAM {url_hash: description}
+        self._vision_cache = {}
+
         logger.info(f"NLPService iniciado. Proveedor: {self.active_provider}")
+
+    async def close(self):
+        """Cierra recursos del cliente HTTP."""
+        if self._http_client:
+            await self._http_client.aclose()
 
     async def generate_reply(
         self, trigger: str, context: str, username: str,
@@ -63,7 +71,7 @@ class NLPService:
             image_description = await self._get_images_description(image_urls)
 
         if is_reactive:
-            context = self._trim_context_for_reactive(context)
+            context = self._trim_context_smart(context, trigger)
 
         if self.active_provider == "groq" and self.groq_api_key:
             return await self._generate_groq_reply(
@@ -95,14 +103,14 @@ class NLPService:
         prompt = f"Conversación reciente:\n{context}{vision_context}\n\n{username}: \"{trigger}\""
 
         try:
-            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+            model_name = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
             logger.info(f"Llamando Gemini: {model_name}")
 
             max_tokens = kwargs.get("max_tokens_override", 420 if is_reactive else 700)
             config = types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 temperature=0.85,
-                max_output_tokens=max_tokens,  # Puede ser sobreescrito para análisis largos
+                max_output_tokens=max_tokens,
                 tools=[types.Tool(google_search=types.GoogleSearch())]
             )
 
@@ -118,7 +126,6 @@ class NLPService:
 
         except Exception as e:
             logger.error(f"Error llamando Gemini: {e}")
-            # Fallback a Groq si Gemini falla (cuota, etc.)
             if self.groq_api_key:
                 logger.warning("Gemini falló, usando Groq como fallback...")
                 return await self._generate_groq_reply(
@@ -134,9 +141,9 @@ class NLPService:
     ):
         active_room_users = kwargs.get("active_room_users", "")
 
-        # Modelos desde .env, con valores por defecto de alta fidelidad (DeepSeek R1 Distill / Qwen Coder)
-        model_primary = os.getenv("GROQ_MODEL", "deepseek-r1-distill-llama-70b")
-        model_fallback = os.getenv("GROQ_MODEL_FALLBACK", "qwen-2.5-coder-32b")
+        # Modelos desde .env, con defaults modernos (openai/gpt-oss-120b o llama-3.3-70b-versatile)
+        model_primary = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+        model_fallback = os.getenv("GROQ_MODEL_FALLBACK", "llama-3.3-70b-versatile")
         model_name = model_fallback if is_fallback else model_primary
 
         url = "https://api.groq.com/openai/v1/chat/completions"
@@ -166,89 +173,104 @@ class NLPService:
         }
 
         try:
-            async with httpx.AsyncClient() as client:
-                logger.info(f"Llamando Groq: {model_name} (fallback={is_fallback})")
-                response = await client.post(url, headers=headers, json=data, timeout=25.0)
+            logger.info(f"Llamando Groq: {model_name} (fallback={is_fallback})")
+            response = await self._http_client.post(url, headers=headers, json=data)
 
-                if response.status_code == 429:
-                    if not is_fallback:
-                        # Intentar con modelo más pequeño
-                        return await self._generate_groq_reply(
-                            trigger, context, username, bot_name, image_description,
-                            is_fallback=True, is_reactive=is_reactive, **kwargs
-                        )
-                    else:
-                        logger.warning("Groq también con rate limit. Silencio.")
-                        return None
+            if response.status_code == 429:
+                if not is_fallback:
+                    return await self._generate_groq_reply(
+                        trigger, context, username, bot_name, image_description,
+                        is_fallback=True, is_reactive=is_reactive, **kwargs
+                    )
+                else:
+                    logger.warning("Groq también con rate limit. Silencio.")
+                    return None
 
-                response.raise_for_status()
-                result = response.json()
-                return result['choices'][0]['message']['content'].strip()
+            response.raise_for_status()
+            result = response.json()
+            return result['choices'][0]['message']['content'].strip()
 
         except Exception as e:
             logger.error(f"Groq falló ({model_name}): {e}")
             return None
 
-    def _trim_context_for_reactive(self, context: str) -> str:
+    def _trim_context_smart(self, context: str, trigger: str) -> str:
         """
-        Recorta el contexto a las últimas REACTIVE_MAX_CONTEXT_LINES líneas del canal.
-        El historial siempre es del canal completo (todos los usuarios), no solo de quien habla,
-        para que Dalet pueda seguir la conversación de forma natural.
-        Preserva los datos de memoria del usuario si existen.
+        Recorta el contexto de forma dinámica para optimizar consumo de tokens.
+        - Pregunta clara (?): incluye hasta 8 líneas.
+        - Mensaje corto (< 5 palabras): incluye 4 líneas.
+        - Caso estándar: incluye 6 líneas.
         """
         lines = context.split("\n")
 
-        # Buscar el marcador del historial de chat
         chat_marker_idx = None
         for i, line in enumerate(lines):
             if "CHAT RECIENTE" in line:
                 chat_marker_idx = i
                 break
 
+        # Determinar max líneas según el mensaje
+        trigger_clean = trigger.strip()
+        words = trigger_clean.split()
+        if trigger_clean.endswith("?") or "¿" in trigger_clean:
+            max_lines = 8
+        elif len(words) <= 4:
+            max_lines = 4
+        else:
+            max_lines = 6
+
         if chat_marker_idx is None:
-            # Sin marcador — recortar directamente las últimas N líneas
-            return "\n".join(lines[-REACTIVE_MAX_CONTEXT_LINES:])
+            return "\n".join(lines[-max_lines:])
 
-        user_data_lines = lines[:chat_marker_idx]   # Datos del usuario (memorias, si existen)
-        chat_lines = lines[chat_marker_idx:]         # "CHAT RECIENTE:" + historial del canal
+        user_data_lines = lines[:chat_marker_idx]
+        chat_lines = lines[chat_marker_idx:]
 
-        # Mantener encabezado + últimas N líneas del canal
-        if len(chat_lines) > REACTIVE_MAX_CONTEXT_LINES + 1:
-            chat_lines = [chat_lines[0]] + chat_lines[-REACTIVE_MAX_CONTEXT_LINES:]
+        if len(chat_lines) > max_lines + 1:
+            chat_lines = [chat_lines[0]] + chat_lines[-max_lines:]
 
         return "\n".join(user_data_lines + chat_lines)
 
     async def _get_images_description(self, image_urls: list):
-        """Describe brevemente una imagen usando Gemini (solo 1 para ahorrar cuota)."""
-        if not self.gemini_api_key:
+        """Describe una imagen usando el modelo principal con caché en RAM."""
+        if not self.gemini_api_key or not image_urls:
             return ""
 
+        url = image_urls[0]
+        url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()
+        if url_hash in self._vision_cache:
+            logger.info("Caché hit para descripción de imagen.")
+            return self._vision_cache[url_hash]
+
         try:
-            model_name = "gemini-2.0-flash"
+            model_name = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 
-            async with httpx.AsyncClient() as client:
-                for url in image_urls[:1]:  # Solo 1 imagen
-                    resp = await client.get(url, timeout=10.0)
-                    resp.raise_for_status()
+            resp = await self._http_client.get(url)
+            resp.raise_for_status()
 
-                    image_part = types.Part.from_bytes(
-                        data=resp.content,
-                        mime_type=resp.headers.get('Content-Type', 'image/jpeg')
-                    )
+            image_part = types.Part.from_bytes(
+                data=resp.content,
+                mime_type=resp.headers.get('Content-Type', 'image/jpeg')
+            )
 
-                    res = await self.client.aio.models.generate_content(
-                        model=model_name,
-                        contents=[
-                            "Describe brevemente esta imagen en 40 palabras o menos. "
-                            "Enfócate en el contenido principal y texto visible.",
-                            image_part
-                        ]
-                    )
+            res = await self.client.aio.models.generate_content(
+                model=model_name,
+                contents=[
+                    "Describe brevemente esta imagen en 40 palabras o menos. "
+                    "Enfócate en el contenido principal y texto visible.",
+                    image_part
+                ]
+            )
 
-                    if res and res.text:
-                        return res.text.strip()
+            if res and res.text:
+                desc = res.text.strip()
+                # Guardar en caché (máx 50 elementos)
+                if len(self._vision_cache) > 50:
+                    self._vision_cache.clear()
+                self._vision_cache[url_hash] = desc
+                return desc
 
         except Exception as e:
             logger.error(f"Error en visión: {e}")
 
         return ""
+

@@ -70,49 +70,64 @@ class UserRepository(BaseRepository):
 
     async def is_server_reactive(self, server_id: int):
         async def _fetch(sid):
-            query = "SELECT fn_IsServerReactive($1::BIGINT)"
+            query = "SELECT IsReactive FROM Servers WHERE ServerID = ?"
             result = await self.fetch_one(query, sid)
-            return result[0] if result else False
+            return bool(result[0]) if result and result[0] is not None else False
         
         return await self._get_cached(f"reactive_{server_id}", _fetch, server_id)
 
     async def is_channel_proactive(self, channel_id: int):
         async def _fetch(cid):
-            query = "SELECT fn_IsChannelProactive($1::BIGINT)"
+            query = "SELECT IsProactive FROM Channels WHERE ChannelID = ?"
             result = await self.fetch_one(query, cid)
-            return result[0] if result else False
+            return bool(result[0]) if result and result[0] is not None else False
             
         return await self._get_cached(f"proactive_{channel_id}", _fetch, channel_id)
 
-    async def call_procedure(self, procedure_name, *args):
-        # Primero ejecutamos el procedimiento en la BD
-        res = await super().call_procedure(procedure_name, *args)
-        
-        # Invalidamos la caché de acuerdo al SP llamado
-        if procedure_name == "sp_SetServerReactive" and len(args) >= 1:
-            server_id = args[0]
-            self._cache.pop(f"reactive_{server_id}", None)
-            logger.info(f"Caché reactiva invalidada para servidor: {server_id}")
-            
-        elif procedure_name == "sp_SetChannelProactive" and len(args) >= 1:
-            channel_id = args[0]
-            self._cache.pop(f"proactive_{channel_id}", None)
-            logger.info(f"Caché proactiva invalidada para canal: {channel_id}")
-            
+    async def set_server_reactive(self, server_id: int, server_name: str, is_reactive: bool):
+        query = """
+            INSERT INTO Servers (ServerID, ServerName, IsReactive)
+            VALUES (?, ?, ?)
+            ON CONFLICT(ServerID) DO UPDATE SET
+                ServerName = excluded.ServerName,
+                IsReactive = excluded.IsReactive
+        """
+        res = await self.execute(query, server_id, server_name, 1 if is_reactive else 0)
+        self._cache.pop(f"reactive_{server_id}", None)
+        return res
+
+    async def set_channel_proactive(self, channel_id: int, channel_name: str, server_id: int, is_proactive: bool):
+        query = """
+            INSERT INTO Channels (ChannelID, ChannelName, ServerID, IsProactive)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(ChannelID) DO UPDATE SET
+                ChannelName = excluded.ChannelName,
+                IsProactive = excluded.IsProactive
+        """
+        res = await self.execute(query, channel_id, channel_name, server_id, 1 if is_proactive else 0)
+        self._cache.pop(f"proactive_{channel_id}", None)
         return res
 
     async def add_user_memory(self, user_id, user_name, content, topic="general"):
-        return await self.call_procedure(
-            "sp_AddUserMemory",
-            user_id, user_name, content, topic
+        # Asegurar usuario
+        await self.execute(
+            "INSERT INTO Users (UserID, UserName) VALUES (?, ?) ON CONFLICT(UserID) DO UPDATE SET UserName = excluded.UserName",
+            user_id, user_name
         )
+        res = await self.execute(
+            "INSERT INTO UserMemories (UserID, Topic, Content) VALUES (?, ?, ?)",
+            user_id, topic, content
+        )
+        self._cache.pop(f"memories_{user_id}", None)
+        return res
 
     async def get_all_user_memories(self, user_id: int):
         async def _fetch(uid):
-            query = "SELECT topic, content FROM fn_GetAllUserMemories($1)"
+            query = "SELECT Topic as topic, Content as content FROM UserMemories WHERE UserID = ? ORDER BY Timestamp DESC LIMIT 20"
             return await self.fetch_all(query, uid)
             
         return await self._get_cached(f"memories_{user_id}", _fetch, user_id)
+
 
     async def get_channel_messages(self, channel_id: int, limit: int = 20):
         """

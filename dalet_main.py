@@ -8,7 +8,7 @@ from threading import Thread
 import sys
 import logging
 import signal
-from database.pool import DatabasePool
+from database.turso_client import TursoClient
 from database.sqlite_manager import SQLiteManager
 
 # --- Configuración de Logging ---
@@ -79,8 +79,8 @@ async def main():
     retry_count = 0
     while True:
         try:
-            # Intentar conectar a Neon (sin bloquear si no está disponible)
-            await DatabasePool.get_pool()
+            # Inicializar Turso client
+            TursoClient.get_client()
 
             from database.repositories.user_repository import UserRepository
             from database.repositories.osu_repository import OsuRepository
@@ -117,21 +117,8 @@ async def main():
                 client_secret=os.getenv("OSU_CLIENT_SECRET", "")
             )
 
-            # Tarea de purga de mensajes expirados (Postgres, cada hora)
-            async def _purge_expired_messages():
-                while True:
-                    await asyncio.sleep(3600)
-                    try:
-                        pool = await DatabasePool.get_pool()
-                        if pool:
-                            async with pool.acquire() as conn:
-                                await conn.execute("SELECT fn_PurgeExpiredMessages()")
-                    except asyncio.CancelledError:
-                        break
-                    except Exception as e:
-                        logger.debug(f"Purge task skipped: {e}")
-
-            purge_task = asyncio.create_task(_purge_expired_messages())
+            # Tarea de purga de mensajes (removida ya que Messages no existe en Turso)
+            # flush_task para los logs batch de UserRepo
             flush_task = asyncio.create_task(bot.user_repo._periodic_flush())
 
             # Check global: bloqueo de canales
@@ -141,7 +128,7 @@ async def main():
                 if ctx.command and ctx.command.name in allowed:
                     return True
 
-                if not DatabasePool.is_available():
+                if not TursoClient.is_available():
                     return True  # Sin BD, permitir todo
 
                 try:
@@ -181,7 +168,6 @@ async def main():
                     if bot_task.exception():
                         raise bot_task.exception()
 
-                purge_task.cancel()
                 flush_task.cancel()
 
                 # Flush final del buffer de logs antes de cerrar
@@ -215,7 +201,7 @@ async def main():
 
         finally:
             logger.info("Cerrando pools de base de datos...")
-            await DatabasePool.close()
+            TursoClient.close()
             await SQLiteManager.close()
             logger.info("Apagado completo.")
 

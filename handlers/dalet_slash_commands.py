@@ -1,12 +1,16 @@
 """
 Slash Commands (Application Commands) de Dalet.
-Duplica los comandos de prefijo más usados como comandos de barra /
-para mayor accesibilidad en Discord.
+Unifica y expone los comandos principales como comandos de barra / para Discord.
 """
 import discord
 from discord import app_commands
 from discord.ext import commands
+from discord.utils import format_dt
 import logging
+
+from ui.organisms import DaletOrganisms
+from ui.atoms import DaletAtoms
+from handlers.dalet_osu_presenter import OsuPresenter
 
 logger = logging.getLogger("dalet.handlers.slash")
 
@@ -35,7 +39,6 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         await interaction.response.defer()
         try:
             stats = await self.bot.user_repo.get_user_social_stats(member.id)
-            from ui.organisms import DaletOrganisms
             avatar = member.avatar.url if member.avatar else None
             embed = DaletOrganisms.create_user_stats_card(member.display_name, stats, avatar)
             await interaction.followup.send(embed=embed)
@@ -47,9 +50,6 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.describe(usuario="Usuario del que ver la info")
     async def slash_userinfo(self, interaction: discord.Interaction, usuario: discord.Member = None):
         member = usuario or interaction.user
-        from discord.utils import format_dt
-        from ui.atoms import DaletAtoms
-        from ui.organisms import DaletOrganisms
         desc = (
             f"🆔 **ID**: `{member.id}`\n"
             f"📅 **Cuenta creada**: {format_dt(member.created_at, 'D')}\n"
@@ -62,8 +62,6 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
 
     @app_commands.command(name="serverinfo", description="Información del servidor actual.")
     async def slash_serverinfo(self, interaction: discord.Interaction):
-        from discord.utils import format_dt
-        from ui.organisms import DaletOrganisms
         g = interaction.guild
         desc = (
             f"👥 **Miembros**: `{g.member_count}`\n"
@@ -101,12 +99,11 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 username = await self.bot.osu_repo.get_linked_username(interaction.user.id)
             if not username:
                 return await interaction.followup.send(
-                    "❌ no tienes cuenta vinculada. usa `/link` o `d.link <usuario>`.",
+                    "❌ no tienes cuenta vinculada. usa `/link` primero.",
                     ephemeral=True
                 )
-            from ui.organisms import DaletOrganisms
             user = await self.bot.osu_service.get_user(username, modo)
-            embed = DaletOrganisms.create_osu_card(user, modo)
+            embed = OsuPresenter.build_profile_card(user, modo)
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /op: {e}")
@@ -156,8 +153,6 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         usuario: str = None, modo: str = "osu"
     ):
         await interaction.response.defer()
-        # Reutilizar la lógica del prefix command
-        ctx_like = interaction
         username = usuario
         if not username:
             username = await self.bot.osu_repo.get_linked_username(interaction.user.id)
@@ -166,7 +161,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 "❌ no tienes cuenta vinculada.", ephemeral=True
             )
         try:
-            user   = await self.bot.osu_service.get_user(username, modo)
+            user = await self.bot.osu_service.get_user(username, modo)
             recent = await self.bot.osu_service.get_user_recent_scores(
                 user["id"], modo, limit=1, include_fails=1
             )
@@ -175,110 +170,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                     f"**{username}** no tiene jugadas recientes."
                 )
 
-            # Reusar la lógica de embed del handler de prefijos
-            osu_cog = self.bot.get_cog("osu!")
-            if osu_cog:
-                score_data = recent[0]
-                bmap  = score_data.get("beatmap", {})
-                bset  = score_data.get("beatmapset", {})
-                stats_score = score_data.get("statistics", {})
-
-                GRADE = {"XH": "🌟", "X": "⭐", "SH": "🥈", "S": "🏅", "A": "🎯",
-                         "B": "🔵", "C": "🟡", "D": "🔴", "F": "💀"}
-                grade = score_data.get("rank", "?")
-                grade_emoji = GRADE.get(grade, "❓")
-                mods  = "+" + "".join(score_data.get("mods", [])) if score_data.get("mods") else "+NM"
-                acc   = f"{score_data.get('accuracy', 0) * 100:.2f}%"
-                pp    = score_data.get("pp")
-                pp_str = f"**{pp:.2f}pp**" if pp else "*(sin pp)*"
-                
-                combo = score_data.get("max_combo", 0)
-                max_combo = bmap.get("max_combo") or "?"
-                total_score = score_data.get("score", 0)
-
-                title_name  = bset.get("title", "??")
-                artist_name = bset.get("artist", "??")
-                version     = bmap.get("version", "??")
-                stars       = bmap.get("difficulty_rating", 0)
-                bmap_url    = f"https://osu.ppy.sh/b/{bmap.get('id', 0)}"
-                mapper      = bset.get("creator", "Desconocido")
-                map_status  = bset.get("status", "unknown").upper()
-
-                # Atributos técnicos
-                bpm = bmap.get("bpm", 0)
-                cs = bmap.get("cs", 0.0)
-                ar = bmap.get("ar", 0.0)
-                od = bmap.get("accuracy", 0.0)
-                hp = bmap.get("drain", 0.0)
-                
-                # Hits
-                n300 = stats_score.get("count_300", 0)
-                n100 = stats_score.get("count_100", 0)
-                n50  = stats_score.get("count_50", 0)
-                nmiss = stats_score.get("count_miss", 0)
-                ngeki = stats_score.get("count_geki", 0)
-                nkatu = stats_score.get("count_katu", 0)
-
-                embed = discord.Embed(
-                    title=f"{title_name} [{version}]",
-                    url=bmap_url,
-                    description=f"**{artist_name}** • {stars:.2f}★ • {mods}",
-                    color=0x7289DA
-                )
-                embed.set_author(name=f"Jugada Reciente · {user.get('username')} ({modo.upper()})", icon_url=user.get("avatar_url", ""))
-                
-                cover_url = bset.get("covers", {}).get("list") or bset.get("covers", {}).get("cover")
-                if cover_url:
-                    embed.set_thumbnail(url=cover_url)
-                else:
-                    embed.set_thumbnail(url=user.get("avatar_url", ""))
-
-                if modo == "mania":
-                    hits_str = f"MAX: `{ngeki}` • 300: `{n300}` • 200: `{nkatu}`\n100: `{n100}` • 50: `{n50}` • Miss: `{nmiss}`"
-                elif modo == "taiko":
-                    hits_str = f"GREAT: `{n300}` • GOOD: `{n100}` • Miss: `{nmiss}`"
-                else:
-                    hits_str = f"300: `{n300}` • 100: `{n100}` • 50: `{n50}` • Miss: `{nmiss}`"
-
-                embed.add_field(
-                    name="Resultado",
-                    value=(
-                        f"Rango: **{grade_emoji} {grade}**\n"
-                        f"Precisión: **{acc}**\n"
-                        f"PP: {pp_str}"
-                    ),
-                    inline=True
-                )
-                embed.add_field(
-                    name="Puntuación & Combo",
-                    value=(
-                        f"Puntaje: `{total_score:,}`\n"
-                        f"Combo: **{combo}x** / {max_combo}x\n"
-                        f"Estado: `{map_status}`"
-                    ),
-                    inline=True
-                )
-                embed.add_field(
-                    name="Hits",
-                    value=hits_str,
-                    inline=False
-                )
-                embed.add_field(
-                    name="Información del Mapa",
-                    value=f"• BPM: `{bpm}` • CS: `{cs:.1f}` • AR: `{ar:.1f}` • OD: `{od:.1f}` • HP: `{hp:.1f}`",
-                    inline=False
-                )
-
-                from datetime import datetime
-                played_at = score_data.get("created_at", "")
-                if played_at:
-                    played_dt = datetime.fromisoformat(played_at.replace("Z", "+00:00"))
-                    embed.set_footer(text=f"Mapeado por {mapper} · Jugado por {username}")
-                    embed.timestamp = played_dt
-                else:
-                    embed.set_footer(text=f"Mapeado por {mapper}")
-
-                await interaction.followup.send(embed=embed)
+            embed = OsuPresenter.build_recent_card(user.get("username", username), modo, recent[0])
+            await interaction.followup.send(embed=embed)
 
         except Exception as e:
             logger.error(f"Error en /recent: {e}")
@@ -295,37 +188,14 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             return await interaction.followup.send(
                 "❌ no tienes cuenta vinculada.", ephemeral=True
             )
-        # Invocar el prefix command vía el cog
-        osu_cog = self.bot.get_cog("osu!")
-        if osu_cog:
-            try:
-                user = await self.bot.osu_service.get_user(username)
-                best = await self.bot.osu_service.get_user_best_scores(user["id"], limit=10)
-                top5 = best[:5]
-                lines = []
-                GRADE = {"XH": "🌟", "X": "⭐", "SH": "🥈", "S": "🏅", "A": "🎯",
-                         "B": "🔵", "C": "🟡", "D": "🔴", "F": "💀"}
-                for i, s in enumerate(top5, 1):
-                    bmap  = s.get("beatmap", {})
-                    bset  = s.get("beatmapset", {})
-                    pp    = s.get("pp", 0)
-                    acc   = f"{s.get('accuracy', 0) * 100:.2f}%"
-                    mods  = "+" + "".join(s.get("mods", [])) if s.get("mods") else "+NM"
-                    grade = GRADE.get(s.get("rank", "?"), "❓")
-                    title = bset.get("title", "??")[:30]
-                    stars = bmap.get("difficulty_rating", 0)
-                    lines.append(f"`{i}.` {grade} **{pp:.0f}pp** • {acc} • {mods}\n"
-                                 f"   [{title}] {stars:.1f}★")
-                embed = discord.Embed(
-                    title=f"🏆 Top Plays — {username}",
-                    description="\n".join(lines),
-                    color=0xFFD700
-                )
-                embed.set_thumbnail(url=user.get("avatar_url", ""))
-                await interaction.followup.send(embed=embed)
-            except Exception as e:
-                logger.error(f"Error en /top: {e}")
-                await interaction.followup.send("⚠️ error.", ephemeral=True)
+        try:
+            user = await self.bot.osu_service.get_user(username)
+            best = await self.bot.osu_service.get_user_best_scores(user["id"], limit=5)
+            embed = OsuPresenter.build_top_card(user.get("username", username), "osu", best)
+            await interaction.followup.send(embed=embed)
+        except Exception as e:
+            logger.error(f"Error en /top: {e}")
+            await interaction.followup.send("⚠️ error obteniendo top plays.", ephemeral=True)
 
     @app_commands.command(name="rank", description="Ranking osu! de los jugadores vinculados en este servidor.")
     async def slash_rank(self, interaction: discord.Interaction):
@@ -343,12 +213,12 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                     "nadie en este servidor tiene cuenta vinculada aún. usa `/link` para entrar al ranking."
                 )
             medals = ["🥇", "🥈", "🥉"]
-            lines  = []
+            lines = []
             for i, row in enumerate(server_rows):
                 medal = medals[i] if i < 3 else f"`{i+1}.`"
-                name  = row.get("UserName") or row.get("username") or row.get("osuusername") or "??"
-                pp    = float(row.get("PP") or row.get("pp") or 0)
-                acc   = float(row.get("Accuracy") or row.get("accuracy") or 0)
+                name = row.get("UserName") or row.get("username") or row.get("osuusername") or "??"
+                pp = float(row.get("PP") or row.get("pp") or 0)
+                acc = float(row.get("Accuracy") or row.get("accuracy") or 0)
                 lines.append(f"{medal} **{name}** — {pp:,.0f}pp • {acc:.2f}%")
             embed = discord.Embed(
                 title="🏆 Ranking osu! del Servidor",
@@ -364,49 +234,21 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.describe(usuario="Jugador con el que compararte")
     async def slash_compare(self, interaction: discord.Interaction, usuario: str):
         await interaction.response.defer()
-        osu_cog = self.bot.get_cog("osu!")
-        if osu_cog:
-            # Crear contexto falso es complejo para slash; invocar la lógica directamente
-            user1_name = await self.bot.osu_repo.get_linked_username(interaction.user.id)
-            if not user1_name:
-                return await interaction.followup.send(
-                    "❌ necesitas vincular tu cuenta primero.", ephemeral=True
-                )
-            try:
-                import asyncio
-                u1, u2 = await asyncio.gather(
-                    self.bot.osu_service.get_user(user1_name),
-                    self.bot.osu_service.get_user(usuario),
-                )
-                s1, s2 = u1.get("statistics", {}), u2.get("statistics", {})
-                pp1, pp2   = s1.get("pp", 0), s2.get("pp", 0)
-                rk1, rk2   = s1.get("global_rank") or 0, s2.get("global_rank") or 0
-                acc1, acc2 = s1.get("hit_accuracy", 0), s2.get("hit_accuracy", 0)
-
-                def arrow(v1, v2, hb=True):
-                    if v1 == v2: return "="
-                    return ("▲" if (v1 > v2) == hb else "▼")
-
-                n1, n2 = u1.get("username", user1_name), u2.get("username", usuario)
-                rows = [
-                    ("PP",       f"{pp1:,.0f}",  f"{pp2:,.0f}",  arrow(pp1, pp2)),
-                    ("Rank",     f"#{rk1:,}" if rk1 else "?", f"#{rk2:,}" if rk2 else "?",
-                     arrow(rk1, rk2, hb=False)),
-                    ("Acc",      f"{acc1:.2f}%",  f"{acc2:.2f}%", arrow(acc1, acc2)),
-                ]
-                table = f"{'':12} {n1[:10]:<12} {'':3} {n2[:10]}\n" + "─" * 40 + "\n"
-                for stat, v1, v2, arr in rows:
-                    table += f"{stat:<12} {v1:<12} {arr:^3} {v2}\n"
-
-                embed = discord.Embed(
-                    title=f"⚔️ {n1} vs {n2}",
-                    description=f"```\n{table}```",
-                    color=0xE94560
-                )
-                await interaction.followup.send(embed=embed)
-            except Exception as e:
-                logger.error(f"Error en /compare: {e}")
-                await interaction.followup.send("⚠️ error comparando.", ephemeral=True)
+        user1_name = await self.bot.osu_repo.get_linked_username(interaction.user.id)
+        if not user1_name:
+            return await interaction.followup.send(
+                "❌ necesitas vincular tu cuenta primero.", ephemeral=True
+            )
+        try:
+            u1, u2 = await asyncio.gather(
+                self.bot.osu_service.get_user(user1_name),
+                self.bot.osu_service.get_user(usuario),
+            )
+            embed = OsuPresenter.build_compare_card(u1, u2)
+            await interaction.followup.send(embed=embed)
+        except Exception as e:
+            logger.error(f"Error en /compare: {e}")
+            await interaction.followup.send("⚠️ error comparando.", ephemeral=True)
 
     # ------------------------------------------------------------------
     # Conversaciones / Memoria
@@ -424,7 +266,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 )
             lineas = []
             for r in resultados:
-                ts  = r['Timestamp'] if isinstance(r, dict) else r[2]
+                ts = r['Timestamp'] if isinstance(r, dict) else r[2]
                 fecha = str(ts)[:10] if ts else "??/??/????"
                 usr = r['UserName'] if isinstance(r, dict) else r[0]
                 cnt = r['Content'] if isinstance(r, dict) else r[1]
@@ -485,7 +327,6 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
 
     @app_commands.command(name="status", description="Estado técnico del bot (DB, IA, caché).")
     async def slash_status(self, interaction: discord.Interaction):
-        """Versión slash del d.status — solo visible para ti."""
         import time
         from database.pool import DatabasePool
 

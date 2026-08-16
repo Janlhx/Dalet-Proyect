@@ -30,6 +30,9 @@ REACTIVE_CLOSING_PHRASES = [
 ]
 
 
+from discord.ext import tasks
+
+
 class DaletNLPChat(commands.Cog):
     """Maneja el listener 'on_message' para las respuestas de IA."""
 
@@ -37,34 +40,77 @@ class DaletNLPChat(commands.Cog):
         self.bot = bot
         self.last_reply_time = 0
         self.message_counter = 0
-        self.is_responding = False
+        self.active_user_responses = set()
         self.error_cooldown = 0
         self.consecutive_429s = 0
 
         # --- Rate Limiter (Token Bucket) ---
-        # {channel_id: (tokens, last_update_time)}
+        self.guild_ratelimits = {}
         self.channel_ratelimits = {}
-        # {user_id: (tokens, last_update_time)}
         self.user_ratelimits = {}
 
         # --- Sesiones Reactive (por usuario/servidor) ---
-        # {(guild_id, user_id): {"count": int, "cooldown_until": float}}
         self.reactive_sessions = {}
 
-    def _check_rate_limit(self, channel_id: int, user_id: int) -> bool:
+        # Iniciar tarea de limpieza de memoria en RAM (TTL)
+        self.cleanup_task.start()
+
+    def cog_unload(self):
+        self.cleanup_task.cancel()
+
+    @tasks.loop(hours=1)
+    async def cleanup_task(self):
+        """Limpia periódicamente dicts en RAM con más de 2 horas de inactividad."""
+        now = time.time()
+        ttl = 7200  # 2 horas
+
+        # Limpiar ratelimits
+        for g_id, (_, last) in list(self.guild_ratelimits.items()):
+            if now - last > ttl:
+                self.guild_ratelimits.pop(g_id, None)
+
+        for c_id, (_, last) in list(self.channel_ratelimits.items()):
+            if now - last > ttl:
+                self.channel_ratelimits.pop(c_id, None)
+
+        for u_id, (_, last) in list(self.user_ratelimits.items()):
+            if now - last > ttl:
+                self.user_ratelimits.pop(u_id, None)
+
+        # Limpiar sesiones reactivas expiradas
+        for key, data in list(self.reactive_sessions.items()):
+            cooldown_until = data.get("cooldown_until", 0)
+            if cooldown_until > 0 and now > cooldown_until + ttl:
+                self.reactive_sessions.pop(key, None)
+
+    def _check_rate_limit(self, guild_id: int, channel_id: int, user_id: int, priority: str = "mention") -> bool:
         """
-        Aplica un rate limiter usando Token Bucket.
-        Límite por canal: máx 5 tokens, se regenera 1 token cada 12 segundos (5 por min).
-        Límite por usuario: máx 3 tokens, se regenera 1 token cada 20 segundos.
-        Retorna True si puede pasar (tiene tokens), False si es limitado.
+        Aplica un rate limiter usando Token Bucket en 3 niveles (Guild -> Canal -> Usuario).
+        - Level 1 Guild: máx 8 tokens, 1 token / 7.5s (8 por min).
+        - Level 2 Canal: máx 5 tokens, 1 token / 12s (5 por min).
+        - Level 3 Usuario: máx 3 tokens, 1 token / 20s.
+        Triggers proactivos se rechazan si a la guild le quedan menos de 3 tokens.
         """
         now = time.time()
 
-        # 1. Límite de Canal
+        # 1. Límite de Guild (Servidor)
+        g_tokens, g_last = self.guild_ratelimits.get(guild_id, (8.0, now))
+        g_elapsed = now - g_last
+        g_tokens = min(8.0, g_tokens + g_elapsed * (1.0 / 7.5))
+        self.guild_ratelimits[guild_id] = (g_tokens, now)
+
+        if priority == "proactive" and g_tokens < 3.0:
+            logger.debug(f"Proactividad omitida para proteger cuota de guild {guild_id}")
+            return False
+
+        if g_tokens < 1.0:
+            logger.warning(f"Rate limit de Servidor excedido para {guild_id} (Tokens: {g_tokens:.2f})")
+            return False
+
+        # 2. Límite de Canal
         c_tokens, c_last = self.channel_ratelimits.get(channel_id, (5.0, now))
-        # Regenerar tokens
-        elapsed = now - c_last
-        c_tokens = min(5.0, c_tokens + elapsed * (1.0 / 12.0))
+        c_elapsed = now - c_last
+        c_tokens = min(5.0, c_tokens + c_elapsed * (1.0 / 12.0))
         self.channel_ratelimits[channel_id] = (c_tokens, now)
 
         if c_tokens < 1.0:
@@ -73,10 +119,10 @@ class DaletNLPChat(commands.Cog):
             )
             return False
 
-        # 2. Límite de Usuario
+        # 3. Límite de Usuario
         u_tokens, u_last = self.user_ratelimits.get(user_id, (3.0, now))
-        elapsed = now - u_last
-        u_tokens = min(3.0, u_tokens + elapsed * (1.0 / 20.0))
+        u_elapsed = now - u_last
+        u_tokens = min(3.0, u_tokens + u_elapsed * (1.0 / 20.0))
         self.user_ratelimits[user_id] = (u_tokens, now)
 
         if u_tokens < 1.0:
@@ -85,10 +131,12 @@ class DaletNLPChat(commands.Cog):
             )
             return False
 
-        # Consumir un token de cada uno
+        # Consumir un token de cada nivel
+        self.guild_ratelimits[guild_id] = (g_tokens - 1.0, now)
         self.channel_ratelimits[channel_id] = (c_tokens - 1.0, now)
         self.user_ratelimits[user_id] = (u_tokens - 1.0, now)
         return True
+
 
     def _check_reactive_session(self, guild_id: int, user_id: int) -> str:
         """
@@ -161,9 +209,6 @@ class DaletNLPChat(commands.Cog):
 
     def _should_respond(self) -> bool:
         """Decide si el bot debe responder proactivamente en este mensaje."""
-        if self.is_responding:
-            return False
-
         self.message_counter += 1
 
         now = time.time()
@@ -271,7 +316,7 @@ class DaletNLPChat(commands.Cog):
                     return
 
                 # Aplicar Rate Limit a menciones
-                if not self._check_rate_limit(message.channel.id, message.author.id):
+                if not self._check_rate_limit(message.guild.id, message.channel.id, message.author.id, priority="mention"):
                     return
 
                 trigger_type = (
@@ -296,8 +341,9 @@ class DaletNLPChat(commands.Cog):
 
             if is_proactive and self._should_respond():
                 # Aplicar Rate Limit también a proactividad por seguridad
-                if not self._check_rate_limit(message.channel.id, self.bot.user.id):
+                if not self._check_rate_limit(message.guild.id, message.channel.id, self.bot.user.id, priority="proactive"):
                     return
+
 
                 await self.generate_response(
                     message,
@@ -305,10 +351,6 @@ class DaletNLPChat(commands.Cog):
                     trigger_type="proactive",
                     bot_name=custom_name,
                 )
-
-        except Exception as e:
-            logger.error(f"Error crítico en lógica de decisión: {e}")
-            self.is_responding = False
 
     async def generate_response(
         self,
@@ -318,7 +360,8 @@ class DaletNLPChat(commands.Cog):
         bot_name: str = "Dalet",
         is_reactive: bool = False,
     ):
-        if self.is_responding:
+        user_id = message.author.id
+        if user_id in self.active_user_responses:
             return
 
         if time.time() < self.error_cooldown:
@@ -328,7 +371,7 @@ class DaletNLPChat(commands.Cog):
                 )
             return
 
-        self.is_responding = True
+        self.active_user_responses.add(user_id)
         try:
             # Recopilar imágenes adjuntas o en embeds
             image_urls = []
@@ -462,7 +505,8 @@ class DaletNLPChat(commands.Cog):
             logger.error(f"Error generando respuesta: {e}")
             traceback.print_exc()
         finally:
-            self.is_responding = False
+            self.active_user_responses.discard(user_id)
+
 
     async def _log_interaction(
         self, message: discord.Message, trigger_type: str, provider: str, reply: str

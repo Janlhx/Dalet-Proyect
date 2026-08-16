@@ -1,33 +1,13 @@
 """
 Handler de Eventos Globales de Discord.
-Maneja: on_ready, on_command_error, on_guild_join, on_member_join, on_member_remove.
+Maneja: on_ready, on_command_error, on_guild_join.
 """
 from discord.ext import commands
 import discord
-import random
 import logging
 import traceback
 
 logger = logging.getLogger("dalet.handlers.events")
-
-# Mensajes de bienvenida con personalidad de Dalet
-WELCOME_MESSAGES = [
-    "ey, {mention} apareció por aquí. bienvenido al caos",
-    "llegó {mention}. espero que traiga buen rollo",
-    "miren quién se unió: {mention}. que no se pierda",
-    "oh, {mention} decidió aparecer. qué sorpresa",
-    "{mention} acaba de llegar. uno más para la colección",
-    "bienvenido {mention}, intenta no armar lío desde el primer día",
-]
-
-# Mensajes de salida con personalidad de Dalet
-LEAVE_MESSAGES = [
-    "{name} se fue. menos mal que aún quedamos los buenos",
-    "adios {name}, fue un gusto (o no tanto)",
-    "{name} decidió irse. la vida sigue",
-    "se fue {name}. el servidor seguirá sin dormir por eso",
-    "chao {name}, que te vaya bien por ahí",
-]
 
 
 class EventsHandler(commands.Cog):
@@ -141,74 +121,6 @@ class EventsHandler(commands.Cog):
         except Exception as e:
             logger.error(f"Error enviando bienvenida en {guild.name}: {e}")
 
-    # -------------------------------------------------------------------------
-    # on_member_join
-    # -------------------------------------------------------------------------
-
-    @commands.Cog.listener()
-    async def on_member_join(self, member: discord.Member):
-        """Saluda a los nuevos miembros con personalidad de Dalet."""
-        # Buscar el canal configurado en el servidor o el canal del sistema
-        channel = None
-
-        # Intentar canal del sistema primero
-        if member.guild.system_channel:
-            sys_ch = member.guild.system_channel
-            if sys_ch.permissions_for(member.guild.me).send_messages:
-                channel = sys_ch
-
-        # Si no hay canal del sistema, buscar por nombre
-        if not channel:
-            for ch in member.guild.text_channels:
-                if any(keyword in ch.name.lower() for keyword in ("bienvenida", "welcome", "general", "lobby")):
-                    if ch.permissions_for(member.guild.me).send_messages:
-                        channel = ch
-                        break
-
-        if not channel:
-            return
-
-        msg = random.choice(WELCOME_MESSAGES).format(
-            mention=member.mention,
-            name=member.display_name
-        )
-
-        try:
-            await channel.send(msg)
-        except Exception as e:
-            logger.error(f"Error enviando bienvenida a {member.display_name}: {e}")
-
-    # -------------------------------------------------------------------------
-    # on_member_remove
-    # -------------------------------------------------------------------------
-
-    @commands.Cog.listener()
-    async def on_member_remove(self, member: discord.Member):
-        """Despide a quien se va con el tono característico de Dalet."""
-        channel = None
-
-        if member.guild.system_channel:
-            sys_ch = member.guild.system_channel
-            if sys_ch.permissions_for(member.guild.me).send_messages:
-                channel = sys_ch
-
-        if not channel:
-            for ch in member.guild.text_channels:
-                if any(keyword in ch.name.lower() for keyword in ("bienvenida", "welcome", "general", "lobby")):
-                    if ch.permissions_for(member.guild.me).send_messages:
-                        channel = ch
-                        break
-
-        if not channel:
-            return
-
-        msg = random.choice(LEAVE_MESSAGES).format(name=member.display_name)
-
-        try:
-            await channel.send(msg)
-        except Exception as e:
-            logger.error(f"Error enviando despedida de {member.display_name}: {e}")
-
 
 async def setup(bot):
-    await bot.add_cog(EventsHandler(bot))
+    await bot.add_cog(EventsHandler(bot))

@@ -56,9 +56,9 @@ class HelpPaginator(View):
 
     def update_buttons(self):
         """Activa o desactiva los botones según la página actual."""
-        self.children[0].disabled = self.index == 0 # Anterior
-        self.children[1].disabled = self.index == 0 # Inicio
-        self.children[3].disabled = self.index == len(self.pages) - 1 # Siguiente
+        self.previous_button.disabled = self.index == 0
+        self.home_button.disabled = self.index == 0
+        self.next_button.disabled = self.index == len(self.pages) - 1
 
     async def update_page(self, interaction: discord.Interaction):
         """Edita el mensaje de Discord para mostrar la página actual."""
@@ -95,6 +95,7 @@ class HelpPaginator(View):
             await self.update_page(interaction)
         else:
             await interaction.response.defer() # No hacer nada si ya está en la última
+
 
 class CustomHelpCommand(commands.HelpCommand):
     """
