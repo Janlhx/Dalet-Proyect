@@ -1,16 +1,16 @@
 # Graph Report - Dalet-Proyect  (2026-08-15)
 
 ## Corpus Check
-- 64 files · ~70,971 words
+- 64 files · ~70,879 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 678 nodes · 1114 edges · 35 communities (32 shown, 3 thin omitted)
+- 678 nodes · 1112 edges · 42 communities (39 shown, 3 thin omitted)
 - Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 46 edges (avg confidence: 0.5)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e9e3928a`
+- Built from commit: `6079aa65`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -31,15 +31,22 @@
 - DaletNLPChat
 - HelpPaginator
 - Dalet
+- 🏗️ General Architecture of Dalet
 - ChatLogger
 - dalet_main.py
 - UniversalPaginator
 - .fetch_all
 - DaletGreetings
 - ResumenInteligente
+- docs/README.md
+- 🤖 `dalet_nlpchat.py` — The Conversational Brain
+- All Variables
+- SQL Migration Guide for Neon (Dalet Restructuring)
 - 📋 Components Explained
+- 🔑 Environment Variables (`.env`)
 - 🧩 Handlers (Cogs) — Command Modules
 - 🤖 `nlp_service.py` — Response Generator
+- 📝 `dalet_chatlogger.py` — The Message Logger
 - 🏛️ Tables
 - SQLiteManager
 - TursoClient
@@ -50,7 +57,7 @@
 1. `SlashCommands` - 28 edges
 2. `DaletAtoms` - 27 edges
 3. `UserRepository` - 23 edges
-4. `DaletReminders` - 23 edges
+4. `DaletReminders` - 22 edges
 5. `DaletOrganisms` - 22 edges
 6. `TursoClient` - 18 edges
 7. `AdminCommands` - 18 edges
@@ -73,7 +80,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (35 total, 3 thin omitted)
+## Communities (42 total, 3 thin omitted)
 
 ### Community 0 - "OsuHandler"
 Cohesion: 0.05
@@ -117,7 +124,7 @@ Nodes (45): cooldown, Embed, CommandsHandler, command, Member, Comandos básicos
 
 ### Community 11 - "ReminderRepository"
 Cohesion: 0.17
-Nodes (8): Obtiene un recordatorio específico por su ID., Elimina un recordatorio de la base de datos (Postgres y SQLite fallback)., Activa/desactiva un recordatorio. Retorna el nuevo estado., Guarda un nuevo recordatorio en la base de datos remota PostgreSQL (Neon) o…, Actualiza los campos especificados en `updates` para el recordatorio…, Retorna los recordatorios creados por un usuario en un servidor específico., ReminderRepository, Devuelve True si la BD está conectada y disponible.
+Nodes (8): Obtiene un recordatorio específico por su ID., Elimina un recordatorio de la base de datos (Turso y SQLite fallback)., Activa/desactiva un recordatorio. Retorna el nuevo estado., Guarda un nuevo recordatorio en la base de datos remota PostgreSQL (Neon) o…, Actualiza los campos especificados en `updates` para el recordatorio…, Retorna los recordatorios creados por un usuario en un servidor específico., ReminderRepository, Devuelve True si la BD está conectada y disponible.
 
 ### Community 12 - "EventsHandler"
 Cohesion: 0.18
@@ -135,6 +142,10 @@ Nodes (9): HelpPaginator, button, Interaction, Valida el número y salta a la p�
 Cohesion: 0.13
 Nodes (15): 🏗 Architecture, 💬 Commands, 🤝 Contributing, Dalet, 📚 Documentation, ✨ Features, 🚀 Getting Started, 📄 License (+7 more)
 
+### Community 16 - "🏗️ General Architecture of Dalet"
+Cohesion: 0.25
+Nodes (8): 🧩 Design Pattern: Cogs, 🗺️ Design Pattern: Repository, 🏗️ General Architecture of Dalet, 🔄 Main Flow: "What happens when someone mentions Dalet?", 🗄️ Message Logging Flow (Batch Logging), 🔁 Resilience & Fallbacks, ⚙️ Tech Stack, 🧠 What is Dalet?
+
 ### Community 17 - "ChatLogger"
 Cohesion: 0.17
 Nodes (9): ChatLogger, command, has_permissions, listener, Message, Guarda mensajes de usuarios (no comandos, no bots) en el buffer de SQLite., [ADMIN] Muestra los últimos mensajes guardados en este canal., Registra mensajes en SQLite para memoria de contexto e historial. El on_message… (+1 more)
@@ -149,7 +160,7 @@ Nodes (5): button, Interaction, Paginador definitivo para el Súper Análisis de
 
 ### Community 20 - ".fetch_all"
 Cohesion: 0.22
-Nodes (4): Obtiene el historial de PP de un jugador desde SQLite., Retorna todos los recordatorios activos en todo el sistema. Busca tanto en…, Obtiene los últimos mensajes de un canal desde SQLite y el buffer de memoria., Busca fragmentos de mensajes pasados en SQLite.
+Nodes (4): Obtiene el historial de PP de un jugador desde SQLite., Retorna todos los recordatorios activos en todo el sistema., Obtiene los últimos mensajes de un canal desde SQLite y el buffer de memoria., Busca fragmentos de mensajes pasados en SQLite.
 
 ### Community 21 - "DaletGreetings"
 Cohesion: 0.31
@@ -159,17 +170,41 @@ Nodes (5): DaletGreetings, listener, Member, Modulo predefinido para administrar
 Cohesion: 0.24
 Nodes (6): command, 📄 Genera un resumen de los últimos N mensajes del canal. Uso: `d.resumir…, 📜 Muestra los últimos resúmenes guardados para este canal. Uso:…, Comandos para generar y ver resúmenes de chat., ResumenInteligente, setup()
 
+### Community 23 - "docs/README.md"
+Cohesion: 0.33
+Nodes (3): 📂 Documentation Sections, 📖 Project Documentation Index, 🗺️ Project Structure
+
+### Community 24 - "🤖 `dalet_nlpchat.py` — The Conversational Brain"
+Cohesion: 0.29
+Nodes (7): Behavioral Constants (at the top of the file), 🤖 `dalet_nlpchat.py` — The Conversational Brain, `generate_response()` — The response process, `_handle_429()` — Rate Limit Management, `on_message` Flow (triggered per message), `_should_respond()` — Proactivity logic, What does it do?
+
+### Community 25 - "All Variables"
+Cohesion: 0.33
+Nodes (6): All Variables, Alternative AI (Groq), Database (Neon), Discord, osu! API, Primary AI (Gemini)
+
+### Community 26 - "SQL Migration Guide for Neon (Dalet Restructuring)"
+Cohesion: 0.33
+Nodes (5): 1. Cleanup of Obsolete Audit Fragments (Optional but recommended), 2. View Updates, 3. Procedure and Function Update (CRITICAL), 4. Trigger Update, SQL Migration Guide for Neon (Dalet Restructuring)
+
 ### Community 27 - "📋 Components Explained"
-Cohesion: 0.05
-Nodes (38): 🧩 Design Pattern: Cogs, 🗺️ Design Pattern: Repository, 🏗️ General Architecture of Dalet, 🔄 Main Flow: "What happens when someone mentions Dalet?", 🗄️ Message Logging Flow (Batch Logging), 🔁 Resilience & Fallbacks, ⚙️ Tech Stack, 🧠 What is Dalet? (+30 more)
+Cohesion: 0.15
+Nodes (12): 📋 Components Explained, `DatabasePool.get_pool()` — Database Initialization, 🚀 Entry Point: `dalet_main.py`, Expired Message Purge (Privacy TTL), Flask Server (Health Check), Global Block Check (Security Middleware), Instantiating Repositories and Services, `load_extensions(bot)` — Dynamic Cog Loading (+4 more)
+
+### Community 28 - "🔑 Environment Variables (`.env`)"
+Cohesion: 0.40
+Nodes (4): 🔑 Environment Variables (`.env`), Example `.env` file, How are these variables loaded in the code?, On Render (Production)
 
 ### Community 29 - "🧩 Handlers (Cogs) — Command Modules"
-Cohesion: 0.09
-Nodes (23): Behavioral Constants (at the top of the file), Command `d.chatlog [count]`, Components, 🛡️ `dalet_admcommands_handler.py` — Admin Commands, 📝 `dalet_chatlogger.py` — The Message Logger, 🔧 `dalet_commands_handlers.py` — General Commands, 📡 `dalet_events_handlers.py` — Global Events, ⚙️ `dalet_geminicommand.py` — AI Configuration (+15 more)
+Cohesion: 0.17
+Nodes (12): Components, 🛡️ `dalet_admcommands_handler.py` — Admin Commands, 🔧 `dalet_commands_handlers.py` — General Commands, 📡 `dalet_events_handlers.py` — Global Events, ⚙️ `dalet_geminicommand.py` — AI Configuration, ❓ `dalet_helpcommands_handlers.py` — Help System, 📊 `dalet_smartresume.py` — AI Summaries, Handler Overview (+4 more)
 
 ### Community 35 - "🤖 `nlp_service.py` — Response Generator"
 Cohesion: 0.11
 Nodes (17): AI Providers, Authentication, Core Methods, Dalet's Personality, Fallback Chain, 🗂️ Files, `get_relevant_context(channel_id, user_id, current_message)`, 💾 `memory_service.py` — Memory System (+9 more)
+
+### Community 36 - "📝 `dalet_chatlogger.py` — The Message Logger"
+Cohesion: 0.50
+Nodes (4): Command `d.chatlog [count]`, 📝 `dalet_chatlogger.py` — The Message Logger, `on_message`, What does it do?
 
 ### Community 37 - "🏛️ Tables"
 Cohesion: 0.13
@@ -192,11 +227,11 @@ Nodes (18): DatabasePool, Bridge de compatibilidad hacia TursoClient., AdminRepo
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `TursoClient` connect `TursoClient` to `SlashCommands`, `DaletReminders`, `AdminCommands`, `SQLiteManager`, `DaletAtoms`, `ReminderRepository`, `dalet_main.py`?**
-  _High betweenness centrality (0.137) - this node is a cross-community bridge._
+  _High betweenness centrality (0.138) - this node is a cross-community bridge._
 - **Why does `DaletAtoms` connect `DaletAtoms` to `OsuHandler`, `SlashCommands`, `DaletReminders`, `AIConfigCommands`, `HelpPaginator`?**
   _High betweenness centrality (0.128) - this node is a cross-community bridge._
 - **Why does `DaletReminders` connect `DaletReminders` to `TursoClient`, `DaletAtoms`, `ReminderRepository`?**
-  _High betweenness centrality (0.079) - this node is a cross-community bridge._
+  _High betweenness centrality (0.078) - this node is a cross-community bridge._
 - **Are the 4 inferred relationships involving `SlashCommands` (e.g. with `TursoClient` and `OsuPresenter`) actually correct?**
   _`SlashCommands` has 4 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 11 inferred relationships involving `DaletAtoms` (e.g. with `CommandsHandler` and `AIConfigCommands`) actually correct?**

@@ -10,9 +10,9 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "database/pool.py": {
-    "mtime": 1786493528.6973443,
-    "ast_hash": "f9cd0a80b27e45970c5eac7474719a13",
-    "semantic_hash": "f9cd0a80b27e45970c5eac7474719a13"
+    "mtime": 1786847865.5912344,
+    "ast_hash": "9e9038388b685ebf3c055720e7fff4e8",
+    "semantic_hash": ""
   },
   "database/repositories/__init__.py": {
     "mtime": 1786493528.6973443,
@@ -25,9 +25,9 @@
     "semantic_hash": ""
   },
   "database/repositories/analytics_repository.py": {
-    "mtime": 1786493528.6973443,
-    "ast_hash": "e79bbda96043c22f24973752b3ad97bb",
-    "semantic_hash": "e79bbda96043c22f24973752b3ad97bb"
+    "mtime": 1786847842.5533392,
+    "ast_hash": "f6440aac50c6d4aac94a0b2a80678b87",
+    "semantic_hash": ""
   },
   "database/repositories/base_repository.py": {
     "mtime": 1786846750.1063237,
@@ -45,8 +45,8 @@
     "semantic_hash": ""
   },
   "database/repositories/user_repository.py": {
-    "mtime": 1786847291.197933,
-    "ast_hash": "0dd3c9e9efae6760193d70ee2fa01b61",
+    "mtime": 1786847837.3301454,
+    "ast_hash": "1a69d55e0652ac07df35c9c2f248c2d8",
     "semantic_hash": ""
   },
   "database/sqlite_manager.py": {
@@ -95,8 +95,8 @@
     "semantic_hash": ""
   },
   "handlers/dalet_nlpchat.py": {
-    "mtime": 1786846720.1130521,
-    "ast_hash": "1579020a4aa8203568f488df00bf5d92",
+    "mtime": 1786848286.55168,
+    "ast_hash": "dc162241f14f3b9a8bd8f1d4ebfd5881",
     "semantic_hash": ""
   },
   "handlers/dalet_osucommands.py": {
@@ -105,13 +105,13 @@
     "semantic_hash": ""
   },
   "handlers/dalet_reminders.py": {
-    "mtime": 1786493528.7442195,
-    "ast_hash": "c7a0193b26a928987fb444548a047bb5",
-    "semantic_hash": "c7a0193b26a928987fb444548a047bb5"
+    "mtime": 1786847854.8022866,
+    "ast_hash": "48c6c6a4ae924d7889b6a627444949f0",
+    "semantic_hash": ""
   },
   "handlers/dalet_slash_commands.py": {
-    "mtime": 1786501952.7515266,
-    "ast_hash": "a8219ae850ef2a07686e7c734ee5d4e1",
+    "mtime": 1786847860.976977,
+    "ast_hash": "662c6949b1593749e9b8c93780786b91",
     "semantic_hash": ""
   },
   "handlers/dalet_smartresume.py": {
@@ -130,9 +130,9 @@
     "semantic_hash": ""
   },
   "mig.py": {
-    "mtime": 1786493528.759845,
-    "ast_hash": "18d9a59dec26fbe1782c9a5b57a246c5",
-    "semantic_hash": "18d9a59dec26fbe1782c9a5b57a246c5"
+    "mtime": 1786847882.89439,
+    "ast_hash": "eee10ae43da67c132a1c29016c980ec2",
+    "semantic_hash": ""
   },
   "services/__init__.py": {
     "mtime": 1786493528.759845,
@@ -250,13 +250,13 @@
     "semantic_hash": ""
   },
   "database/turso_client.py": {
-    "mtime": 1786846730.5280256,
-    "ast_hash": "cf78291e5334181c8115900571d6305a",
+    "mtime": 1786847873.0425239,
+    "ast_hash": "54c64db7123373c95ac7f13605682474",
     "semantic_hash": ""
   },
   "handlers/dalet_osu_presenter.py": {
-    "mtime": 1786501936.7014742,
-    "ast_hash": "7c7d67c18fbf1bedb878927a70a36ae7",
+    "mtime": 1786848293.6297128,
+    "ast_hash": "15fa66c076683487f9f030b0f04c5169",
     "semantic_hash": ""
   }
 }

@@ -1,16 +1,16 @@
 # Graph Report - Dalet-Proyect  (2026-08-15)
 
 ## Corpus Check
-- 64 files · ~71,236 words
+- 64 files · ~70,985 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 681 nodes · 1116 edges · 37 communities (35 shown, 2 thin omitted)
-- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 45 edges (avg confidence: 0.5)
+- 679 nodes · 1115 edges · 37 communities (34 shown, 3 thin omitted)
+- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 46 edges (avg confidence: 0.5)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `a626a078`
+- Built from commit: `06f4b172`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -18,13 +18,13 @@
 - OsuHandler
 - SlashCommands
 - DaletReminders
-- OsuAnalyzer
+- 🗄️ Database — Connection Pool & Repositories
 - AdminCommands
 - AIConfigCommands
 - OsuService
 - UserRepository
-- .execute
-- 📋 Components Explained
+- OsuAnalyzer
+- TursoClient
 - DaletAtoms
 - ReminderRepository
 - EventsHandler
@@ -39,7 +39,7 @@
 - DaletGreetings
 - ResumenInteligente
 - MemoryService
-- docs/README.md
+- 📋 Components Explained
 - 🧩 Handlers (Cogs) — Command Modules
 - 🤖 `nlp_service.py` — Response Generator
 - 🏛️ Tables
@@ -54,28 +54,28 @@
 3. `UserRepository` - 23 edges
 4. `DaletReminders` - 23 edges
 5. `DaletOrganisms` - 22 edges
-6. `AdminCommands` - 18 edges
-7. `OsuHandler` - 18 edges
-8. `DaletMolecules` - 18 edges
-9. `SQLiteManager` - 17 edges
-10. `OsuService` - 17 edges
+6. `TursoClient` - 18 edges
+7. `AdminCommands` - 18 edges
+8. `OsuHandler` - 18 edges
+9. `DaletMolecules` - 18 edges
+10. `SQLiteManager` - 17 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `SlashCommands` --uses--> `DatabasePool`  [INFERRED]
-  handlers/dalet_slash_commands.py → database/pool.py
-- `OsuAnalyzer` --uses--> `OsuRepository`  [INFERRED]
-  handlers/modules/dalet_osuanalyzer.py → database/repositories/osu_repository.py
 - `DaletReminders` --uses--> `ReminderRepository`  [INFERRED]
   handlers/dalet_reminders.py → database/repositories/reminder_repository.py
 - `AdminCommands` --uses--> `SQLiteManager`  [INFERRED]
   handlers/dalet_admcommands_handler.py → database/sqlite_manager.py
 - `AdminCommands` --uses--> `TursoClient`  [INFERRED]
   handlers/dalet_admcommands_handler.py → database/turso_client.py
+- `DaletReminders` --uses--> `TursoClient`  [INFERRED]
+  handlers/dalet_reminders.py → database/turso_client.py
+- `SlashCommands` --uses--> `TursoClient`  [INFERRED]
+  handlers/dalet_slash_commands.py → database/turso_client.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (37 total, 2 thin omitted)
+## Communities (37 total, 3 thin omitted)
 
 ### Community 0 - "OsuHandler"
 Cohesion: 0.08
@@ -86,12 +86,12 @@ Cohesion: 0.17
 Nodes (12): choices, Bot, command, describe, has_permissions, Interaction, Member, TextChannel (+4 more)
 
 ### Community 2 - "DaletReminders"
-Cohesion: 0.08
-Nodes (27): autocomplete, Choice, DatabasePool, Devuelve el pool de conexiones. Si la BD no está disponible, devuelve None.…, Devuelve True si la BD está conectada y disponible., DaletReminders, format_days_readable(), parse_date() (+19 more)
+Cohesion: 0.10
+Nodes (23): autocomplete, Choice, DaletReminders, format_days_readable(), parse_date(), parse_days(), parse_days_or_date(), parse_time() (+15 more)
 
-### Community 3 - "OsuAnalyzer"
-Cohesion: 0.11
-Nodes (14): OsuAnalyzer, Módulo de Lógica de Análisis de osu! (v4.1) Esta versión corrige el 'edge case'…, Analiza los 'recent plays' para detectar la consistencia del accuracy. (BUG…, Analiza los 'recent plays' (Últimos 50) para detectar el estilo ACTUAL., Analiza las propiedades de los mapas en los 'recent plays' (Últimos 50)., Determina el área de enfoque (debilidad) de manera inteligente. Calcula una…, Analiza datos de osu! (v4.1) y genera prompts detallados para la IA., Busca 5 mapas recomendados de la base de datos (con fallback a la API de osu!). (+6 more)
+### Community 3 - "🗄️ Database — Connection Pool & Repositories"
+Cohesion: 0.12
+Nodes (15): 🛡️ `admin_repository.py` — Channel Locks, 📊 `analytics_repository.py` — Metrics & Tracking, 🏗️ `base_repository.py` — The base class, Batch Logging System (`_log_buffer` + `_flushing_logs`), Caching System (`_get_cached`), 📐 Class Hierarchy, 🗄️ Database — Connection Pool & Repositories, 🔌 `database/pool.py` — The Connection Pool (+7 more)
 
 ### Community 4 - "AdminCommands"
 Cohesion: 0.10
@@ -106,16 +106,16 @@ Cohesion: 0.12
 Nodes (11): OsuService, Información de un beatmap específico., Top scores globales de un beatmap., Busca beatmaps con filtros., Perfil completo de un usuario., Perfil de un usuario por ID numérico., Top plays del usuario., Jugadas recientes del usuario. (+3 more)
 
 ### Community 7 - "UserRepository"
-Cohesion: 0.12
-Nodes (6): Inicia la tarea de vaciado del buffer si no está activa., UserRepository, NLPService, Recorta el contexto de forma dinámica para optimizar consumo de tokens. -…, Describe una imagen usando el modelo principal con caché en RAM., Cierra recursos del cliente HTTP.
+Cohesion: 0.11
+Nodes (7): Busca fragmentos de mensajes pasados en SQLite., Inicia la tarea de vaciado del buffer si no está activa., UserRepository, NLPService, Recorta el contexto de forma dinámica para optimizar consumo de tokens. -…, Describe una imagen usando el modelo principal con caché en RAM., Cierra recursos del cliente HTTP.
 
-### Community 8 - ".execute"
-Cohesion: 0.21
-Nodes (7): Cursor, AnalyticsRepository, Registra la ejecución de un comando en SQLite., Registra una respuesta de la IA en SQLite., Registra un error crítico del bot en SQLite., Repositorio para escritura de datos analíticos: CommandUsage, AIInteractions,…, Guarda un snapshot del perfil osu! del jugador en SQLite.
+### Community 8 - "OsuAnalyzer"
+Cohesion: 0.09
+Nodes (15): OsuRepository, OsuAnalyzer, Módulo de Lógica de Análisis de osu! (v4.1) Esta versión corrige el 'edge case'…, Analiza los 'recent plays' para detectar la consistencia del accuracy. (BUG…, Analiza los 'recent plays' (Últimos 50) para detectar el estilo ACTUAL., Analiza las propiedades de los mapas en los 'recent plays' (Últimos 50)., Determina el área de enfoque (debilidad) de manera inteligente. Calcula una…, Analiza datos de osu! (v4.1) y genera prompts detallados para la IA. (+7 more)
 
-### Community 9 - "📋 Components Explained"
-Cohesion: 0.15
-Nodes (12): 📋 Components Explained, `DatabasePool.get_pool()` — Database Initialization, 🚀 Entry Point: `dalet_main.py`, Expired Message Purge (Privacy TTL), Flask Server (Health Check), Global Block Check (Security Middleware), Instantiating Repositories and Services, `load_extensions(bot)` — Dynamic Cog Loading (+4 more)
+### Community 9 - "TursoClient"
+Cohesion: 0.22
+Nodes (5): DatabasePool, Bridge de compatibilidad hacia TursoClient., Devuelve el cliente de Turso. Si la BD no está disponible, devuelve None. NUNCA…, TursoClient, main()
 
 ### Community 10 - "DaletAtoms"
 Cohesion: 0.05
@@ -142,7 +142,7 @@ Cohesion: 0.13
 Nodes (15): 🏗 Architecture, 💬 Commands, 🤝 Contributing, Dalet, 📚 Documentation, ✨ Features, 🚀 Getting Started, 📄 License (+7 more)
 
 ### Community 16 - "AdminRepository"
-Cohesion: 0.14
+Cohesion: 0.15
 Nodes (7): AdminRepository, Activa o desactiva el bloqueo de comandos en un canal., Obtiene el nombre personalizado del bot para un servidor., Establece un nombre personalizado para el bot en un servidor., Obtiene el ID del canal de bienvenida de un servidor., Establece o elimina el canal de bienvenida para un servidor., Verifica si los comandos están bloqueados en un canal.
 
 ### Community 17 - "ChatLogger"
@@ -150,16 +150,12 @@ Cohesion: 0.17
 Nodes (9): ChatLogger, command, has_permissions, listener, Message, Guarda mensajes de usuarios (no comandos, no bots) en el buffer de SQLite., [ADMIN] Muestra los últimos mensajes guardados en este canal., Registra mensajes en SQLite para memoria de contexto e historial. El on_message… (+1 more)
 
 ### Community 18 - "dalet_main.py"
-Cohesion: 0.17
-Nodes (7): home(), keep_alive(), load_extensions(), main(), run_flask(), OsuRepository, route
+Cohesion: 0.36
+Nodes (6): home(), keep_alive(), load_extensions(), main(), run_flask(), route
 
 ### Community 19 - "UniversalPaginator"
 Cohesion: 0.29
 Nodes (5): button, Interaction, Paginador definitivo para el Súper Análisis de Dalet (3 Páginas)., Re-añade los campos de stats que podrian haberse borrado al limpiar campos., UniversalPaginator
-
-### Community 20 - ".fetch_all"
-Cohesion: 0.29
-Nodes (3): Obtiene el historial de PP de un jugador desde SQLite., Obtiene los últimos mensajes de un canal desde SQLite y el buffer de memoria., Busca fragmentos de mensajes pasados en SQLite.
 
 ### Community 21 - "DaletGreetings"
 Cohesion: 0.31
@@ -173,9 +169,9 @@ Nodes (6): command, 📄 Genera un resumen de los últimos N mensajes del canal.
 Cohesion: 0.25
 Nodes (4): MemoryService, Construye el contexto de conversación combinando: 1. Historial reciente del…, Guarda una memoria sobre el usuario en la BD., Servicio de memoria que combina historial local (RAM) con historial de BD. Sin…
 
-### Community 27 - "docs/README.md"
-Cohesion: 0.04
-Nodes (41): 🧩 Design Pattern: Cogs, 🗺️ Design Pattern: Repository, 🏗️ General Architecture of Dalet, 🔄 Main Flow: "What happens when someone mentions Dalet?", 🗄️ Message Logging Flow (Batch Logging), 🔁 Resilience & Fallbacks, ⚙️ Tech Stack, 🧠 What is Dalet? (+33 more)
+### Community 27 - "📋 Components Explained"
+Cohesion: 0.05
+Nodes (38): 🧩 Design Pattern: Cogs, 🗺️ Design Pattern: Repository, 🏗️ General Architecture of Dalet, 🔄 Main Flow: "What happens when someone mentions Dalet?", 🗄️ Message Logging Flow (Batch Logging), 🔁 Resilience & Fallbacks, ⚙️ Tech Stack, 🧠 What is Dalet? (+30 more)
 
 ### Community 29 - "🧩 Handlers (Cogs) — Command Modules"
 Cohesion: 0.09
@@ -190,32 +186,32 @@ Cohesion: 0.13
 Nodes (14): `AIInteractions` — AI Performance Metrics, `Channels` — Discord Channels, `Messages` — Message History, `OsuAccounts` — Linked osu! Accounts, 🔒 Privacy System (`08_Privacy_TTL.sql`), 📋 Script Execution Order, `Servers` — Discord Servers, 🔧 SQL Functions (+6 more)
 
 ### Community 39 - "SQLiteManager"
-Cohesion: 0.19
-Nodes (7): Connection, get_db(), Devuelve el pool. Puede devolver None si la BD no está disponible., Calcula estadísticas agregadas desde SQLite., Inserción masiva eficiente — usa una sola transacción., Crea las tablas si no existen. Se llama internamente con el lock activo., SQLiteManager
+Cohesion: 0.12
+Nodes (12): Connection, Cursor, AnalyticsRepository, Registra la ejecución de un comando en SQLite., Registra una respuesta de la IA en SQLite., Registra un error crítico del bot en SQLite., Repositorio para escritura de datos analíticos: CommandUsage, AIInteractions,…, Guarda un snapshot del perfil osu! del jugador en SQLite. (+4 more)
 
 ### Community 40 - "BaseRepository"
-Cohesion: 0.20
-Nodes (7): BaseRepository, Convierte parámetros de PostgreSQL ($1, $2) a SQLite (?), Turso (SQLite) no soporta stored procedures, solo logueamos o pasamos., get_db(), Devuelve el cliente de Turso. Si la BD no está disponible, devuelve None. NUNCA…, Devuelve el cliente. Puede devolver None si la BD no está disponible., TursoClient
+Cohesion: 0.23
+Nodes (5): BaseRepository, Convierte parámetros de PostgreSQL ($1, $2) a SQLite (?), Turso (SQLite) no soporta stored procedures, solo logueamos o pasamos., get_db(), Devuelve el cliente. Puede devolver None si la BD no está disponible.
 
 ## Knowledge Gaps
 - **99 isolated node(s):** `graphify`, `Workflow: graphify`, `✨ Features`, `🛠 Tech Stack`, `Prerequisites` (+94 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **2 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **3 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
+- **Why does `TursoClient` connect `TursoClient` to `SlashCommands`, `DaletReminders`, `AdminCommands`, `BaseRepository`, `DaletAtoms`, `ReminderRepository`, `dalet_main.py`?**
+  _High betweenness centrality (0.137) - this node is a cross-community bridge._
 - **Why does `DaletAtoms` connect `DaletAtoms` to `OsuHandler`, `SlashCommands`, `DaletReminders`, `AIConfigCommands`, `HelpPaginator`?**
-  _High betweenness centrality (0.138) - this node is a cross-community bridge._
-- **Why does `ReminderRepository` connect `ReminderRepository` to `BaseRepository`, `DaletReminders`, `SQLiteManager`?**
-  _High betweenness centrality (0.099) - this node is a cross-community bridge._
-- **Why does `DaletOrganisms` connect `DaletAtoms` to `OsuHandler`, `SlashCommands`, `DaletReminders`, `HelpPaginator`?**
-  _High betweenness centrality (0.089) - this node is a cross-community bridge._
-- **Are the 4 inferred relationships involving `SlashCommands` (e.g. with `DatabasePool` and `OsuPresenter`) actually correct?**
+  _High betweenness centrality (0.128) - this node is a cross-community bridge._
+- **Why does `DaletReminders` connect `DaletReminders` to `TursoClient`, `DaletAtoms`, `ReminderRepository`?**
+  _High betweenness centrality (0.079) - this node is a cross-community bridge._
+- **Are the 4 inferred relationships involving `SlashCommands` (e.g. with `TursoClient` and `OsuPresenter`) actually correct?**
   _`SlashCommands` has 4 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 11 inferred relationships involving `DaletAtoms` (e.g. with `CommandsHandler` and `AIConfigCommands`) actually correct?**
   _`DaletAtoms` has 11 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 3 inferred relationships involving `UserRepository` (e.g. with `BaseRepository` and `SQLiteManager`) actually correct?**
   _`UserRepository` has 3 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 4 inferred relationships involving `DaletReminders` (e.g. with `DatabasePool` and `ReminderRepository`) actually correct?**
+- **Are the 4 inferred relationships involving `DaletReminders` (e.g. with `ReminderRepository` and `TursoClient`) actually correct?**
   _`DaletReminders` has 4 INFERRED edges - model-reasoned connections that need verification._
