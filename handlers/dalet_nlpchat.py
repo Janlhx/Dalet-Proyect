@@ -287,16 +287,16 @@ class DaletNLPChat(commands.Cog):
 
             if name_mentioned:
                 # Verificar si tiene activada la reactividad en el servidor
-                is_reactive = False
+                is_reactive = True  # fallback: si la DB falla, responder igualmente
                 try:
                     is_reactive = await self.bot.user_repo.is_server_reactive(
                         message.guild.id
                     )
                 except Exception:
-                    pass
+                    pass  # DB no disponible → asumir reactivo para no silenciar al bot
 
                 if not is_reactive:
-                    # Si no es reactivo el servidor, ignoramos la mención silenciosamente
+                    # El servidor tiene la reactividad explícitamente desactivada
                     return
 
                 # Verificar sesión reactive del usuario
