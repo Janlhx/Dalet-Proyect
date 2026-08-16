@@ -60,8 +60,8 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "handlers/dalet_admcommands_handler.py": {
-    "mtime": 1786847328.3261118,
-    "ast_hash": "5bddf1825354e1299370459e004719e2",
+    "mtime": 1786849224.328453,
+    "ast_hash": "f20a55c71351b39b8fcf103245dceadf",
     "semantic_hash": ""
   },
   "handlers/dalet_chatlogger.py": {
@@ -90,8 +90,8 @@
     "semantic_hash": "35604cdbc5521eda6541b18c3e5e7906"
   },
   "handlers/dalet_helpcommands_handlers.py": {
-    "mtime": 1786501205.4546633,
-    "ast_hash": "c2d7f4b3203fab6184dd53e978e03f01",
+    "mtime": 1786849511.896494,
+    "ast_hash": "037eb51b3027f0678bacf26f54b2dea6",
     "semantic_hash": ""
   },
   "handlers/dalet_nlpchat.py": {
@@ -257,6 +257,11 @@
   "handlers/dalet_osu_presenter.py": {
     "mtime": 1786848293.6297128,
     "ast_hash": "15fa66c076683487f9f030b0f04c5169",
+    "semantic_hash": ""
+  },
+  "assets/dalet_help_banner.jpg": {
+    "mtime": 1786849389.2816925,
+    "ast_hash": "5b647e9597c03d00bbab52d73d57b666",
     "semantic_hash": ""
   }
 }

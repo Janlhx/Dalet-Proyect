@@ -1,7 +1,7 @@
 # Graph Report - Dalet-Proyect  (2026-08-15)
 
 ## Corpus Check
-- 64 files · ~70,879 words
+- 64 files · ~71,019 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6079aa65`
+- Built from commit: `121ee496`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -100,7 +100,7 @@ Nodes (15): 🛡️ `admin_repository.py` — Channel Locks, 📊 `analytics_rep
 
 ### Community 4 - "AdminCommands"
 Cohesion: 0.10
-Nodes (18): AdminCommands, command, has_permissions, [ADMIN] Cambia mi nombre en este servidor (máx 25 caracteres)., Comandos para administrar el bot y depurar la base de datos., [ADMIN] Establece el canal actual para las bienvenidas y despedidas., [ADMIN] Desactiva las bienvenidas y despedidas en el servidor., Muestra el estado de seguridad y IA del canal actual. (+10 more)
+Nodes (18): AdminCommands, command, has_permissions, Comandos para administrar el bot y depurar la base de datos., [ADMIN] Desbloquea los comandos en este canal., [ADMIN] Cambia mi nombre en este servidor (máx 25 caracteres)., [ADMIN] Establece el canal actual para las bienvenidas y despedidas., [ADMIN] Desactiva las bienvenidas y despedidas en el servidor. (+10 more)
 
 ### Community 5 - "AIConfigCommands"
 Cohesion: 0.11
