@@ -17,19 +17,6 @@
       "norm_label": "osuhandler"
     },
     {
-      "label": "OsuAnalyzer",
-      "file_type": "code",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L23",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "osuanalyzer"
-    },
-    {
       "label": "SlashCommands",
       "file_type": "code",
       "source_file": "handlers/dalet_slash_commands.py",
@@ -43,23 +30,23 @@
       "norm_label": "slashcommands"
     },
     {
-      "label": "CommandsHandler",
+      "label": "CategorySelect",
       "file_type": "code",
-      "source_file": "handlers/dalet_commands_handlers.py",
-      "source_location": "L13",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L133",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_commandshandler",
+      "id": "handlers_dalet_helpcommands_handlers_categoryselect",
       "community": 10,
       "community_name": "DaletAtoms",
-      "norm_label": "commandshandler"
+      "norm_label": "categoryselect"
     },
     {
       "label": "CustomHelpCommand",
       "file_type": "code",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L100",
+      "source_location": "L214",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
@@ -69,10 +56,23 @@
       "norm_label": "customhelpcommand"
     },
     {
+      "label": "HelpPaginator",
+      "file_type": "code",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L157",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_helpcommands_handlers_helppaginator",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": "helppaginator"
+    },
+    {
       "label": "PageInputModal",
       "file_type": "code",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L14",
+      "source_location": "L102",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
@@ -134,19 +134,6 @@
       "norm_label": "daletorganisms"
     },
     {
-      "label": "ReminderRepository",
-      "file_type": "code",
-      "source_file": "database/repositories/reminder_repository.py",
-      "source_location": "L9",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "database_repositories_reminder_repository_reminderrepository",
-      "community": 11,
-      "community_name": "ReminderRepository",
-      "norm_label": "reminderrepository"
-    },
-    {
       "label": "EventsHandler",
       "file_type": "code",
       "source_file": "handlers/dalet_events_handlers.py",
@@ -173,17 +160,56 @@
       "norm_label": "daletnlpchat"
     },
     {
-      "label": "HelpPaginator",
+      "label": "CommandsHandler",
       "file_type": "code",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L44",
+      "source_file": "handlers/dalet_commands_handlers.py",
+      "source_location": "L13",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_helppaginator",
+      "id": "handlers_dalet_commands_handlers_commandshandler",
       "community": 14,
-      "community_name": "HelpPaginator",
-      "norm_label": "helppaginator"
+      "community_name": "CommandsHandler",
+      "norm_label": "commandshandler"
+    },
+    {
+      "label": "DatabasePool",
+      "file_type": "code",
+      "source_file": "database/pool.py",
+      "source_location": "L6",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "database_pool_databasepool",
+      "community": 16,
+      "community_name": "TursoClient",
+      "norm_label": "databasepool"
+    },
+    {
+      "label": "ReminderRepository",
+      "file_type": "code",
+      "source_file": "database/repositories/reminder_repository.py",
+      "source_location": "L9",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "database_repositories_reminder_repository_reminderrepository",
+      "community": 16,
+      "community_name": "TursoClient",
+      "norm_label": "reminderrepository"
+    },
+    {
+      "label": "TursoClient",
+      "file_type": "code",
+      "source_file": "database/turso_client.py",
+      "source_location": "L13",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "database_turso_client_tursoclient",
+      "community": 16,
+      "community_name": "TursoClient",
+      "norm_label": "tursoclient"
     },
     {
       "label": "ChatLogger",
@@ -208,7 +234,7 @@
       "_origin": "ast",
       "id": "services_memory_service_memoryservice",
       "community": 18,
-      "community_name": "dalet_main.py",
+      "community_name": "MemoryService",
       "norm_label": "memoryservice"
     },
     {
@@ -264,6 +290,19 @@
       "norm_label": "resumeninteligente"
     },
     {
+      "label": "OsuRepository",
+      "file_type": "code",
+      "source_file": "database/repositories/osu_repository.py",
+      "source_location": "L3",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "database_repositories_osu_repository_osurepository",
+      "community": 23,
+      "community_name": "OsuRepository",
+      "norm_label": "osurepository"
+    },
+    {
       "label": "SQLiteManager",
       "file_type": "code",
       "source_file": "database/sqlite_manager.py",
@@ -290,32 +329,6 @@
       "norm_label": "admincommands"
     },
     {
-      "label": "DatabasePool",
-      "file_type": "code",
-      "source_file": "database/pool.py",
-      "source_location": "L6",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "database_pool_databasepool",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": "databasepool"
-    },
-    {
-      "label": "AdminRepository",
-      "file_type": "code",
-      "source_file": "database/repositories/admin_repository.py",
-      "source_location": "L3",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "database_repositories_admin_repository_adminrepository",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": "adminrepository"
-    },
-    {
       "label": "BaseRepository",
       "file_type": "code",
       "source_file": "database/repositories/base_repository.py",
@@ -325,34 +338,8 @@
       "_origin": "ast",
       "id": "database_repositories_base_repository_baserepository",
       "community": 40,
-      "community_name": "TursoClient",
+      "community_name": "BaseRepository",
       "norm_label": "baserepository"
-    },
-    {
-      "label": "OsuRepository",
-      "file_type": "code",
-      "source_file": "database/repositories/osu_repository.py",
-      "source_location": "L3",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "database_repositories_osu_repository_osurepository",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": "osurepository"
-    },
-    {
-      "label": "TursoClient",
-      "file_type": "code",
-      "source_file": "database/turso_client.py",
-      "source_location": "L13",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "database_turso_client_tursoclient",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": "tursoclient"
     },
     {
       "label": "AIConfigCommands",
@@ -394,6 +381,32 @@
       "norm_label": "userrepository"
     },
     {
+      "label": "NLPService",
+      "file_type": "code",
+      "source_file": "services/nlp_service.py",
+      "source_location": "L33",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "services_nlp_service_nlpservice",
+      "community": 7,
+      "community_name": "UserRepository",
+      "norm_label": "nlpservice"
+    },
+    {
+      "label": "AdminRepository",
+      "file_type": "code",
+      "source_file": "database/repositories/admin_repository.py",
+      "source_location": "L3",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "database_repositories_admin_repository_adminrepository",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": "adminrepository"
+    },
+    {
       "label": "AnalyticsRepository",
       "file_type": "code",
       "source_file": "database/repositories/analytics_repository.py",
@@ -403,21 +416,21 @@
       "_origin": "ast",
       "id": "database_repositories_analytics_repository_analyticsrepository",
       "community": 8,
-      "community_name": ".execute",
+      "community_name": "dalet_main.py",
       "norm_label": "analyticsrepository"
     },
     {
-      "label": "NLPService",
+      "label": "OsuAnalyzer",
       "file_type": "code",
-      "source_file": "services/nlp_service.py",
-      "source_location": "L33",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L23",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "services_nlp_service_nlpservice",
+      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer",
       "community": 9,
-      "community_name": "NLPService",
-      "norm_label": "nlpservice"
+      "community_name": "OsuAnalyzer",
+      "norm_label": "osuanalyzer"
     },
     {
       "label": "_acc_str()",
@@ -619,138 +632,6 @@
       "_callable": true,
       "_origin": "ast",
       "id": "handlers_dalet_osucommands_setup",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "setup()"
-    },
-    {
-      "label": "._analyze_best_beatmap_stats()",
-      "file_type": "code",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L75",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_analyze_best_beatmap_stats",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "._analyze_best_beatmap_stats()"
-    },
-    {
-      "label": "._analyze_best_playstyle()",
-      "file_type": "code",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L42",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_analyze_best_playstyle",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "._analyze_best_playstyle()"
-    },
-    {
-      "label": "._analyze_pp_spread()",
-      "file_type": "code",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L60",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_analyze_pp_spread",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "._analyze_pp_spread()"
-    },
-    {
-      "label": "._analyze_recent_beatmap_stats()",
-      "file_type": "code",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L145",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_analyze_recent_beatmap_stats",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "._analyze_recent_beatmap_stats()"
-    },
-    {
-      "label": "._analyze_recent_playstyle()",
-      "file_type": "code",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L123",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_analyze_recent_playstyle",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "._analyze_recent_playstyle()"
-    },
-    {
-      "label": "._analyze_trends()",
-      "file_type": "code",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L99",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_analyze_trends",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "._analyze_trends()"
-    },
-    {
-      "label": "._determine_focus()",
-      "file_type": "code",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L172",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_determine_focus",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "._determine_focus()"
-    },
-    {
-      "label": ".generate_super_prompt()",
-      "file_type": "code",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L314",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_generate_super_prompt",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": ".generate_super_prompt()"
-    },
-    {
-      "label": ".__init__()",
-      "file_type": "code",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L26",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_init",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": ".__init__()"
-    },
-    {
-      "label": "._search_recommended_maps()",
-      "file_type": "code",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L267",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_search_recommended_maps",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "._search_recommended_maps()"
-    },
-    {
-      "label": "setup()",
-      "file_type": "code",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L386",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_setup",
       "community": 0,
       "community_name": "OsuHandler",
       "norm_label": "setup()"
@@ -1032,106 +913,34 @@
       "norm_label": ".create_simple_embed()"
     },
     {
-      "label": ".__init__()",
+      "label": ".callback()",
       "file_type": "code",
-      "source_file": "handlers/dalet_commands_handlers.py",
-      "source_location": "L16",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L150",
       "_callable": true,
       "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_commandshandler_init",
+      "id": "handlers_dalet_helpcommands_handlers_categoryselect_callback",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": ".callback()"
+    },
+    {
+      "label": ".__init__()",
+      "file_type": "code",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L135",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_helpcommands_handlers_categoryselect_init",
       "community": 10,
       "community_name": "DaletAtoms",
       "norm_label": ".__init__()"
     },
     {
-      "label": ".lore()",
-      "file_type": "code",
-      "source_file": "handlers/dalet_commands_handlers.py",
-      "source_location": "L79",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_commandshandler_lore",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": ".lore()"
-    },
-    {
-      "label": ".ms()",
-      "file_type": "code",
-      "source_file": "handlers/dalet_commands_handlers.py",
-      "source_location": "L21",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_commandshandler_ms",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": ".ms()"
-    },
-    {
-      "label": ".say()",
-      "file_type": "code",
-      "source_file": "handlers/dalet_commands_handlers.py",
-      "source_location": "L73",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_commandshandler_say",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": ".say()"
-    },
-    {
-      "label": ".serverinfo()",
-      "file_type": "code",
-      "source_file": "handlers/dalet_commands_handlers.py",
-      "source_location": "L59",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_commandshandler_serverinfo",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": ".serverinfo()"
-    },
-    {
-      "label": ".stats()",
-      "file_type": "code",
-      "source_file": "handlers/dalet_commands_handlers.py",
-      "source_location": "L31",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_commandshandler_stats",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": ".stats()"
-    },
-    {
-      "label": ".userinfo()",
-      "file_type": "code",
-      "source_file": "handlers/dalet_commands_handlers.py",
-      "source_location": "L45",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_commandshandler_userinfo",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": ".userinfo()"
-    },
-    {
-      "label": "setup()",
-      "file_type": "code",
-      "source_file": "handlers/dalet_commands_handlers.py",
-      "source_location": "L131",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_setup",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "setup()"
-    },
-    {
       "label": ".send_bot_help()",
       "file_type": "code",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L108",
+      "source_location": "L217",
       "_callable": true,
       "_origin": "ast",
       "id": "handlers_dalet_helpcommands_handlers_customhelpcommand_send_bot_help",
@@ -1140,10 +949,130 @@
       "norm_label": ".send_bot_help()"
     },
     {
+      "label": ".goto_button()",
+      "file_type": "code",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L194",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_helpcommands_handlers_helppaginator_goto_button",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": ".goto_button()"
+    },
+    {
+      "label": ".home_button()",
+      "file_type": "code",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L189",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_helpcommands_handlers_helppaginator_home_button",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": ".home_button()"
+    },
+    {
+      "label": ".__init__()",
+      "file_type": "code",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L159",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_helpcommands_handlers_helppaginator_init",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": ".__init__()"
+    },
+    {
+      "label": ".next_button()",
+      "file_type": "code",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L199",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_helpcommands_handlers_helppaginator_next_button",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": ".next_button()"
+    },
+    {
+      "label": ".on_timeout()",
+      "file_type": "code",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L206",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_helpcommands_handlers_helppaginator_on_timeout",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": ".on_timeout()"
+    },
+    {
+      "label": ".previous_button()",
+      "file_type": "code",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L181",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_helpcommands_handlers_helppaginator_previous_button",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": ".previous_button()"
+    },
+    {
+      "label": ".update_buttons()",
+      "file_type": "code",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L168",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_helpcommands_handlers_helppaginator_update_buttons",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": ".update_buttons()"
+    },
+    {
+      "label": ".update_page()",
+      "file_type": "code",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L173",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_helpcommands_handlers_helppaginator_update_page",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": ".update_page()"
+    },
+    {
+      "label": ".__init__()",
+      "file_type": "code",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L104",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_helpcommands_handlers_pageinputmodal_init",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": ".__init__()"
+    },
+    {
+      "label": ".on_submit()",
+      "file_type": "code",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L116",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_helpcommands_handlers_pageinputmodal_on_submit",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": ".on_submit()"
+    },
+    {
       "label": "setup()",
       "file_type": "code",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L158",
+      "source_location": "L282",
       "_callable": true,
       "_origin": "ast",
       "id": "handlers_dalet_helpcommands_handlers_setup",
@@ -1236,30 +1165,6 @@
       "norm_label": "setup()"
     },
     {
-      "label": ".bold()",
-      "file_type": "code",
-      "source_file": "ui/atoms.py",
-      "source_location": "L24",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "ui_atoms_daletatoms_bold",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": ".bold()"
-    },
-    {
-      "label": ".code()",
-      "file_type": "code",
-      "source_file": "ui/atoms.py",
-      "source_location": "L32",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "ui_atoms_daletatoms_code",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": ".code()"
-    },
-    {
       "label": ".get_rank_color()",
       "file_type": "code",
       "source_file": "ui/atoms.py",
@@ -1332,18 +1237,6 @@
       "norm_label": ".create_field()"
     },
     {
-      "label": ".create_labeled_text()",
-      "file_type": "code",
-      "source_file": "ui/molecules.py",
-      "source_location": "L37",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "ui_molecules_daletmolecules_create_labeled_text",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": ".create_labeled_text()"
-    },
-    {
       "label": ".create_navigation_buttons()",
       "file_type": "code",
       "source_file": "ui/molecules.py",
@@ -1392,6 +1285,54 @@
       "norm_label": ".create_user_stats_card()"
     },
     {
+      "label": ".log_ai_interaction()",
+      "file_type": "code",
+      "source_file": "database/repositories/analytics_repository.py",
+      "source_location": "L41",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_repositories_analytics_repository_analyticsrepository_log_ai_interaction",
+      "community": 11,
+      "community_name": ".is_available",
+      "norm_label": ".log_ai_interaction()"
+    },
+    {
+      "label": ".log_command()",
+      "file_type": "code",
+      "source_file": "database/repositories/analytics_repository.py",
+      "source_location": "L17",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_repositories_analytics_repository_analyticsrepository_log_command",
+      "community": 11,
+      "community_name": ".is_available",
+      "norm_label": ".log_command()"
+    },
+    {
+      "label": ".log_error()",
+      "file_type": "code",
+      "source_file": "database/repositories/analytics_repository.py",
+      "source_location": "L61",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_repositories_analytics_repository_analyticsrepository_log_error",
+      "community": 11,
+      "community_name": ".is_available",
+      "norm_label": ".log_error()"
+    },
+    {
+      "label": ".record_osu_snapshot()",
+      "file_type": "code",
+      "source_file": "database/repositories/analytics_repository.py",
+      "source_location": "L79",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_repositories_analytics_repository_analyticsrepository_record_osu_snapshot",
+      "community": 11,
+      "community_name": ".is_available",
+      "norm_label": ".record_osu_snapshot()"
+    },
+    {
       "label": ".add_reminder()",
       "file_type": "code",
       "source_file": "database/repositories/reminder_repository.py",
@@ -1400,7 +1341,7 @@
       "_origin": "ast",
       "id": "database_repositories_reminder_repository_reminderrepository_add_reminder",
       "community": 11,
-      "community_name": "ReminderRepository",
+      "community_name": ".is_available",
       "norm_label": ".add_reminder()"
     },
     {
@@ -1412,7 +1353,7 @@
       "_origin": "ast",
       "id": "database_repositories_reminder_repository_reminderrepository_delete_reminder",
       "community": 11,
-      "community_name": "ReminderRepository",
+      "community_name": ".is_available",
       "norm_label": ".delete_reminder()"
     },
     {
@@ -1424,32 +1365,8 @@
       "_origin": "ast",
       "id": "database_repositories_reminder_repository_reminderrepository_get_reminder",
       "community": 11,
-      "community_name": "ReminderRepository",
+      "community_name": ".is_available",
       "norm_label": ".get_reminder()"
-    },
-    {
-      "label": ".get_reminders_by_creator()",
-      "file_type": "code",
-      "source_file": "database/repositories/reminder_repository.py",
-      "source_location": "L51",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_repositories_reminder_repository_reminderrepository_get_reminders_by_creator",
-      "community": 11,
-      "community_name": "ReminderRepository",
-      "norm_label": ".get_reminders_by_creator()"
-    },
-    {
-      "label": ".__init__()",
-      "file_type": "code",
-      "source_file": "database/repositories/reminder_repository.py",
-      "source_location": "L10",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_repositories_reminder_repository_reminderrepository_init",
-      "community": 11,
-      "community_name": "ReminderRepository",
-      "norm_label": ".__init__()"
     },
     {
       "label": ".toggle_reminder()",
@@ -1460,7 +1377,7 @@
       "_origin": "ast",
       "id": "database_repositories_reminder_repository_reminderrepository_toggle_reminder",
       "community": 11,
-      "community_name": "ReminderRepository",
+      "community_name": ".is_available",
       "norm_label": ".toggle_reminder()"
     },
     {
@@ -1472,8 +1389,20 @@
       "_origin": "ast",
       "id": "database_repositories_reminder_repository_reminderrepository_update_reminder",
       "community": 11,
-      "community_name": "ReminderRepository",
+      "community_name": ".is_available",
       "norm_label": ".update_reminder()"
+    },
+    {
+      "label": ".execute()",
+      "file_type": "code",
+      "source_file": "database/sqlite_manager.py",
+      "source_location": "L161",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_sqlite_manager_sqlitemanager_execute",
+      "community": 11,
+      "community_name": ".is_available",
+      "norm_label": ".execute()"
     },
     {
       "label": ".is_available()",
@@ -1484,7 +1413,7 @@
       "_origin": "ast",
       "id": "database_turso_client_tursoclient_is_available",
       "community": 11,
-      "community_name": "ReminderRepository",
+      "community_name": ".is_available",
       "norm_label": ".is_available()"
     },
     {
@@ -1680,112 +1609,220 @@
       "norm_label": "setup()"
     },
     {
-      "label": ".goto_button()",
-      "file_type": "code",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L86",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_helppaginator_goto_button",
-      "community": 14,
-      "community_name": "HelpPaginator",
-      "norm_label": ".goto_button()"
-    },
-    {
-      "label": ".home_button()",
-      "file_type": "code",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L81",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_helppaginator_home_button",
-      "community": 14,
-      "community_name": "HelpPaginator",
-      "norm_label": ".home_button()"
-    },
-    {
       "label": ".__init__()",
       "file_type": "code",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L51",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_helppaginator_init",
-      "community": 14,
-      "community_name": "HelpPaginator",
-      "norm_label": ".__init__()"
-    },
-    {
-      "label": ".next_button()",
-      "file_type": "code",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L92",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_helppaginator_next_button",
-      "community": 14,
-      "community_name": "HelpPaginator",
-      "norm_label": ".next_button()"
-    },
-    {
-      "label": ".previous_button()",
-      "file_type": "code",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L73",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_helppaginator_previous_button",
-      "community": 14,
-      "community_name": "HelpPaginator",
-      "norm_label": ".previous_button()"
-    },
-    {
-      "label": ".update_buttons()",
-      "file_type": "code",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L57",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_helppaginator_update_buttons",
-      "community": 14,
-      "community_name": "HelpPaginator",
-      "norm_label": ".update_buttons()"
-    },
-    {
-      "label": ".update_page()",
-      "file_type": "code",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L63",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_helppaginator_update_page",
-      "community": 14,
-      "community_name": "HelpPaginator",
-      "norm_label": ".update_page()"
-    },
-    {
-      "label": ".__init__()",
-      "file_type": "code",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_file": "handlers/dalet_commands_handlers.py",
       "source_location": "L16",
       "_callable": true,
       "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_pageinputmodal_init",
+      "id": "handlers_dalet_commands_handlers_commandshandler_init",
       "community": 14,
-      "community_name": "HelpPaginator",
+      "community_name": "CommandsHandler",
       "norm_label": ".__init__()"
     },
     {
-      "label": ".on_submit()",
+      "label": ".lore()",
       "file_type": "code",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L29",
+      "source_file": "handlers/dalet_commands_handlers.py",
+      "source_location": "L79",
       "_callable": true,
       "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_pageinputmodal_on_submit",
+      "id": "handlers_dalet_commands_handlers_commandshandler_lore",
       "community": 14,
-      "community_name": "HelpPaginator",
-      "norm_label": ".on_submit()"
+      "community_name": "CommandsHandler",
+      "norm_label": ".lore()"
+    },
+    {
+      "label": ".ms()",
+      "file_type": "code",
+      "source_file": "handlers/dalet_commands_handlers.py",
+      "source_location": "L21",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_commands_handlers_commandshandler_ms",
+      "community": 14,
+      "community_name": "CommandsHandler",
+      "norm_label": ".ms()"
+    },
+    {
+      "label": ".say()",
+      "file_type": "code",
+      "source_file": "handlers/dalet_commands_handlers.py",
+      "source_location": "L73",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_commands_handlers_commandshandler_say",
+      "community": 14,
+      "community_name": "CommandsHandler",
+      "norm_label": ".say()"
+    },
+    {
+      "label": ".serverinfo()",
+      "file_type": "code",
+      "source_file": "handlers/dalet_commands_handlers.py",
+      "source_location": "L59",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_commands_handlers_commandshandler_serverinfo",
+      "community": 14,
+      "community_name": "CommandsHandler",
+      "norm_label": ".serverinfo()"
+    },
+    {
+      "label": ".stats()",
+      "file_type": "code",
+      "source_file": "handlers/dalet_commands_handlers.py",
+      "source_location": "L31",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_commands_handlers_commandshandler_stats",
+      "community": 14,
+      "community_name": "CommandsHandler",
+      "norm_label": ".stats()"
+    },
+    {
+      "label": ".userinfo()",
+      "file_type": "code",
+      "source_file": "handlers/dalet_commands_handlers.py",
+      "source_location": "L45",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_commands_handlers_commandshandler_userinfo",
+      "community": 14,
+      "community_name": "CommandsHandler",
+      "norm_label": ".userinfo()"
+    },
+    {
+      "label": "setup()",
+      "file_type": "code",
+      "source_file": "handlers/dalet_commands_handlers.py",
+      "source_location": "L131",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_dalet_commands_handlers_setup",
+      "community": 14,
+      "community_name": "CommandsHandler",
+      "norm_label": "setup()"
+    },
+    {
+      "label": ".bold()",
+      "file_type": "code",
+      "source_file": "ui/atoms.py",
+      "source_location": "L24",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "ui_atoms_daletatoms_bold",
+      "community": 14,
+      "community_name": "CommandsHandler",
+      "norm_label": ".bold()"
+    },
+    {
+      "label": ".code()",
+      "file_type": "code",
+      "source_file": "ui/atoms.py",
+      "source_location": "L32",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "ui_atoms_daletatoms_code",
+      "community": 14,
+      "community_name": "CommandsHandler",
+      "norm_label": ".code()"
+    },
+    {
+      "label": ".create_labeled_text()",
+      "file_type": "code",
+      "source_file": "ui/molecules.py",
+      "source_location": "L37",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "ui_molecules_daletmolecules_create_labeled_text",
+      "community": 14,
+      "community_name": "CommandsHandler",
+      "norm_label": ".create_labeled_text()"
+    },
+    {
+      "label": ".close()",
+      "file_type": "code",
+      "source_file": "database/pool.py",
+      "source_location": "L17",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_pool_databasepool_close",
+      "community": 16,
+      "community_name": "TursoClient",
+      "norm_label": ".close()"
+    },
+    {
+      "label": ".get_pool()",
+      "file_type": "code",
+      "source_file": "database/pool.py",
+      "source_location": "L9",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_pool_databasepool_get_pool",
+      "community": 16,
+      "community_name": "TursoClient",
+      "norm_label": ".get_pool()"
+    },
+    {
+      "label": ".is_available()",
+      "file_type": "code",
+      "source_file": "database/pool.py",
+      "source_location": "L13",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_pool_databasepool_is_available",
+      "community": 16,
+      "community_name": "TursoClient",
+      "norm_label": ".is_available()"
+    },
+    {
+      "label": ".__init__()",
+      "file_type": "code",
+      "source_file": "database/repositories/reminder_repository.py",
+      "source_location": "L10",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_repositories_reminder_repository_reminderrepository_init",
+      "community": 16,
+      "community_name": "TursoClient",
+      "norm_label": ".__init__()"
+    },
+    {
+      "label": ".close()",
+      "file_type": "code",
+      "source_file": "database/turso_client.py",
+      "source_location": "L83",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_turso_client_tursoclient_close",
+      "community": 16,
+      "community_name": "TursoClient",
+      "norm_label": ".close()"
+    },
+    {
+      "label": ".get_client()",
+      "file_type": "code",
+      "source_file": "database/turso_client.py",
+      "source_location": "L19",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_turso_client_tursoclient_get_client",
+      "community": 16,
+      "community_name": "TursoClient",
+      "norm_label": ".get_client()"
+    },
+    {
+      "label": "main()",
+      "file_type": "code",
+      "source_file": "mig.py",
+      "source_location": "L6",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "mig_main",
+      "community": 16,
+      "community_name": "TursoClient",
+      "norm_label": "main()"
     },
     {
       "label": ".chatlog()",
@@ -1836,78 +1873,6 @@
       "norm_label": "setup()"
     },
     {
-      "label": "home()",
-      "file_type": "code",
-      "source_file": "dalet_main.py",
-      "source_location": "L36",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "dalet_main_home",
-      "community": 18,
-      "community_name": "dalet_main.py",
-      "norm_label": "home()"
-    },
-    {
-      "label": "keep_alive()",
-      "file_type": "code",
-      "source_file": "dalet_main.py",
-      "source_location": "L48",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "dalet_main_keep_alive",
-      "community": 18,
-      "community_name": "dalet_main.py",
-      "norm_label": "keep_alive()"
-    },
-    {
-      "label": "load_extensions()",
-      "file_type": "code",
-      "source_file": "dalet_main.py",
-      "source_location": "L54",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "dalet_main_load_extensions",
-      "community": 18,
-      "community_name": "dalet_main.py",
-      "norm_label": "load_extensions()"
-    },
-    {
-      "label": "main()",
-      "file_type": "code",
-      "source_file": "dalet_main.py",
-      "source_location": "L74",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "dalet_main_main",
-      "community": 18,
-      "community_name": "dalet_main.py",
-      "norm_label": "main()"
-    },
-    {
-      "label": "run_flask()",
-      "file_type": "code",
-      "source_file": "dalet_main.py",
-      "source_location": "L40",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "dalet_main_run_flask",
-      "community": 18,
-      "community_name": "dalet_main.py",
-      "norm_label": "run_flask()"
-    },
-    {
-      "label": ".close()",
-      "file_type": "code",
-      "source_file": "database/sqlite_manager.py",
-      "source_location": "L216",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_sqlite_manager_sqlitemanager_close",
-      "community": 18,
-      "community_name": "dalet_main.py",
-      "norm_label": ".close()"
-    },
-    {
       "label": ".add_memory()",
       "file_type": "code",
       "source_file": "services/memory_service.py",
@@ -1916,7 +1881,7 @@
       "_origin": "ast",
       "id": "services_memory_service_memoryservice_add_memory",
       "community": 18,
-      "community_name": "dalet_main.py",
+      "community_name": "MemoryService",
       "norm_label": ".add_memory()"
     },
     {
@@ -1928,7 +1893,7 @@
       "_origin": "ast",
       "id": "services_memory_service_memoryservice_get_relevant_context",
       "community": 18,
-      "community_name": "dalet_main.py",
+      "community_name": "MemoryService",
       "norm_label": ".get_relevant_context()"
     },
     {
@@ -1940,7 +1905,7 @@
       "_origin": "ast",
       "id": "services_memory_service_memoryservice_init",
       "community": 18,
-      "community_name": "dalet_main.py",
+      "community_name": "MemoryService",
       "norm_label": ".__init__()"
     },
     {
@@ -2292,6 +2257,18 @@
       "norm_label": ".get_active_reminders()"
     },
     {
+      "label": ".get_reminders_by_creator()",
+      "file_type": "code",
+      "source_file": "database/repositories/reminder_repository.py",
+      "source_location": "L51",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_repositories_reminder_repository_reminderrepository_get_reminders_by_creator",
+      "community": 20,
+      "community_name": ".fetch_all",
+      "norm_label": ".get_reminders_by_creator()"
+    },
+    {
       "label": ".get_channel_messages()",
       "file_type": "code",
       "source_file": "database/repositories/user_repository.py",
@@ -2436,6 +2413,66 @@
       "norm_label": "setup()"
     },
     {
+      "label": ".get_linked_username()",
+      "file_type": "code",
+      "source_file": "database/repositories/osu_repository.py",
+      "source_location": "L4",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_repositories_osu_repository_osurepository_get_linked_username",
+      "community": 23,
+      "community_name": "OsuRepository",
+      "norm_label": ".get_linked_username()"
+    },
+    {
+      "label": ".get_ranking()",
+      "file_type": "code",
+      "source_file": "database/repositories/osu_repository.py",
+      "source_location": "L33",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_repositories_osu_repository_osurepository_get_ranking",
+      "community": 23,
+      "community_name": "OsuRepository",
+      "norm_label": ".get_ranking()"
+    },
+    {
+      "label": ".get_recommended_maps()",
+      "file_type": "code",
+      "source_file": "database/repositories/osu_repository.py",
+      "source_location": "L49",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_repositories_osu_repository_osurepository_get_recommended_maps",
+      "community": 23,
+      "community_name": "OsuRepository",
+      "norm_label": ".get_recommended_maps()"
+    },
+    {
+      "label": ".link_account()",
+      "file_type": "code",
+      "source_file": "database/repositories/osu_repository.py",
+      "source_location": "L9",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_repositories_osu_repository_osurepository_link_account",
+      "community": 23,
+      "community_name": "OsuRepository",
+      "norm_label": ".link_account()"
+    },
+    {
+      "label": ".unlink_account()",
+      "file_type": "code",
+      "source_file": "database/repositories/osu_repository.py",
+      "source_location": "L29",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_repositories_osu_repository_osurepository_unlink_account",
+      "community": 23,
+      "community_name": "OsuRepository",
+      "norm_label": ".unlink_account()"
+    },
+    {
       "label": ".get_user_social_stats()",
       "file_type": "code",
       "source_file": "database/repositories/user_repository.py",
@@ -2446,6 +2483,18 @@
       "community": 39,
       "community_name": "SQLiteManager",
       "norm_label": ".get_user_social_stats()"
+    },
+    {
+      "label": ".close()",
+      "file_type": "code",
+      "source_file": "database/sqlite_manager.py",
+      "source_location": "L216",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_sqlite_manager_sqlitemanager_close",
+      "community": 39,
+      "community_name": "SQLiteManager",
+      "norm_label": ".close()"
     },
     {
       "label": ".executemany()",
@@ -2664,114 +2713,6 @@
       "norm_label": "setup()"
     },
     {
-      "label": ".close()",
-      "file_type": "code",
-      "source_file": "database/pool.py",
-      "source_location": "L17",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_pool_databasepool_close",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": ".close()"
-    },
-    {
-      "label": ".get_pool()",
-      "file_type": "code",
-      "source_file": "database/pool.py",
-      "source_location": "L9",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_pool_databasepool_get_pool",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": ".get_pool()"
-    },
-    {
-      "label": ".is_available()",
-      "file_type": "code",
-      "source_file": "database/pool.py",
-      "source_location": "L13",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_pool_databasepool_is_available",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": ".is_available()"
-    },
-    {
-      "label": ".get_server_custom_name()",
-      "file_type": "code",
-      "source_file": "database/repositories/admin_repository.py",
-      "source_location": "L27",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_repositories_admin_repository_adminrepository_get_server_custom_name",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": ".get_server_custom_name()"
-    },
-    {
-      "label": ".get_welcome_channel()",
-      "file_type": "code",
-      "source_file": "database/repositories/admin_repository.py",
-      "source_location": "L42",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_repositories_admin_repository_adminrepository_get_welcome_channel",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": ".get_welcome_channel()"
-    },
-    {
-      "label": ".is_channel_locked()",
-      "file_type": "code",
-      "source_file": "database/repositories/admin_repository.py",
-      "source_location": "L4",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_repositories_admin_repository_adminrepository_is_channel_locked",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": ".is_channel_locked()"
-    },
-    {
-      "label": ".set_channel_lock()",
-      "file_type": "code",
-      "source_file": "database/repositories/admin_repository.py",
-      "source_location": "L10",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_repositories_admin_repository_adminrepository_set_channel_lock",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": ".set_channel_lock()"
-    },
-    {
-      "label": ".set_server_custom_name()",
-      "file_type": "code",
-      "source_file": "database/repositories/admin_repository.py",
-      "source_location": "L33",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_repositories_admin_repository_adminrepository_set_server_custom_name",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": ".set_server_custom_name()"
-    },
-    {
-      "label": ".set_welcome_channel()",
-      "file_type": "code",
-      "source_file": "database/repositories/admin_repository.py",
-      "source_location": "L48",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_repositories_admin_repository_adminrepository_set_welcome_channel",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": ".set_welcome_channel()"
-    },
-    {
       "label": ".call_procedure()",
       "file_type": "code",
       "source_file": "database/repositories/base_repository.py",
@@ -2780,7 +2721,7 @@
       "_origin": "ast",
       "id": "database_repositories_base_repository_baserepository_call_procedure",
       "community": 40,
-      "community_name": "TursoClient",
+      "community_name": "BaseRepository",
       "norm_label": ".call_procedure()"
     },
     {
@@ -2792,7 +2733,7 @@
       "_origin": "ast",
       "id": "database_repositories_base_repository_baserepository_convert_query",
       "community": 40,
-      "community_name": "TursoClient",
+      "community_name": "BaseRepository",
       "norm_label": "._convert_query()"
     },
     {
@@ -2804,7 +2745,7 @@
       "_origin": "ast",
       "id": "database_repositories_base_repository_baserepository_execute",
       "community": 40,
-      "community_name": "TursoClient",
+      "community_name": "BaseRepository",
       "norm_label": ".execute()"
     },
     {
@@ -2816,7 +2757,7 @@
       "_origin": "ast",
       "id": "database_repositories_base_repository_baserepository_fetch_all",
       "community": 40,
-      "community_name": "TursoClient",
+      "community_name": "BaseRepository",
       "norm_label": ".fetch_all()"
     },
     {
@@ -2828,7 +2769,7 @@
       "_origin": "ast",
       "id": "database_repositories_base_repository_baserepository_fetch_one",
       "community": 40,
-      "community_name": "TursoClient",
+      "community_name": "BaseRepository",
       "norm_label": ".fetch_one()"
     },
     {
@@ -2840,68 +2781,8 @@
       "_origin": "ast",
       "id": "database_repositories_base_repository_baserepository_init",
       "community": 40,
-      "community_name": "TursoClient",
+      "community_name": "BaseRepository",
       "norm_label": ".__init__()"
-    },
-    {
-      "label": ".get_linked_username()",
-      "file_type": "code",
-      "source_file": "database/repositories/osu_repository.py",
-      "source_location": "L4",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_repositories_osu_repository_osurepository_get_linked_username",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": ".get_linked_username()"
-    },
-    {
-      "label": ".get_ranking()",
-      "file_type": "code",
-      "source_file": "database/repositories/osu_repository.py",
-      "source_location": "L33",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_repositories_osu_repository_osurepository_get_ranking",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": ".get_ranking()"
-    },
-    {
-      "label": ".get_recommended_maps()",
-      "file_type": "code",
-      "source_file": "database/repositories/osu_repository.py",
-      "source_location": "L49",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_repositories_osu_repository_osurepository_get_recommended_maps",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": ".get_recommended_maps()"
-    },
-    {
-      "label": ".link_account()",
-      "file_type": "code",
-      "source_file": "database/repositories/osu_repository.py",
-      "source_location": "L9",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_repositories_osu_repository_osurepository_link_account",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": ".link_account()"
-    },
-    {
-      "label": ".unlink_account()",
-      "file_type": "code",
-      "source_file": "database/repositories/osu_repository.py",
-      "source_location": "L29",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_repositories_osu_repository_osurepository_unlink_account",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": ".unlink_account()"
     },
     {
       "label": "get_db()",
@@ -2912,44 +2793,8 @@
       "_origin": "ast",
       "id": "database_turso_client_get_db",
       "community": 40,
-      "community_name": "TursoClient",
+      "community_name": "BaseRepository",
       "norm_label": "get_db()"
-    },
-    {
-      "label": ".close()",
-      "file_type": "code",
-      "source_file": "database/turso_client.py",
-      "source_location": "L83",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_turso_client_tursoclient_close",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": ".close()"
-    },
-    {
-      "label": ".get_client()",
-      "file_type": "code",
-      "source_file": "database/turso_client.py",
-      "source_location": "L19",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_turso_client_tursoclient_get_client",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": ".get_client()"
-    },
-    {
-      "label": "main()",
-      "file_type": "code",
-      "source_file": "mig.py",
-      "source_location": "L6",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "mig_main",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": "main()"
     },
     {
       "label": ".__init__()",
@@ -3396,66 +3241,6 @@
       "norm_label": ".start_flush_task()"
     },
     {
-      "label": ".log_ai_interaction()",
-      "file_type": "code",
-      "source_file": "database/repositories/analytics_repository.py",
-      "source_location": "L41",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_repositories_analytics_repository_analyticsrepository_log_ai_interaction",
-      "community": 8,
-      "community_name": ".execute",
-      "norm_label": ".log_ai_interaction()"
-    },
-    {
-      "label": ".log_command()",
-      "file_type": "code",
-      "source_file": "database/repositories/analytics_repository.py",
-      "source_location": "L17",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_repositories_analytics_repository_analyticsrepository_log_command",
-      "community": 8,
-      "community_name": ".execute",
-      "norm_label": ".log_command()"
-    },
-    {
-      "label": ".log_error()",
-      "file_type": "code",
-      "source_file": "database/repositories/analytics_repository.py",
-      "source_location": "L61",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_repositories_analytics_repository_analyticsrepository_log_error",
-      "community": 8,
-      "community_name": ".execute",
-      "norm_label": ".log_error()"
-    },
-    {
-      "label": ".record_osu_snapshot()",
-      "file_type": "code",
-      "source_file": "database/repositories/analytics_repository.py",
-      "source_location": "L79",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_repositories_analytics_repository_analyticsrepository_record_osu_snapshot",
-      "community": 8,
-      "community_name": ".execute",
-      "norm_label": ".record_osu_snapshot()"
-    },
-    {
-      "label": ".execute()",
-      "file_type": "code",
-      "source_file": "database/sqlite_manager.py",
-      "source_location": "L161",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_sqlite_manager_sqlitemanager_execute",
-      "community": 8,
-      "community_name": ".execute",
-      "norm_label": ".execute()"
-    },
-    {
       "label": ".close()",
       "file_type": "code",
       "source_file": "services/nlp_service.py",
@@ -3463,8 +3248,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "services_nlp_service_nlpservice_close",
-      "community": 9,
-      "community_name": "NLPService",
+      "community": 7,
+      "community_name": "UserRepository",
       "norm_label": ".close()"
     },
     {
@@ -3475,8 +3260,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "services_nlp_service_nlpservice_generate_gemini_reply",
-      "community": 9,
-      "community_name": "NLPService",
+      "community": 7,
+      "community_name": "UserRepository",
       "norm_label": "._generate_gemini_reply()"
     },
     {
@@ -3487,8 +3272,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "services_nlp_service_nlpservice_generate_groq_reply",
-      "community": 9,
-      "community_name": "NLPService",
+      "community": 7,
+      "community_name": "UserRepository",
       "norm_label": "._generate_groq_reply()"
     },
     {
@@ -3499,8 +3284,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "services_nlp_service_nlpservice_generate_reply",
-      "community": 9,
-      "community_name": "NLPService",
+      "community": 7,
+      "community_name": "UserRepository",
       "norm_label": ".generate_reply()"
     },
     {
@@ -3511,8 +3296,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "services_nlp_service_nlpservice_get_images_description",
-      "community": 9,
-      "community_name": "NLPService",
+      "community": 7,
+      "community_name": "UserRepository",
       "norm_label": "._get_images_description()"
     },
     {
@@ -3523,8 +3308,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "services_nlp_service_nlpservice_init",
-      "community": 9,
-      "community_name": "NLPService",
+      "community": 7,
+      "community_name": "UserRepository",
       "norm_label": ".__init__()"
     },
     {
@@ -3535,9 +3320,273 @@
       "_callable": true,
       "_origin": "ast",
       "id": "services_nlp_service_nlpservice_trim_context_smart",
-      "community": 9,
-      "community_name": "NLPService",
+      "community": 7,
+      "community_name": "UserRepository",
       "norm_label": "._trim_context_smart()"
+    },
+    {
+      "label": "home()",
+      "file_type": "code",
+      "source_file": "dalet_main.py",
+      "source_location": "L36",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "dalet_main_home",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": "home()"
+    },
+    {
+      "label": "keep_alive()",
+      "file_type": "code",
+      "source_file": "dalet_main.py",
+      "source_location": "L48",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "dalet_main_keep_alive",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": "keep_alive()"
+    },
+    {
+      "label": "load_extensions()",
+      "file_type": "code",
+      "source_file": "dalet_main.py",
+      "source_location": "L54",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "dalet_main_load_extensions",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": "load_extensions()"
+    },
+    {
+      "label": "main()",
+      "file_type": "code",
+      "source_file": "dalet_main.py",
+      "source_location": "L74",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "dalet_main_main",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": "main()"
+    },
+    {
+      "label": "run_flask()",
+      "file_type": "code",
+      "source_file": "dalet_main.py",
+      "source_location": "L40",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "dalet_main_run_flask",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": "run_flask()"
+    },
+    {
+      "label": ".get_server_custom_name()",
+      "file_type": "code",
+      "source_file": "database/repositories/admin_repository.py",
+      "source_location": "L27",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_repositories_admin_repository_adminrepository_get_server_custom_name",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": ".get_server_custom_name()"
+    },
+    {
+      "label": ".get_welcome_channel()",
+      "file_type": "code",
+      "source_file": "database/repositories/admin_repository.py",
+      "source_location": "L42",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_repositories_admin_repository_adminrepository_get_welcome_channel",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": ".get_welcome_channel()"
+    },
+    {
+      "label": ".is_channel_locked()",
+      "file_type": "code",
+      "source_file": "database/repositories/admin_repository.py",
+      "source_location": "L4",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_repositories_admin_repository_adminrepository_is_channel_locked",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": ".is_channel_locked()"
+    },
+    {
+      "label": ".set_channel_lock()",
+      "file_type": "code",
+      "source_file": "database/repositories/admin_repository.py",
+      "source_location": "L10",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_repositories_admin_repository_adminrepository_set_channel_lock",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": ".set_channel_lock()"
+    },
+    {
+      "label": ".set_server_custom_name()",
+      "file_type": "code",
+      "source_file": "database/repositories/admin_repository.py",
+      "source_location": "L33",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_repositories_admin_repository_adminrepository_set_server_custom_name",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": ".set_server_custom_name()"
+    },
+    {
+      "label": ".set_welcome_channel()",
+      "file_type": "code",
+      "source_file": "database/repositories/admin_repository.py",
+      "source_location": "L48",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_repositories_admin_repository_adminrepository_set_welcome_channel",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": ".set_welcome_channel()"
+    },
+    {
+      "label": "._analyze_best_beatmap_stats()",
+      "file_type": "code",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L75",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_analyze_best_beatmap_stats",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "._analyze_best_beatmap_stats()"
+    },
+    {
+      "label": "._analyze_best_playstyle()",
+      "file_type": "code",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L42",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_analyze_best_playstyle",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "._analyze_best_playstyle()"
+    },
+    {
+      "label": "._analyze_pp_spread()",
+      "file_type": "code",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L60",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_analyze_pp_spread",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "._analyze_pp_spread()"
+    },
+    {
+      "label": "._analyze_recent_beatmap_stats()",
+      "file_type": "code",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L145",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_analyze_recent_beatmap_stats",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "._analyze_recent_beatmap_stats()"
+    },
+    {
+      "label": "._analyze_recent_playstyle()",
+      "file_type": "code",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L123",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_analyze_recent_playstyle",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "._analyze_recent_playstyle()"
+    },
+    {
+      "label": "._analyze_trends()",
+      "file_type": "code",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L99",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_analyze_trends",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "._analyze_trends()"
+    },
+    {
+      "label": "._determine_focus()",
+      "file_type": "code",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L172",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_determine_focus",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "._determine_focus()"
+    },
+    {
+      "label": ".generate_super_prompt()",
+      "file_type": "code",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L314",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_generate_super_prompt",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": ".generate_super_prompt()"
+    },
+    {
+      "label": ".__init__()",
+      "file_type": "code",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L26",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_init",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": ".__init__()"
+    },
+    {
+      "label": "._search_recommended_maps()",
+      "file_type": "code",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L267",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_osuanalyzer_search_recommended_maps",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "._search_recommended_maps()"
+    },
+    {
+      "label": "setup()",
+      "file_type": "code",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L386",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_setup",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "setup()"
     },
     {
       "label": "File",
@@ -3549,17 +3598,6 @@
       "community": 0,
       "community_name": "OsuHandler",
       "norm_label": "file"
-    },
-    {
-      "label": "dalet_osucommands.py",
-      "file_type": "code",
-      "source_file": "handlers/dalet_osucommands.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "handlers_dalet_osucommands",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "dalet_osucommands.py"
     },
     {
       "label": "command",
@@ -3582,17 +3620,6 @@
       "community": 0,
       "community_name": "OsuHandler",
       "norm_label": "member"
-    },
-    {
-      "label": "dalet_osuanalyzer.py",
-      "file_type": "code",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "dalet_osuanalyzer.py"
     },
     {
       "label": "Vincula tu cuenta de Discord con tu perfil de osu!.",
@@ -3749,138 +3776,6 @@
       "norm_label": "actualiza estadisticas y snapshot diario si el usuario consulto su propia..."
     },
     {
-      "label": "M\u00f3dulo de L\u00f3gica de An\u00e1lisis de osu! (v4.1) Esta versi\u00f3n corrige el 'edge case'\u2026",
-      "file_type": "rationale",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_rationale_1",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "modulo de logica de analisis de osu! (v4.1) esta version corrige el 'edge case'..."
-    },
-    {
-      "label": "Analiza los 'recent plays' para detectar la consistencia del accuracy. (BUG\u2026",
-      "file_type": "rationale",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L100",
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_rationale_100",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "analiza los 'recent plays' para detectar la consistencia del accuracy. (bug..."
-    },
-    {
-      "label": "Analiza los 'recent plays' (\u00daltimos 50) para detectar el estilo ACTUAL.",
-      "file_type": "rationale",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L124",
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_rationale_124",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "analiza los 'recent plays' (ultimos 50) para detectar el estilo actual."
-    },
-    {
-      "label": "Analiza las propiedades de los mapas en los 'recent plays' (\u00daltimos 50).",
-      "file_type": "rationale",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L146",
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_rationale_146",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "analiza las propiedades de los mapas en los 'recent plays' (ultimos 50)."
-    },
-    {
-      "label": "Determina el \u00e1rea de enfoque (debilidad) de manera inteligente. Calcula una\u2026",
-      "file_type": "rationale",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L173",
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_rationale_173",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "determina el area de enfoque (debilidad) de manera inteligente. calcula una..."
-    },
-    {
-      "label": "Analiza datos de osu! (v4.1) y genera prompts detallados para la IA.",
-      "file_type": "rationale",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L24",
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_rationale_24",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "analiza datos de osu! (v4.1) y genera prompts detallados para la ia."
-    },
-    {
-      "label": "Busca 5 mapas recomendados de la base de datos (con fallback a la API de osu!).",
-      "file_type": "rationale",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L268",
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_rationale_268",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "busca 5 mapas recomendados de la base de datos (con fallback a la api de osu!)."
-    },
-    {
-      "label": "Genera un prompt unificado que incluye Estad\u00edsticas, An\u00e1lisis Profundo y\u2026",
-      "file_type": "rationale",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L315",
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_rationale_315",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "genera un prompt unificado que incluye estadisticas, analisis profundo y..."
-    },
-    {
-      "label": "Funci\u00f3n 'setup' vac\u00eda (este m\u00f3dulo no es un Cog).",
-      "file_type": "rationale",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L387",
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_rationale_387",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "funcion 'setup' vacia (este modulo no es un cog)."
-    },
-    {
-      "label": "Analiza los 'best plays' (Top 50) para detectar el estilo HIST\u00d3RICO.",
-      "file_type": "rationale",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L43",
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_rationale_43",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "analiza los 'best plays' (top 50) para detectar el estilo historico."
-    },
-    {
-      "label": "Analiza la diferencia de PP entre los 'best plays'.",
-      "file_type": "rationale",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L61",
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_rationale_61",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "analiza la diferencia de pp entre los 'best plays'."
-    },
-    {
-      "label": "Analiza las propiedades de los mapas en los 'best plays' (Top 50).",
-      "file_type": "rationale",
-      "source_file": "handlers/modules/dalet_osuanalyzer.py",
-      "source_location": "L76",
-      "_origin": "ast",
-      "id": "handlers_modules_dalet_osuanalyzer_rationale_76",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "analiza las propiedades de los mapas en los 'best plays' (top 50)."
-    },
-    {
       "label": "choices",
       "file_type": "code",
       "source_file": "",
@@ -3991,28 +3886,6 @@
       "norm_label": "el organismo mas basico: un embed estandar de dalet."
     },
     {
-      "label": "cooldown",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "cooldown",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "cooldown"
-    },
-    {
-      "label": "Embed",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "embed",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "embed"
-    },
-    {
       "label": "dalet_commands_handlers.py",
       "file_type": "code",
       "source_file": "handlers/dalet_commands_handlers.py",
@@ -4022,28 +3895,6 @@
       "community": 10,
       "community_name": "DaletAtoms",
       "norm_label": "dalet_commands_handlers.py"
-    },
-    {
-      "label": "command",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_py_command",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "command"
-    },
-    {
-      "label": "Member",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_py_member",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "member"
     },
     {
       "label": "dalet_helpcommands_handlers.py",
@@ -4057,6 +3908,39 @@
       "norm_label": "dalet_helpcommands_handlers.py"
     },
     {
+      "label": "button",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "handlers_dalet_helpcommands_handlers_py_button",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": "button"
+    },
+    {
+      "label": "Embed",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "handlers_dalet_helpcommands_handlers_py_embed",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": "embed"
+    },
+    {
+      "label": "Interaction",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "handlers_dalet_helpcommands_handlers_py_interaction",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": "interaction"
+    },
+    {
       "label": "dalet_osu_presenter.py",
       "file_type": "code",
       "source_file": "handlers/dalet_osu_presenter.py",
@@ -4066,6 +3950,28 @@
       "community": 10,
       "community_name": "DaletAtoms",
       "norm_label": "dalet_osu_presenter.py"
+    },
+    {
+      "label": "Embed",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "handlers_dalet_osu_presenter_py_embed",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": "embed"
+    },
+    {
+      "label": "dalet_osucommands.py",
+      "file_type": "code",
+      "source_file": "handlers/dalet_osucommands.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "handlers_dalet_osucommands",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": "dalet_osucommands.py"
     },
     {
       "label": "dalet_slash_commands.py",
@@ -4088,6 +3994,17 @@
       "community": 10,
       "community_name": "DaletAtoms",
       "norm_label": "modal"
+    },
+    {
+      "label": "Select",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "select",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": "select"
     },
     {
       "label": "atoms.py",
@@ -4123,84 +4040,18 @@
       "norm_label": "organisms.py"
     },
     {
-      "label": "Comandos b\u00e1sicos de Dalet (utilidades, info y herramientas generales).",
-      "file_type": "rationale",
-      "source_file": "handlers/dalet_commands_handlers.py",
-      "source_location": "L14",
+      "label": "View",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
       "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_rationale_14",
+      "id": "view",
       "community": 10,
       "community_name": "DaletAtoms",
-      "norm_label": "comandos basicos de dalet (utilidades, info y herramientas generales)."
+      "norm_label": "view"
     },
     {
-      "label": "\ud83c\udfd3 Muestra la latencia del bot en milisegundos.",
-      "file_type": "rationale",
-      "source_file": "handlers/dalet_commands_handlers.py",
-      "source_location": "L22",
-      "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_rationale_22",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "\ud83c\udfd3 muestra la latencia del bot en milisegundos."
-    },
-    {
-      "label": "\ud83d\udcca Muestra tus estad\u00edsticas sociales o las de otro usuario.",
-      "file_type": "rationale",
-      "source_file": "handlers/dalet_commands_handlers.py",
-      "source_location": "L32",
-      "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_rationale_32",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "\ud83d\udcca muestra tus estadisticas sociales o las de otro usuario."
-    },
-    {
-      "label": "Muestra informaci\u00f3n detallada de un usuario del servidor.",
-      "file_type": "rationale",
-      "source_file": "handlers/dalet_commands_handlers.py",
-      "source_location": "L46",
-      "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_rationale_46",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "muestra informacion detallada de un usuario del servidor."
-    },
-    {
-      "label": "Muestra informaci\u00f3n detallada del servidor actual.",
-      "file_type": "rationale",
-      "source_file": "handlers/dalet_commands_handlers.py",
-      "source_location": "L60",
-      "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_rationale_60",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "muestra informacion detallada del servidor actual."
-    },
-    {
-      "label": "\ud83d\udcac Hace que Dalet repita tu mensaje.",
-      "file_type": "rationale",
-      "source_file": "handlers/dalet_commands_handlers.py",
-      "source_location": "L74",
-      "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_rationale_74",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "\ud83d\udcac hace que dalet repita tu mensaje."
-    },
-    {
-      "label": "\ud83d\udcdc Investiga el pasado del servidor sobre un tema espec\u00edfico.",
-      "file_type": "rationale",
-      "source_file": "handlers/dalet_commands_handlers.py",
-      "source_location": "L80",
-      "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers_rationale_80",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "\ud83d\udcdc investiga el pasado del servidor sobre un tema especifico."
-    },
-    {
-      "label": "Handler (Cog) para el Comando de Ayuda Personalizado. Este archivo reemplaza el\u2026",
+      "label": "Handler (Cog) para el Comando de Ayuda Personalizado de Dalet. Sistema\u2026",
       "file_type": "rationale",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
       "source_location": "L1",
@@ -4208,40 +4059,62 @@
       "id": "handlers_dalet_helpcommands_handlers_rationale_1",
       "community": 10,
       "community_name": "DaletAtoms",
-      "norm_label": "handler (cog) para el comando de ayuda personalizado. este archivo reemplaza el..."
+      "norm_label": "handler (cog) para el comando de ayuda personalizado de dalet. sistema..."
     },
     {
-      "label": "Clase que sobreescribe el comando de ayuda por defecto de Discord. Genera una\u2026",
+      "label": "Modal emergente que pide un n\u00famero de categor\u00eda.",
       "file_type": "rationale",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L101",
+      "source_location": "L103",
       "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_rationale_101",
+      "id": "handlers_dalet_helpcommands_handlers_rationale_103",
       "community": 10,
       "community_name": "DaletAtoms",
-      "norm_label": "clase que sobreescribe el comando de ayuda por defecto de discord. genera una..."
+      "norm_label": "modal emergente que pide un numero de categoria."
     },
     {
-      "label": "Se activa cuando el usuario escribe 'd.help'.",
+      "label": "Men\u00fa desplegable para saltar directamente a una categor\u00eda.",
       "file_type": "rationale",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L109",
+      "source_location": "L134",
       "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_rationale_109",
+      "id": "handlers_dalet_helpcommands_handlers_rationale_134",
       "community": 10,
       "community_name": "DaletAtoms",
-      "norm_label": "se activa cuando el usuario escribe 'd.help'."
+      "norm_label": "menu desplegable para saltar directamente a una categoria."
     },
     {
-      "label": "Un Modal (ventana emergente) que pide al usuario un n\u00famero de p\u00e1gina.",
+      "label": "Vista con botones de navegaci\u00f3n y select menu de categor\u00edas.",
       "file_type": "rationale",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L15",
+      "source_location": "L158",
       "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_rationale_15",
+      "id": "handlers_dalet_helpcommands_handlers_rationale_158",
       "community": 10,
       "community_name": "DaletAtoms",
-      "norm_label": "un modal (ventana emergente) que pide al usuario un numero de pagina."
+      "norm_label": "vista con botones de navegacion y select menu de categorias."
+    },
+    {
+      "label": "Deshabilitar todos los componentes al vencer el timeout.",
+      "file_type": "rationale",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L207",
+      "_origin": "ast",
+      "id": "handlers_dalet_helpcommands_handlers_rationale_207",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": "deshabilitar todos los componentes al vencer el timeout."
+    },
+    {
+      "label": "Reemplaza el comando de ayuda por defecto con un panel visual e interactivo.",
+      "file_type": "rationale",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L215",
+      "_origin": "ast",
+      "id": "handlers_dalet_helpcommands_handlers_rationale_215",
+      "community": 10,
+      "community_name": "DaletAtoms",
+      "norm_label": "reemplaza el comando de ayuda por defecto con un panel visual e interactivo."
     },
     {
       "label": "Clase utilitaria para construir Embeds de osu! de forma consistente.",
@@ -4365,17 +4238,6 @@
       "norm_label": "crea una lista de botones de navegacion estandar."
     },
     {
-      "label": "Crea una l\u00ednea de texto formateada con etiqueta y emoji opcional.",
-      "file_type": "rationale",
-      "source_file": "ui/molecules.py",
-      "source_location": "L38",
-      "_origin": "ast",
-      "id": "ui_molecules_rationale_38",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "crea una linea de texto formateada con etiqueta y emoji opcional."
-    },
-    {
       "label": "Componentes reutilizables formados por la uni\u00f3n de \u00e1tomos.",
       "file_type": "rationale",
       "source_file": "ui/molecules.py",
@@ -4442,6 +4304,61 @@
       "norm_label": "organismo para visualizar los recuerdos guardados."
     },
     {
+      "label": "Cursor",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "cursor",
+      "community": 11,
+      "community_name": ".is_available",
+      "norm_label": "cursor"
+    },
+    {
+      "label": "Registra la ejecuci\u00f3n de un comando en SQLite.",
+      "file_type": "rationale",
+      "source_file": "database/repositories/analytics_repository.py",
+      "source_location": "L26",
+      "_origin": "ast",
+      "id": "database_repositories_analytics_repository_rationale_26",
+      "community": 11,
+      "community_name": ".is_available",
+      "norm_label": "registra la ejecucion de un comando en sqlite."
+    },
+    {
+      "label": "Registra una respuesta de la IA en SQLite.",
+      "file_type": "rationale",
+      "source_file": "database/repositories/analytics_repository.py",
+      "source_location": "L50",
+      "_origin": "ast",
+      "id": "database_repositories_analytics_repository_rationale_50",
+      "community": 11,
+      "community_name": ".is_available",
+      "norm_label": "registra una respuesta de la ia en sqlite."
+    },
+    {
+      "label": "Registra un error cr\u00edtico del bot en SQLite.",
+      "file_type": "rationale",
+      "source_file": "database/repositories/analytics_repository.py",
+      "source_location": "L68",
+      "_origin": "ast",
+      "id": "database_repositories_analytics_repository_rationale_68",
+      "community": 11,
+      "community_name": ".is_available",
+      "norm_label": "registra un error critico del bot en sqlite."
+    },
+    {
+      "label": "Guarda un snapshot del perfil osu! del jugador en SQLite.",
+      "file_type": "rationale",
+      "source_file": "database/repositories/analytics_repository.py",
+      "source_location": "L88",
+      "_origin": "ast",
+      "id": "database_repositories_analytics_repository_rationale_88",
+      "community": 11,
+      "community_name": ".is_available",
+      "norm_label": "guarda un snapshot del perfil osu! del jugador en sqlite."
+    },
+    {
       "label": "Obtiene un recordatorio espec\u00edfico por su ID.",
       "file_type": "rationale",
       "source_file": "database/repositories/reminder_repository.py",
@@ -4449,7 +4366,7 @@
       "_origin": "ast",
       "id": "database_repositories_reminder_repository_rationale_122",
       "community": 11,
-      "community_name": "ReminderRepository",
+      "community_name": ".is_available",
       "norm_label": "obtiene un recordatorio especifico por su id."
     },
     {
@@ -4460,7 +4377,7 @@
       "_origin": "ast",
       "id": "database_repositories_reminder_repository_rationale_151",
       "community": 11,
-      "community_name": "ReminderRepository",
+      "community_name": ".is_available",
       "norm_label": "elimina un recordatorio de la base de datos (turso y sqlite fallback)."
     },
     {
@@ -4471,7 +4388,7 @@
       "_origin": "ast",
       "id": "database_repositories_reminder_repository_rationale_173",
       "community": 11,
-      "community_name": "ReminderRepository",
+      "community_name": ".is_available",
       "norm_label": "activa/desactiva un recordatorio. retorna el nuevo estado."
     },
     {
@@ -4482,7 +4399,7 @@
       "_origin": "ast",
       "id": "database_repositories_reminder_repository_rationale_18",
       "community": 11,
-      "community_name": "ReminderRepository",
+      "community_name": ".is_available",
       "norm_label": "guarda un nuevo recordatorio en la base de datos remota postgresql (neon) o..."
     },
     {
@@ -4493,19 +4410,8 @@
       "_origin": "ast",
       "id": "database_repositories_reminder_repository_rationale_201",
       "community": 11,
-      "community_name": "ReminderRepository",
+      "community_name": ".is_available",
       "norm_label": "actualiza los campos especificados en `updates` para el recordatorio..."
-    },
-    {
-      "label": "Retorna los recordatorios creados por un usuario en un servidor espec\u00edfico.",
-      "file_type": "rationale",
-      "source_file": "database/repositories/reminder_repository.py",
-      "source_location": "L52",
-      "_origin": "ast",
-      "id": "database_repositories_reminder_repository_rationale_52",
-      "community": 11,
-      "community_name": "ReminderRepository",
-      "norm_label": "retorna los recordatorios creados por un usuario en un servidor especifico."
     },
     {
       "label": "Devuelve True si la BD est\u00e1 conectada y disponible.",
@@ -4515,7 +4421,7 @@
       "_origin": "ast",
       "id": "database_turso_client_rationale_79",
       "community": 11,
-      "community_name": "ReminderRepository",
+      "community_name": ".is_available",
       "norm_label": "devuelve true si la bd esta conectada y disponible."
     },
     {
@@ -4728,92 +4634,125 @@
       "norm_label": "aplica un rate limiter usando token bucket en 3 niveles (guild -> canal ->..."
     },
     {
-      "label": "button",
+      "label": "cooldown",
       "file_type": "code",
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_py_button",
+      "id": "cooldown",
       "community": 14,
-      "community_name": "HelpPaginator",
-      "norm_label": "button"
+      "community_name": "CommandsHandler",
+      "norm_label": "cooldown"
     },
     {
-      "label": "Interaction",
+      "label": "command",
       "file_type": "code",
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_py_interaction",
+      "id": "handlers_dalet_commands_handlers_py_command",
       "community": 14,
-      "community_name": "HelpPaginator",
-      "norm_label": "interaction"
+      "community_name": "CommandsHandler",
+      "norm_label": "command"
     },
     {
-      "label": "View",
+      "label": "Member",
       "file_type": "code",
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "view",
+      "id": "handlers_dalet_commands_handlers_py_member",
       "community": 14,
-      "community_name": "HelpPaginator",
-      "norm_label": "view"
+      "community_name": "CommandsHandler",
+      "norm_label": "member"
     },
     {
-      "label": "Valida el n\u00famero y salta a la p\u00e1gina de categor\u00eda correspondiente.",
+      "label": "Comandos b\u00e1sicos de Dalet (utilidades, info y herramientas generales).",
       "file_type": "rationale",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L30",
+      "source_file": "handlers/dalet_commands_handlers.py",
+      "source_location": "L14",
       "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_rationale_30",
+      "id": "handlers_dalet_commands_handlers_rationale_14",
       "community": 14,
-      "community_name": "HelpPaginator",
-      "norm_label": "valida el numero y salta a la pagina de categoria correspondiente."
+      "community_name": "CommandsHandler",
+      "norm_label": "comandos basicos de dalet (utilidades, info y herramientas generales)."
     },
     {
-      "label": "Una Vista de Discord (UI) que maneja los botones de paginaci\u00f3n. Controla los\u2026",
+      "label": "\ud83c\udfd3 Muestra la latencia del bot en milisegundos.",
       "file_type": "rationale",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L45",
+      "source_file": "handlers/dalet_commands_handlers.py",
+      "source_location": "L22",
       "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_rationale_45",
+      "id": "handlers_dalet_commands_handlers_rationale_22",
       "community": 14,
-      "community_name": "HelpPaginator",
-      "norm_label": "una vista de discord (ui) que maneja los botones de paginacion. controla los..."
+      "community_name": "CommandsHandler",
+      "norm_label": "\ud83c\udfd3 muestra la latencia del bot en milisegundos."
     },
     {
-      "label": "Activa o desactiva los botones seg\u00fan la p\u00e1gina actual.",
+      "label": "\ud83d\udcca Muestra tus estad\u00edsticas sociales o las de otro usuario.",
       "file_type": "rationale",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L58",
+      "source_file": "handlers/dalet_commands_handlers.py",
+      "source_location": "L32",
       "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_rationale_58",
+      "id": "handlers_dalet_commands_handlers_rationale_32",
       "community": 14,
-      "community_name": "HelpPaginator",
-      "norm_label": "activa o desactiva los botones segun la pagina actual."
+      "community_name": "CommandsHandler",
+      "norm_label": "\ud83d\udcca muestra tus estadisticas sociales o las de otro usuario."
     },
     {
-      "label": "Edita el mensaje de Discord para mostrar la p\u00e1gina actual.",
+      "label": "Muestra informaci\u00f3n detallada de un usuario del servidor.",
       "file_type": "rationale",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L64",
+      "source_file": "handlers/dalet_commands_handlers.py",
+      "source_location": "L46",
       "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_rationale_64",
+      "id": "handlers_dalet_commands_handlers_rationale_46",
       "community": 14,
-      "community_name": "HelpPaginator",
-      "norm_label": "edita el mensaje de discord para mostrar la pagina actual."
+      "community_name": "CommandsHandler",
+      "norm_label": "muestra informacion detallada de un usuario del servidor."
     },
     {
-      "label": "Abre el Modal 'PageInputModal'.",
+      "label": "Muestra informaci\u00f3n detallada del servidor actual.",
       "file_type": "rationale",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L87",
+      "source_file": "handlers/dalet_commands_handlers.py",
+      "source_location": "L60",
       "_origin": "ast",
-      "id": "handlers_dalet_helpcommands_handlers_rationale_87",
+      "id": "handlers_dalet_commands_handlers_rationale_60",
       "community": 14,
-      "community_name": "HelpPaginator",
-      "norm_label": "abre el modal 'pageinputmodal'."
+      "community_name": "CommandsHandler",
+      "norm_label": "muestra informacion detallada del servidor actual."
+    },
+    {
+      "label": "\ud83d\udcac Hace que Dalet repita tu mensaje.",
+      "file_type": "rationale",
+      "source_file": "handlers/dalet_commands_handlers.py",
+      "source_location": "L74",
+      "_origin": "ast",
+      "id": "handlers_dalet_commands_handlers_rationale_74",
+      "community": 14,
+      "community_name": "CommandsHandler",
+      "norm_label": "\ud83d\udcac hace que dalet repita tu mensaje."
+    },
+    {
+      "label": "\ud83d\udcdc Investiga el pasado del servidor sobre un tema espec\u00edfico.",
+      "file_type": "rationale",
+      "source_file": "handlers/dalet_commands_handlers.py",
+      "source_location": "L80",
+      "_origin": "ast",
+      "id": "handlers_dalet_commands_handlers_rationale_80",
+      "community": 14,
+      "community_name": "CommandsHandler",
+      "norm_label": "\ud83d\udcdc investiga el pasado del servidor sobre un tema especifico."
+    },
+    {
+      "label": "Crea una l\u00ednea de texto formateada con etiqueta y emoji opcional.",
+      "file_type": "rationale",
+      "source_file": "ui/molecules.py",
+      "source_location": "L38",
+      "_origin": "ast",
+      "id": "ui_molecules_rationale_38",
+      "community": 14,
+      "community_name": "CommandsHandler",
+      "norm_label": "crea una linea de texto formateada con etiqueta y emoji opcional."
     },
     {
       "label": "\ud83c\udfd7 Architecture",
@@ -4981,92 +4920,81 @@
       "norm_label": "\ud83d\udee0 tech stack"
     },
     {
-      "label": "\ud83e\udde9 Design Pattern: Cogs",
-      "file_type": "document",
-      "source_file": "docs/01_ARCHITECTURE.md",
-      "source_location": "L111",
-      "_origin": "ast",
-      "id": "docs_01_architecture_design_pattern_cogs",
-      "community": 16,
-      "community_name": "\ud83c\udfd7\ufe0f General Architecture of Dalet",
-      "norm_label": "\ud83e\udde9 design pattern: cogs"
-    },
-    {
-      "label": "\ud83d\uddfa\ufe0f Design Pattern: Repository",
-      "file_type": "document",
-      "source_file": "docs/01_ARCHITECTURE.md",
-      "source_location": "L122",
-      "_origin": "ast",
-      "id": "docs_01_architecture_design_pattern_repository",
-      "community": 16,
-      "community_name": "\ud83c\udfd7\ufe0f General Architecture of Dalet",
-      "norm_label": "\ud83d\uddfa\ufe0f design pattern: repository"
-    },
-    {
-      "label": "\ud83c\udfd7\ufe0f General Architecture of Dalet",
-      "file_type": "document",
-      "source_file": "docs/01_ARCHITECTURE.md",
+      "label": "pool.py",
+      "file_type": "code",
+      "source_file": "database/pool.py",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "docs_01_architecture_general_architecture_of_dalet",
+      "id": "database_pool",
       "community": 16,
-      "community_name": "\ud83c\udfd7\ufe0f General Architecture of Dalet",
-      "norm_label": "\ud83c\udfd7\ufe0f general architecture of dalet"
+      "community_name": "TursoClient",
+      "norm_label": "pool.py"
     },
     {
-      "label": "\ud83d\udd04 Main Flow: \"What happens when someone mentions Dalet?\"",
-      "file_type": "document",
-      "source_file": "docs/01_ARCHITECTURE.md",
-      "source_location": "L32",
+      "label": "reminder_repository.py",
+      "file_type": "code",
+      "source_file": "database/repositories/reminder_repository.py",
+      "source_location": "L1",
       "_origin": "ast",
-      "id": "docs_01_architecture_main_flow_what_happens_when_someone_mentions_dalet",
+      "id": "database_repositories_reminder_repository",
       "community": 16,
-      "community_name": "\ud83c\udfd7\ufe0f General Architecture of Dalet",
-      "norm_label": "\ud83d\udd04 main flow: \"what happens when someone mentions dalet?\""
+      "community_name": "TursoClient",
+      "norm_label": "reminder_repository.py"
     },
     {
-      "label": "\ud83d\uddc4\ufe0f Message Logging Flow (Batch Logging)",
-      "file_type": "document",
-      "source_file": "docs/01_ARCHITECTURE.md",
-      "source_location": "L82",
+      "label": "turso_client.py",
+      "file_type": "code",
+      "source_file": "database/turso_client.py",
+      "source_location": "L1",
       "_origin": "ast",
-      "id": "docs_01_architecture_message_logging_flow_batch_logging",
+      "id": "database_turso_client",
       "community": 16,
-      "community_name": "\ud83c\udfd7\ufe0f General Architecture of Dalet",
-      "norm_label": "\ud83d\uddc4\ufe0f message logging flow (batch logging)"
+      "community_name": "TursoClient",
+      "norm_label": "turso_client.py"
     },
     {
-      "label": "\ud83d\udd01 Resilience & Fallbacks",
-      "file_type": "document",
-      "source_file": "docs/01_ARCHITECTURE.md",
-      "source_location": "L144",
+      "label": "dalet_reminders.py",
+      "file_type": "code",
+      "source_file": "handlers/dalet_reminders.py",
+      "source_location": "L1",
       "_origin": "ast",
-      "id": "docs_01_architecture_resilience_fallbacks",
+      "id": "handlers_dalet_reminders",
       "community": 16,
-      "community_name": "\ud83c\udfd7\ufe0f General Architecture of Dalet",
-      "norm_label": "\ud83d\udd01 resilience & fallbacks"
+      "community_name": "TursoClient",
+      "norm_label": "dalet_reminders.py"
     },
     {
-      "label": "\u2699\ufe0f Tech Stack",
-      "file_type": "document",
-      "source_file": "docs/01_ARCHITECTURE.md",
-      "source_location": "L17",
+      "label": "mig.py",
+      "file_type": "code",
+      "source_file": "mig.py",
+      "source_location": "L1",
       "_origin": "ast",
-      "id": "docs_01_architecture_tech_stack",
+      "id": "mig",
       "community": 16,
-      "community_name": "\ud83c\udfd7\ufe0f General Architecture of Dalet",
-      "norm_label": "\u2699\ufe0f tech stack"
+      "community_name": "TursoClient",
+      "norm_label": "mig.py"
     },
     {
-      "label": "\ud83e\udde0 What is Dalet?",
-      "file_type": "document",
-      "source_file": "docs/01_ARCHITECTURE.md",
+      "label": "Bridge de compatibilidad hacia TursoClient.",
+      "file_type": "rationale",
+      "source_file": "database/pool.py",
       "source_location": "L7",
       "_origin": "ast",
-      "id": "docs_01_architecture_what_is_dalet",
+      "id": "database_pool_rationale_7",
       "community": 16,
-      "community_name": "\ud83c\udfd7\ufe0f General Architecture of Dalet",
-      "norm_label": "\ud83e\udde0 what is dalet?"
+      "community_name": "TursoClient",
+      "norm_label": "bridge de compatibilidad hacia tursoclient."
+    },
+    {
+      "label": "Devuelve el cliente de Turso. Si la BD no est\u00e1 disponible, devuelve None. NUNCA\u2026",
+      "file_type": "rationale",
+      "source_file": "database/turso_client.py",
+      "source_location": "L20",
+      "_origin": "ast",
+      "id": "database_turso_client_rationale_20",
+      "community": 16,
+      "community_name": "TursoClient",
+      "norm_label": "devuelve el cliente de turso. si la bd no esta disponible, devuelve none. nunca..."
     },
     {
       "label": "dalet_chatlogger.py",
@@ -5157,28 +5085,6 @@
       "norm_label": "registra mensajes en sqlite para memoria de contexto e historial. el on_message..."
     },
     {
-      "label": "dalet_main.py",
-      "file_type": "code",
-      "source_file": "dalet_main.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "dalet_main",
-      "community": 18,
-      "community_name": "dalet_main.py",
-      "norm_label": "dalet_main.py"
-    },
-    {
-      "label": "route",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "route",
-      "community": 18,
-      "community_name": "dalet_main.py",
-      "norm_label": "route"
-    },
-    {
       "label": "memory_service.py",
       "file_type": "code",
       "source_file": "services/memory_service.py",
@@ -5186,7 +5092,7 @@
       "_origin": "ast",
       "id": "services_memory_service",
       "community": 18,
-      "community_name": "dalet_main.py",
+      "community_name": "MemoryService",
       "norm_label": "memory_service.py"
     },
     {
@@ -5197,7 +5103,7 @@
       "_origin": "ast",
       "id": "services_memory_service_rationale_18",
       "community": 18,
-      "community_name": "dalet_main.py",
+      "community_name": "MemoryService",
       "norm_label": "construye el contexto de conversacion combinando: 1. historial reciente del..."
     },
     {
@@ -5208,7 +5114,7 @@
       "_origin": "ast",
       "id": "services_memory_service_rationale_70",
       "community": 18,
-      "community_name": "dalet_main.py",
+      "community_name": "MemoryService",
       "norm_label": "guarda una memoria sobre el usuario en la bd."
     },
     {
@@ -5219,7 +5125,7 @@
       "_origin": "ast",
       "id": "services_memory_service_rationale_8",
       "community": 18,
-      "community_name": "dalet_main.py",
+      "community_name": "MemoryService",
       "norm_label": "servicio de memoria que combina historial local (ram) con historial de bd. sin..."
     },
     {
@@ -5298,17 +5204,6 @@
       "community": 2,
       "community_name": "DaletReminders",
       "norm_label": "choice"
-    },
-    {
-      "label": "dalet_reminders.py",
-      "file_type": "code",
-      "source_file": "handlers/dalet_reminders.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "handlers_dalet_reminders",
-      "community": 2,
-      "community_name": "DaletReminders",
-      "norm_label": "dalet_reminders.py"
     },
     {
       "label": "Bot",
@@ -5476,6 +5371,17 @@
       "norm_label": "obtiene el historial de pp de un jugador desde sqlite."
     },
     {
+      "label": "Retorna los recordatorios creados por un usuario en un servidor espec\u00edfico.",
+      "file_type": "rationale",
+      "source_file": "database/repositories/reminder_repository.py",
+      "source_location": "L52",
+      "_origin": "ast",
+      "id": "database_repositories_reminder_repository_rationale_52",
+      "community": 20,
+      "community_name": ".fetch_all",
+      "norm_label": "retorna los recordatorios creados por un usuario en un servidor especifico."
+    },
+    {
       "label": "Retorna todos los recordatorios activos en todo el sistema.",
       "file_type": "rationale",
       "source_file": "database/repositories/reminder_repository.py",
@@ -5606,292 +5512,6 @@
       "community": 22,
       "community_name": "ResumenInteligente",
       "norm_label": "comandos para generar y ver resumenes de chat."
-    },
-    {
-      "label": "01_ARCHITECTURE.md",
-      "file_type": "document",
-      "source_file": "docs/01_ARCHITECTURE.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "docs_01_architecture",
-      "community": 23,
-      "community_name": "docs/README.md",
-      "norm_label": "01_architecture.md"
-    },
-    {
-      "label": "03_HANDLERS.md",
-      "file_type": "document",
-      "source_file": "docs/03_HANDLERS.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "docs_03_handlers",
-      "community": 23,
-      "community_name": "docs/README.md",
-      "norm_label": "03_handlers.md"
-    },
-    {
-      "label": "docs/README.md",
-      "file_type": "document",
-      "source_file": "docs/README.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "docs_readme",
-      "community": 23,
-      "community_name": "docs/README.md",
-      "norm_label": "docs/readme.md"
-    },
-    {
-      "label": "\ud83d\udcc2 Documentation Sections",
-      "file_type": "document",
-      "source_file": "docs/README.md",
-      "source_location": "L7",
-      "_origin": "ast",
-      "id": "docs_readme_documentation_sections",
-      "community": 23,
-      "community_name": "docs/README.md",
-      "norm_label": "\ud83d\udcc2 documentation sections"
-    },
-    {
-      "label": "\ud83d\udcd6 Project Documentation Index",
-      "file_type": "document",
-      "source_file": "docs/README.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "docs_readme_project_documentation_index",
-      "community": 23,
-      "community_name": "docs/README.md",
-      "norm_label": "\ud83d\udcd6 project documentation index"
-    },
-    {
-      "label": "\ud83d\uddfa\ufe0f Project Structure",
-      "file_type": "document",
-      "source_file": "docs/README.md",
-      "source_location": "L22",
-      "_origin": "ast",
-      "id": "docs_readme_project_structure",
-      "community": 23,
-      "community_name": "docs/README.md",
-      "norm_label": "\ud83d\uddfa\ufe0f project structure"
-    },
-    {
-      "label": "README.md",
-      "file_type": "document",
-      "source_file": "README.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "readme",
-      "community": 23,
-      "community_name": "docs/README.md",
-      "norm_label": "readme.md"
-    },
-    {
-      "label": "Behavioral Constants (at the top of the file)",
-      "file_type": "document",
-      "source_file": "docs/03_HANDLERS.md",
-      "source_location": "L31",
-      "_origin": "ast",
-      "id": "docs_03_handlers_behavioral_constants_at_the_top_of_the_file",
-      "community": 24,
-      "community_name": "\ud83e\udd16 `dalet_nlpchat.py` \u2014 The Conversational Brain",
-      "norm_label": "behavioral constants (at the top of the file)"
-    },
-    {
-      "label": "\ud83e\udd16 `dalet_nlpchat.py` \u2014 The Conversational Brain",
-      "file_type": "document",
-      "source_file": "docs/03_HANDLERS.md",
-      "source_location": "L23",
-      "_origin": "ast",
-      "id": "docs_03_handlers_dalet_nlpchat_py_the_conversational_brain",
-      "community": 24,
-      "community_name": "\ud83e\udd16 `dalet_nlpchat.py` \u2014 The Conversational Brain",
-      "norm_label": "\ud83e\udd16 `dalet_nlpchat.py` \u2014 the conversational brain"
-    },
-    {
-      "label": "`generate_response()` \u2014 The response process",
-      "file_type": "document",
-      "source_file": "docs/03_HANDLERS.md",
-      "source_location": "L62",
-      "_origin": "ast",
-      "id": "docs_03_handlers_generate_response_the_response_process",
-      "community": 24,
-      "community_name": "\ud83e\udd16 `dalet_nlpchat.py` \u2014 The Conversational Brain",
-      "norm_label": "`generate_response()` \u2014 the response process"
-    },
-    {
-      "label": "`_handle_429()` \u2014 Rate Limit Management",
-      "file_type": "document",
-      "source_file": "docs/03_HANDLERS.md",
-      "source_location": "L75",
-      "_origin": "ast",
-      "id": "docs_03_handlers_handle_429_rate_limit_management",
-      "community": 24,
-      "community_name": "\ud83e\udd16 `dalet_nlpchat.py` \u2014 The Conversational Brain",
-      "norm_label": "`_handle_429()` \u2014 rate limit management"
-    },
-    {
-      "label": "`on_message` Flow (triggered per message)",
-      "file_type": "document",
-      "source_file": "docs/03_HANDLERS.md",
-      "source_location": "L40",
-      "_origin": "ast",
-      "id": "docs_03_handlers_on_message_flow_triggered_per_message",
-      "community": 24,
-      "community_name": "\ud83e\udd16 `dalet_nlpchat.py` \u2014 The Conversational Brain",
-      "norm_label": "`on_message` flow (triggered per message)"
-    },
-    {
-      "label": "`_should_respond()` \u2014 Proactivity logic",
-      "file_type": "document",
-      "source_file": "docs/03_HANDLERS.md",
-      "source_location": "L53",
-      "_origin": "ast",
-      "id": "docs_03_handlers_should_respond_proactivity_logic",
-      "community": 24,
-      "community_name": "\ud83e\udd16 `dalet_nlpchat.py` \u2014 The Conversational Brain",
-      "norm_label": "`_should_respond()` \u2014 proactivity logic"
-    },
-    {
-      "label": "What does it do?",
-      "file_type": "document",
-      "source_file": "docs/03_HANDLERS.md",
-      "source_location": "L27",
-      "_origin": "ast",
-      "id": "docs_03_handlers_what_does_it_do",
-      "community": 24,
-      "community_name": "\ud83e\udd16 `dalet_nlpchat.py` \u2014 The Conversational Brain",
-      "norm_label": "what does it do?"
-    },
-    {
-      "label": "All Variables",
-      "file_type": "document",
-      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
-      "source_location": "L7",
-      "_origin": "ast",
-      "id": "docs_07_variables_environment_all_variables",
-      "community": 25,
-      "community_name": "All Variables",
-      "norm_label": "all variables"
-    },
-    {
-      "label": "Alternative AI (Groq)",
-      "file_type": "document",
-      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
-      "source_location": "L22",
-      "_origin": "ast",
-      "id": "docs_07_variables_environment_alternative_ai_groq",
-      "community": 25,
-      "community_name": "All Variables",
-      "norm_label": "alternative ai (groq)"
-    },
-    {
-      "label": "Database (Neon)",
-      "file_type": "document",
-      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
-      "source_location": "L31",
-      "_origin": "ast",
-      "id": "docs_07_variables_environment_database_neon",
-      "community": 25,
-      "community_name": "All Variables",
-      "norm_label": "database (neon)"
-    },
-    {
-      "label": "Discord",
-      "file_type": "document",
-      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
-      "source_location": "L9",
-      "_origin": "ast",
-      "id": "docs_07_variables_environment_discord",
-      "community": 25,
-      "community_name": "All Variables",
-      "norm_label": "discord"
-    },
-    {
-      "label": "osu! API",
-      "file_type": "document",
-      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
-      "source_location": "L39",
-      "_origin": "ast",
-      "id": "docs_07_variables_environment_osu_api",
-      "community": 25,
-      "community_name": "All Variables",
-      "norm_label": "osu! api"
-    },
-    {
-      "label": "Primary AI (Gemini)",
-      "file_type": "document",
-      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
-      "source_location": "L15",
-      "_origin": "ast",
-      "id": "docs_07_variables_environment_primary_ai_gemini",
-      "community": 25,
-      "community_name": "All Variables",
-      "norm_label": "primary ai (gemini)"
-    },
-    {
-      "label": "NEON_MIGRATION.md",
-      "file_type": "document",
-      "source_file": "docs/NEON_MIGRATION.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "docs_neon_migration",
-      "community": 26,
-      "community_name": "SQL Migration Guide for Neon (Dalet Restructuring)",
-      "norm_label": "neon_migration.md"
-    },
-    {
-      "label": "1. Cleanup of Obsolete Audit Fragments (Optional but recommended)",
-      "file_type": "document",
-      "source_file": "docs/NEON_MIGRATION.md",
-      "source_location": "L7",
-      "_origin": "ast",
-      "id": "docs_neon_migration_1_cleanup_of_obsolete_audit_fragments_optional_but_recommended",
-      "community": 26,
-      "community_name": "SQL Migration Guide for Neon (Dalet Restructuring)",
-      "norm_label": "1. cleanup of obsolete audit fragments (optional but recommended)"
-    },
-    {
-      "label": "2. View Updates",
-      "file_type": "document",
-      "source_file": "docs/NEON_MIGRATION.md",
-      "source_location": "L19",
-      "_origin": "ast",
-      "id": "docs_neon_migration_2_view_updates",
-      "community": 26,
-      "community_name": "SQL Migration Guide for Neon (Dalet Restructuring)",
-      "norm_label": "2. view updates"
-    },
-    {
-      "label": "3. Procedure and Function Update (CRITICAL)",
-      "file_type": "document",
-      "source_file": "docs/NEON_MIGRATION.md",
-      "source_location": "L25",
-      "_origin": "ast",
-      "id": "docs_neon_migration_3_procedure_and_function_update_critical",
-      "community": 26,
-      "community_name": "SQL Migration Guide for Neon (Dalet Restructuring)",
-      "norm_label": "3. procedure and function update (critical)"
-    },
-    {
-      "label": "4. Trigger Update",
-      "file_type": "document",
-      "source_file": "docs/NEON_MIGRATION.md",
-      "source_location": "L34",
-      "_origin": "ast",
-      "id": "docs_neon_migration_4_trigger_update",
-      "community": 26,
-      "community_name": "SQL Migration Guide for Neon (Dalet Restructuring)",
-      "norm_label": "4. trigger update"
-    },
-    {
-      "label": "SQL Migration Guide for Neon (Dalet Restructuring)",
-      "file_type": "document",
-      "source_file": "docs/NEON_MIGRATION.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "docs_neon_migration_sql_migration_guide_for_neon_dalet_restructuring",
-      "community": 26,
-      "community_name": "SQL Migration Guide for Neon (Dalet Restructuring)",
-      "norm_label": "sql migration guide for neon (dalet restructuring)"
     },
     {
       "label": "02_ENTRY_POINT.md",
@@ -6037,59 +5657,26 @@
       "norm_label": "what does this file do?"
     },
     {
-      "label": "07_VARIABLES_ENVIRONMENT.md",
+      "label": "Behavioral Constants (at the top of the file)",
       "file_type": "document",
-      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
-      "source_location": "L1",
+      "source_file": "docs/03_HANDLERS.md",
+      "source_location": "L31",
       "_origin": "ast",
-      "id": "docs_07_variables_environment",
-      "community": 28,
-      "community_name": "\ud83d\udd11 Environment Variables (`.env`)",
-      "norm_label": "07_variables_environment.md"
+      "id": "docs_03_handlers_behavioral_constants_at_the_top_of_the_file",
+      "community": 29,
+      "community_name": "\ud83e\udde9 Handlers (Cogs) \u2014 Command Modules",
+      "norm_label": "behavioral constants (at the top of the file)"
     },
     {
-      "label": "\ud83d\udd11 Environment Variables (`.env`)",
+      "label": "Command `d.chatlog [count]`",
       "file_type": "document",
-      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
-      "source_location": "L1",
+      "source_file": "docs/03_HANDLERS.md",
+      "source_location": "L98",
       "_origin": "ast",
-      "id": "docs_07_variables_environment_environment_variables_env",
-      "community": 28,
-      "community_name": "\ud83d\udd11 Environment Variables (`.env`)",
-      "norm_label": "\ud83d\udd11 environment variables (`.env`)"
-    },
-    {
-      "label": "Example `.env` file",
-      "file_type": "document",
-      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
-      "source_location": "L48",
-      "_origin": "ast",
-      "id": "docs_07_variables_environment_example_env_file",
-      "community": 28,
-      "community_name": "\ud83d\udd11 Environment Variables (`.env`)",
-      "norm_label": "example `.env` file"
-    },
-    {
-      "label": "How are these variables loaded in the code?",
-      "file_type": "document",
-      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
-      "source_location": "L76",
-      "_origin": "ast",
-      "id": "docs_07_variables_environment_how_are_these_variables_loaded_in_the_code",
-      "community": 28,
-      "community_name": "\ud83d\udd11 Environment Variables (`.env`)",
-      "norm_label": "how are these variables loaded in the code?"
-    },
-    {
-      "label": "On Render (Production)",
-      "file_type": "document",
-      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
-      "source_location": "L92",
-      "_origin": "ast",
-      "id": "docs_07_variables_environment_on_render_production",
-      "community": 28,
-      "community_name": "\ud83d\udd11 Environment Variables (`.env`)",
-      "norm_label": "on render (production)"
+      "id": "docs_03_handlers_command_d_chatlog_count",
+      "community": 29,
+      "community_name": "\ud83e\udde9 Handlers (Cogs) \u2014 Command Modules",
+      "norm_label": "command `d.chatlog [count]`"
     },
     {
       "label": "Components",
@@ -6112,6 +5699,17 @@
       "community": 29,
       "community_name": "\ud83e\udde9 Handlers (Cogs) \u2014 Command Modules",
       "norm_label": "\ud83d\udee1\ufe0f `dalet_admcommands_handler.py` \u2014 admin commands"
+    },
+    {
+      "label": "\ud83d\udcdd `dalet_chatlogger.py` \u2014 The Message Logger",
+      "file_type": "document",
+      "source_file": "docs/03_HANDLERS.md",
+      "source_location": "L86",
+      "_origin": "ast",
+      "id": "docs_03_handlers_dalet_chatlogger_py_the_message_logger",
+      "community": 29,
+      "community_name": "\ud83e\udde9 Handlers (Cogs) \u2014 Command Modules",
+      "norm_label": "\ud83d\udcdd `dalet_chatlogger.py` \u2014 the message logger"
     },
     {
       "label": "\ud83d\udd27 `dalet_commands_handlers.py` \u2014 General Commands",
@@ -6158,6 +5756,17 @@
       "norm_label": "\u2753 `dalet_helpcommands_handlers.py` \u2014 help system"
     },
     {
+      "label": "\ud83e\udd16 `dalet_nlpchat.py` \u2014 The Conversational Brain",
+      "file_type": "document",
+      "source_file": "docs/03_HANDLERS.md",
+      "source_location": "L23",
+      "_origin": "ast",
+      "id": "docs_03_handlers_dalet_nlpchat_py_the_conversational_brain",
+      "community": 29,
+      "community_name": "\ud83e\udde9 Handlers (Cogs) \u2014 Command Modules",
+      "norm_label": "\ud83e\udd16 `dalet_nlpchat.py` \u2014 the conversational brain"
+    },
+    {
       "label": "\ud83d\udcca `dalet_smartresume.py` \u2014 AI Summaries",
       "file_type": "document",
       "source_file": "docs/03_HANDLERS.md",
@@ -6167,6 +5776,28 @@
       "community": 29,
       "community_name": "\ud83e\udde9 Handlers (Cogs) \u2014 Command Modules",
       "norm_label": "\ud83d\udcca `dalet_smartresume.py` \u2014 ai summaries"
+    },
+    {
+      "label": "`generate_response()` \u2014 The response process",
+      "file_type": "document",
+      "source_file": "docs/03_HANDLERS.md",
+      "source_location": "L62",
+      "_origin": "ast",
+      "id": "docs_03_handlers_generate_response_the_response_process",
+      "community": 29,
+      "community_name": "\ud83e\udde9 Handlers (Cogs) \u2014 Command Modules",
+      "norm_label": "`generate_response()` \u2014 the response process"
+    },
+    {
+      "label": "`_handle_429()` \u2014 Rate Limit Management",
+      "file_type": "document",
+      "source_file": "docs/03_HANDLERS.md",
+      "source_location": "L75",
+      "_origin": "ast",
+      "id": "docs_03_handlers_handle_429_rate_limit_management",
+      "community": 29,
+      "community_name": "\ud83e\udde9 Handlers (Cogs) \u2014 Command Modules",
+      "norm_label": "`_handle_429()` \u2014 rate limit management"
     },
     {
       "label": "Handler Overview",
@@ -6202,6 +5833,28 @@
       "norm_label": "how paging works"
     },
     {
+      "label": "`on_message`",
+      "file_type": "document",
+      "source_file": "docs/03_HANDLERS.md",
+      "source_location": "L92",
+      "_origin": "ast",
+      "id": "docs_03_handlers_on_message",
+      "community": 29,
+      "community_name": "\ud83e\udde9 Handlers (Cogs) \u2014 Command Modules",
+      "norm_label": "`on_message`"
+    },
+    {
+      "label": "`on_message` Flow (triggered per message)",
+      "file_type": "document",
+      "source_file": "docs/03_HANDLERS.md",
+      "source_location": "L40",
+      "_origin": "ast",
+      "id": "docs_03_handlers_on_message_flow_triggered_per_message",
+      "community": 29,
+      "community_name": "\ud83e\udde9 Handlers (Cogs) \u2014 Command Modules",
+      "norm_label": "`on_message` flow (triggered per message)"
+    },
+    {
       "label": "Proactive Mode (`d.proactive`)",
       "file_type": "document",
       "source_file": "docs/03_HANDLERS.md",
@@ -6224,6 +5877,149 @@
       "norm_label": "reactive mode (`d.reactive`)"
     },
     {
+      "label": "`_should_respond()` \u2014 Proactivity logic",
+      "file_type": "document",
+      "source_file": "docs/03_HANDLERS.md",
+      "source_location": "L53",
+      "_origin": "ast",
+      "id": "docs_03_handlers_should_respond_proactivity_logic",
+      "community": 29,
+      "community_name": "\ud83e\udde9 Handlers (Cogs) \u2014 Command Modules",
+      "norm_label": "`_should_respond()` \u2014 proactivity logic"
+    },
+    {
+      "label": "What does it do?",
+      "file_type": "document",
+      "source_file": "docs/03_HANDLERS.md",
+      "source_location": "L27",
+      "_origin": "ast",
+      "id": "docs_03_handlers_what_does_it_do",
+      "community": 29,
+      "community_name": "\ud83e\udde9 Handlers (Cogs) \u2014 Command Modules",
+      "norm_label": "what does it do?"
+    },
+    {
+      "label": "What does it do?",
+      "file_type": "document",
+      "source_file": "docs/03_HANDLERS.md",
+      "source_location": "L88",
+      "_origin": "ast",
+      "id": "docs_03_handlers_what_does_it_do_88",
+      "community": 29,
+      "community_name": "\ud83e\udde9 Handlers (Cogs) \u2014 Command Modules",
+      "norm_label": "what does it do?"
+    },
+    {
+      "label": "01_ARCHITECTURE.md",
+      "file_type": "document",
+      "source_file": "docs/01_ARCHITECTURE.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_01_architecture",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "01_architecture.md"
+    },
+    {
+      "label": "\ud83e\udde9 Design Pattern: Cogs",
+      "file_type": "document",
+      "source_file": "docs/01_ARCHITECTURE.md",
+      "source_location": "L111",
+      "_origin": "ast",
+      "id": "docs_01_architecture_design_pattern_cogs",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "\ud83e\udde9 design pattern: cogs"
+    },
+    {
+      "label": "\ud83d\uddfa\ufe0f Design Pattern: Repository",
+      "file_type": "document",
+      "source_file": "docs/01_ARCHITECTURE.md",
+      "source_location": "L122",
+      "_origin": "ast",
+      "id": "docs_01_architecture_design_pattern_repository",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "\ud83d\uddfa\ufe0f design pattern: repository"
+    },
+    {
+      "label": "\ud83c\udfd7\ufe0f General Architecture of Dalet",
+      "file_type": "document",
+      "source_file": "docs/01_ARCHITECTURE.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_01_architecture_general_architecture_of_dalet",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "\ud83c\udfd7\ufe0f general architecture of dalet"
+    },
+    {
+      "label": "\ud83d\udd04 Main Flow: \"What happens when someone mentions Dalet?\"",
+      "file_type": "document",
+      "source_file": "docs/01_ARCHITECTURE.md",
+      "source_location": "L32",
+      "_origin": "ast",
+      "id": "docs_01_architecture_main_flow_what_happens_when_someone_mentions_dalet",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "\ud83d\udd04 main flow: \"what happens when someone mentions dalet?\""
+    },
+    {
+      "label": "\ud83d\uddc4\ufe0f Message Logging Flow (Batch Logging)",
+      "file_type": "document",
+      "source_file": "docs/01_ARCHITECTURE.md",
+      "source_location": "L82",
+      "_origin": "ast",
+      "id": "docs_01_architecture_message_logging_flow_batch_logging",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "\ud83d\uddc4\ufe0f message logging flow (batch logging)"
+    },
+    {
+      "label": "\ud83d\udd01 Resilience & Fallbacks",
+      "file_type": "document",
+      "source_file": "docs/01_ARCHITECTURE.md",
+      "source_location": "L144",
+      "_origin": "ast",
+      "id": "docs_01_architecture_resilience_fallbacks",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "\ud83d\udd01 resilience & fallbacks"
+    },
+    {
+      "label": "\u2699\ufe0f Tech Stack",
+      "file_type": "document",
+      "source_file": "docs/01_ARCHITECTURE.md",
+      "source_location": "L17",
+      "_origin": "ast",
+      "id": "docs_01_architecture_tech_stack",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "\u2699\ufe0f tech stack"
+    },
+    {
+      "label": "\ud83e\udde0 What is Dalet?",
+      "file_type": "document",
+      "source_file": "docs/01_ARCHITECTURE.md",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "docs_01_architecture_what_is_dalet",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "\ud83e\udde0 what is dalet?"
+    },
+    {
+      "label": "03_HANDLERS.md",
+      "file_type": "document",
+      "source_file": "docs/03_HANDLERS.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_03_handlers",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "03_handlers.md"
+    },
+    {
       "label": "05_DATABASE.md",
       "file_type": "document",
       "source_file": "docs/05_DATABASE.md",
@@ -6231,7 +6027,7 @@
       "_origin": "ast",
       "id": "docs_05_database",
       "community": 3,
-      "community_name": "\ud83d\uddc4\ufe0f Database \u2014 Connection Pool & Repositories",
+      "community_name": "docs/README.md",
       "norm_label": "05_database.md"
     },
     {
@@ -6242,7 +6038,7 @@
       "_origin": "ast",
       "id": "docs_05_database_admin_repository_py_channel_locks",
       "community": 3,
-      "community_name": "\ud83d\uddc4\ufe0f Database \u2014 Connection Pool & Repositories",
+      "community_name": "docs/README.md",
       "norm_label": "\ud83d\udee1\ufe0f `admin_repository.py` \u2014 channel locks"
     },
     {
@@ -6253,7 +6049,7 @@
       "_origin": "ast",
       "id": "docs_05_database_analytics_repository_py_metrics_tracking",
       "community": 3,
-      "community_name": "\ud83d\uddc4\ufe0f Database \u2014 Connection Pool & Repositories",
+      "community_name": "docs/README.md",
       "norm_label": "\ud83d\udcca `analytics_repository.py` \u2014 metrics & tracking"
     },
     {
@@ -6264,7 +6060,7 @@
       "_origin": "ast",
       "id": "docs_05_database_base_repository_py_the_base_class",
       "community": 3,
-      "community_name": "\ud83d\uddc4\ufe0f Database \u2014 Connection Pool & Repositories",
+      "community_name": "docs/README.md",
       "norm_label": "\ud83c\udfd7\ufe0f `base_repository.py` \u2014 the base class"
     },
     {
@@ -6275,7 +6071,7 @@
       "_origin": "ast",
       "id": "docs_05_database_batch_logging_system_log_buffer_flushing_logs",
       "community": 3,
-      "community_name": "\ud83d\uddc4\ufe0f Database \u2014 Connection Pool & Repositories",
+      "community_name": "docs/README.md",
       "norm_label": "batch logging system (`_log_buffer` + `_flushing_logs`)"
     },
     {
@@ -6286,7 +6082,7 @@
       "_origin": "ast",
       "id": "docs_05_database_caching_system_get_cached",
       "community": 3,
-      "community_name": "\ud83d\uddc4\ufe0f Database \u2014 Connection Pool & Repositories",
+      "community_name": "docs/README.md",
       "norm_label": "caching system (`_get_cached`)"
     },
     {
@@ -6297,7 +6093,7 @@
       "_origin": "ast",
       "id": "docs_05_database_class_hierarchy",
       "community": 3,
-      "community_name": "\ud83d\uddc4\ufe0f Database \u2014 Connection Pool & Repositories",
+      "community_name": "docs/README.md",
       "norm_label": "\ud83d\udcd0 class hierarchy"
     },
     {
@@ -6308,7 +6104,7 @@
       "_origin": "ast",
       "id": "docs_05_database_database_connection_pool_repositories",
       "community": 3,
-      "community_name": "\ud83d\uddc4\ufe0f Database \u2014 Connection Pool & Repositories",
+      "community_name": "docs/README.md",
       "norm_label": "\ud83d\uddc4\ufe0f database \u2014 connection pool & repositories"
     },
     {
@@ -6319,7 +6115,7 @@
       "_origin": "ast",
       "id": "docs_05_database_database_pool_py_the_connection_pool",
       "community": 3,
-      "community_name": "\ud83d\uddc4\ufe0f Database \u2014 Connection Pool & Repositories",
+      "community_name": "docs/README.md",
       "norm_label": "\ud83d\udd0c `database/pool.py` \u2014 the connection pool"
     },
     {
@@ -6330,7 +6126,7 @@
       "_origin": "ast",
       "id": "docs_05_database_databasepool_singleton",
       "community": 3,
-      "community_name": "\ud83d\uddc4\ufe0f Database \u2014 Connection Pool & Repositories",
+      "community_name": "docs/README.md",
       "norm_label": "`databasepool` (singleton)"
     },
     {
@@ -6341,7 +6137,7 @@
       "_origin": "ast",
       "id": "docs_05_database_get_channel_messages_channel_id_limit_20",
       "community": 3,
-      "community_name": "\ud83d\uddc4\ufe0f Database \u2014 Connection Pool & Repositories",
+      "community_name": "docs/README.md",
       "norm_label": "`get_channel_messages(channel_id, limit=20)`"
     },
     {
@@ -6352,7 +6148,7 @@
       "_origin": "ast",
       "id": "docs_05_database_get_db",
       "community": 3,
-      "community_name": "\ud83d\uddc4\ufe0f Database \u2014 Connection Pool & Repositories",
+      "community_name": "docs/README.md",
       "norm_label": "`get_db()`"
     },
     {
@@ -6363,7 +6159,7 @@
       "_origin": "ast",
       "id": "docs_05_database_osu_repository_py_osu_data",
       "community": 3,
-      "community_name": "\ud83d\uddc4\ufe0f Database \u2014 Connection Pool & Repositories",
+      "community_name": "docs/README.md",
       "norm_label": "\ud83c\udfae `osu_repository.py` \u2014 osu! data"
     },
     {
@@ -6374,7 +6170,7 @@
       "_origin": "ast",
       "id": "docs_05_database_parameters_using_1_2",
       "community": 3,
-      "community_name": "\ud83d\uddc4\ufe0f Database \u2014 Connection Pool & Repositories",
+      "community_name": "docs/README.md",
       "norm_label": "parameters using `$1`, `$2`..."
     },
     {
@@ -6385,7 +6181,7 @@
       "_origin": "ast",
       "id": "docs_05_database_user_repository_py_main_repository",
       "community": 3,
-      "community_name": "\ud83d\uddc4\ufe0f Database \u2014 Connection Pool & Repositories",
+      "community_name": "docs/README.md",
       "norm_label": "\ud83d\udc64 `user_repository.py` \u2014 main repository"
     },
     {
@@ -6396,8 +6192,250 @@
       "_origin": "ast",
       "id": "docs_05_database_what_is_a_pool",
       "community": 3,
-      "community_name": "\ud83d\uddc4\ufe0f Database \u2014 Connection Pool & Repositories",
+      "community_name": "docs/README.md",
       "norm_label": "what is a \"pool\"?"
+    },
+    {
+      "label": "07_VARIABLES_ENVIRONMENT.md",
+      "file_type": "document",
+      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_07_variables_environment",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "07_variables_environment.md"
+    },
+    {
+      "label": "All Variables",
+      "file_type": "document",
+      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "docs_07_variables_environment_all_variables",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "all variables"
+    },
+    {
+      "label": "Alternative AI (Groq)",
+      "file_type": "document",
+      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
+      "source_location": "L22",
+      "_origin": "ast",
+      "id": "docs_07_variables_environment_alternative_ai_groq",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "alternative ai (groq)"
+    },
+    {
+      "label": "Database (Neon)",
+      "file_type": "document",
+      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
+      "source_location": "L31",
+      "_origin": "ast",
+      "id": "docs_07_variables_environment_database_neon",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "database (neon)"
+    },
+    {
+      "label": "Discord",
+      "file_type": "document",
+      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "docs_07_variables_environment_discord",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "discord"
+    },
+    {
+      "label": "\ud83d\udd11 Environment Variables (`.env`)",
+      "file_type": "document",
+      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_07_variables_environment_environment_variables_env",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "\ud83d\udd11 environment variables (`.env`)"
+    },
+    {
+      "label": "Example `.env` file",
+      "file_type": "document",
+      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
+      "source_location": "L48",
+      "_origin": "ast",
+      "id": "docs_07_variables_environment_example_env_file",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "example `.env` file"
+    },
+    {
+      "label": "How are these variables loaded in the code?",
+      "file_type": "document",
+      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
+      "source_location": "L76",
+      "_origin": "ast",
+      "id": "docs_07_variables_environment_how_are_these_variables_loaded_in_the_code",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "how are these variables loaded in the code?"
+    },
+    {
+      "label": "On Render (Production)",
+      "file_type": "document",
+      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
+      "source_location": "L92",
+      "_origin": "ast",
+      "id": "docs_07_variables_environment_on_render_production",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "on render (production)"
+    },
+    {
+      "label": "osu! API",
+      "file_type": "document",
+      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
+      "source_location": "L39",
+      "_origin": "ast",
+      "id": "docs_07_variables_environment_osu_api",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "osu! api"
+    },
+    {
+      "label": "Primary AI (Gemini)",
+      "file_type": "document",
+      "source_file": "docs/07_VARIABLES_ENVIRONMENT.md",
+      "source_location": "L15",
+      "_origin": "ast",
+      "id": "docs_07_variables_environment_primary_ai_gemini",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "primary ai (gemini)"
+    },
+    {
+      "label": "NEON_MIGRATION.md",
+      "file_type": "document",
+      "source_file": "docs/NEON_MIGRATION.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_neon_migration",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "neon_migration.md"
+    },
+    {
+      "label": "1. Cleanup of Obsolete Audit Fragments (Optional but recommended)",
+      "file_type": "document",
+      "source_file": "docs/NEON_MIGRATION.md",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "docs_neon_migration_1_cleanup_of_obsolete_audit_fragments_optional_but_recommended",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "1. cleanup of obsolete audit fragments (optional but recommended)"
+    },
+    {
+      "label": "2. View Updates",
+      "file_type": "document",
+      "source_file": "docs/NEON_MIGRATION.md",
+      "source_location": "L19",
+      "_origin": "ast",
+      "id": "docs_neon_migration_2_view_updates",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "2. view updates"
+    },
+    {
+      "label": "3. Procedure and Function Update (CRITICAL)",
+      "file_type": "document",
+      "source_file": "docs/NEON_MIGRATION.md",
+      "source_location": "L25",
+      "_origin": "ast",
+      "id": "docs_neon_migration_3_procedure_and_function_update_critical",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "3. procedure and function update (critical)"
+    },
+    {
+      "label": "4. Trigger Update",
+      "file_type": "document",
+      "source_file": "docs/NEON_MIGRATION.md",
+      "source_location": "L34",
+      "_origin": "ast",
+      "id": "docs_neon_migration_4_trigger_update",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "4. trigger update"
+    },
+    {
+      "label": "SQL Migration Guide for Neon (Dalet Restructuring)",
+      "file_type": "document",
+      "source_file": "docs/NEON_MIGRATION.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_neon_migration_sql_migration_guide_for_neon_dalet_restructuring",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "sql migration guide for neon (dalet restructuring)"
+    },
+    {
+      "label": "docs/README.md",
+      "file_type": "document",
+      "source_file": "docs/README.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_readme",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "docs/readme.md"
+    },
+    {
+      "label": "\ud83d\udcc2 Documentation Sections",
+      "file_type": "document",
+      "source_file": "docs/README.md",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "docs_readme_documentation_sections",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "\ud83d\udcc2 documentation sections"
+    },
+    {
+      "label": "\ud83d\udcd6 Project Documentation Index",
+      "file_type": "document",
+      "source_file": "docs/README.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_readme_project_documentation_index",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "\ud83d\udcd6 project documentation index"
+    },
+    {
+      "label": "\ud83d\uddfa\ufe0f Project Structure",
+      "file_type": "document",
+      "source_file": "docs/README.md",
+      "source_location": "L22",
+      "_origin": "ast",
+      "id": "docs_readme_project_structure",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "\ud83d\uddfa\ufe0f project structure"
+    },
+    {
+      "label": "README.md",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "readme",
+      "community": 3,
+      "community_name": "docs/README.md",
+      "norm_label": "readme.md"
     },
     {
       "label": "database/__init__.py",
@@ -6653,50 +6691,6 @@
       "norm_label": "what does it do?"
     },
     {
-      "label": "Command `d.chatlog [count]`",
-      "file_type": "document",
-      "source_file": "docs/03_HANDLERS.md",
-      "source_location": "L98",
-      "_origin": "ast",
-      "id": "docs_03_handlers_command_d_chatlog_count",
-      "community": 36,
-      "community_name": "\ud83d\udcdd `dalet_chatlogger.py` \u2014 The Message Logger",
-      "norm_label": "command `d.chatlog [count]`"
-    },
-    {
-      "label": "\ud83d\udcdd `dalet_chatlogger.py` \u2014 The Message Logger",
-      "file_type": "document",
-      "source_file": "docs/03_HANDLERS.md",
-      "source_location": "L86",
-      "_origin": "ast",
-      "id": "docs_03_handlers_dalet_chatlogger_py_the_message_logger",
-      "community": 36,
-      "community_name": "\ud83d\udcdd `dalet_chatlogger.py` \u2014 The Message Logger",
-      "norm_label": "\ud83d\udcdd `dalet_chatlogger.py` \u2014 the message logger"
-    },
-    {
-      "label": "`on_message`",
-      "file_type": "document",
-      "source_file": "docs/03_HANDLERS.md",
-      "source_location": "L92",
-      "_origin": "ast",
-      "id": "docs_03_handlers_on_message",
-      "community": 36,
-      "community_name": "\ud83d\udcdd `dalet_chatlogger.py` \u2014 The Message Logger",
-      "norm_label": "`on_message`"
-    },
-    {
-      "label": "What does it do?",
-      "file_type": "document",
-      "source_file": "docs/03_HANDLERS.md",
-      "source_location": "L88",
-      "_origin": "ast",
-      "id": "docs_03_handlers_what_does_it_do_88",
-      "community": 36,
-      "community_name": "\ud83d\udcdd `dalet_chatlogger.py` \u2014 The Message Logger",
-      "norm_label": "what does it do?"
-    },
-    {
       "label": "06_SQL_SCHEMA.md",
       "file_type": "document",
       "source_file": "docs/06_SQL_SCHEMA.md",
@@ -6884,17 +6878,6 @@
       "norm_label": "analytics_repository.py"
     },
     {
-      "label": "reminder_repository.py",
-      "file_type": "code",
-      "source_file": "database/repositories/reminder_repository.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "database_repositories_reminder_repository",
-      "community": 39,
-      "community_name": "SQLiteManager",
-      "norm_label": "reminder_repository.py"
-    },
-    {
       "label": "user_repository.py",
       "file_type": "code",
       "source_file": "database/repositories/user_repository.py",
@@ -6915,17 +6898,6 @@
       "community": 39,
       "community_name": "SQLiteManager",
       "norm_label": "sqlite_manager.py"
-    },
-    {
-      "label": "nlp_service.py",
-      "file_type": "code",
-      "source_file": "services/nlp_service.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "services_nlp_service",
-      "community": 39,
-      "community_name": "SQLiteManager",
-      "norm_label": "nlp_service.py"
     },
     {
       "label": "Calcula estad\u00edsticas agregadas desde SQLite.",
@@ -7148,17 +7120,6 @@
       "norm_label": "[admin] bloquea todos los comandos en este canal."
     },
     {
-      "label": "pool.py",
-      "file_type": "code",
-      "source_file": "database/pool.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "database_pool",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": "pool.py"
-    },
-    {
       "label": "admin_repository.py",
       "file_type": "code",
       "source_file": "database/repositories/admin_repository.py",
@@ -7166,7 +7127,7 @@
       "_origin": "ast",
       "id": "database_repositories_admin_repository",
       "community": 40,
-      "community_name": "TursoClient",
+      "community_name": "BaseRepository",
       "norm_label": "admin_repository.py"
     },
     {
@@ -7177,7 +7138,7 @@
       "_origin": "ast",
       "id": "database_repositories_base_repository",
       "community": 40,
-      "community_name": "TursoClient",
+      "community_name": "BaseRepository",
       "norm_label": "base_repository.py"
     },
     {
@@ -7188,107 +7149,8 @@
       "_origin": "ast",
       "id": "database_repositories_osu_repository",
       "community": 40,
-      "community_name": "TursoClient",
+      "community_name": "BaseRepository",
       "norm_label": "osu_repository.py"
-    },
-    {
-      "label": "turso_client.py",
-      "file_type": "code",
-      "source_file": "database/turso_client.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "database_turso_client",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": "turso_client.py"
-    },
-    {
-      "label": "mig.py",
-      "file_type": "code",
-      "source_file": "mig.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "mig",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": "mig.py"
-    },
-    {
-      "label": "Bridge de compatibilidad hacia TursoClient.",
-      "file_type": "rationale",
-      "source_file": "database/pool.py",
-      "source_location": "L7",
-      "_origin": "ast",
-      "id": "database_pool_rationale_7",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": "bridge de compatibilidad hacia tursoclient."
-    },
-    {
-      "label": "Activa o desactiva el bloqueo de comandos en un canal.",
-      "file_type": "rationale",
-      "source_file": "database/repositories/admin_repository.py",
-      "source_location": "L11",
-      "_origin": "ast",
-      "id": "database_repositories_admin_repository_rationale_11",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": "activa o desactiva el bloqueo de comandos en un canal."
-    },
-    {
-      "label": "Obtiene el nombre personalizado del bot para un servidor.",
-      "file_type": "rationale",
-      "source_file": "database/repositories/admin_repository.py",
-      "source_location": "L28",
-      "_origin": "ast",
-      "id": "database_repositories_admin_repository_rationale_28",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": "obtiene el nombre personalizado del bot para un servidor."
-    },
-    {
-      "label": "Establece un nombre personalizado para el bot en un servidor.",
-      "file_type": "rationale",
-      "source_file": "database/repositories/admin_repository.py",
-      "source_location": "L34",
-      "_origin": "ast",
-      "id": "database_repositories_admin_repository_rationale_34",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": "establece un nombre personalizado para el bot en un servidor."
-    },
-    {
-      "label": "Obtiene el ID del canal de bienvenida de un servidor.",
-      "file_type": "rationale",
-      "source_file": "database/repositories/admin_repository.py",
-      "source_location": "L43",
-      "_origin": "ast",
-      "id": "database_repositories_admin_repository_rationale_43",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": "obtiene el id del canal de bienvenida de un servidor."
-    },
-    {
-      "label": "Establece o elimina el canal de bienvenida para un servidor.",
-      "file_type": "rationale",
-      "source_file": "database/repositories/admin_repository.py",
-      "source_location": "L49",
-      "_origin": "ast",
-      "id": "database_repositories_admin_repository_rationale_49",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": "establece o elimina el canal de bienvenida para un servidor."
-    },
-    {
-      "label": "Verifica si los comandos est\u00e1n bloqueados en un canal.",
-      "file_type": "rationale",
-      "source_file": "database/repositories/admin_repository.py",
-      "source_location": "L5",
-      "_origin": "ast",
-      "id": "database_repositories_admin_repository_rationale_5",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": "verifica si los comandos estan bloqueados en un canal."
     },
     {
       "label": "Convierte par\u00e1metros de PostgreSQL ($1, $2) a SQLite (?)",
@@ -7298,7 +7160,7 @@
       "_origin": "ast",
       "id": "database_repositories_base_repository_rationale_12",
       "community": 40,
-      "community_name": "TursoClient",
+      "community_name": "BaseRepository",
       "norm_label": "convierte parametros de postgresql ($1, $2) a sqlite (?)"
     },
     {
@@ -7309,19 +7171,8 @@
       "_origin": "ast",
       "id": "database_repositories_base_repository_rationale_57",
       "community": 40,
-      "community_name": "TursoClient",
+      "community_name": "BaseRepository",
       "norm_label": "turso (sqlite) no soporta stored procedures, solo logueamos o pasamos."
-    },
-    {
-      "label": "Devuelve el cliente de Turso. Si la BD no est\u00e1 disponible, devuelve None. NUNCA\u2026",
-      "file_type": "rationale",
-      "source_file": "database/turso_client.py",
-      "source_location": "L20",
-      "_origin": "ast",
-      "id": "database_turso_client_rationale_20",
-      "community": 40,
-      "community_name": "TursoClient",
-      "norm_label": "devuelve el cliente de turso. si la bd no esta disponible, devuelve none. nunca..."
     },
     {
       "label": "Devuelve el cliente. Puede devolver None si la BD no est\u00e1 disponible.",
@@ -7331,7 +7182,7 @@
       "_origin": "ast",
       "id": "database_turso_client_rationale_91",
       "community": 40,
-      "community_name": "TursoClient",
+      "community_name": "BaseRepository",
       "norm_label": "devuelve el cliente. puede devolver none si la bd no esta disponible."
     },
     {
@@ -7676,6 +7527,17 @@
       "norm_label": "#1s globales del usuario."
     },
     {
+      "label": "nlp_service.py",
+      "file_type": "code",
+      "source_file": "services/nlp_service.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "services_nlp_service",
+      "community": 7,
+      "community_name": "UserRepository",
+      "norm_label": "nlp_service.py"
+    },
+    {
       "label": "Inicia la tarea de vaciado del buffer si no est\u00e1 activa.",
       "file_type": "rationale",
       "source_file": "database/repositories/user_repository.py",
@@ -7687,80 +7549,14 @@
       "norm_label": "inicia la tarea de vaciado del buffer si no esta activa."
     },
     {
-      "label": "Cursor",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "cursor",
-      "community": 8,
-      "community_name": ".execute",
-      "norm_label": "cursor"
-    },
-    {
-      "label": "Registra la ejecuci\u00f3n de un comando en SQLite.",
-      "file_type": "rationale",
-      "source_file": "database/repositories/analytics_repository.py",
-      "source_location": "L26",
-      "_origin": "ast",
-      "id": "database_repositories_analytics_repository_rationale_26",
-      "community": 8,
-      "community_name": ".execute",
-      "norm_label": "registra la ejecucion de un comando en sqlite."
-    },
-    {
-      "label": "Registra una respuesta de la IA en SQLite.",
-      "file_type": "rationale",
-      "source_file": "database/repositories/analytics_repository.py",
-      "source_location": "L50",
-      "_origin": "ast",
-      "id": "database_repositories_analytics_repository_rationale_50",
-      "community": 8,
-      "community_name": ".execute",
-      "norm_label": "registra una respuesta de la ia en sqlite."
-    },
-    {
-      "label": "Registra un error cr\u00edtico del bot en SQLite.",
-      "file_type": "rationale",
-      "source_file": "database/repositories/analytics_repository.py",
-      "source_location": "L68",
-      "_origin": "ast",
-      "id": "database_repositories_analytics_repository_rationale_68",
-      "community": 8,
-      "community_name": ".execute",
-      "norm_label": "registra un error critico del bot en sqlite."
-    },
-    {
-      "label": "Repositorio para escritura de datos anal\u00edticos: CommandUsage, AIInteractions,\u2026",
-      "file_type": "rationale",
-      "source_file": "database/repositories/analytics_repository.py",
-      "source_location": "L7",
-      "_origin": "ast",
-      "id": "database_repositories_analytics_repository_rationale_7",
-      "community": 8,
-      "community_name": ".execute",
-      "norm_label": "repositorio para escritura de datos analiticos: commandusage, aiinteractions,..."
-    },
-    {
-      "label": "Guarda un snapshot del perfil osu! del jugador en SQLite.",
-      "file_type": "rationale",
-      "source_file": "database/repositories/analytics_repository.py",
-      "source_location": "L88",
-      "_origin": "ast",
-      "id": "database_repositories_analytics_repository_rationale_88",
-      "community": 8,
-      "community_name": ".execute",
-      "norm_label": "guarda un snapshot del perfil osu! del jugador en sqlite."
-    },
-    {
       "label": "Recorta el contexto de forma din\u00e1mica para optimizar consumo de tokens. -\u2026",
       "file_type": "rationale",
       "source_file": "services/nlp_service.py",
       "source_location": "L198",
       "_origin": "ast",
       "id": "services_nlp_service_rationale_198",
-      "community": 9,
-      "community_name": "NLPService",
+      "community": 7,
+      "community_name": "UserRepository",
       "norm_label": "recorta el contexto de forma dinamica para optimizar consumo de tokens. -..."
     },
     {
@@ -7770,8 +7566,8 @@
       "source_location": "L234",
       "_origin": "ast",
       "id": "services_nlp_service_rationale_234",
-      "community": 9,
-      "community_name": "NLPService",
+      "community": 7,
+      "community_name": "UserRepository",
       "norm_label": "describe una imagen usando el modelo principal con cache en ram."
     },
     {
@@ -7781,9 +7577,251 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "services_nlp_service_rationale_59",
-      "community": 9,
-      "community_name": "NLPService",
+      "community": 7,
+      "community_name": "UserRepository",
       "norm_label": "cierra recursos del cliente http."
+    },
+    {
+      "label": "dalet_main.py",
+      "file_type": "code",
+      "source_file": "dalet_main.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "dalet_main",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": "dalet_main.py"
+    },
+    {
+      "label": "route",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "route",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": "route"
+    },
+    {
+      "label": "Activa o desactiva el bloqueo de comandos en un canal.",
+      "file_type": "rationale",
+      "source_file": "database/repositories/admin_repository.py",
+      "source_location": "L11",
+      "_origin": "ast",
+      "id": "database_repositories_admin_repository_rationale_11",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": "activa o desactiva el bloqueo de comandos en un canal."
+    },
+    {
+      "label": "Obtiene el nombre personalizado del bot para un servidor.",
+      "file_type": "rationale",
+      "source_file": "database/repositories/admin_repository.py",
+      "source_location": "L28",
+      "_origin": "ast",
+      "id": "database_repositories_admin_repository_rationale_28",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": "obtiene el nombre personalizado del bot para un servidor."
+    },
+    {
+      "label": "Establece un nombre personalizado para el bot en un servidor.",
+      "file_type": "rationale",
+      "source_file": "database/repositories/admin_repository.py",
+      "source_location": "L34",
+      "_origin": "ast",
+      "id": "database_repositories_admin_repository_rationale_34",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": "establece un nombre personalizado para el bot en un servidor."
+    },
+    {
+      "label": "Obtiene el ID del canal de bienvenida de un servidor.",
+      "file_type": "rationale",
+      "source_file": "database/repositories/admin_repository.py",
+      "source_location": "L43",
+      "_origin": "ast",
+      "id": "database_repositories_admin_repository_rationale_43",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": "obtiene el id del canal de bienvenida de un servidor."
+    },
+    {
+      "label": "Establece o elimina el canal de bienvenida para un servidor.",
+      "file_type": "rationale",
+      "source_file": "database/repositories/admin_repository.py",
+      "source_location": "L49",
+      "_origin": "ast",
+      "id": "database_repositories_admin_repository_rationale_49",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": "establece o elimina el canal de bienvenida para un servidor."
+    },
+    {
+      "label": "Verifica si los comandos est\u00e1n bloqueados en un canal.",
+      "file_type": "rationale",
+      "source_file": "database/repositories/admin_repository.py",
+      "source_location": "L5",
+      "_origin": "ast",
+      "id": "database_repositories_admin_repository_rationale_5",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": "verifica si los comandos estan bloqueados en un canal."
+    },
+    {
+      "label": "Repositorio para escritura de datos anal\u00edticos: CommandUsage, AIInteractions,\u2026",
+      "file_type": "rationale",
+      "source_file": "database/repositories/analytics_repository.py",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "database_repositories_analytics_repository_rationale_7",
+      "community": 8,
+      "community_name": "dalet_main.py",
+      "norm_label": "repositorio para escritura de datos analiticos: commandusage, aiinteractions,..."
+    },
+    {
+      "label": "dalet_osuanalyzer.py",
+      "file_type": "code",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "dalet_osuanalyzer.py"
+    },
+    {
+      "label": "M\u00f3dulo de L\u00f3gica de An\u00e1lisis de osu! (v4.1) Esta versi\u00f3n corrige el 'edge case'\u2026",
+      "file_type": "rationale",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_rationale_1",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "modulo de logica de analisis de osu! (v4.1) esta version corrige el 'edge case'..."
+    },
+    {
+      "label": "Analiza los 'recent plays' para detectar la consistencia del accuracy. (BUG\u2026",
+      "file_type": "rationale",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L100",
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_rationale_100",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "analiza los 'recent plays' para detectar la consistencia del accuracy. (bug..."
+    },
+    {
+      "label": "Analiza los 'recent plays' (\u00daltimos 50) para detectar el estilo ACTUAL.",
+      "file_type": "rationale",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L124",
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_rationale_124",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "analiza los 'recent plays' (ultimos 50) para detectar el estilo actual."
+    },
+    {
+      "label": "Analiza las propiedades de los mapas en los 'recent plays' (\u00daltimos 50).",
+      "file_type": "rationale",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L146",
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_rationale_146",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "analiza las propiedades de los mapas en los 'recent plays' (ultimos 50)."
+    },
+    {
+      "label": "Determina el \u00e1rea de enfoque (debilidad) de manera inteligente. Calcula una\u2026",
+      "file_type": "rationale",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L173",
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_rationale_173",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "determina el area de enfoque (debilidad) de manera inteligente. calcula una..."
+    },
+    {
+      "label": "Analiza datos de osu! (v4.1) y genera prompts detallados para la IA.",
+      "file_type": "rationale",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L24",
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_rationale_24",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "analiza datos de osu! (v4.1) y genera prompts detallados para la ia."
+    },
+    {
+      "label": "Busca 5 mapas recomendados de la base de datos (con fallback a la API de osu!).",
+      "file_type": "rationale",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L268",
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_rationale_268",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "busca 5 mapas recomendados de la base de datos (con fallback a la api de osu!)."
+    },
+    {
+      "label": "Genera un prompt unificado que incluye Estad\u00edsticas, An\u00e1lisis Profundo y\u2026",
+      "file_type": "rationale",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L315",
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_rationale_315",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "genera un prompt unificado que incluye estadisticas, analisis profundo y..."
+    },
+    {
+      "label": "Funci\u00f3n 'setup' vac\u00eda (este m\u00f3dulo no es un Cog).",
+      "file_type": "rationale",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L387",
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_rationale_387",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "funcion 'setup' vacia (este modulo no es un cog)."
+    },
+    {
+      "label": "Analiza los 'best plays' (Top 50) para detectar el estilo HIST\u00d3RICO.",
+      "file_type": "rationale",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L43",
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_rationale_43",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "analiza los 'best plays' (top 50) para detectar el estilo historico."
+    },
+    {
+      "label": "Analiza la diferencia de PP entre los 'best plays'.",
+      "file_type": "rationale",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L61",
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_rationale_61",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "analiza la diferencia de pp entre los 'best plays'."
+    },
+    {
+      "label": "Analiza las propiedades de los mapas en los 'best plays' (Top 50).",
+      "file_type": "rationale",
+      "source_file": "handlers/modules/dalet_osuanalyzer.py",
+      "source_location": "L76",
+      "_origin": "ast",
+      "id": "handlers_modules_dalet_osuanalyzer_rationale_76",
+      "community": 9,
+      "community_name": "OsuAnalyzer",
+      "norm_label": "analiza las propiedades de los mapas en los 'best plays' (top 50)."
     }
   ],
   "links": [
@@ -8715,68 +8753,20 @@
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L138",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "handlers_dalet_helpcommands_handlers_customhelpcommand_send_bot_help",
-      "target": "ui_molecules_daletmolecules_add_standard_footer"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
       "source_file": "handlers/dalet_helpcommands_handlers.py",
       "source_location": "L144",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "handlers_dalet_helpcommands_handlers_customhelpcommand_send_bot_help",
-      "target": "ui_atoms_daletatoms_bold"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L146",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "handlers_dalet_helpcommands_handlers_customhelpcommand_send_bot_help",
-      "target": "ui_atoms_daletatoms_code"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L147",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "handlers_dalet_helpcommands_handlers_customhelpcommand_send_bot_help",
-      "target": "ui_atoms_daletatoms_italic"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L150",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "handlers_dalet_helpcommands_handlers_customhelpcommand_send_bot_help",
-      "target": "ui_organisms_daletorganisms_create_simple_embed"
+      "source": "handlers_dalet_helpcommands_handlers_categoryselect_init",
+      "target": "handlers_dalet_helpcommands_handlers_helppaginator_init",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L154",
+      "source_location": "L262",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_customhelpcommand_send_bot_help",
@@ -8788,7 +8778,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L88",
+      "source_location": "L195",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator_goto_button",
@@ -8800,7 +8790,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L83",
+      "source_location": "L191",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator_home_button",
@@ -8812,7 +8802,19 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L55",
+      "source_location": "L164",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "handlers_dalet_helpcommands_handlers_helppaginator_init",
+      "target": "handlers_dalet_helpcommands_handlers_categoryselect",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L166",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator_init",
@@ -8824,7 +8826,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L95",
+      "source_location": "L202",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator_next_button",
@@ -8836,7 +8838,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L76",
+      "source_location": "L184",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator_previous_button",
@@ -8848,7 +8850,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L65",
+      "source_location": "L174",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator_update_page",
@@ -8860,7 +8862,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L17",
+      "source_location": "L105",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_pageinputmodal_init",
@@ -8872,7 +8874,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L159",
+      "source_location": "L283",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_setup",
@@ -11535,6 +11537,18 @@
       "relation": "references",
       "context": "generic_arg",
       "confidence": "EXTRACTED",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L159",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "handlers_dalet_helpcommands_handlers_helppaginator_init",
+      "target": "handlers_dalet_helpcommands_handlers_py_embed",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_reminders.py",
       "source_location": "L572",
       "weight": 1.0,
@@ -12685,9 +12699,21 @@
     },
     {
       "relation": "references",
+      "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L86",
+      "source_location": "L150",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "handlers_dalet_helpcommands_handlers_categoryselect_callback",
+      "target": "handlers_dalet_helpcommands_handlers_py_interaction",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L194",
       "weight": 1.0,
       "context": "parameter_type",
       "_origin": "ast",
@@ -12700,7 +12726,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L86",
+      "source_location": "L194",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator_goto_button",
@@ -12711,7 +12737,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L81",
+      "source_location": "L189",
       "weight": 1.0,
       "context": "parameter_type",
       "_origin": "ast",
@@ -12724,7 +12750,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L81",
+      "source_location": "L189",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator_home_button",
@@ -12735,7 +12761,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L92",
+      "source_location": "L199",
       "weight": 1.0,
       "context": "parameter_type",
       "_origin": "ast",
@@ -12748,7 +12774,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L92",
+      "source_location": "L199",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator_next_button",
@@ -12759,7 +12785,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L73",
+      "source_location": "L181",
       "weight": 1.0,
       "context": "parameter_type",
       "_origin": "ast",
@@ -12772,7 +12798,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L73",
+      "source_location": "L181",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator_previous_button",
@@ -12784,7 +12810,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L63",
+      "source_location": "L173",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator_update_page",
@@ -12796,7 +12822,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L29",
+      "source_location": "L116",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_pageinputmodal_on_submit",
@@ -13448,7 +13474,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_osu_presenter_osupresenter_build_compare_card",
-      "target": "embed",
+      "target": "handlers_dalet_osu_presenter_py_embed",
       "confidence_score": 1.0
     },
     {
@@ -13460,7 +13486,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_osu_presenter_osupresenter_build_profile_card",
-      "target": "embed",
+      "target": "handlers_dalet_osu_presenter_py_embed",
       "confidence_score": 1.0
     },
     {
@@ -13472,7 +13498,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_osu_presenter_osupresenter_build_recent_card",
-      "target": "embed",
+      "target": "handlers_dalet_osu_presenter_py_embed",
       "confidence_score": 1.0
     },
     {
@@ -13484,7 +13510,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_osu_presenter_osupresenter_build_top_card",
-      "target": "embed",
+      "target": "handlers_dalet_osu_presenter_py_embed",
       "confidence_score": 1.0
     },
     {
@@ -15011,18 +15037,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L100",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "handlers_dalet_helpcommands_handlers",
-      "target": "handlers_dalet_helpcommands_handlers_customhelpcommand",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L14",
+      "source_location": "L102",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers",
@@ -15033,22 +15048,44 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L158",
+      "source_location": "L133",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers",
-      "target": "handlers_dalet_helpcommands_handlers_setup",
+      "target": "handlers_dalet_helpcommands_handlers_categoryselect",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L44",
+      "source_location": "L157",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers",
       "target": "handlers_dalet_helpcommands_handlers_helppaginator",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L214",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "handlers_dalet_helpcommands_handlers",
+      "target": "handlers_dalet_helpcommands_handlers_customhelpcommand",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L282",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "handlers_dalet_helpcommands_handlers",
+      "target": "handlers_dalet_helpcommands_handlers_setup",
       "confidence_score": 1.0
     },
     {
@@ -15583,7 +15620,18 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L44",
+      "source_location": "L133",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "handlers_dalet_helpcommands_handlers_categoryselect",
+      "target": "select",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L157",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator",
@@ -15594,7 +15642,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L14",
+      "source_location": "L102",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_pageinputmodal",
@@ -16705,7 +16753,29 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L108",
+      "source_location": "L135",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "handlers_dalet_helpcommands_handlers_categoryselect",
+      "target": "handlers_dalet_helpcommands_handlers_categoryselect_init",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L150",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "handlers_dalet_helpcommands_handlers_categoryselect",
+      "target": "handlers_dalet_helpcommands_handlers_categoryselect_callback",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L217",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_customhelpcommand",
@@ -16716,7 +16786,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L51",
+      "source_location": "L159",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator",
@@ -16727,7 +16797,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L57",
+      "source_location": "L168",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator",
@@ -16738,7 +16808,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L63",
+      "source_location": "L173",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator",
@@ -16749,7 +16819,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L73",
+      "source_location": "L181",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator",
@@ -16760,7 +16830,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L81",
+      "source_location": "L189",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator",
@@ -16771,7 +16841,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L86",
+      "source_location": "L194",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator",
@@ -16782,7 +16852,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L92",
+      "source_location": "L199",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_helppaginator",
@@ -16793,7 +16863,18 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L16",
+      "source_location": "L206",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "handlers_dalet_helpcommands_handlers_helppaginator",
+      "target": "handlers_dalet_helpcommands_handlers_helppaginator_on_timeout",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L104",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_pageinputmodal",
@@ -16804,7 +16885,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L29",
+      "source_location": "L116",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_helpcommands_handlers_pageinputmodal",
@@ -18905,32 +18986,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L101",
+      "source_location": "L103",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "handlers_dalet_helpcommands_handlers_rationale_101",
-      "target": "handlers_dalet_helpcommands_handlers_customhelpcommand",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L109",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "handlers_dalet_helpcommands_handlers_rationale_109",
-      "target": "handlers_dalet_helpcommands_handlers_customhelpcommand_send_bot_help",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L15",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "handlers_dalet_helpcommands_handlers_rationale_15",
+      "source": "handlers_dalet_helpcommands_handlers_rationale_103",
       "target": "handlers_dalet_helpcommands_handlers_pageinputmodal",
       "confidence_score": 1.0
     },
@@ -18938,21 +18997,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L30",
+      "source_location": "L134",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "handlers_dalet_helpcommands_handlers_rationale_30",
-      "target": "handlers_dalet_helpcommands_handlers_pageinputmodal_on_submit",
+      "source": "handlers_dalet_helpcommands_handlers_rationale_134",
+      "target": "handlers_dalet_helpcommands_handlers_categoryselect",
       "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L45",
+      "source_location": "L158",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "handlers_dalet_helpcommands_handlers_rationale_45",
+      "source": "handlers_dalet_helpcommands_handlers_rationale_158",
       "target": "handlers_dalet_helpcommands_handlers_helppaginator",
       "confidence_score": 1.0
     },
@@ -18960,33 +19019,22 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L58",
+      "source_location": "L207",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "handlers_dalet_helpcommands_handlers_rationale_58",
-      "target": "handlers_dalet_helpcommands_handlers_helppaginator_update_buttons",
+      "source": "handlers_dalet_helpcommands_handlers_rationale_207",
+      "target": "handlers_dalet_helpcommands_handlers_helppaginator_on_timeout",
       "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L64",
+      "source_location": "L215",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "handlers_dalet_helpcommands_handlers_rationale_64",
-      "target": "handlers_dalet_helpcommands_handlers_helppaginator_update_page",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "handlers/dalet_helpcommands_handlers.py",
-      "source_location": "L87",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "handlers_dalet_helpcommands_handlers_rationale_87",
-      "target": "handlers_dalet_helpcommands_handlers_helppaginator_goto_button",
+      "source": "handlers_dalet_helpcommands_handlers_rationale_215",
+      "target": "handlers_dalet_helpcommands_handlers_customhelpcommand",
       "confidence_score": 1.0
     },
     {
@@ -20187,6 +20235,39 @@
       "weight": 0.8,
       "_origin": "ast",
       "source": "handlers_dalet_geminicommand_aiconfigcommands",
+      "target": "ui_atoms_daletatoms",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L10",
+      "weight": 0.8,
+      "_origin": "ast",
+      "source": "handlers_dalet_helpcommands_handlers_categoryselect",
+      "target": "ui_organisms_daletorganisms",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L11",
+      "weight": 0.8,
+      "_origin": "ast",
+      "source": "handlers_dalet_helpcommands_handlers_categoryselect",
+      "target": "ui_molecules_daletmolecules",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "source_file": "handlers/dalet_helpcommands_handlers.py",
+      "source_location": "L12",
+      "weight": 0.8,
+      "_origin": "ast",
+      "source": "handlers_dalet_helpcommands_handlers_categoryselect",
       "target": "ui_atoms_daletatoms",
       "confidence_score": 0.5
     },

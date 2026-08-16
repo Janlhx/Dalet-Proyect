@@ -45,8 +45,8 @@
     "semantic_hash": ""
   },
   "database/repositories/user_repository.py": {
-    "mtime": 1786847837.3301454,
-    "ast_hash": "1a69d55e0652ac07df35c9c2f248c2d8",
+    "mtime": 1786851534.121158,
+    "ast_hash": "c2a431980600faf9dd3b46044a06ecbe",
     "semantic_hash": ""
   },
   "database/sqlite_manager.py": {
@@ -80,9 +80,9 @@
     "semantic_hash": ""
   },
   "handlers/dalet_geminicommand.py": {
-    "mtime": 1786493528.7442195,
-    "ast_hash": "5a08a121fcf01c4dc25fa73f29565611",
-    "semantic_hash": "5a08a121fcf01c4dc25fa73f29565611"
+    "mtime": 1786851763.3017359,
+    "ast_hash": "99cce9b452b88a58daf410a134f49c0f",
+    "semantic_hash": ""
   },
   "handlers/dalet_greetings.py": {
     "mtime": 1786493528.7442195,
@@ -90,13 +90,13 @@
     "semantic_hash": "35604cdbc5521eda6541b18c3e5e7906"
   },
   "handlers/dalet_helpcommands_handlers.py": {
-    "mtime": 1786849511.896494,
-    "ast_hash": "037eb51b3027f0678bacf26f54b2dea6",
+    "mtime": 1786850735.2672522,
+    "ast_hash": "af7edaafe8e0305506e5abca55e24477",
     "semantic_hash": ""
   },
   "handlers/dalet_nlpchat.py": {
-    "mtime": 1786848286.55168,
-    "ast_hash": "dc162241f14f3b9a8bd8f1d4ebfd5881",
+    "mtime": 1786851378.2978022,
+    "ast_hash": "801dfe36869b1e77a91eac9f52243e33",
     "semantic_hash": ""
   },
   "handlers/dalet_osucommands.py": {
@@ -110,14 +110,14 @@
     "semantic_hash": ""
   },
   "handlers/dalet_slash_commands.py": {
-    "mtime": 1786847860.976977,
-    "ast_hash": "662c6949b1593749e9b8c93780786b91",
+    "mtime": 1786851707.9969618,
+    "ast_hash": "a740ec27984c8002d7f478756f160699",
     "semantic_hash": ""
   },
   "handlers/dalet_smartresume.py": {
-    "mtime": 1786493528.7442195,
-    "ast_hash": "2709f74cf9a14cc256a1b9e4c5c3e3fe",
-    "semantic_hash": "2709f74cf9a14cc256a1b9e4c5c3e3fe"
+    "mtime": 1786851787.5468144,
+    "ast_hash": "6bc3e681f655dc5310ddf22099ca9d54",
+    "semantic_hash": ""
   },
   "handlers/modules/__init__.py": {
     "mtime": 1786493528.7442195,
@@ -259,9 +259,9 @@
     "ast_hash": "15fa66c076683487f9f030b0f04c5169",
     "semantic_hash": ""
   },
-  "assets/dalet_help_banner.jpg": {
-    "mtime": 1786849389.2816925,
-    "ast_hash": "5b647e9597c03d00bbab52d73d57b666",
+  "assets/bannersito.png": {
+    "mtime": 1784257133.304806,
+    "ast_hash": "3728aa178c65002cd0b0125eedbf49a9",
     "semantic_hash": ""
   }
 }
