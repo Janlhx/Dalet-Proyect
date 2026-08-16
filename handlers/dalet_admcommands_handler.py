@@ -24,15 +24,32 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
 
     @commands.command(name="sync", hidden=True)
     @commands.has_permissions(administrator=True)
-    async def sync_slash_commands(self, ctx):
-        """[ADMIN] Sincroniza los slash commands globalmente con Discord."""
+    async def sync_slash_commands(self, ctx, mode: str = "here"):
+        """
+        [ADMIN] Sincroniza slash commands.
+        - `d.sync` o `d.sync here`: sincroniza al instante en este servidor (0s de espera).
+        - `d.sync global`: sincroniza globalmente (puede tardar hasta 1h en propagarse en Discord).
+        - `d.sync clear`: limpia comandos del servidor actual.
+        """
         try:
-            msg = await ctx.send("Sincronizando slash commands globalmente... (esto puede tardar unos segundos)")
-            synced = await self.bot.tree.sync()
-            await msg.edit(content=f"✅ Sincronización completada. {len(synced)} slash commands disponibles en todos los servidores.")
+            if mode.lower() == "global":
+                msg = await ctx.send("🌍 Sincronizando slash commands **globalmente**... (Discord puede tardar hasta 1 hora en propagar a los clientes)")
+                synced = await self.bot.tree.sync()
+                await msg.edit(content=f"✅ Sincronización global completada. **{len(synced)}** slash commands registrados.")
+            elif mode.lower() == "clear":
+                msg = await ctx.send("🧹 Limpiando slash commands de este servidor...")
+                self.bot.tree.clear_commands(guild=ctx.guild)
+                await self.bot.tree.sync(guild=ctx.guild)
+                await msg.edit(content="✅ Comandos del servidor limpiados.")
+            else:
+                msg = await ctx.send("⚡ Sincronizando slash commands **instantáneamente en este servidor**...")
+                self.bot.tree.copy_global_to(guild=ctx.guild)
+                synced = await self.bot.tree.sync(guild=ctx.guild)
+                await msg.edit(content=f"✅ ¡Listo! **{len(synced)}** slash commands sincronizados al instante en **{ctx.guild.name}**.\nYa deberías verlos al escribir `/` (si no, presiona `Ctrl+R` en Discord para refrescar la app).")
         except Exception as e:
             logger.error(f"Error syncing commands: {e}")
             await ctx.send(f"❌ Error al sincronizar: {e}")
+
 
     @commands.command(name="reload", hidden=True)
     @commands.has_permissions(administrator=True)

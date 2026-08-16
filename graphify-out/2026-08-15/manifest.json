@@ -60,8 +60,8 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "handlers/dalet_admcommands_handler.py": {
-    "mtime": 1786847328.3261118,
-    "ast_hash": "5bddf1825354e1299370459e004719e2",
+    "mtime": 1786849224.328453,
+    "ast_hash": "f20a55c71351b39b8fcf103245dceadf",
     "semantic_hash": ""
   },
   "handlers/dalet_chatlogger.py": {
@@ -250,8 +250,8 @@
     "semantic_hash": ""
   },
   "database/turso_client.py": {
-    "mtime": 1786847873.0425239,
-    "ast_hash": "54c64db7123373c95ac7f13605682474",
+    "mtime": 1786848863.4939518,
+    "ast_hash": "701f99ba539c874a6b1784d0bb5515f3",
     "semantic_hash": ""
   },
   "handlers/dalet_osu_presenter.py": {
