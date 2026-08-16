@@ -158,21 +158,10 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
         self.repo = ReminderRepository()
         self._sent_today = {}  # Cache de envío: {reminder_id: date_str}
         self.check_reminders.start()
-        # Ejecutar migración de Postgres en segundo plano
-        asyncio.create_task(self._run_postgres_migrations())
-
-    async def _run_postgres_migrations(self):
-        # Esperar un poco a que el bot se inicialice y la BD esté disponible
-        await asyncio.sleep(5)
-        if TursoClient.is_available():
-            try:
-                await self.repo.execute("ALTER TABLE Reminders ADD COLUMN IF NOT EXISTS Pings VARCHAR(255) DEFAULT NULL;")
-                logger.info("Postgres Reminders migration successful (Pings column added/exists).")
-            except Exception as e:
-                logger.warning(f"Error running Postgres Reminders migration: {e}")
 
     def cog_unload(self):
         self.check_reminders.cancel()
+
 
     @tasks.loop(seconds=30)
     async def check_reminders(self):

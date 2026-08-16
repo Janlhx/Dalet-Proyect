@@ -22,20 +22,18 @@ class ReminderRepository(BaseRepository):
         """
         if TursoClient.is_available():
             try:
-                # En Postgres usamos una query con RETURNING para obtener el ID insertado
                 query = """
                     INSERT INTO Reminders (ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy, Pings)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, $8, $9)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
                     RETURNING ReminderID
                 """
-                # Intentamos insertar y obtener el ID retornado
                 row = await self.fetch_one(
                     query, server_id, channel_id, user_id, time_str, days_str, message, timezone, created_by, pings
                 )
                 if row:
                     return row[0]
             except Exception as e:
-                logger.error(f"Error escribiendo recordatorio en Postgres: {e}")
+                logger.error(f"Error escribiendo recordatorio en Turso: {e}")
 
         # Fallback a SQLite local
         logger.info("Usando SQLite local para guardar recordatorio.")
@@ -59,7 +57,7 @@ class ReminderRepository(BaseRepository):
                 query = """
                     SELECT ReminderID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy, Pings
                     FROM Reminders
-                    WHERE ServerID = $1 AND CreatedBy = $2
+                    WHERE ServerID = ? AND CreatedBy = ?
                     ORDER BY CreatedAt DESC
                 """
                 rows = await self.fetch_all(query, server_id, created_by)
@@ -70,7 +68,7 @@ class ReminderRepository(BaseRepository):
                         "Timezone": r[6], "Active": r[7], "CreatedBy": r[8], "Pings": r[9]
                     } for r in rows]
             except Exception as e:
-                logger.error(f"Error al leer recordatorios de Postgres: {e}")
+                logger.error(f"Error al leer recordatorios de Turso: {e}")
 
         query = """
             SELECT ReminderID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy, Pings
@@ -84,7 +82,6 @@ class ReminderRepository(BaseRepository):
     async def get_active_reminders(self) -> list:
         """
         Retorna todos los recordatorios activos en todo el sistema.
-        Busca tanto en Postgres (prioridad) como en SQLite local para fusionarlos y no perder ninguno.
         """
         active = []
         seen_ids = set()
@@ -94,7 +91,7 @@ class ReminderRepository(BaseRepository):
                 query = """
                     SELECT ReminderID, ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, Pings
                     FROM Reminders
-                    WHERE Active = TRUE
+                    WHERE Active = 1
                 """
                 rows = await self.fetch_all(query)
                 for r in rows:
@@ -105,7 +102,7 @@ class ReminderRepository(BaseRepository):
                     })
                     seen_ids.add(r[0])
             except Exception as e:
-                logger.error(f"Error al leer recordatorios activos de Postgres: {e}")
+                logger.error(f"Error al leer recordatorios activos de Turso: {e}")
 
         # Fallback/Combinación con SQLite local
         query = """
@@ -115,7 +112,6 @@ class ReminderRepository(BaseRepository):
         """
         rows = await SQLiteManager.fetch_all(query)
         for r in rows:
-            # Si no fue leído ya de Postgres, agregarlo
             r_dict = dict(r)
             if r_dict["ReminderID"] not in seen_ids:
                 active.append(r_dict)
@@ -131,7 +127,7 @@ class ReminderRepository(BaseRepository):
                 query = """
                     SELECT ReminderID, ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy, Pings
                     FROM Reminders
-                    WHERE ReminderID = $1
+                    WHERE ReminderID = ?
                 """
                 r = await self.fetch_one(query, reminder_id)
                 if r:
@@ -141,7 +137,7 @@ class ReminderRepository(BaseRepository):
                         "Message": r[6], "Timezone": r[7], "Active": r[8], "CreatedBy": r[9], "Pings": r[10]
                     }
             except Exception as e:
-                logger.error(f"Error leyendo recordatorio de Postgres: {e}")
+                logger.error(f"Error leyendo recordatorio de Turso: {e}")
 
         query = """
             SELECT ReminderID, ServerID, ChannelID, UserID, ReminderTime, ReminderDays, Message, Timezone, Active, CreatedBy, Pings
@@ -153,18 +149,17 @@ class ReminderRepository(BaseRepository):
 
     async def delete_reminder(self, reminder_id: int) -> bool:
         """
-        Elimina un recordatorio de la base de datos (Postgres y SQLite fallback).
+        Elimina un recordatorio de la base de datos (Turso y SQLite fallback).
         """
         success = False
         if TursoClient.is_available():
             try:
-                query = "DELETE FROM Reminders WHERE ReminderID = $1"
-                # Postgres execute retorna una cadena de status como "DELETE 1"
+                query = "DELETE FROM Reminders WHERE ReminderID = ?"
                 res = await self.execute(query, reminder_id)
-                if res and "DELETE" in res:
+                if res is not None:
                     success = True
             except Exception as e:
-                logger.error(f"Error borrando recordatorio en Postgres: {e}")
+                logger.error(f"Error borrando recordatorio en Turso: {e}")
 
         # Borrar también localmente por consistencia
         query = "DELETE FROM Reminders WHERE ReminderID = ?"
@@ -187,12 +182,12 @@ class ReminderRepository(BaseRepository):
 
         if TursoClient.is_available():
             try:
-                query = "UPDATE Reminders SET Active = $1 WHERE ReminderID = $2"
-                res = await self.execute(query, new_state, reminder_id)
-                if res and "UPDATE" in res:
+                query = "UPDATE Reminders SET Active = ? WHERE ReminderID = ?"
+                res = await self.execute(query, 1 if new_state else 0, reminder_id)
+                if res is not None:
                     success = True
             except Exception as e:
-                logger.error(f"Error toggling recordatorio en Postgres: {e}")
+                logger.error(f"Error toggling recordatorio en Turso: {e}")
 
         # Actualizar localmente por consistencia
         query = "UPDATE Reminders SET Active = ? WHERE ReminderID = ?"
@@ -214,16 +209,17 @@ class ReminderRepository(BaseRepository):
             try:
                 set_clauses = []
                 params = []
-                for i, (field, val) in enumerate(updates.items(), start=1):
-                    set_clauses.append(f"{field} = ${i}")
-                    params.append(val)
+                for field, val in updates.items():
+                    set_clauses.append(f"{field} = ?")
+                    params.append(1 if (field == "Active" and isinstance(val, bool)) else val)
                 params.append(reminder_id)
-                query = f"UPDATE Reminders SET {', '.join(set_clauses)} WHERE ReminderID = ${len(params)}"
+                query = f"UPDATE Reminders SET {', '.join(set_clauses)} WHERE ReminderID = ?"
                 res = await self.execute(query, *params)
-                if res and "UPDATE" in res:
+                if res is not None:
                     success = True
             except Exception as e:
-                logger.error(f"Error actualizando recordatorio en Postgres: {e}")
+                logger.error(f"Error actualizando recordatorio en Turso: {e}")
+
 
         # Local SQLite
         try:
