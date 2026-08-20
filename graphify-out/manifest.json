@@ -1,7 +1,7 @@
 {
   "dalet_main.py": {
-    "mtime": 1787202630.26223,
-    "ast_hash": "024e8086c187472a0095d57d3fd5801f",
+    "mtime": 1787204842.8856134,
+    "ast_hash": "f1fd262520ea18529d7c1e12414af363",
     "semantic_hash": ""
   },
   "database/__init__.py": {
@@ -95,8 +95,8 @@
     "semantic_hash": ""
   },
   "handlers/dalet_nlpchat.py": {
-    "mtime": 1786851378.2978022,
-    "ast_hash": "801dfe36869b1e77a91eac9f52243e33",
+    "mtime": 1787204833.8978305,
+    "ast_hash": "1425b1a03c79bcf6c75a06f23c637a60",
     "semantic_hash": ""
   },
   "handlers/dalet_osucommands.py": {
@@ -145,8 +145,8 @@
     "semantic_hash": ""
   },
   "services/nlp_service.py": {
-    "mtime": 1787203988.3323002,
-    "ast_hash": "0a92527af1d5d7935516fdcc3e893c73",
+    "mtime": 1787204823.222967,
+    "ast_hash": "b710a5ad22c91d6736e1097469a5c3ed",
     "semantic_hash": ""
   },
   "services/osu_service.py": {
