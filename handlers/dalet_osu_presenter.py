@@ -43,11 +43,20 @@ def _mode_title(mode: str) -> str:
 
 
 class OsuPresenter:
-    """Presentador de UI para osu! de Dalet — Alta densidad, limpio y sin ruido visual."""
+    """Presentador de UI para osu! con la identidad visual única de Dalet."""
+
+    @staticmethod
+    def _extract_score(play: dict) -> int:
+        """Obtiene el puntaje correcto tanto para scores de Lazer como Classic/Bancho."""
+        for key in ("classic_total_score", "total_score", "legacy_total_score", "score"):
+            val = play.get(key)
+            if val is not None and val > 0:
+                return val
+        return play.get("score") or play.get("total_score") or 0
 
     @staticmethod
     def build_recent_card(username: str, mode: str, play: dict, user_data: dict = None) -> discord.Embed:
-        """Construye una tarjeta de jugada reciente de alta densidad informativa."""
+        """Construye una tarjeta de jugada reciente única, estructurada y sin ruido visual."""
         beatmap = play.get("beatmap", {})
         beatmapset = play.get("beatmapset", {})
         stats = play.get("statistics", {})
@@ -64,9 +73,9 @@ class OsuPresenter:
         acc = _format_acc(play.get("accuracy", 0.0))
 
         pp = play.get("pp")
-        pp_str = f"**{pp:.2f}PP**" if pp is not None else "**Sin PP**"
+        pp_str = f"**{pp:.2f}pp**" if pp is not None else "**Sin PP**"
 
-        score = play.get("score") or play.get("classic_total_score") or play.get("legacy_total_score") or 0
+        score = OsuPresenter._extract_score(play)
         max_combo = play.get("max_combo", 0)
         map_max_combo = beatmap.get("max_combo")
         combo_str = f"x{max_combo:,}/{map_max_combo:,}" if map_max_combo else f"x{max_combo:,}"
@@ -87,25 +96,59 @@ class OsuPresenter:
         length_str = DaletAtoms.format_duration(length_sec)
 
         rel_time = DaletAtoms.parse_timestamp_relative(play.get("created_at", ""))
-        flag = _get_country_flag(user_data.get("country", {}).get("code") if user_data else "")
+        country_code = user_data.get("country", {}).get("code", "").lower() if user_data else ""
+        flag_md = f":flag_{country_code}: " if country_code else ""
+
+        # Indicador de estado si falló el mapa
+        passed = play.get("passed", True)
+        rank_badge = f"` {rank} `" if passed else f"` {rank} (Fallido) `"
 
         embed = discord.Embed(
             color=DaletAtoms.get_grade_color(rank)
         )
         embed.set_author(
-            name=f"{flag} Recent osu! {_mode_title(mode)} Play for {username}",
+            name=f"Jugada Reciente · {username} ({_mode_title(mode)})",
             icon_url=user_data.get("avatar_url") if user_data else None,
             url=f"https://osu.ppy.sh/users/{user_data.get('id', username)}/{mode}" if user_data else None
         )
 
-        # Bloque principal de contenido en description
-        lines = [
-            f"**[{artist} - {title} [{version}]]({map_url})** **{mods}** `[{stars:.2f}★]`",
-            f"{DaletAtoms.GLYPH_POINTER} ` {rank} ` {DaletAtoms.GLYPH_POINTER} {pp_str} {DaletAtoms.GLYPH_POINTER} **{acc}**",
-            f"{DaletAtoms.GLYPH_POINTER} {score:,} {DaletAtoms.GLYPH_POINTER} {combo_str} {DaletAtoms.GLYPH_POINTER} `{hits_str}` {DaletAtoms.GLYPH_POINTER} {rel_time}",
-            f"{DaletAtoms.GLYPH_POINTER} ⏱ {length_str} {DaletAtoms.GLYPH_POINTER} 🎵 {bpm:.0f} BPM {DaletAtoms.GLYPH_POINTER} `AR {ar} OD {od} HP {hp} CS {cs}`"
-        ]
-        embed.description = "\n".join(lines)
+        # Encabezado del mapa
+        embed.description = (
+            f"{flag_md}**[{artist} - {title} [{version}]]({map_url})**\n"
+            f"**{mods}** │ ` {stars:.2f}★ ` │ {rank_badge} │ {rel_time}"
+        )
+
+        # Sección 1: Rendimiento
+        embed.add_field(
+            name="Rendimiento",
+            value=(
+                f"{DaletAtoms.GLYPH_POINTER} **PP**: {pp_str}\n"
+                f"{DaletAtoms.GLYPH_POINTER} **Precisión**: `{acc}`\n"
+                f"{DaletAtoms.GLYPH_POINTER} **Combo**: `{combo_str}`"
+            ),
+            inline=True
+        )
+
+        # Sección 2: Puntuación & Hits
+        embed.add_field(
+            name="Puntuación",
+            value=(
+                f"{DaletAtoms.GLYPH_POINTER} **Score**: `{score:,}`\n"
+                f"{DaletAtoms.GLYPH_POINTER} **Hits**: `{hits_str}`\n"
+                f"{DaletAtoms.GLYPH_POINTER} **Misses**: `{miss}`"
+            ),
+            inline=True
+        )
+
+        # Sección 3: Datos del Beatmap
+        embed.add_field(
+            name="Mapa",
+            value=(
+                f"{DaletAtoms.GLYPH_POINTER} **Tiempo**: `{length_str}` │ **BPM**: `{bpm:.0f}`\n"
+                f"{DaletAtoms.GLYPH_POINTER} `AR {ar}` · `OD {od}` · `HP {hp}` · `CS {cs}`"
+            ),
+            inline=False
+        )
 
         # Thumbnail con la portada del mapa
         covers = beatmapset.get("covers", {})
@@ -113,29 +156,30 @@ class OsuPresenter:
         if thumb_url:
             embed.set_thumbnail(url=thumb_url)
 
-        DaletMolecules.add_standard_footer(embed, context_text="On osu! Bancho Server")
+        DaletMolecules.add_standard_footer(embed, context_text="Bancho Server")
         return embed
 
     @staticmethod
     def build_top_card(username: str, mode: str, plays: list, user_data: dict = None) -> discord.Embed:
-        """Construye un Embed de alta densidad con los Top Plays del usuario."""
-        flag = _get_country_flag(user_data.get("country", {}).get("code") if user_data else "")
+        """Construye un Embed estructurado con los Top Plays del usuario."""
+        country_code = user_data.get("country", {}).get("code", "").lower() if user_data else ""
+        flag_md = f":flag_{country_code}: " if country_code else ""
 
         embed = discord.Embed(
+            title=f"{flag_md}Top Scores · {username} ({_mode_title(mode)})",
             color=DaletAtoms.COLOR_PRIMARY
         )
         embed.set_author(
-            name=f"{flag} Top osu! {_mode_title(mode)} Plays for {username}",
+            name=f"Perfil de osu! de {username}",
             icon_url=user_data.get("avatar_url") if user_data else None,
             url=f"https://osu.ppy.sh/users/{user_data.get('id', username)}/{mode}" if user_data else None
         )
 
         if not plays:
             embed.description = "No se encontraron jugadas registradas en este modo."
-            DaletMolecules.add_standard_footer(embed, context_text="On osu! Bancho Server")
+            DaletMolecules.add_standard_footer(embed, context_text="Bancho Server")
             return embed
 
-        # Thumbnail del usuario
         if user_data and user_data.get("avatar_url"):
             embed.set_thumbnail(url=user_data["avatar_url"])
 
@@ -155,7 +199,7 @@ class OsuPresenter:
             mods = _format_mods(p.get("mods", []))
             acc = _format_acc(p.get("accuracy", 0.0))
             pp = p.get("pp", 0.0) or 0.0
-            score = p.get("score") or p.get("classic_total_score") or p.get("legacy_total_score") or 0
+            score = OsuPresenter._extract_score(p)
 
             max_combo = p.get("max_combo", 0)
             map_max_combo = bm.get("max_combo")
@@ -178,15 +222,15 @@ class OsuPresenter:
             rel_time = DaletAtoms.parse_timestamp_relative(p.get("created_at", ""))
 
             block = (
-                f"**{i})** **[{title} [{version}]]({map_url})** **{mods}** `[{stars:.2f}★]`\n"
-                f"{DaletAtoms.GLYPH_POINTER} ` {rank} ` {DaletAtoms.GLYPH_POINTER} **{pp:.2f}PP** {DaletAtoms.GLYPH_POINTER} **{acc}**\n"
-                f"{DaletAtoms.GLYPH_POINTER} {score:,} {DaletAtoms.GLYPH_POINTER} {combo_str} {DaletAtoms.GLYPH_POINTER} `{hits_str}` {DaletAtoms.GLYPH_POINTER} {rel_time}\n"
-                f"{DaletAtoms.GLYPH_POINTER} ⏱ {length_str} {DaletAtoms.GLYPH_POINTER} 🎵 {bpm:.0f} BPM {DaletAtoms.GLYPH_POINTER} `AR {ar} OD {od} HP {hp} CS {cs}`"
+                f"**{i}.** **[{title} [{version}]]({map_url})** **{mods}** ` {stars:.2f}★ `\n"
+                f"{DaletAtoms.GLYPH_POINTER} ` {rank} ` │ **{pp:.2f}pp** │ `{acc}` │ `{combo_str}`\n"
+                f"{DaletAtoms.GLYPH_POINTER} Score: `{score:,}` │ `{hits_str}` │ {rel_time}\n"
+                f"{DaletAtoms.GLYPH_POINTER} `{length_str}` │ `{bpm:.0f} BPM` │ `AR {ar} OD {od} HP {hp} CS {cs}`"
             )
             entries.append(block)
 
         embed.description = "\n\n".join(entries)
-        DaletMolecules.add_standard_footer(embed, context_text="On osu! Bancho Server • Top 5")
+        DaletMolecules.add_standard_footer(embed, context_text="Bancho Server • Top 5")
         return embed
 
     @staticmethod
