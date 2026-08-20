@@ -1,31 +1,34 @@
 # 🏗️ General Architecture of Dalet
 
-> This document explains the "big picture": how all the bot's pieces are connected and the data flow when someone interacts with Dalet.
+> Este documento detalla la arquitectura global del sistema: cómo se conectan todas las piezas, los flujos de datos y los patrones arquitectónicos aplicados en Dalet.
 
 ---
 
-## 🧠 What is Dalet?
+## 🧠 ¿Qué es Dalet?
 
-Dalet is an asynchronous Discord bot built on top of **discord.py**. It has three main capabilities:
+Dalet es un bot asíncrono para Discord construido sobre **discord.py 2.x**, diseñado con una arquitectura en 3 capas y patrones de resiliencia:
 
-1. **Conversational AI**: Responds to messages using Google Gemini (or Groq as a fallback).
-2. **Persistent Memory**: Remembers information about users and chat history using a PostgreSQL database hosted on Neon.
-3. **osu! Integration**: Queries game statistics from osu! using its official API.
+1. **IA Conversacional con Personalidad Propia**: Respuestas dinámicas usando Google Gemini (con fallback a Groq Llama 3.3/3.1), control de sesiones de chat y memoria contextual adaptativa.
+2. **Persistencia Híbrida Cloud + Local**: Base de datos principal en la nube con **Turso (libSQL)** vía HTTP Pipeline API y fallback local en **SQLite (WAL Mode)**.
+3. **Integración Completa con osu!**: Consultas a la API v2 de osu!, cálculo de PP, spreads de dificultad y presentación visual de alta densidad informativa.
+4. **Sistema de Diseño Atómico (UI)**: Interfaz de usuario desacoplada construida en átomos, moléculas y organismos para garantizar consistencia visual en todos los comandos.
 
 ---
 
 ## ⚙️ Tech Stack
 
-| Technology | Purpose |
-| ---------- | ------- |
-| **Python 3.x** | Primary language |
-| **discord.py** | Library for interacting with the Discord API |
-| **asyncpg** | Asynchronous driver for PostgreSQL (faster than psycopg2 for bots) |
-| **PostgreSQL (Neon)** | Cloud database. Neon provides a free tier with automatic "sleep" |
-| **Google Gemini API** | Primary AI model (Gemini 2.0 Flash) |
-| **Groq API** | Fallback AI model (Llama 3.3 70B) |
-| **Flask** | Minimal HTTP server for Render's Health Check |
-| **Render** | Deployment platform for the bot in the cloud |
+| Tecnología | Propósito |
+| ---------- | --------- |
+| **Python 3.10+** | Lenguaje principal |
+| **discord.py 2.x** | SDK oficial para Discord Gateway, Slash Commands e Interacciones |
+| **libsql-client** | Cliente asíncrono sobre HTTP Pipeline para Turso (SQLite Cloud) |
+| **Turso (libSQL)** | Base de datos principal distribuida y stateless |
+| **aiosqlite (Local)** | Fallback de persistencia local en modo WAL de alto rendimiento |
+| **Google GenAI SDK** | Modelo primario de IA (Gemini 2.5 Flash) con context trimming |
+| **Groq Cloud API** | Fallback y procesamiento ultrarrápido (Llama 3.3 70B / Llama 3.1 8B) |
+| **Flask** | Servidor HTTP minimalista para el Health Check de Render |
+| **Matplotlib** | Generación de gráficos de progreso en hilos secundarios (run_in_executor) |
+
 
 ---
 
