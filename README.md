@@ -1,234 +1,212 @@
 <div align="center">
 
-<img src="docs/assets/dalet_oc.jpg" alt="Dalet" width="180" />
+<img src="docs/assets/dalet_oc.jpg" alt="Dalet" width="180" style="border-radius: 50%;" />
 
 # Dalet
 
-**A conversational AI Discord bot with persistent memory, osu! integration, and a PostgreSQL backbone.**
+**Bot conversacional inteligente para Discord con memoria persistente, integración avanzada de osu!, balanceador de carga multi-IA y Dashboard web de telemetría en tiempo real.**
 
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![discord.py](https://img.shields.io/badge/discord.py-2.x-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discordpy.readthedocs.io)
-[![Google Gemini](https://img.shields.io/badge/Gemini-AI-4285F4?style=flat-square&logo=google&logoColor=white)](https://aistudio.google.com)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-336791?style=flat-square&logo=postgresql&logoColor=white)](https://neon.tech)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![discord.py](https://img.shields.io/badge/discord.py-2.x-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discordpy.readthedocs.io)
+[![Google Gemini](https://img.shields.io/badge/Google%20Gemini-2.5%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://aistudio.google.com)
+[![Groq](https://img.shields.io/badge/Groq-LPU%20Speed-F55036?style=for-the-badge&logo=fastapi&logoColor=white)](https://console.groq.com)
+[![OpenRouter](https://img.shields.io/badge/OpenRouter-Free%20Tier-6366F1?style=for-the-badge&logo=openai&logoColor=white)](https://openrouter.ai)
+[![Turso](https://img.shields.io/badge/Turso-libSQL%20Cloud-00E599?style=for-the-badge&logo=sqlite&logoColor=black)](https://turso.tech)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
-[Features](#-features) · [Tech Stack](#-tech-stack) · [Getting Started](#-getting-started) · [Commands](#-commands) · [Architecture](#-architecture) · [Docs](#-documentation)
+[✨ Características](#-características) · [🛠️ Stack Tecnológico](#️-stack-tecnológico) · [🖥️ Web Dashboard](#-web-dashboard--telemetría) · [🎮 osu! UI System](#-integración-y-diseño-de-osu) · [🚀 Instalación](#-instalación-y-despliegue) · [💬 Comandos](#-comandos) · [🏗️ Arquitectura](#️-arquitectura) · [📚 Docs](#-documentación)
 
 </div>
 
 ---
 
-## ✨ Features
+## ✨ Características
 
-Dalet is more than a chatbot. It's a full-featured Discord companion designed to feel genuinely present in your server.
+Dalet combina inteligencia artificial conversacional, análisis en tiempo real y persistencia híbrida:
 
-- 🤖 **Conversational AI** — Powered by Google Gemini. Talks naturally, remembers context, and has its own personality.
-- 🧠 **Persistent Memory** — Dalet remembers things users explicitly ask it to. Memories survive restarts and persist across sessions.
-- 📝 **Smart Chat Summaries** — Can read a channel's history and generate an AI-powered summary on demand.
-- 🎮 **osu! Integration** — Link your osu! profile, fetch your top scores, and get personalised AI coaching and performance analysis.
-- 📊 **Analytics & Logging** — Tracks usage metrics and logs errors to the database for monitoring and insights.
-- ⚙️ **Admin Controls** — Configure proactive/reactive modes, restrict channels, and manage bot behaviour per-server.
-- 🔒 **Privacy-first** — Includes a data retention policy (TTL) that automatically purges old messages from the database.
-
----
-
-## 🛠 Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Language | Python 3.11+ |
-| Discord Library | discord.py 2.x |
-| AI / NLP | Google Gemini (`google-genai`) + Groq (fallback) |
-| Database | PostgreSQL on [Neon](https://neon.tech) |
-| DB Driver | `asyncpg` (async connection pool) |
-| Hosting | [Render](https://render.com) (Web Service) |
-| Keep-alive | [UptimeRobot](https://uptimerobot.com) |
-| osu! Data | [osu! API v2](https://osu.ppy.sh/docs/index.html) |
+- 🧠 **Smart Tri-Load Balancer**: Distribución inteligente de tráfico entre **Google Gemini** (calidad y visión), **Groq** (inferencia ultrarrápida <200ms) y **OpenRouter** (catálogo libre de cuotas).
+- 🛡️ **Circuit Breakers y Auto-Failover**: Tolerancia total a fallos. Si una API alcanza su límite de tasa (`429`) o saturación (`503`), el bot desvía el 100% del tráfico automáticamente sin interrupción de servicio.
+- 🖥️ **Web Dashboard en Vivo**: Panel web oscuro con gráficos interactivos (Chart.js), conteo en tiempo real de **Prompt y Completion Tokens**, latencias y estado de salud de los modelos.
+- 💾 **Persistencia Híbrida libSQL + SQLite**: Base de datos en la nube con **Turso (libSQL HTTP Pipeline)** y fallback local instantáneo con **SQLite en modo WAL** y buffers de escritura por lotes.
+- 🎮 **osu! Atomic UI System**: Tarjetas rediseñadas de alta densidad para `/recent`, `/top`, `/profile` y `/compare` con compatibilidad para scores de Lazer y Classic, banderas nativas y telemetría completa.
+- 📝 **Smart Channel Summaries**: Lectura de historial y generación de resúmenes contextuales inteligentes mediante `/resumir` y `d.summary`.
+- 🧠 **Memoria Contextual a Largo Plazo**: Recuerda detalles y preferencias explícitas de los usuarios a través de reinicios.
 
 ---
 
-## 🚀 Getting Started
+## 🛠️ Stack Tecnológico
 
-### Prerequisites
+| Capa | Tecnologías |
+| :--- | :--- |
+| **Lenguaje & Core** | Python 3.11+ · discord.py 2.x (asyncio) |
+| **Modelos de IA** | Google Gemini (`gemini-2.5-flash` / `2.0`) · Groq (`openai/gpt-oss-120b`, `20b`) · OpenRouter (`openrouter/free`, `deepseek-r1:free`, `llama-3.3:free`) |
+| **Persistencia Cloud** | [Turso](https://turso.tech) (libSQL Database over HTTP Pipeline) |
+| **Persistencia Local** | SQLite 3 (WAL Mode, in-memory LRU caching & async log batching) |
+| **Dashboard & Web** | Flask · Chart.js · CSS Grid Glassmorphism |
+| **osu! API** | [osu! API v2](https://osu.ppy.sh/docs/index.html) (OAuth2 Client Credentials) |
+| **Hosting & Deploy** | [Render](https://render.com) (Web Service con Health Check en `:8080`) |
 
-- Python 3.11+
-- A PostgreSQL database (we recommend [Neon](https://neon.tech) — free tier works great)
-- API keys for: Discord, Google Gemini, and osu!
+---
 
-### Step 1 — Get your API Keys
+## 🖥️ Web Dashboard & Telemetría
 
-You'll need the following credentials before anything else:
+Dalet incluye un panel web en tiempo real accesible directamente en el puerto del servicio (por ejemplo `https://dalet-proyect.onrender.com/` o `http://localhost:8080/`):
 
-| Variable | Where to get it |
-|---|---|
-| `DISCORD_TOKEN` | [Discord Developer Portal](https://discord.com/developers/applications) → Bot → Reset Token. Enable **Message Content Intent**. |
-| `DATABASE_URL` | [Neon](https://neon.tech) → Create project → copy the `postgres://...` connection string. |
-| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/) → Create API Key. |
-| `OSU_CLIENT_ID` | [osu! Settings](https://osu.ppy.sh/home/account/edit) → OAuth → New OAuth Application. |
-| `OSU_CLIENT_SECRET` | Same as above — generated alongside the Client ID. |
-| `GROQ_API_KEY` *(optional)* | [Groq Cloud](https://console.groq.com) — used as an AI fallback. |
+- **Tokens Consumidos**: Desglose exacto de Prompt / Completion Tokens para Gemini, Groq y OpenRouter.
+- **Gráficos de Tráfico**: Comparativa visual en tiempo real de carga de trabajo entre modelos.
+- **Estado de Circuit Breakers**: Indicadores de salud (`HEALTHY` / `COOLDOWN`).
+- **Gateway & Uptime**: Latencia de Discord, servidores conectados, miembros y tiempo activo.
+- **Feed en Vivo**: Registro en vivo con las últimas interacciones de IA y latencias.
 
-### Step 2 — Set up the Database
+---
 
-Run the SQL scripts inside the `/sql` folder **in order** against your PostgreSQL database:
+## 🎮 Integración y Diseño de osu!
 
-```
-01_Schema.sql               ← Creates all tables
-03_Procedures_Functions.sql ← Stored procedures & functions
-04_Views.sql                ← Useful views (e.g. V_ChannelMessages)
-08_Privacy_TTL.sql          ← Data retention policy
-09_Enhancements.sql         ← Column additions & improvements
-10_New_Tables.sql           ← Analytics tables
-```
+Las tarjetas de osu! fueron desarrolladas bajo el **Sistema de Diseño Atómico de Dalet** ([docs/08_DESIGN_SYSTEM.md](docs/08_DESIGN_SYSTEM.md)):
 
-You can use Neon's built-in SQL editor, DBeaver, or PgAdmin.
+- **`/recent`**: Tarjeta estructurada con mods (`+HDDT`), dificultad `[6.52★]`, desglose de aciertos `[300/100/50/Miss]`, PP, precisión, duración `MM:SS`, BPM y atributos `AR / OD / HP / CS`.
+- **`/top`**: Top 5 mejores puntuaciones del jugador en un formato compacto con banderas nativas.
+- **`/profile` & `/compare`**: Perfil global, rangos de país y comparación directa entre jugadores.
+- **Lazer & Classic Support**: Extracción correcta de scores estandarizados de Lazer y cálculo estimado para partidas fallidas (`Rank: F`).
 
-### Step 3 — Configure Environment
+---
 
-Clone the repo and create a `.env` file in the root:
+## 🚀 Instalación y Despliegue
 
+### 1. Clonar el repositorio
 ```bash
-git clone https://github.com/YOUR_USERNAME/Dalet-Proyect.git
+git clone https://github.com/Janlhx/Dalet-Proyect.git
 cd Dalet-Proyect
 ```
 
-```env
-# .env
-DISCORD_TOKEN=your_discord_token
-GEMINI_API_KEY=your_gemini_key
-DATABASE_URL=postgres://user:pass@host/dbname
-OSU_CLIENT_ID=your_osu_client_id
-OSU_CLIENT_SECRET=your_osu_client_secret
-GROQ_API_KEY=your_groq_key   # optional
+### 2. Crear entorno virtual e instalar dependencias
+```bash
+python -m venv venv
+# En Windows:
+venv\Scripts\activate
+# En Linux/macOS:
+source venv/bin/activate
+
+pip install -r requirements.txt
 ```
 
-### Step 4 — Install & Run
+### 3. Configurar variables de entorno (`.env`)
+Crea un archivo `.env` en la raíz del proyecto:
 
+```env
+# --- Discord Bot ---
+DISCORD_TOKEN=tu_discord_bot_token
+
+# --- Bases de Datos (Turso libSQL Cloud + SQLite Local) ---
+TURSO_DATABASE_URL=https://tu-db-nombre.turso.io
+TURSO_AUTH_TOKEN=tu_turso_auth_token
+
+# --- Inteligencia Artificial (Smart Tri-Load Balancer) ---
+AI_ROUTING_MODE=auto
+
+# 1. Google Gemini (Primario para Visión y Búsquedas Web)
+GEMINI_API_KEY=tu_gemini_api_key
+GEMINI_MODEL=gemini-2.5-flash
+
+# 2. Groq (Ultra Velocidad <200ms)
+GROQ_API_KEY=tu_groq_api_key
+GROQ_MODEL=openai/gpt-oss-120b
+GROQ_MODEL_FALLBACK=openai/gpt-oss-20b
+
+# 3. OpenRouter (Modelos Gratuitos & Variedad)
+OPENROUTER_API_KEY=tu_openrouter_api_key
+OPENROUTER_MODEL=openrouter/free
+
+# --- osu! API v2 ---
+OSU_CLIENT_ID=tu_osu_client_id
+OSU_CLIENT_SECRET=tu_osu_client_secret
+
+# --- Web Dashboard Port ---
+PORT=8080
+```
+
+### 4. Ejecutar el Bot
 ```bash
-# Create and activate a virtual environment (recommended)
-python -m venv venv
-venv\Scripts\activate      # Windows
-# source venv/bin/activate  # macOS/Linux
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the bot
 python dalet_main.py
 ```
 
-### Step 5 — Deploy to Production (Render)
+---
 
-1. Push the repo to GitHub.
-2. Go to [Render](https://render.com) → **New Web Service** → connect your GitHub repo.
-3. Set the following:
-   - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `python dalet_main.py`
-4. Add all your `.env` variables in the **Environment** tab.
-5. Click **Create Web Service**. Render will deploy and restart automatically on crashes.
-6. *(Optional)* Set up a [UptimeRobot](https://uptimerobot.com) HTTP monitor pointing at your Render URL to prevent cold starts.
+## 💬 Comandos
+
+Dalet soporta **Slash Commands nativos (`/`)** y el prefijo tradicional `d.`:
+
+### 🎮 osu! Commands
+| Comando | Tipo | Descripción |
+| :--- | :--- | :--- |
+| `/recent` o `d.recent` | Slash / Prefijo | Muestra tu última jugada en osu! con diseño estructurado |
+| `/top` o `d.top` | Slash / Prefijo | Muestra tus 5 mejores jugadas registradas |
+| `/profile` o `d.profile` | Slash / Prefijo | Muestra tu perfil de jugador, rango y estadísticas |
+| `/compare` | Slash | Compara tu récord en el mapa actual contra otro jugador |
+| `d.osuLink <user>` | Prefijo | Vincula tu cuenta de osu! a tu Discord |
+| `d.osuAnalyze` | Prefijo | Análisis con IA sobre tu estilo de juego y áreas de mejora |
+| `d.osuCoach` | Prefijo | Plan de entrenamiento personalizado generado por la IA |
+
+### 🤖 Inteligencia Artificial & Utilidades
+| Comando | Tipo | Descripción |
+| :--- | :--- | :--- |
+| `/resumir [mensajes]` | Slash | Genera un resumen inteligente de los últimos mensajes del canal |
+| `/lore` | Slash | Cuenta la historia y personalidad de Dalet |
+| `/gemini <proactive/reactive>`| Slash | Configura si Dalet habla libremente o solo por mención |
+| `/help` | Slash | Menú interactivo de ayuda categorizado |
+| `d.admin blockChannel` | Prefijo | Bloquea la interacción de Dalet en un canal específico |
+| `d.admin unblockChannel` | Prefijo | Desbloquea un canal para permitir interacción |
 
 ---
 
-## 💬 Commands
-
-Dalet uses the prefix `d.` by default.
-
-| Command | Description |
-|---|---|
-| `d.help` | Shows all available commands |
-| `d.osuLink <username>` | Link your osu! account to Dalet |
-| `d.osuProfile` | View your linked osu! profile stats |
-| `d.osuScores` | Fetch and store your top osu! scores |
-| `d.osuAnalyze` | Get an AI analysis of your osu! performance |
-| `d.osuCoach` | Get a personalised osu! training plan from the AI |
-| `d.summary` | Generate an AI summary of the current channel |
-| `d.gemini proactive` | Switch Dalet to proactive mode (talks freely) |
-| `d.gemini reactive` | Switch Dalet to reactive mode (only on mention) |
-| `d.admin blockChannel` | Prevent Dalet from talking in a channel |
-| `d.admin unblockChannel` | Re-enable Dalet in a channel |
-
-> Dalet also responds naturally when **mentioned** (`@Dalet`) or when it detects it's being talked to, depending on the configured mode.
-
----
-
-## 🏗 Architecture
-
-Dalet follows a layered architecture separating concerns cleanly:
+## 🏗️ Arquitectura
 
 ```
 Dalet-Proyect/
-├── dalet_main.py           ← Bot entry point & Flask keep-alive server
+├── dalet_main.py                  ← Bootstrap del bot, semáforos y servidor Flask
 │
-├── handlers/               ← discord.py Cogs (one per feature domain)
-│   ├── dalet_nlpchat.py        ← Core conversational AI engine
-│   ├── dalet_smartresume.py    ← AI-powered chat summaries
-│   ├── dalet_osucommands.py    ← osu! commands
-│   ├── dalet_chatlogger.py     ← Message logging to DB
-│   ├── dalet_geminicommand.py  ← AI mode configuration
-│   ├── dalet_commands_handlers.py
+├── handlers/                      ← Discord Cogs y controladores de eventos
+│   ├── dalet_nlpchat.py           ← Motor de conversación reactivo/proactivo
+│   ├── dalet_slash_commands.py    ← Slash commands nativos de Discord
+│   ├── dalet_osu_presenter.py     ← Presentador visual de tarjetas de osu!
+│   ├── dalet_smartresume.py       ← Generador de resúmenes con IA
+│   ├── dalet_osucommands.py       ← Comandos tradicionales de osu!
 │   ├── dalet_helpcommands_handlers.py
-│   ├── dalet_admcommands_handler.py
 │   └── dalet_events_handlers.py
 │
-├── services/               ← Business logic layer
-│   ├── nlp_service.py          ← Gemini/Groq response generation
-│   ├── memory_service.py       ← Context & persistent memory management
-│   └── osu_service.py          ← osu! API client
+├── services/                      ← Capa de Lógica de Negocio
+│   ├── nlp_service.py             ← Smart Tri-Load Balancer (Gemini + Groq + OpenRouter)
+│   ├── dashboard_service.py       ← Servidor web del Dashboard & API de telemetría
+│   ├── memory_service.py          ← Gestión de memoria y contexto de chat
+│   └── osu_service.py             ← Cliente async de la API v2 de osu!
 │
-├── database/               ← Data access layer
-│   ├── pool.py                 ← asyncpg connection pool
-│   └── repositories/
-│       ├── base_repository.py
-│       ├── user_repository.py      ← Users, messages, memories
-│       ├── admin_repository.py     ← Channel blocks
-│       ├── osu_repository.py       ← osu! scores & accounts
-│       └── analytics_repository.py ← Metrics & error logs
+├── database/                      ← Persistencia Híbrida
+│   ├── turso_client.py            ← Cliente libSQL HTTP Pipeline para Turso Cloud
+│   ├── sqlite_manager.py          ← SQLite local (WAL) para analíticas y fallback
+│   └── repositories/              ← Repositorios de datos (User, Osu, Admin, Analytics)
 │
-├── sql/                    ← Database schema & migration scripts
-└── docs/                   ← Full technical documentation
+├── ui/                            ← Atomic Design System
+│   ├── atoms.py                   ← Tokens de color, badges de rango y glifos
+│   ├── molecules.py               ← Barras de progreso ASCII y footers
+│   └── organisms.py               ← Embeds compuestos
+│
+└── docs/                          ← Documentación técnica completa
 ```
 
-For a deeper dive into how each layer works, see the [docs folder](docs/README.md).
-
 ---
 
-## 📚 Documentation
+## 📚 Documentación
 
-Technical documentation lives in the [`/docs`](docs/) folder:
-
-| Doc | Contents |
-|---|---|
-| [01 — Architecture](docs/01_ARQUITECTURA.md) | System overview and data flow |
-| [02 — Entry Point](docs/02_PUNTO_DE_ENTRADA.md) | How `dalet_main.py` bootstraps the bot |
-| [03 — Handlers](docs/03_HANDLERS.md) | Every Cog explained |
-| [04 — Services](docs/04_SERVICIOS.md) | NLPService and MemoryService |
-| [05 — Database](docs/05_BASE_DE_DATOS.md) | Pool, repositories, and the Repository pattern |
-| [06 — SQL Schema](docs/06_ESQUEMA_SQL.md) | All tables, views, procedures, and functions |
-| [07 — Environment Variables](docs/07_VARIABLES_ENTORNO.md) | Full `.env` reference |
-
----
-
-## 🤝 Contributing
-
-Contributions, issues and feature requests are welcome!
-
-1. Fork the repository
-2. Create your feature branch: `git checkout -b feature/amazing-feature`
-3. Commit your changes: `git commit -m 'feat: add amazing feature'`
-4. Push to the branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+| Documento | Descripción |
+| :--- | :--- |
+| [01 — Arquitectura](docs/01_ARCHITECTURE.md) | Flujo general del sistema y capas de abstracción |
+| [07 — Variables de Entorno](docs/07_VARIABLES_ENVIRONMENT.md) | Guía completa de configuración de variables |
+| [08 — Sistema de Diseño](docs/08_DESIGN_SYSTEM.md) | Tokens de diseño, tipografía y Atomic UI |
 
 ---
 
 <div align="center">
 
-Made with ❤️ by **Litxe** · Colombia 🇨🇴
+Hecho con ❤️ por **Litxe** · Colombia 🇨🇴
 
 </div>
