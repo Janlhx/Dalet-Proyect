@@ -1493,7 +1493,7 @@
       "label": "._log_interaction()",
       "file_type": "code",
       "source_file": "handlers/dalet_nlpchat.py",
-      "source_location": "L513",
+      "source_location": "L522",
       "_callable": true,
       "_origin": "ast",
       "id": "handlers_dalet_nlpchat_daletnlpchat_log_interaction",
@@ -1529,7 +1529,7 @@
       "label": "setup()",
       "file_type": "code",
       "source_file": "handlers/dalet_nlpchat.py",
-      "source_location": "L525",
+      "source_location": "L534",
       "_callable": true,
       "_origin": "ast",
       "id": "handlers_dalet_nlpchat_setup",
@@ -4388,7 +4388,7 @@
       "norm_label": "recorta el contexto de forma dinamica para optimizar consumo de tokens."
     },
     {
-      "label": "Describe una imagen usando el modelo principal con cach\u00e9 en RAM.",
+      "label": "Describe una imagen usando el modelo principal con timeout estricto y cach\u00e9 en\u2026",
       "file_type": "rationale",
       "source_file": "services/nlp_service.py",
       "source_location": "L602",
@@ -4396,7 +4396,7 @@
       "id": "services_nlp_service_rationale_602",
       "community": 11,
       "community_name": "UserRepository",
-      "norm_label": "describe una imagen usando el modelo principal con cache en ram."
+      "norm_label": "describe una imagen usando el modelo principal con timeout estricto y cache en..."
     },
     {
       "label": "Guild",
@@ -4578,9 +4578,9 @@
       "label": "Registra la interacci\u00f3n de IA en BD de forma no-bloqueante.",
       "file_type": "rationale",
       "source_file": "handlers/dalet_nlpchat.py",
-      "source_location": "L516",
+      "source_location": "L525",
       "_origin": "ast",
-      "id": "handlers_dalet_nlpchat_rationale_516",
+      "id": "handlers_dalet_nlpchat_rationale_525",
       "community": 13,
       "community_name": "DaletNLPChat",
       "norm_label": "registra la interaccion de ia en bd de forma no-bloqueante."
@@ -9445,7 +9445,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_nlpchat.py",
-      "source_location": "L447",
+      "source_location": "L453",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_nlpchat_daletnlpchat_generate_response",
@@ -9457,7 +9457,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_nlpchat.py",
-      "source_location": "L488",
+      "source_location": "L497",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_nlpchat_daletnlpchat_generate_response",
@@ -9529,7 +9529,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_nlpchat.py",
-      "source_location": "L526",
+      "source_location": "L535",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_nlpchat_setup",
@@ -13717,7 +13717,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_nlpchat.py",
-      "source_location": "L513",
+      "source_location": "L522",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_nlpchat_daletnlpchat_log_interaction",
@@ -16141,7 +16141,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_nlpchat.py",
-      "source_location": "L525",
+      "source_location": "L534",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_nlpchat",
@@ -18022,7 +18022,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_nlpchat.py",
-      "source_location": "L513",
+      "source_location": "L522",
       "weight": 1.0,
       "_origin": "ast",
       "source": "handlers_dalet_nlpchat_daletnlpchat",
@@ -20310,10 +20310,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "handlers/dalet_nlpchat.py",
-      "source_location": "L516",
+      "source_location": "L525",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "handlers_dalet_nlpchat_rationale_516",
+      "source": "handlers_dalet_nlpchat_rationale_525",
       "target": "handlers_dalet_nlpchat_daletnlpchat_log_interaction",
       "confidence_score": 1.0
     },
@@ -21938,5 +21938,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "834bc7bd1e2ae5fc3dfe6af4cd61d1d871f45e3e"
+  "built_at_commit": "b87e9d53685d9c563565b9bd6b5df5824e007f45"
 }
