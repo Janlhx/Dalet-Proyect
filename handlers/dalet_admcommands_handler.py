@@ -188,45 +188,6 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
             logger.error(f"Error in channel_status: {e}")
             await ctx.send("❌ Error al obtener el estado del canal.")
 
-    @commands.command(name="status")
-    async def system_status(self, ctx):
-        """Muestra el estado técnico global del bot (DB, Caché, IA)."""
-        import time
-        from database.turso_client import TursoClient
-        from database.sqlite_manager import SQLiteManager
-        
-        embed = discord.Embed(title="💾 Estado del Sistema Dalet", color=discord.Color.blue())
-        
-        # 1. Base de Datos (Turso & SQLite)
-        turso_status = "✅ CONECTADA" if TursoClient.is_available() else "⚠️ OFFLINE (Turso Error)"
-        sqlite_status = "✅ OPERATIVA (Local)"
-        
-        embed.add_field(name="Base de Datos (Turso)", value=turso_status, inline=True)
-        embed.add_field(name="Base de Datos (Local)", value=sqlite_status, inline=True)
-        
-        # 2. Caché y Batching
-        log_buffer_size = len(self.bot.user_repo._log_buffer)
-        cache_count = len(self.bot.user_repo._cache)
-        embed.add_field(name="Logs en Buffer", value=f"{log_buffer_size} / 20", inline=True)
-        embed.add_field(name="Items en Caché", value=f"{cache_count}", inline=True)
-
-        # 3. Proveedor de IA
-        nlp_service = self.bot.nlp_service
-        provider = nlp_service.active_provider.upper()
-        embed.add_field(name="Proveedor IA", value=f"🤖 {provider}", inline=True)
-        
-        # 4. Throttling
-        nlp_handler = self.bot.get_cog("DaletNLPChat")
-        if nlp_handler:
-            cooldown = max(0, int(nlp_handler.error_cooldown - time.time()))
-            throttling = f"⚠️ ACTIVO ({cooldown}s)" if cooldown > 0 else "✅ NINGUNO"
-            embed.add_field(name="Throttling Discord", value=throttling, inline=True)
-
-        # 5. Memoria Local (Unificada en Buffer)
-        embed.add_field(name="Buffer/RAM", value=f"{log_buffer_size}", inline=True)
-
-        embed.set_footer(text=f"ID del Shard: {self.bot.shard_id or 'N/A'}")
-        await ctx.send(embed=embed)
 
     @commands.command(name="dbstats", hidden=True)
     @commands.has_permissions(administrator=True)

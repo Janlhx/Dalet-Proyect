@@ -170,7 +170,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                     f"**{username}** no tiene jugadas recientes."
                 )
 
-            embed = OsuPresenter.build_recent_card(user.get("username", username), modo, recent[0])
+            embed = OsuPresenter.build_recent_card(user.get("username", username), modo, recent[0], user_data=user)
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
@@ -178,8 +178,17 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             await interaction.followup.send("⚠️ error obteniendo la jugada.", ephemeral=True)
 
     @app_commands.command(name="top", description="Muestra tus mejores plays de osu!.")
-    @app_commands.describe(usuario="Nombre en osu! (o dejar vacío para tu cuenta vinculada)")
-    async def slash_top(self, interaction: discord.Interaction, usuario: str = None):
+    @app_commands.describe(
+        usuario="Nombre en osu! (o dejar vacío para tu cuenta vinculada)",
+        modo="Modo de juego"
+    )
+    @app_commands.choices(modo=[
+        app_commands.Choice(name="osu!standard", value="osu"),
+        app_commands.Choice(name="osu!taiko",    value="taiko"),
+        app_commands.Choice(name="osu!catch",    value="fruits"),
+        app_commands.Choice(name="osu!mania",    value="mania"),
+    ])
+    async def slash_top(self, interaction: discord.Interaction, usuario: str = None, modo: str = "osu"):
         await interaction.response.defer()
         username = usuario
         if not username:
@@ -189,9 +198,9 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 "❌ no tienes cuenta vinculada.", ephemeral=True
             )
         try:
-            user = await self.bot.osu_service.get_user(username)
-            best = await self.bot.osu_service.get_user_best_scores(user["id"], limit=5)
-            embed = OsuPresenter.build_top_card(user.get("username", username), "osu", best)
+            user = await self.bot.osu_service.get_user(username, modo)
+            best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=modo, limit=5)
+            embed = OsuPresenter.build_top_card(user.get("username", username), modo, best, user_data=user)
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /top: {e}")
@@ -320,33 +329,6 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         except Exception as e:
             logger.error(f"Error en /resumir: {e}")
             await interaction.followup.send("error generando el resumen.", ephemeral=True)
-
-    # ------------------------------------------------------------------
-    # Admin: Estado técnico del bot
-    # ------------------------------------------------------------------
-
-    @app_commands.command(name="status", description="Estado técnico del bot (DB, IA, caché).")
-    async def slash_status(self, interaction: discord.Interaction):
-        import time
-        from database.turso_client import TursoClient
-
-        turso_status = "✅ CONECTADA" if TursoClient.is_available() else "⚠️ OFFLINE"
-        buf = len(self.bot.user_repo._log_buffer)
-        cache = len(self.bot.user_repo._cache)
-        provider = getattr(self.bot.nlp_service, "active_provider", "?").upper()
-
-        nlp_cog = self.bot.get_cog("DaletNLPChat")
-        cooldown = max(0, int((nlp_cog.error_cooldown if nlp_cog else 0) - time.time()))
-        throttle = f"⚠️ {cooldown}s" if cooldown > 0 else "✅ ninguno"
-
-        embed = discord.Embed(title="💾 Estado del Sistema Dalet", color=0x3498DB)
-        embed.add_field(name="Turso DB",     value=turso_status,    inline=True)
-        embed.add_field(name="SQLite",       value="✅ local",       inline=True)
-        embed.add_field(name="Logs buffer",  value=f"{buf}/20",      inline=True)
-        embed.add_field(name="Caché",        value=f"{cache} items", inline=True)
-        embed.add_field(name="Proveedor IA", value=f"🤖 {provider}", inline=True)
-        embed.add_field(name="Throttling",   value=throttle,         inline=True)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     # ------------------------------------------------------------------
     # Admin: Lock / Unlock

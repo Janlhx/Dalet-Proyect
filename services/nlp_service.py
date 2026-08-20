@@ -5,6 +5,7 @@ import httpx
 import logging
 import asyncio
 import hashlib
+import time
 from database.repositories.user_repository import UserRepository
 
 logger = logging.getLogger("dalet.services.nlp")
@@ -31,63 +32,153 @@ ESTILO: Ingeniosa, sarcástica, natural, con vibra de persona real que está ley
 
 
 class NLPService:
+    """
+    Servicio de Procesamiento de Lenguaje Natural para Dalet con Smart LLM Load Balancer.
+    - Intent Routing: Envía imágenes o búsquedas web a Gemini de forma automática.
+    - Quota Balancing: Distribuye chat casual entre Groq (ultra rápido) y Gemini.
+    - Circuit Breaker: Auto-recuperación ante 429 Rate Limits sin interrupción de servicio.
+    """
+
     def __init__(self, gemini_api_key: str, user_repo=None):
         from dotenv import load_dotenv
         load_dotenv(override=True)
 
         self.gemini_api_key = gemini_api_key
+        self.client = None
         if self.gemini_api_key:
-            self.client = genai.Client(
-                api_key=self.gemini_api_key,
-                http_options={'api_version': 'v1beta'}
-            )
+            try:
+                self.client = genai.Client(
+                    api_key=self.gemini_api_key,
+                    http_options={'api_version': 'v1beta'}
+                )
+            except Exception as e:
+                logger.error(f"Error inicializando cliente Gemini: {e}")
 
         self.groq_api_key = os.getenv("GROQ_API_KEY")
         self.repo = user_repo or UserRepository()
 
-        env_provider = os.getenv("AI_PROVIDER", "gemini").lower()
-        self.active_provider = env_provider
+        # Modo de enrutamiento: "auto" / "balanced" (default), "gemini" o "groq"
+        raw_mode = os.getenv("AI_ROUTING_MODE") or os.getenv("AI_PROVIDER") or "auto"
+        self.routing_mode = raw_mode.lower()
+        self.active_provider = self.routing_mode
+
+        # Estado del Circuit Breaker (timestamps hasta cuando está en cooldown cada proveedor)
+        self._gemini_cooldown_until = 0.0
+        self._groq_cooldown_until = 0.0
+        self._request_counter = 0
 
         # Cliente HTTP persistente
         self._http_client = httpx.AsyncClient(timeout=25.0)
         # Caché de visión en RAM {url_hash: description}
         self._vision_cache = {}
 
-        logger.info(f"NLPService iniciado. Proveedor: {self.active_provider}")
+        logger.info(f"NLPService iniciado con Smart Load Balancer. Modo: '{self.routing_mode}'")
 
     async def close(self):
         """Cierra recursos del cliente HTTP."""
         if self._http_client:
             await self._http_client.aclose()
 
+    def _is_gemini_healthy(self) -> bool:
+        return bool(self.client and time.time() >= self._gemini_cooldown_until)
+
+    def _is_groq_healthy(self) -> bool:
+        return bool(self.groq_api_key and time.time() >= self._groq_cooldown_until)
+
+    def _select_provider(self, has_images: bool, needs_web_search: bool, trigger: str) -> str:
+        """
+        Determina dinámicamente qué proveedor usar según intención, salud y cuota.
+        """
+        gemini_ok = self._is_gemini_healthy()
+        groq_ok = self._is_groq_healthy()
+
+        # Si el mensaje contiene imágenes o requiere búsqueda web en vivo -> Gemini es prioritario
+        if has_images or needs_web_search:
+            if gemini_ok:
+                return "gemini"
+            elif groq_ok:
+                logger.warning("Gemini en cooldown pero se requería visión/búsqueda. Fallback a Groq.")
+                return "groq"
+
+        # Modo estricto o forzado por env
+        if self.routing_mode == "groq" and groq_ok:
+            return "groq"
+        elif self.routing_mode == "gemini" and gemini_ok:
+            return "gemini"
+
+        # Modo "auto" o "balanced" (Smart Load Balancing)
+        if groq_ok and gemini_ok:
+            # 60% Groq (ultra velocidad en chat) / 40% Gemini (rotación inteligente de cuotas)
+            self._request_counter += 1
+            if self._request_counter % 5 in (0, 1, 2):  # 3 de cada 5 requests a Groq
+                return "groq"
+            else:
+                return "gemini"
+
+        # Si uno de los dos está en cooldown, usar el que esté saludable
+        if groq_ok:
+            return "groq"
+        if gemini_ok:
+            return "gemini"
+
+        # Si ambos están marcados como caídos pero expira el cooldown, intentar Gemini por defecto
+        return "gemini" if self.client else "groq"
+
     async def generate_reply(
         self, trigger: str, context: str, username: str,
         bot_name: str = "Dalet", image_urls: list = None, is_reactive: bool = False, **kwargs
     ):
-        logger.info(f"Generando respuesta para {username}. BotName: {bot_name}. Proveedor: {self.active_provider}")
+        search_keywords = ("busca", "googlea", "noticias", "noticia", "precio", "resultado", "quién es", "quien es", "clima", "actualmente", "hoy en día", "partido")
+        needs_web_search = any(kw in trigger.lower() for kw in search_keywords)
+        has_images = bool(image_urls)
 
         image_description = ""
-        if image_urls:
+        if has_images:
             image_description = await self._get_images_description(image_urls)
 
         if is_reactive:
             context = self._trim_context_smart(context, trigger)
 
-        if self.active_provider == "groq" and self.groq_api_key:
-            return await self._generate_groq_reply(
+        # Seleccionar proveedor inicial vía Load Balancer
+        chosen_provider = self._select_provider(has_images, needs_web_search, trigger)
+        logger.info(f"Load Balancer enrutó a '{chosen_provider}' para {username} (web_search={needs_web_search}, imgs={has_images})")
+
+        reply = None
+        if chosen_provider == "groq":
+            reply = await self._generate_groq_reply(
                 trigger, context, username, bot_name, image_description,
                 is_reactive=is_reactive, **kwargs
             )
+            # Fallback automático a Gemini si Groq falló
+            if not reply and self._is_gemini_healthy():
+                logger.warning("Groq no respondió, activando failover automático a Gemini...")
+                reply = await self._generate_gemini_reply(
+                    trigger, context, username, bot_name, image_description,
+                    needs_web_search=needs_web_search, is_reactive=is_reactive, is_fallback=True, **kwargs
+                )
         else:
-            return await self._generate_gemini_reply(
+            reply = await self._generate_gemini_reply(
                 trigger, context, username, bot_name, image_description,
-                is_reactive=is_reactive, **kwargs
+                needs_web_search=needs_web_search, is_reactive=is_reactive, **kwargs
             )
+            # Fallback automático a Groq si Gemini falló
+            if not reply and self._is_groq_healthy():
+                logger.warning("Gemini no respondió, activando failover automático a Groq...")
+                reply = await self._generate_groq_reply(
+                    trigger, context, username, bot_name, image_description,
+                    is_fallback=True, is_reactive=is_reactive, **kwargs
+                )
+
+        return reply
 
     async def _generate_gemini_reply(
         self, trigger: str, context: str, username: str,
-        bot_name: str, image_description: str = "", is_reactive: bool = False, **kwargs
+        bot_name: str, image_description: str = "", needs_web_search: bool = False,
+        is_reactive: bool = False, is_fallback: bool = False, **kwargs
     ):
+        if not self.client:
+            return None
+
         active_room_users = kwargs.get("active_room_users", "")
         server_emojis = kwargs.get("server_emojis", "")
 
@@ -103,15 +194,17 @@ class NLPService:
         prompt = f"Conversación reciente:\n{context}{vision_context}\n\n{username}: \"{trigger}\""
 
         try:
-            model_name = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
-            logger.info(f"Llamando Gemini: {model_name}")
+            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+            logger.info(f"Llamando Gemini: {model_name} (fallback={is_fallback}, search={needs_web_search})")
 
+            tools = [types.Tool(google_search=types.GoogleSearch())] if needs_web_search else None
             max_tokens = kwargs.get("max_tokens_override", 420 if is_reactive else 700)
+
             config = types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 temperature=0.85,
                 max_output_tokens=max_tokens,
-                tools=[types.Tool(google_search=types.GoogleSearch())]
+                tools=tools
             )
 
             response = await self.client.aio.models.generate_content(
@@ -126,12 +219,10 @@ class NLPService:
 
         except Exception as e:
             logger.error(f"Error llamando Gemini: {e}")
-            if self.groq_api_key:
-                logger.warning("Gemini falló, usando Groq como fallback...")
-                return await self._generate_groq_reply(
-                    trigger, context, username, bot_name, image_description,
-                    is_fallback=True, is_reactive=is_reactive, **kwargs
-                )
+            # Circuit breaker: abrir circuito por 60 segundos si es 429
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                logger.warning("Gemini 429 detectado. Circuit Breaker abierto por 60s.")
+                self._gemini_cooldown_until = time.time() + 60
             return None
 
     async def _generate_groq_reply(
@@ -139,11 +230,13 @@ class NLPService:
         bot_name: str, image_description: str = "", is_fallback: bool = False,
         is_reactive: bool = False, **kwargs
     ):
+        if not self.groq_api_key:
+            return None
+
         active_room_users = kwargs.get("active_room_users", "")
 
-        # Modelos desde .env, con defaults modernos (openai/gpt-oss-120b o llama-3.3-70b-versatile)
-        model_primary = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
-        model_fallback = os.getenv("GROQ_MODEL_FALLBACK", "llama-3.3-70b-versatile")
+        model_primary = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+        model_fallback = os.getenv("GROQ_MODEL_FALLBACK", "llama-3.1-8b-instant")
         model_name = model_fallback if is_fallback else model_primary
 
         url = "https://api.groq.com/openai/v1/chat/completions"
@@ -177,14 +270,9 @@ class NLPService:
             response = await self._http_client.post(url, headers=headers, json=data)
 
             if response.status_code == 429:
-                if not is_fallback:
-                    return await self._generate_groq_reply(
-                        trigger, context, username, bot_name, image_description,
-                        is_fallback=True, is_reactive=is_reactive, **kwargs
-                    )
-                else:
-                    logger.warning("Groq también con rate limit. Silencio.")
-                    return None
+                logger.warning(f"Groq 429 en {model_name}. Circuit Breaker abierto por 60s.")
+                self._groq_cooldown_until = time.time() + 60
+                return None
 
             response.raise_for_status()
             result = response.json()
@@ -197,9 +285,6 @@ class NLPService:
     def _trim_context_smart(self, context: str, trigger: str) -> str:
         """
         Recorta el contexto de forma dinámica para optimizar consumo de tokens.
-        - Pregunta clara (?): incluye hasta 8 líneas.
-        - Mensaje corto (< 5 palabras): incluye 4 líneas.
-        - Caso estándar: incluye 6 líneas.
         """
         lines = context.split("\n")
 
@@ -209,7 +294,6 @@ class NLPService:
                 chat_marker_idx = i
                 break
 
-        # Determinar max líneas según el mensaje
         trigger_clean = trigger.strip()
         words = trigger_clean.split()
         if trigger_clean.endswith("?") or "¿" in trigger_clean:
@@ -232,7 +316,7 @@ class NLPService:
 
     async def _get_images_description(self, image_urls: list):
         """Describe una imagen usando el modelo principal con caché en RAM."""
-        if not self.gemini_api_key or not image_urls:
+        if not self.gemini_api_key or not self.client or not image_urls:
             return ""
 
         url = image_urls[0]
@@ -242,7 +326,7 @@ class NLPService:
             return self._vision_cache[url_hash]
 
         try:
-            model_name = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
             resp = await self._http_client.get(url)
             resp.raise_for_status()
@@ -263,14 +347,14 @@ class NLPService:
 
             if res and res.text:
                 desc = res.text.strip()
-                # Guardar en caché (máx 50 elementos)
                 if len(self._vision_cache) > 50:
                     self._vision_cache.clear()
                 self._vision_cache[url_hash] = desc
                 return desc
 
+            return ""
+
         except Exception as e:
             logger.error(f"Error en visión: {e}")
-
-        return ""
+            return ""
 

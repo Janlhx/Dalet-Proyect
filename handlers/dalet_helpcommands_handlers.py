@@ -45,7 +45,6 @@ SLASH_CATEGORIES = {
             ("/stats [usuario]",    "Estadísticas sociales de un miembro"),
             ("/userinfo [usuario]", "Información detallada de un usuario"),
             ("/serverinfo",         "Información del servidor actual"),
-            ("/status",             "Estado técnico: DB, IA y caché"),
         ]
     },
     "Recordatorios": {
