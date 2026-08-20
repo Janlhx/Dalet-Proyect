@@ -3,13 +3,14 @@ from discord.ext import commands
 import os
 import discord
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, jsonify, Response
 from threading import Thread
 import sys
 import logging
 import signal
 from database.turso_client import TursoClient
 from database.sqlite_manager import SQLiteManager
+from services.dashboard_service import DashboardService
 
 # --- Configuración de Logging ---
 file_handler = logging.FileHandler("dalet.log", encoding='utf-8')
@@ -28,22 +29,32 @@ load_dotenv()
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# --- Servidor Web (Health Check para Render) ---
-app = Flask('')
-
+# --- Servidor Web (Dashboard & Health Check) ---
+app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "dalet está viva."
+    """Sirve la interfaz web del Dashboard de telemetría."""
+    return Response(DashboardService.get_dashboard_html(), mimetype='text/html')
 
+@app.route('/api/telemetry')
+def api_telemetry():
+    """Devuelve métricas en tiempo real en formato JSON."""
+    return jsonify(DashboardService.get_full_telemetry())
+
+@app.route('/health')
+@app.route('/ping')
+def health():
+    """Health check simple para Render."""
+    return "OK", 200
 
 def run_flask():
     try:
-        app.run(host='0.0.0.0', port=8080, debug=False, use_reloader=False)
+        port = int(os.getenv("PORT", 8080))
+        app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
     except Exception as e:
         logger.error(f"Error iniciando Flask: {e}")
         os._exit(1)
-
 
 def keep_alive():
     t = Thread(target=run_flask, daemon=True)
@@ -117,7 +128,9 @@ async def main():
                 client_secret=os.getenv("OSU_CLIENT_SECRET", "")
             )
 
-            # Tarea de purga de mensajes (removida ya que Messages no existe en Turso)
+            # Registrar referencia de bot para telemetría en tiempo real del Dashboard
+            DashboardService.register_bot(bot)
+
             # flush_task para los logs batch de UserRepo
             flush_task = asyncio.create_task(bot.user_repo._periodic_flush())
 

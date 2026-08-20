@@ -46,13 +46,25 @@ class OsuPresenter:
     """Presentador de UI para osu! con la identidad visual única de Dalet."""
 
     @staticmethod
-    def _extract_score(play: dict) -> int:
-        """Obtiene el puntaje correcto tanto para scores de Lazer como Classic/Bancho."""
+    def _extract_score(play: dict) -> str:
+        """Obtiene el puntaje formateado tanto para scores de Lazer como Classic/Bancho y fallidos."""
         for key in ("classic_total_score", "total_score", "legacy_total_score", "score"):
             val = play.get(key)
             if val is not None and val > 0:
-                return val
-        return play.get("score") or play.get("total_score") or 0
+                return f"{val:,}"
+
+        # Si el score viene en 0 de Bancho por ser jugada fallida (F)
+        if not play.get("passed", True) or str(play.get("rank", "")).upper() == "F":
+            stats = play.get("statistics", {})
+            c300 = stats.get("count_300", 0)
+            c100 = stats.get("count_100", 0)
+            c50 = stats.get("count_50", 0)
+            base_score = (c300 * 300) + (c100 * 100) + (c50 * 50)
+            if base_score > 0:
+                return f"~{base_score:,}"
+            return "Fallido"
+
+        return "0"
 
     @staticmethod
     def build_recent_card(username: str, mode: str, play: dict, user_data: dict = None) -> discord.Embed:
@@ -133,7 +145,7 @@ class OsuPresenter:
         embed.add_field(
             name="Puntuación",
             value=(
-                f"{DaletAtoms.GLYPH_POINTER} **Score**: `{score:,}`\n"
+                f"{DaletAtoms.GLYPH_POINTER} **Score**: `{score}`\n"
                 f"{DaletAtoms.GLYPH_POINTER} **Hits**: `{hits_str}`\n"
                 f"{DaletAtoms.GLYPH_POINTER} **Misses**: `{miss}`"
             ),
@@ -224,7 +236,7 @@ class OsuPresenter:
             block = (
                 f"**{i}.** **[{title} [{version}]]({map_url})** **{mods}** ` {stars:.2f}★ `\n"
                 f"{DaletAtoms.GLYPH_POINTER} ` {rank} ` │ **{pp:.2f}pp** │ `{acc}` │ `{combo_str}`\n"
-                f"{DaletAtoms.GLYPH_POINTER} Score: `{score:,}` │ `{hits_str}` │ {rel_time}\n"
+                f"{DaletAtoms.GLYPH_POINTER} Score: `{score}` │ `{hits_str}` │ {rel_time}\n"
                 f"{DaletAtoms.GLYPH_POINTER} `{length_str}` │ `{bpm:.0f} BPM` │ `AR {ar} OD {od} HP {hp} CS {cs}`"
             )
             entries.append(block)
