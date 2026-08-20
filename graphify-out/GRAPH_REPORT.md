@@ -1,16 +1,16 @@
 # Graph Report - Dalet-Proyect  (2026-08-19)
 
 ## Corpus Check
-- 65 files · ~74,115 words
+- 66 files · ~76,553 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 709 nodes · 1149 edges · 42 communities (37 shown, 5 thin omitted)
-- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 46 edges (avg confidence: 0.5)
+- 726 nodes · 1182 edges · 43 communities (39 shown, 4 thin omitted)
+- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 48 edges (avg confidence: 0.5)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `390c0f15`
+- Built from commit: `dfa163f2`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -22,31 +22,32 @@
 - AdminCommands
 - AIConfigCommands
 - OsuService
-- NLPService
-- dalet_osucommands.py
+- .build_recent_card
+- TursoClient
 - OsuAnalyzer
 - DaletAtoms
 - UserRepository
 - EventsHandler
 - DaletNLPChat
-- .build_recent_card
-- 📋 Components Explained
+- .add_standard_footer
+- docs/README.md
 - 🎨 Dalet Design System (Atomic UI)
 - ChatLogger
 - dalet_main.py
 - UniversalPaginator
-- .fetch_all
+- 📋 Components Explained
 - DaletGreetings
 - ResumenInteligente
 - CommandsHandler
 - Dalet
 - HelpPaginator
 - BaseRepository
+- MemoryService
 - .execute
 - 🧩 Handlers (Cogs) — Command Modules
 - 🤖 `nlp_service.py` — Response Generator
 - ReminderRepository
-- 🏛️ Tables
+- .get_rank_color
 - SQLiteManager
 - rules/graphify.md
 - workflows/graphify.md
@@ -59,32 +60,32 @@
 3. `UserRepository` - 23 edges
 4. `DaletReminders` - 22 edges
 5. `DaletOrganisms` - 21 edges
-6. `OsuHandler` - 18 edges
-7. `DaletMolecules` - 18 edges
-8. `SQLiteManager` - 17 edges
+6. `SQLiteManager` - 19 edges
+7. `OsuHandler` - 18 edges
+8. `DaletMolecules` - 18 edges
 9. `OsuService` - 17 edges
 10. `BaseRepository` - 16 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `DaletReminders` --uses--> `ReminderRepository`  [INFERRED]
   handlers/dalet_reminders.py → database/repositories/reminder_repository.py
-- `NLPService` --uses--> `UserRepository`  [INFERRED]
-  services/nlp_service.py → database/repositories/user_repository.py
 - `AdminCommands` --uses--> `SQLiteManager`  [INFERRED]
   handlers/dalet_admcommands_handler.py → database/sqlite_manager.py
+- `DashboardService` --uses--> `SQLiteManager`  [INFERRED]
+  services/dashboard_service.py → database/sqlite_manager.py
 - `DaletReminders` --uses--> `TursoClient`  [INFERRED]
   handlers/dalet_reminders.py → database/turso_client.py
-- `CommandsHandler` --uses--> `DaletAtoms`  [INFERRED]
-  handlers/dalet_commands_handlers.py → ui/atoms.py
+- `DashboardService` --uses--> `TursoClient`  [INFERRED]
+  services/dashboard_service.py → database/turso_client.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (42 total, 5 thin omitted)
+## Communities (43 total, 4 thin omitted)
 
 ### Community 0 - "OsuHandler"
-Cohesion: 0.12
-Nodes (12): OsuHandler, command, Member, Vincula tu cuenta de Discord con tu perfil de osu!., Desvincula tu cuenta de osu!., Muestra el perfil completo de osu! de un jugador., Compara tu perfil de osu! contra otro jugador. Uso: d.compare usuario [-modo], Comandos de osu! — perfil, jugadas, análisis y ranking. (+4 more)
+Cohesion: 0.08
+Nodes (23): File, _acc_str(), _create_progress_chart_sync(), _mods_str(), OsuHandler, command, Member, _rank_color() (+15 more)
 
 ### Community 1 - "SlashCommands"
 Cohesion: 0.17
@@ -110,13 +111,13 @@ Nodes (17): group, AIConfigCommands, command, has_permissions, TextChannel, 🤖
 Cohesion: 0.12
 Nodes (11): OsuService, Información de un beatmap específico., Top scores globales de un beatmap., Busca beatmaps con filtros., Perfil completo de un usuario., Perfil de un usuario por ID numérico., Top plays del usuario., Jugadas recientes del usuario. (+3 more)
 
-### Community 7 - "NLPService"
-Cohesion: 0.20
-Nodes (6): NLPService, Recorta el contexto de forma dinámica para optimizar consumo de tokens., Describe una imagen usando el modelo principal con caché en RAM., Servicio de Procesamiento de Lenguaje Natural para Dalet con Smart LLM Load…, Cierra recursos del cliente HTTP., Determina dinámicamente qué proveedor usar según intención, salud y cuota.
+### Community 7 - ".build_recent_card"
+Cohesion: 0.19
+Nodes (9): _format_acc(), _format_mods(), Construye un Embed estructurado con los Top Plays del usuario., Formatea la precisión (0.0 a 1.0) a porcentaje XX.XX%., Obtiene el puntaje formateado tanto para scores de Lazer como Classic/Bancho y…, Formatea la lista de mods en un string compacto tipo +HDDT o +NM., Construye una tarjeta de jugada reciente única, estructurada y sin ruido visual., Convierte una fecha ISO a formato Discord timestamp relativo. (+1 more)
 
-### Community 8 - "dalet_osucommands.py"
-Cohesion: 0.16
-Nodes (12): File, _acc_str(), _create_progress_chart_sync(), _mods_str(), _rank_color(), Muestra tu última jugada de osu! con todos los detalles., Convierte lista de mods a string legible (ej. +HDDT)., Muestra tus mejores plays y una gráfica de distribución de PP. (+4 more)
+### Community 8 - "TursoClient"
+Cohesion: 0.24
+Nodes (5): DatabasePool, Bridge de compatibilidad hacia TursoClient., Devuelve el cliente de Turso. Si la BD no está disponible, devuelve None. NUNCA…, TursoClient, main()
 
 ### Community 9 - "OsuAnalyzer"
 Cohesion: 0.09
@@ -126,6 +127,10 @@ Nodes (15): OsuRepository, OsuAnalyzer, Módulo de Lógica de Análisis de osu! 
 Cohesion: 0.18
 Nodes (13): CustomHelpCommand, Handler (Cog) para el Comando de Ayuda Personalizado de Dalet. Sistema…, Reemplaza el comando de ayuda por defecto con un panel visual e interactivo., setup(), OsuPresenter, Presentador de UI para osu! con la identidad visual única de Dalet., Slash Commands (Application Commands) de Dalet. Unifica y expone los comandos…, DaletAtoms (+5 more)
 
+### Community 11 - "UserRepository"
+Cohesion: 0.08
+Nodes (11): Obtiene los últimos mensajes de un canal desde SQLite y el buffer de memoria., Busca fragmentos de mensajes pasados en SQLite., Inicia la tarea de vaciado del buffer si no está activa., UserRepository, NLPService, Cierra recursos del cliente HTTP., Determina dinámicamente qué proveedor usar según intención, salud y cuota., Servicio de Procesamiento de Lenguaje Natural para Dalet con Smart LLM Load… (+3 more)
+
 ### Community 12 - "EventsHandler"
 Cohesion: 0.18
 Nodes (9): Guild, EventsHandler, listener, Handler de Eventos Globales de Discord. Maneja: on_ready, on_command_error,…, Agrupa los listeners de eventos globales del bot., Se ejecuta cuando el bot está listo y conectado., Manejo global de errores de comandos., Envía presentación cuando el bot entra a un servidor nuevo. (+1 more)
@@ -134,13 +139,13 @@ Nodes (9): Guild, EventsHandler, listener, Handler de Eventos Globales de Discor
 Cohesion: 0.13
 Nodes (12): DaletNLPChat, listener, loop, Message, Controla las sesiones reactive por usuario/servidor. Retorna: 'ok' → responder…, Centraliza el manejo de errores 429 con backoff exponencial., Decide si el bot debe responder proactivamente en este mensaje., Maneja el listener 'on_message' para las respuestas de IA. (+4 more)
 
-### Community 14 - ".build_recent_card"
-Cohesion: 0.08
-Nodes (22): Color, _format_acc(), _format_mods(), _get_country_flag(), _mode_title(), Embed, Construye un Embed estructurado con los Top Plays del usuario., Formatea la precisión (0.0 a 1.0) a porcentaje XX.XX%. (+14 more)
+### Community 14 - ".add_standard_footer"
+Cohesion: 0.13
+Nodes (11): _get_country_flag(), _mode_title(), Embed, Construye la tarjeta de perfil osu! limpia y estructurada., Convierte un código ISO de país (ej. 'CO', 'US') en su emoji de bandera., Construye una tarjeta comparativa limpia entre dos jugadores., Embed, Añade el footer minimalista y característico de Dalet. (+3 more)
 
-### Community 15 - "📋 Components Explained"
-Cohesion: 0.05
-Nodes (38): 🧩 Design Pattern: Cogs, 🗺️ Design Pattern: Repository, 🏗️ General Architecture of Dalet, 🔄 Main Flow: "What happens when someone mentions Dalet?", 🗄️ Message Logging Flow (Batch Logging), 🧠 ¿Qué es Dalet?, 🔁 Resilience & Fallbacks, ⚙️ Tech Stack (+30 more)
+### Community 15 - "docs/README.md"
+Cohesion: 0.04
+Nodes (40): 🧩 Design Pattern: Cogs, 🗺️ Design Pattern: Repository, 🏗️ General Architecture of Dalet, 🔄 Main Flow: "What happens when someone mentions Dalet?", 🗄️ Message Logging Flow (Batch Logging), 🧠 ¿Qué es Dalet?, 🔁 Resilience & Fallbacks, ⚙️ Tech Stack (+32 more)
 
 ### Community 16 - "🎨 Dalet Design System (Atomic UI)"
 Cohesion: 0.17
@@ -151,16 +156,16 @@ Cohesion: 0.17
 Nodes (9): ChatLogger, command, has_permissions, listener, Message, Guarda mensajes de usuarios (no comandos, no bots) en el buffer de SQLite., [ADMIN] Muestra los últimos mensajes guardados en este canal., Registra mensajes en SQLite para memoria de contexto e historial. El on_message… (+1 more)
 
 ### Community 18 - "dalet_main.py"
-Cohesion: 0.16
-Nodes (10): home(), keep_alive(), load_extensions(), main(), run_flask(), route, MemoryService, Construye el contexto de conversación combinando: 1. Historial reciente del… (+2 more)
+Cohesion: 0.13
+Nodes (16): api_telemetry(), health(), home(), keep_alive(), load_extensions(), main(), Sirve la interfaz web del Dashboard de telemetría., Devuelve métricas en tiempo real en formato JSON. (+8 more)
 
 ### Community 19 - "UniversalPaginator"
 Cohesion: 0.29
 Nodes (5): button, Interaction, Paginador definitivo para el Súper Análisis de Dalet (3 Páginas)., Re-añade los campos de stats que podrian haberse borrado al limpiar campos., UniversalPaginator
 
-### Community 20 - ".fetch_all"
-Cohesion: 0.29
-Nodes (3): Obtiene el historial de PP de un jugador desde SQLite., Obtiene los últimos mensajes de un canal desde SQLite y el buffer de memoria., Busca fragmentos de mensajes pasados en SQLite.
+### Community 20 - "📋 Components Explained"
+Cohesion: 0.15
+Nodes (12): 📋 Components Explained, `DatabasePool.get_pool()` — Database Initialization, 🚀 Entry Point: `dalet_main.py`, Expired Message Purge (Privacy TTL), Flask Server (Health Check), Global Block Check (Security Middleware), Instantiating Repositories and Services, `load_extensions(bot)` — Dynamic Cog Loading (+4 more)
 
 ### Community 21 - "DaletGreetings"
 Cohesion: 0.31
@@ -171,8 +176,8 @@ Cohesion: 0.24
 Nodes (6): command, 📄 Genera un resumen de los últimos N mensajes del canal. Uso: `d.resumir…, 📜 Muestra los últimos resúmenes guardados para este canal. Uso:…, Comandos para generar y ver resúmenes de chat., ResumenInteligente, setup()
 
 ### Community 23 - "CommandsHandler"
-Cohesion: 0.12
-Nodes (13): cooldown, CommandsHandler, command, Member, Comandos básicos de Dalet (utilidades, info y herramientas generales)., 🏓 Muestra la latencia del bot en milisegundos., 📊 Muestra tus estadísticas sociales o las de otro usuario., Muestra información detallada de un usuario del servidor. (+5 more)
+Cohesion: 0.14
+Nodes (12): cooldown, CommandsHandler, command, Member, Comandos básicos de Dalet (utilidades, info y herramientas generales)., 🏓 Muestra la latencia del bot en milisegundos., 📊 Muestra tus estadísticas sociales o las de otro usuario., Muestra información detallada de un usuario del servidor. (+4 more)
 
 ### Community 24 - "Dalet"
 Cohesion: 0.13
@@ -183,8 +188,12 @@ Cohesion: 0.13
 Nodes (13): CategorySelect, HelpPaginator, PageInputModal, button, Embed, Interaction, Menú desplegable para saltar directamente a una categoría., Vista con botones de navegación y select menu de categorías. (+5 more)
 
 ### Community 26 - "BaseRepository"
-Cohesion: 0.08
-Nodes (17): DatabasePool, Bridge de compatibilidad hacia TursoClient., AdminRepository, Activa o desactiva el bloqueo de comandos en un canal., Obtiene el nombre personalizado del bot para un servidor., Establece un nombre personalizado para el bot en un servidor., Obtiene el ID del canal de bienvenida de un servidor., Establece o elimina el canal de bienvenida para un servidor. (+9 more)
+Cohesion: 0.10
+Nodes (12): AdminRepository, Activa o desactiva el bloqueo de comandos en un canal., Obtiene el nombre personalizado del bot para un servidor., Establece un nombre personalizado para el bot en un servidor., Obtiene el ID del canal de bienvenida de un servidor., Establece o elimina el canal de bienvenida para un servidor., Verifica si los comandos están bloqueados en un canal., BaseRepository (+4 more)
+
+### Community 27 - "MemoryService"
+Cohesion: 0.25
+Nodes (4): MemoryService, Construye el contexto de conversación combinando: 1. Historial reciente del…, Guarda una memoria sobre el usuario en la BD., Servicio de memoria que combina historial local (RAM) con historial de BD. Sin…
 
 ### Community 28 - ".execute"
 Cohesion: 0.21
@@ -202,27 +211,27 @@ Nodes (17): AI Providers, Authentication, Core Methods, Dalet's Personality, Fal
 Cohesion: 0.16
 Nodes (9): Obtiene un recordatorio específico por su ID., Elimina un recordatorio de la base de datos (Turso y SQLite fallback)., Activa/desactiva un recordatorio. Retorna el nuevo estado., Guarda un nuevo recordatorio en la base de datos remota PostgreSQL (Neon) o…, Actualiza los campos especificados en `updates` para el recordatorio…, Retorna los recordatorios creados por un usuario en un servidor específico., Retorna todos los recordatorios activos en todo el sistema., ReminderRepository (+1 more)
 
-### Community 37 - "🏛️ Tables"
-Cohesion: 0.13
-Nodes (14): `AIInteractions` — AI Performance Metrics, `Channels` — Discord Channels, `Messages` — Message History, `OsuAccounts` — Linked osu! Accounts, 🔒 Privacy System (`08_Privacy_TTL.sql`), 📋 Script Execution Order, `Servers` — Discord Servers, 🔧 SQL Functions (+6 more)
+### Community 37 - ".get_rank_color"
+Cohesion: 0.29
+Nodes (4): Color, Devuelve un color de acento basado en el rango global numérico., Devuelve el color correspondiente al grade de osu!., Organismo complejo para mostrar el perfil de osu!.
 
 ### Community 39 - "SQLiteManager"
-Cohesion: 0.21
-Nodes (5): Connection, Calcula estadísticas agregadas desde SQLite., Inserción masiva eficiente — usa una sola transacción., Crea las tablas si no existen. Se llama internamente con el lock activo., SQLiteManager
+Cohesion: 0.17
+Nodes (6): Connection, Obtiene el historial de PP de un jugador desde SQLite., Calcula estadísticas agregadas desde SQLite., Inserción masiva eficiente — usa una sola transacción., Crea las tablas si no existen. Se llama internamente con el lock activo., SQLiteManager
 
 ## Knowledge Gaps
 - **107 isolated node(s):** `graphify`, `Workflow: graphify`, `✨ Features`, `🛠 Tech Stack`, `Prerequisites` (+102 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **5 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **4 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `DaletAtoms` connect `DaletAtoms` to `OsuHandler`, `SlashCommands`, `DaletReminders`, `AIConfigCommands`, `dalet_osucommands.py`, `.build_recent_card`, `CommandsHandler`, `HelpPaginator`?**
-  _High betweenness centrality (0.168) - this node is a cross-community bridge._
-- **Why does `DaletReminders` connect `DaletReminders` to `DaletAtoms`, `BaseRepository`, `ReminderRepository`?**
-  _High betweenness centrality (0.100) - this node is a cross-community bridge._
-- **Why does `DaletOrganisms` connect `DaletAtoms` to `OsuHandler`, `SlashCommands`, `DaletReminders`, `dalet_osucommands.py`, `.build_recent_card`, `CommandsHandler`, `HelpPaginator`?**
+- **Why does `DaletAtoms` connect `DaletAtoms` to `OsuHandler`, `SlashCommands`, `DaletReminders`, `AIConfigCommands`, `.get_rank_color`, `.build_recent_card`, `CommandsHandler`, `HelpPaginator`?**
+  _High betweenness centrality (0.167) - this node is a cross-community bridge._
+- **Why does `DaletReminders` connect `DaletReminders` to `TursoClient`, `DaletAtoms`, `ReminderRepository`?**
+  _High betweenness centrality (0.102) - this node is a cross-community bridge._
+- **Why does `DaletOrganisms` connect `DaletAtoms` to `OsuHandler`, `SlashCommands`, `DaletReminders`, `.get_rank_color`, `.add_standard_footer`, `CommandsHandler`, `HelpPaginator`?**
   _High betweenness centrality (0.085) - this node is a cross-community bridge._
 - **Are the 12 inferred relationships involving `DaletAtoms` (e.g. with `CommandsHandler` and `AIConfigCommands`) actually correct?**
   _`DaletAtoms` has 12 INFERRED edges - model-reasoned connections that need verification._

@@ -67,12 +67,70 @@ class NLPService:
         self._groq_cooldown_until = 0.0
         self._request_counter = 0
 
+        # Telemetría de tokens y latencia en RAM
+        self.telemetry = {
+            "start_time": time.time(),
+            "gemini": {
+                "requests": 0,
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "errors": 0,
+                "latencies_ms": []
+            },
+            "groq": {
+                "requests": 0,
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "errors": 0,
+                "latencies_ms": []
+            },
+            "recent_interactions": []  # Últimas 15 interacciones con detalle
+        }
+
         # Cliente HTTP persistente
         self._http_client = httpx.AsyncClient(timeout=25.0)
         # Caché de visión en RAM {url_hash: description}
         self._vision_cache = {}
 
         logger.info(f"NLPService iniciado con Smart Load Balancer. Modo: '{self.routing_mode}'")
+
+    def get_telemetry(self) -> dict:
+        """Devuelve un snapshot de telemetría de IA listo para el Dashboard."""
+        now = time.time()
+        gemini_lat = self.telemetry["gemini"]["latencies_ms"]
+        groq_lat = self.telemetry["groq"]["latencies_ms"]
+
+        avg_gemini = round(sum(gemini_lat[-20:]) / len(gemini_lat[-20:])) if gemini_lat else 0
+        avg_groq = round(sum(groq_lat[-20:]) / len(groq_lat[-20:])) if groq_lat else 0
+
+        return {
+            "routing_mode": self.routing_mode,
+            "uptime_seconds": int(now - self.telemetry["start_time"]),
+            "gemini": {
+                "model": os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip(),
+                "healthy": self._is_gemini_healthy(),
+                "cooldown_remaining": max(0, int(self._gemini_cooldown_until - now)),
+                "requests": self.telemetry["gemini"]["requests"],
+                "prompt_tokens": self.telemetry["gemini"]["prompt_tokens"],
+                "completion_tokens": self.telemetry["gemini"]["completion_tokens"],
+                "total_tokens": self.telemetry["gemini"]["prompt_tokens"] + self.telemetry["gemini"]["completion_tokens"],
+                "avg_latency_ms": avg_gemini,
+                "errors": self.telemetry["gemini"]["errors"]
+            },
+            "groq": {
+                "model": (os.getenv("GROQ_MODEL") or "llama-3.3-70b-versatile").strip(),
+                "fallback_model": (os.getenv("GROQ_MODEL_FALLBACK") or "llama-3.1-8b-instant").strip(),
+                "healthy": self._is_groq_healthy(),
+                "cooldown_remaining": max(0, int(self._groq_cooldown_until - now)),
+                "requests": self.telemetry["groq"]["requests"],
+                "prompt_tokens": self.telemetry["groq"]["prompt_tokens"],
+                "completion_tokens": self.telemetry["groq"]["completion_tokens"],
+                "total_tokens": self.telemetry["groq"]["prompt_tokens"] + self.telemetry["groq"]["completion_tokens"],
+                "avg_latency_ms": avg_groq,
+                "errors": self.telemetry["groq"]["errors"]
+            },
+            "recent_interactions": self.telemetry["recent_interactions"][-15:]
+        }
 
     async def close(self):
         """Cierra recursos del cliente HTTP."""
@@ -193,8 +251,9 @@ class NLPService:
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         prompt = f"Conversación reciente:\n{context}{vision_context}\n\n{username}: \"{trigger}\""
 
+        t0 = time.time()
         try:
-            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
             logger.info(f"Llamando Gemini: {model_name} (fallback={is_fallback}, search={needs_web_search})")
 
             tools = [types.Tool(google_search=types.GoogleSearch())] if needs_web_search else None
@@ -214,12 +273,41 @@ class NLPService:
             )
 
             if response and response.text:
-                return response.text.strip()
+                latency_ms = int((time.time() - t0) * 1000)
+                reply_text = response.text.strip()
+
+                # Extracción de tokens
+                usage = getattr(response, "usage_metadata", None)
+                p_tokens = getattr(usage, "prompt_token_count", None) or (len(prompt) // 4)
+                c_tokens = getattr(usage, "candidates_token_count", None) or (len(reply_text) // 4)
+
+                # Actualizar telemetría
+                self.telemetry["gemini"]["requests"] += 1
+                self.telemetry["gemini"]["prompt_tokens"] += p_tokens
+                self.telemetry["gemini"]["completion_tokens"] += c_tokens
+                self.telemetry["gemini"]["latencies_ms"].append(latency_ms)
+                if len(self.telemetry["gemini"]["latencies_ms"]) > 50:
+                    self.telemetry["gemini"]["latencies_ms"].pop(0)
+
+                self.telemetry["recent_interactions"].append({
+                    "provider": "Gemini",
+                    "model": model_name,
+                    "user": username,
+                    "trigger": trigger[:50] + ("..." if len(trigger) > 50 else ""),
+                    "latency_ms": latency_ms,
+                    "prompt_tokens": p_tokens,
+                    "completion_tokens": c_tokens,
+                    "timestamp": time.strftime("%H:%M:%S")
+                })
+                if len(self.telemetry["recent_interactions"]) > 30:
+                    self.telemetry["recent_interactions"].pop(0)
+
+                return reply_text
             return None
 
         except Exception as e:
             logger.error(f"Error llamando Gemini: {e}")
-            # Circuit breaker: abrir circuito por 60 segundos si es 429
+            self.telemetry["gemini"]["errors"] += 1
             if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
                 logger.warning("Gemini 429 detectado. Circuit Breaker abierto por 60s.")
                 self._gemini_cooldown_until = time.time() + 60
@@ -265,6 +353,7 @@ class NLPService:
             "max_tokens": max_tokens
         }
 
+        t0 = time.time()
         try:
             logger.info(f"Llamando Groq: {model_name} (fallback={is_fallback})")
             response = await self._http_client.post(url, headers=headers, json=data)
@@ -272,21 +361,52 @@ class NLPService:
             if response.status_code == 429:
                 logger.warning(f"Groq 429 Rate Limit en {model_name}. Circuit Breaker abierto por 60s.")
                 self._groq_cooldown_until = time.time() + 60
+                self.telemetry["groq"]["errors"] += 1
                 return None
 
             if response.status_code != 200:
                 error_body = response.text
                 logger.error(f"Groq error HTTP {response.status_code} ({model_name}): {error_body}")
-                # Si el modelo no existe (404) o credencial inválida (401), pausar Groq para no frenar al bot
+                self.telemetry["groq"]["errors"] += 1
                 if response.status_code in (401, 404):
                     self._groq_cooldown_until = time.time() + 300
                 return None
 
             result = response.json()
-            return result['choices'][0]['message']['content'].strip()
+            reply_text = result['choices'][0]['message']['content'].strip()
+            latency_ms = int((time.time() - t0) * 1000)
+
+            # Extracción de tokens
+            usage = result.get("usage", {})
+            p_tokens = usage.get("prompt_tokens") or (len(user_msg) // 4)
+            c_tokens = usage.get("completion_tokens") or (len(reply_text) // 4)
+
+            # Actualizar telemetría
+            self.telemetry["groq"]["requests"] += 1
+            self.telemetry["groq"]["prompt_tokens"] += p_tokens
+            self.telemetry["groq"]["completion_tokens"] += c_tokens
+            self.telemetry["groq"]["latencies_ms"].append(latency_ms)
+            if len(self.telemetry["groq"]["latencies_ms"]) > 50:
+                self.telemetry["groq"]["latencies_ms"].pop(0)
+
+            self.telemetry["recent_interactions"].append({
+                "provider": "Groq",
+                "model": model_name,
+                "user": username,
+                "trigger": trigger[:50] + ("..." if len(trigger) > 50 else ""),
+                "latency_ms": latency_ms,
+                "prompt_tokens": p_tokens,
+                "completion_tokens": c_tokens,
+                "timestamp": time.strftime("%H:%M:%S")
+            })
+            if len(self.telemetry["recent_interactions"]) > 30:
+                self.telemetry["recent_interactions"].pop(0)
+
+            return reply_text
 
         except Exception as e:
             logger.error(f"Groq falló ({model_name}): {e}")
+            self.telemetry["groq"]["errors"] += 1
             self._groq_cooldown_until = time.time() + 30
             return None
 

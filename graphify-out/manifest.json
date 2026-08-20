@@ -1,7 +1,7 @@
 {
   "dalet_main.py": {
-    "mtime": 1786846811.117179,
-    "ast_hash": "bdea2792810bbe3f74afc3cf48de8fa6",
+    "mtime": 1787201417.7053819,
+    "ast_hash": "d7c88aba52b433ee06ebd2c3217e466a",
     "semantic_hash": ""
   },
   "database/__init__.py": {
@@ -145,8 +145,8 @@
     "semantic_hash": ""
   },
   "services/nlp_service.py": {
-    "mtime": 1787195945.4285805,
-    "ast_hash": "81700505cee8060d8b17d112cb4f279a",
+    "mtime": 1787201360.173796,
+    "ast_hash": "1675edd8f22fb51bb6269f0be578597e",
     "semantic_hash": ""
   },
   "services/osu_service.py": {
@@ -255,8 +255,8 @@
     "semantic_hash": ""
   },
   "handlers/dalet_osu_presenter.py": {
-    "mtime": 1787196731.347523,
-    "ast_hash": "b7a71e6330771873ffa0508028221fa9",
+    "mtime": 1787200225.9653046,
+    "ast_hash": "f708bf8ee703b7e20d12cfcbf428e179",
     "semantic_hash": ""
   },
   "assets/bannersito.png": {
@@ -267,6 +267,11 @@
   "docs/08_DESIGN_SYSTEM.md": {
     "mtime": 1787194788.8167224,
     "ast_hash": "cb84c9e9e6693efee8cba1b49e69fc6b",
+    "semantic_hash": ""
+  },
+  "services/dashboard_service.py": {
+    "mtime": 1787201388.5667043,
+    "ast_hash": "9cb8f9098020930fb740b23470359e30",
     "semantic_hash": ""
   }
 }
