@@ -43,7 +43,7 @@ class NLPService:
         from dotenv import load_dotenv
         load_dotenv(override=True)
 
-        self.gemini_api_key = gemini_api_key
+        self.gemini_api_key = (gemini_api_key or "").strip()
         self.client = None
         if self.gemini_api_key:
             try:
@@ -54,12 +54,12 @@ class NLPService:
             except Exception as e:
                 logger.error(f"Error inicializando cliente Gemini: {e}")
 
-        self.groq_api_key = os.getenv("GROQ_API_KEY")
+        self.groq_api_key = (os.getenv("GROQ_API_KEY") or "").strip()
         self.repo = user_repo or UserRepository()
 
         # Modo de enrutamiento: "auto" / "balanced" (default), "gemini" o "groq"
         raw_mode = os.getenv("AI_ROUTING_MODE") or os.getenv("AI_PROVIDER") or "auto"
-        self.routing_mode = raw_mode.lower()
+        self.routing_mode = raw_mode.strip().lower()
         self.active_provider = self.routing_mode
 
         # Estado del Circuit Breaker (timestamps hasta cuando está en cooldown cada proveedor)
@@ -235,8 +235,8 @@ class NLPService:
 
         active_room_users = kwargs.get("active_room_users", "")
 
-        model_primary = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-        model_fallback = os.getenv("GROQ_MODEL_FALLBACK", "llama-3.1-8b-instant")
+        model_primary = (os.getenv("GROQ_MODEL") or "llama-3.3-70b-versatile").strip()
+        model_fallback = (os.getenv("GROQ_MODEL_FALLBACK") or "llama-3.1-8b-instant").strip()
         model_name = model_fallback if is_fallback else model_primary
 
         url = "https://api.groq.com/openai/v1/chat/completions"
@@ -270,16 +270,24 @@ class NLPService:
             response = await self._http_client.post(url, headers=headers, json=data)
 
             if response.status_code == 429:
-                logger.warning(f"Groq 429 en {model_name}. Circuit Breaker abierto por 60s.")
+                logger.warning(f"Groq 429 Rate Limit en {model_name}. Circuit Breaker abierto por 60s.")
                 self._groq_cooldown_until = time.time() + 60
                 return None
 
-            response.raise_for_status()
+            if response.status_code != 200:
+                error_body = response.text
+                logger.error(f"Groq error HTTP {response.status_code} ({model_name}): {error_body}")
+                # Si el modelo no existe (404) o credencial inválida (401), pausar Groq para no frenar al bot
+                if response.status_code in (401, 404):
+                    self._groq_cooldown_until = time.time() + 300
+                return None
+
             result = response.json()
             return result['choices'][0]['message']['content'].strip()
 
         except Exception as e:
             logger.error(f"Groq falló ({model_name}): {e}")
+            self._groq_cooldown_until = time.time() + 30
             return None
 
     def _trim_context_smart(self, context: str, trigger: str) -> str:
