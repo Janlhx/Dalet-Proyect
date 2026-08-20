@@ -283,12 +283,16 @@ class NLPService:
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         prompt = f"Conversación reciente:\n{context}{vision_context}\n\n{username}: \"{trigger}\""
 
-        # Cadena de modelos de Gemini en caso de 503 o alta demanda
-        primary_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
-        models_to_try = [primary_model]
-        for fallback_m in ("gemini-2.0-flash", "gemini-1.5-flash"):
-            if fallback_m not in models_to_try:
-                models_to_try.append(fallback_m)
+        # Cadena de modelos de Gemini (priorizando gemini-2.0-flash con 1500 RPD)
+        primary_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash").strip()
+        if primary_model == "gemini-2.5-flash":
+            # 2.5 flash solo permite 20 RPD en free tier, priorizamos 2.0
+            models_to_try = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
+        else:
+            models_to_try = [primary_model]
+            for fallback_m in ("gemini-2.0-flash", "gemini-1.5-flash"):
+                if fallback_m not in models_to_try:
+                    models_to_try.append(fallback_m)
 
         tools = [types.Tool(google_search=types.GoogleSearch())] if needs_web_search else None
         max_tokens = kwargs.get("max_tokens_override", 420 if is_reactive else 700)
@@ -304,10 +308,13 @@ class NLPService:
             t0 = time.time()
             try:
                 logger.info(f"Llamando Gemini: {model_name} (fallback={is_fallback}, search={needs_web_search})")
-                response = await self.client.aio.models.generate_content(
-                    model=model_name,
-                    contents=prompt,
-                    config=config
+                response = await asyncio.wait_for(
+                    self.client.aio.models.generate_content(
+                        model=model_name,
+                        contents=prompt,
+                        config=config
+                    ),
+                    timeout=6.0
                 )
 
                 if response and response.text:
@@ -340,6 +347,9 @@ class NLPService:
 
                     return reply_text
 
+            except asyncio.TimeoutError:
+                logger.warning(f"Timeout (6s) en Gemini {model_name}. Intentando siguiente...")
+                continue
             except Exception as e:
                 logger.warning(f"Gemini {model_name} falló ({e}). Intentando siguiente modelo...")
                 if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
@@ -362,13 +372,17 @@ class NLPService:
         active_room_users = kwargs.get("active_room_users", "")
 
         # Modelos activos en Groq según catálogo oficial
-        primary_groq = (os.getenv("GROQ_MODEL") or "openai/gpt-oss-120b").strip()
+        raw_groq = (os.getenv("GROQ_MODEL") or "openai/gpt-oss-120b").strip()
+        # Si tiene el nombre deprecado antiguo, auto-reemplazar a gpt-oss-120b
+        if "llama-3.3-70b-versatile" in raw_groq:
+            raw_groq = "openai/gpt-oss-120b"
+
+        primary_groq = raw_groq
         groq_models_to_try = [primary_groq]
         catalog_candidates = (
             "openai/gpt-oss-120b",
             "openai/gpt-oss-20b",
             "meta-llama/llama-3.3-70b-instruct",
-            "llama-3.3-70b-versatile",
             "qwen/qwen-3.6-27b",
             "llama-3.1-8b-instant"
         )
@@ -406,7 +420,7 @@ class NLPService:
 
             try:
                 logger.info(f"Llamando Groq: {model_name} (fallback={is_fallback})")
-                response = await self._http_client.post(url, headers=headers, json=data)
+                response = await self._http_client.post(url, headers=headers, json=data, timeout=6.0)
 
                 if response.status_code == 429:
                     logger.warning(f"Groq 429 Rate Limit en {model_name}. Circuit Breaker abierto por 60s.")
@@ -452,6 +466,9 @@ class NLPService:
 
                 return reply_text
 
+            except asyncio.TimeoutError:
+                logger.warning(f"Timeout (6s) en Groq {model_name}. Intentando siguiente...")
+                continue
             except Exception as e:
                 logger.warning(f"Groq excepción con {model_name}: {e}. Probando siguiente...")
 

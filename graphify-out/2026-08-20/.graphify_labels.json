@@ -14,7 +14,7 @@
   "12": "EventsHandler",
   "13": "DaletNLPChat",
   "14": ".add_standard_footer",
-  "15": "docs/README.md",
+  "15": "🗄️ Database — Connection Pool & Repositories",
   "16": "🎨 Dalet Design System (Atomic UI)",
   "17": "ChatLogger",
   "18": "dalet_main.py",
@@ -37,7 +37,14 @@
   "35": "🤖 `nlp_service.py` — Response Generator",
   "36": "ReminderRepository",
   "37": ".get_rank_color",
+  "38": "All Variables",
   "39": "SQLiteManager",
+  "40": "docs/README.md",
   "41": "rules/graphify.md",
-  "42": "workflows/graphify.md"
+  "42": "workflows/graphify.md",
+  "43": "🏗️ General Architecture of Dalet",
+  "44": "SQL Migration Guide for Neon (Dalet Restructuring)",
+  "45": "📖 Project Documentation Index",
+  "46": ".create_button",
+  "47": ".create_field"
 }

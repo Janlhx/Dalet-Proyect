@@ -427,7 +427,7 @@ class DaletNLPChat(commands.Cog):
             ][:8]
             active_users = ", ".join(members_list)
 
-            # Generar respuesta con protección de timeout estricto (máx 20s)
+            # Generar respuesta con protección de timeout estricto (máx 25s)
             async with self.bot.discord_semaphore:
                 try:
                     async with message.channel.typing():
@@ -443,10 +443,10 @@ class DaletNLPChat(commands.Cog):
                                 active_room_users=active_users,
                                 is_reactive=is_reactive,
                             ),
-                            timeout=20.0
+                            timeout=25.0
                         )
                 except asyncio.TimeoutError:
-                    logger.warning(f"Timeout (20s) generando respuesta para {message.author.display_name}")
+                    logger.warning(f"Timeout (25s) generando respuesta para {message.author.display_name}")
                     reply = None
                 except discord.HTTPException as e:
                     if e.status == 429:
