@@ -183,9 +183,12 @@ async def main():
 
                 flush_task.cancel()
 
-                # Flush final del buffer de logs antes de cerrar
+                # Flush final del buffer de logs antes de cerrar y liberar recursos
                 await bot.user_repo.flush_logs()
+                if hasattr(bot, "nlp_service") and bot.nlp_service:
+                    await bot.nlp_service.close()
                 await SQLiteManager.close()
+                await asyncio.sleep(0.25)  # Permite al conector SSL de aiohttp/discord cerrarse limpiamente
                 break  # Fin normal
 
         except discord.HTTPException as e:
