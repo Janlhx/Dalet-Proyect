@@ -427,37 +427,46 @@ class DaletNLPChat(commands.Cog):
             ][:8]
             active_users = ", ".join(members_list)
 
-            # Generar respuesta (máx 2 en paralelo en todo el bot)
+            # Generar respuesta con protección de timeout estricto (máx 20s)
             async with self.bot.discord_semaphore:
                 try:
                     async with message.channel.typing():
-                        reply = await self.bot.nlp_service.generate_reply(
-                            clean_content,
-                            context,
-                            message.author.display_name,
-                            bot_name=bot_name,
-                            image_urls=image_urls,
-                            user_id=message.author.id,
-                            channel_id=message.channel.id,
-                            active_room_users=active_users,
-                            is_reactive=is_reactive,
+                        reply = await asyncio.wait_for(
+                            self.bot.nlp_service.generate_reply(
+                                clean_content,
+                                context,
+                                message.author.display_name,
+                                bot_name=bot_name,
+                                image_urls=image_urls,
+                                user_id=message.author.id,
+                                channel_id=message.channel.id,
+                                active_room_users=active_users,
+                                is_reactive=is_reactive,
+                            ),
+                            timeout=20.0
                         )
+                except asyncio.TimeoutError:
+                    logger.warning(f"Timeout (20s) generando respuesta para {message.author.display_name}")
+                    reply = None
                 except discord.HTTPException as e:
                     if e.status == 429:
                         await self._handle_429(e, "typing")
                         return
                     # Si falla el typing (permisos), intentar sin él
                     try:
-                        reply = await self.bot.nlp_service.generate_reply(
-                            clean_content,
-                            context,
-                            message.author.display_name,
-                            bot_name=bot_name,
-                            image_urls=image_urls,
-                            user_id=message.author.id,
-                            channel_id=message.channel.id,
-                            active_room_users=active_users,
-                            is_reactive=is_reactive,
+                        reply = await asyncio.wait_for(
+                            self.bot.nlp_service.generate_reply(
+                                clean_content,
+                                context,
+                                message.author.display_name,
+                                bot_name=bot_name,
+                                image_urls=image_urls,
+                                user_id=message.author.id,
+                                channel_id=message.channel.id,
+                                active_room_users=active_users,
+                                is_reactive=is_reactive,
+                            ),
+                            timeout=20.0
                         )
                     except Exception as e:
                         logger.error(f"Error llamando nlp_service (sin typing): {e}")

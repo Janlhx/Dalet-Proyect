@@ -598,8 +598,8 @@ class NLPService:
 
         return "\n".join(user_data_lines + chat_lines)
 
-    async def _get_images_description(self, image_urls: list):
-        """Describe una imagen usando el modelo principal con caché en RAM."""
+    async def _get_images_description(self, image_urls: list) -> str:
+        """Describe una imagen usando el modelo principal con timeout estricto y caché en RAM."""
         if not self.gemini_api_key or not self.client or not image_urls:
             return ""
 
@@ -610,23 +610,34 @@ class NLPService:
             return self._vision_cache[url_hash]
 
         try:
-            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
 
-            resp = await self._http_client.get(url)
-            resp.raise_for_status()
+            # Descarga de imagen con timeout de 5 segundos
+            resp = await self._http_client.get(url, timeout=5.0)
+            if resp.status_code != 200:
+                logger.warning(f"No se pudo descargar imagen (HTTP {resp.status_code})")
+                return ""
+
+            raw_mime = resp.headers.get('Content-Type', 'image/jpeg').split(';')[0].strip()
+            if not raw_mime.startswith('image/'):
+                raw_mime = 'image/jpeg'
 
             image_part = types.Part.from_bytes(
                 data=resp.content,
-                mime_type=resp.headers.get('Content-Type', 'image/jpeg')
+                mime_type=raw_mime
             )
 
-            res = await self.client.aio.models.generate_content(
-                model=model_name,
-                contents=[
-                    "Describe brevemente esta imagen en 40 palabras o menos. "
-                    "Enfócate en el contenido principal y texto visible.",
-                    image_part
-                ]
+            # Inferencia de visión con timeout de 7 segundos
+            res = await asyncio.wait_for(
+                self.client.aio.models.generate_content(
+                    model=model_name,
+                    contents=[
+                        "Describe brevemente esta imagen en 40 palabras o menos. "
+                        "Enfócate en el contenido principal y texto visible.",
+                        image_part
+                    ]
+                ),
+                timeout=7.0
             )
 
             if res and res.text:
@@ -638,6 +649,9 @@ class NLPService:
 
             return ""
 
+        except asyncio.TimeoutError:
+            logger.warning("Timeout en análisis de visión (Gemini). Continuando sin descripción de imagen.")
+            return ""
         except Exception as e:
             logger.error(f"Error en visión: {e}")
             return ""
