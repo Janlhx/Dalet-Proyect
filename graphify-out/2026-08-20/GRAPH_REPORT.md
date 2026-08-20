@@ -1,7 +1,7 @@
 # Graph Report - Dalet-Proyect  (2026-08-20)
 
 ## Corpus Check
-- 66 files · ~77,133 words
+- 66 files · ~77,101 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary

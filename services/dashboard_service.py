@@ -502,7 +502,7 @@ class DashboardService:
                 </div>
 
                 <!-- Gemini Provider Box -->
-                <div class="provider-box" style="margin-bottom: 0;">
+                <div class="provider-box">
                     <div class="provider-header">
                         <span class="provider-name">🔵 Google Gemini</span>
                         <span class="provider-status status-ok" id="gemini-status-badge">HEALTHY</span>
@@ -510,6 +510,17 @@ class DashboardService:
                     <div class="token-row"><span>Modelo</span><span id="gemini-model-name">-</span></div>
                     <div class="token-row"><span>Tokens Totales</span><span id="gemini-total-tokens">0</span></div>
                     <div class="token-row"><span>Latencia Media</span><span id="gemini-avg-lat">0ms</span></div>
+                </div>
+
+                <!-- OpenRouter Provider Box -->
+                <div class="provider-box" style="margin-bottom: 0;">
+                    <div class="provider-header">
+                        <span class="provider-name">🌐 OpenRouter (Free Tier)</span>
+                        <span class="provider-status status-ok" id="openrouter-status-badge">HEALTHY</span>
+                    </div>
+                    <div class="token-row"><span>Modelo</span><span id="openrouter-model-name">-</span></div>
+                    <div class="token-row"><span>Tokens Totales</span><span id="openrouter-total-tokens">0</span></div>
+                    <div class="token-row"><span>Latencia Media</span><span id="openrouter-avg-lat">0ms</span></div>
                 </div>
             </div>
         </div>
@@ -553,17 +564,17 @@ class DashboardService:
             chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: ['Groq (Llama)', 'Gemini Flash'],
+                    labels: ['Groq (LPUs)', 'Gemini Flash', 'OpenRouter Free'],
                     datasets: [
                         {
                             label: 'Prompt Tokens',
-                            data: [0, 0],
+                            data: [0, 0, 0],
                             backgroundColor: 'rgba(255, 105, 180, 0.7)',
                             borderRadius: 6
                         },
                         {
                             label: 'Completion Tokens',
-                            data: [0, 0],
+                            data: [0, 0, 0],
                             backgroundColor: 'rgba(14, 165, 233, 0.7)',
                             borderRadius: 6
                         }
@@ -598,6 +609,7 @@ class DashboardService:
             const ai = data.ai || {};
             const gemini = ai.gemini || {};
             const groq = ai.groq || {};
+            const openrouter = ai.openrouter || {};
             const discord = data.discord || {};
 
             // Discord Card
@@ -608,10 +620,10 @@ class DashboardService:
             document.getElementById('gateway-status').innerText = discord.online ? 'ONLINE' : 'DISCONNECTED';
 
             // AI Card
-            const totalTokens = (gemini.total_tokens || 0) + (groq.total_tokens || 0);
-            const totalPrompt = (gemini.prompt_tokens || 0) + (groq.prompt_tokens || 0);
-            const totalCompl = (gemini.completion_tokens || 0) + (groq.completion_tokens || 0);
-            const totalReqs = (gemini.requests || 0) + (groq.requests || 0);
+            const totalTokens = (gemini.total_tokens || 0) + (groq.total_tokens || 0) + (openrouter.total_tokens || 0);
+            const totalPrompt = (gemini.prompt_tokens || 0) + (groq.prompt_tokens || 0) + (openrouter.prompt_tokens || 0);
+            const totalCompl = (gemini.completion_tokens || 0) + (groq.completion_tokens || 0) + (openrouter.completion_tokens || 0);
+            const totalReqs = (gemini.requests || 0) + (groq.requests || 0) + (openrouter.requests || 0);
 
             document.getElementById('total-tokens').innerText = totalTokens.toLocaleString();
             document.getElementById('prompt-tokens').innerText = totalPrompt.toLocaleString();
@@ -625,11 +637,11 @@ class DashboardService:
             // Latencies
             document.getElementById('gemini-lat').innerText = `${gemini.avg_latency_ms || 0}ms`;
             document.getElementById('groq-lat').innerText = `${groq.avg_latency_ms || 0}ms`;
-            const overallAvg = totalReqs > 0 ? Math.round(((gemini.avg_latency_ms || 0) * (gemini.requests || 0) + (groq.avg_latency_ms || 0) * (groq.requests || 0)) / totalReqs) : 0;
+            const overallAvg = totalReqs > 0 ? Math.round(((gemini.avg_latency_ms || 0) * (gemini.requests || 0) + (groq.avg_latency_ms || 0) * (groq.requests || 0) + (openrouter.avg_latency_ms || 0) * (openrouter.requests || 0)) / totalReqs) : 0;
             document.getElementById('avg-latency').innerHTML = `${overallAvg}<small style="font-size: 16px;">ms</small>`;
 
             // Provider Boxes
-            document.getElementById('groq-model-name').innerText = groq.model || 'llama-3.3-70b-versatile';
+            document.getElementById('groq-model-name').innerText = groq.model || 'openai/gpt-oss-120b';
             document.getElementById('groq-total-tokens').innerText = (groq.total_tokens || 0).toLocaleString();
             document.getElementById('groq-avg-lat').innerText = `${groq.avg_latency_ms || 0}ms`;
             const groqBadge = document.getElementById('groq-status-badge');
@@ -653,10 +665,22 @@ class DashboardService:
                 geminiBadge.innerText = `COOLDOWN (${gemini.cooldown_remaining}s)`;
             }
 
+            document.getElementById('openrouter-model-name').innerText = openrouter.model || 'openrouter/free';
+            document.getElementById('openrouter-total-tokens').innerText = (openrouter.total_tokens || 0).toLocaleString();
+            document.getElementById('openrouter-avg-lat').innerText = `${openrouter.avg_latency_ms || 0}ms`;
+            const openrouterBadge = document.getElementById('openrouter-status-badge');
+            if (openrouter.healthy) {
+                openrouterBadge.className = "provider-status status-ok";
+                openrouterBadge.innerText = "HEALTHY";
+            } else {
+                openrouterBadge.className = "provider-status status-warn";
+                openrouterBadge.innerText = `COOLDOWN (${openrouter.cooldown_remaining}s)`;
+            }
+
             // Update Chart
             if (chartInstance) {
-                chartInstance.data.datasets[0].data = [groq.prompt_tokens || 0, gemini.prompt_tokens || 0];
-                chartInstance.data.datasets[1].data = [groq.completion_tokens || 0, gemini.completion_tokens || 0];
+                chartInstance.data.datasets[0].data = [groq.prompt_tokens || 0, gemini.prompt_tokens || 0, openrouter.prompt_tokens || 0];
+                chartInstance.data.datasets[1].data = [groq.completion_tokens || 0, gemini.completion_tokens || 0, openrouter.completion_tokens || 0];
                 chartInstance.update();
             }
 

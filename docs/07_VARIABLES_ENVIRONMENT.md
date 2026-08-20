@@ -20,20 +20,18 @@
 | `TURSO_AUTH_TOKEN` | Token de autenticación de Turso | `turso db tokens create <db_name>` o en la web |
 
 ### IA Primaria (Google Gemini)
-
-| Variable | Descripción | Dónde obtenerla |
-| -------- | ----------- | --------------- |
-| `GEMINI_API_KEY` | API key de Google Gemini | [Google AI Studio](https://aistudio.google.com/app/apikey) |
-| `GEMINI_MODEL` | Modelo a usar *(opcional)* | Default: `gemini-2.5-flash`. Alternativas: `gemini-3.7-flash`, `gemini-1.5-flash` |
-
-### IA de Alta Velocidad / Fallback (Groq)
-
-| Variable | Descripción | Dónde obtenerla |
-| -------- | ----------- | --------------- |
-| `GROQ_API_KEY` | API key de Groq Cloud | [console.groq.com](https://console.groq.com) |
-| `GROQ_MODEL` | Modelo principal en Groq *(opcional)* | Default: `llama-3.3-70b-versatile` (70B, 128k ctx, ultra veloz) |
-| `GROQ_MODEL_FALLBACK` | Modelo de emergencia *(opcional)* | Default: `llama-3.1-8b-instant` (<150ms latencia) |
-| `AI_PROVIDER` | Proveedor activo *(opcional)* | `gemini` (default) o `groq` |
+### 🤖 Configuración de Inteligencia Artificial (Smart Load Balancer)
+| Variable | Requerido | Descripción | Ejemplo / Default |
+| :--- | :--- | :--- | :--- |
+| `AI_ROUTING_MODE` | No | Modo de balanceo: `auto`, `gemini`, `groq` o `openrouter` | `auto` |
+| `GEMINI_API_KEY` | Sí | API Key de Google Gemini | `AIzaSy...` |
+| `GEMINI_MODEL` | No | Modelo principal de Gemini | `gemini-2.5-flash` |
+| `GROQ_API_KEY` | No | API Key de Groq para inferencia ultrarrápida (<200ms) | `gsk_...` |
+| `GROQ_MODEL` | No | Modelo principal en Groq | `openai/gpt-oss-120b` |
+| `GROQ_MODEL_FALLBACK` | No | Modelo secundario en Groq | `openai/gpt-oss-20b` |
+| `OPENROUTER_API_KEY` | No | API Key de OpenRouter (Acceso a modelos gratuitos) | `sk-or-v1-...` |
+| `OPENROUTER_MODEL` | No | Modelo en OpenRouter | `openrouter/free` |
+| `AI_PROVIDER` | No | Proveedor activo | `gemini` (default) o `groq` |
 
 ### osu! API v2
 
