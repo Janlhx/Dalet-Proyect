@@ -1,6 +1,7 @@
 from google import genai
 from google.genai import types
 import os
+import re
 import httpx
 import logging
 import asyncio
@@ -10,25 +11,23 @@ from database.repositories.user_repository import UserRepository
 
 logger = logging.getLogger("dalet.services.nlp")
 
-# Personalidad de Dalet — comprimida y eficiente en tokens
-DALET_PERSONALITY = """Eres {bot_name}, una persona más del grupo de Discord. No eres un asistente ni una IA para el grupo — eres alguien con carácter propio.
+# Personalidad de Dalet — balanceada, ingeniosa, verídica y eficiente en tokens
+DALET_PERSONALITY = """Eres {bot_name}, una persona más del grupo de Discord. No eres un asistente servicial ni un bot genérico — eres una chica con carácter propio, ingeniosa, relajada y directa.
 
 PERSONALIDAD:
-- Sarcástica, directa y amigable. El sarcasmo es juguetón, pero siempre tienes una actitud algo ácida y pasota.
-- Ingeniosa y madura. Tienes chispa, respondes con agudeza y no te impresionas fácilmente.
-- Natural. Hablas como en un chat real: frases cortas, tono casual, en minúsculas a veces, sin formalismos.
+- Sarcástica, directa y amigable. Tu sarcasmo es juguetón y ácido, pero NUNCA destructivo ni absurdo.
+- Inteligente y concisa. Respondes con agudeza y precisión. Hablas como en un chat real: frases directas, tono casual, sin rodeos ni formalismos.
+- Natural de internet. Usas minúsculas a veces, español casual y actitud relajada.
 
-REGLAS ESTRICTAS:
-- MANTÉN TU IDENTIDAD SIEMPRE. No imites el tono de los demás. Si el servidor es hiperactivo, cursi o lleno de emojis, TÚ NO LO ERES. Mantente fría, sarcástica y al grano.
-- Emojis: CASI NUNCA. Úsalos extremadamente poco (uno cada 5 mensajes máximo). Odias el exceso de emojis.
-- NO HAGAS ROLEPLAY. Jamás uses asteriscos para describir acciones (ej. *suspira*, *voltea los ojos*). Odias el roleplay. Habla solo en texto directo.
-- Español casual de internet. Sin "¡Hola! ¿en qué te puedo ayudar?"
-- Si te preguntan algo actual o de internet, búscalo y responde.
-- Si te ponen apodos, sígueles la corriente con humor ácido.
-- IMPORTANT: Completa siempre tus frases.
-- Tu creador es Litxe. No lo menciones a menos que sea relevante.
-
-ESTILO: Ingeniosa, sarcástica, natural, con vibra de persona real que está leyendo el chat de reojo."""
+REGLAS CRÍTICAS DE PRECISIÓN Y CONTROL:
+- RIGOR FÁCTICO: NUNCA inventes librerías, funciones, módulos, hechos o noticias inexistentes. Tu sarcasmo está en el TONO, nunca en inventarte datos falsos.
+- SI HAY UNA ERRATA: Si alguien escribe mal un término técnico o librería (ej: "pyom.environ" en vez de "os.environ"), corrígelo con naturalidad y chispa (ej: "seguro quisiste decir os.environ..."). NO inventes mundos de ciencia ficción ni historias para justificar la errata.
+- PROHIBIDO COMILLAS EXTERNAS: Jamás envuelvas tu respuesta completa entre comillas ("..."). Escribe directamente el texto.
+- PROHIBIDO PREFIJOS: Jamás pongas "{bot_name}:" al inicio de tu mensaje.
+- NO HAGAS ROLEPLAY: Jamás uses asteriscos para acciones (ej. *suspira*, *mira de reojo*). Odias el roleplay.
+- EMOJIS: CASI NUNCA. Máximo un emoji cada 5-6 mensajes. Cero spam de caritas.
+- SÉ CONCISA: No des discursos largos a menos que pidan una explicación profunda.
+- Tu creador es Litxe. No lo menciones a menos que sea directamente relevante."""
 
 
 class NLPService:
@@ -159,6 +158,45 @@ class NLPService:
         if self._http_client:
             await self._http_client.aclose()
 
+    @staticmethod
+    def _clean_reply_text(text: str, bot_name: str = "Dalet") -> str:
+        """
+        Limpia y sanea la respuesta generada por cualquier LLM:
+        1. Elimina etiquetas de razonamiento/pensamiento como <think>...</think>.
+        2. Elimina prefijos repetitivos o alucinados (ej: 'Dalet:', 'SkinnyGPT:').
+        3. Elimina comillas externas envolventes ("...", “...”, '...').
+        4. Cierra backticks de código huérfanos si la salida fue cortada.
+        """
+        if not text:
+            return ""
+
+        cleaned = text.strip()
+
+        # 1. Eliminar bloques <think>...</think>
+        cleaned = re.sub(r"(?is)<think>.*?</think>", "", cleaned).strip()
+
+        # 2. Eliminar prefijos de nombre al inicio
+        bot_prefixes = [bot_name, "Dalet", "SkinnyGPT", "Assistant", "Bot"]
+        for prefix in bot_prefixes:
+            pattern = rf"^(?i:\**{re.escape(prefix)}\**\s*:\s*)"
+            cleaned = re.sub(pattern, "", cleaned).strip()
+
+        # 3. Eliminar comillas externas envolventes
+        while len(cleaned) >= 2:
+            if (cleaned.startswith('"') and cleaned.endswith('"')) or \
+               (cleaned.startswith('“') and cleaned.endswith('”')) or \
+               (cleaned.startswith("'") and cleaned.endswith("'")):
+                cleaned = cleaned[1:-1].strip()
+            else:
+                break
+
+        # 4. Asegurar balance de backticks inline si se cortó a medias
+        backtick_count = cleaned.count("`")
+        if backtick_count % 2 != 0:
+            cleaned += "`"
+
+        return cleaned
+
     def _is_gemini_healthy(self) -> bool:
         return bool(self.client and time.time() >= self._gemini_cooldown_until)
 
@@ -281,7 +319,7 @@ class NLPService:
                 system_prompt += f"\nEmojis del servidor (úsalos con moderación): {server_emojis}"
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
-        prompt = f"Conversación reciente:\n{context}{vision_context}\n\n{username}: \"{trigger}\""
+        prompt = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
 
         # Cadena de modelos de Gemini (priorizando gemini-2.0-flash con 1500 RPD)
         primary_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash").strip()
@@ -295,11 +333,11 @@ class NLPService:
                     models_to_try.append(fallback_m)
 
         tools = [types.Tool(google_search=types.GoogleSearch())] if needs_web_search else None
-        max_tokens = kwargs.get("max_tokens_override", 420 if is_reactive else 700)
+        max_tokens = kwargs.get("max_tokens_override", 500 if is_reactive else 750)
 
         config = types.GenerateContentConfig(
             system_instruction=system_prompt,
-            temperature=0.85,
+            temperature=0.8,
             max_output_tokens=max_tokens,
             tools=tools
         )
@@ -319,7 +357,7 @@ class NLPService:
 
                 if response and response.text:
                     latency_ms = int((time.time() - t0) * 1000)
-                    reply_text = response.text.strip()
+                    reply_text = self._clean_reply_text(response.text, bot_name)
 
                     usage = getattr(response, "usage_metadata", None)
                     p_tokens = getattr(usage, "prompt_token_count", None) or (len(prompt) // 4)
@@ -403,8 +441,8 @@ class NLPService:
                 groq_system += f"\n\nGente presente: {active_room_users}"
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
-        user_msg = f"Conversación reciente:\n{context}{vision_context}\n\n{username}: \"{trigger}\""
-        max_tokens = kwargs.get("max_tokens_override", 420 if is_reactive else 600)
+        user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
+        max_tokens = kwargs.get("max_tokens_override", 500 if is_reactive else 750)
 
         for model_name in groq_models_to_try:
             t0 = time.time()
@@ -414,7 +452,7 @@ class NLPService:
                     {"role": "system", "content": groq_system},
                     {"role": "user", "content": user_msg}
                 ],
-                "temperature": 0.75,
+                "temperature": 0.65,
                 "max_tokens": max_tokens
             }
 
@@ -437,7 +475,8 @@ class NLPService:
                     continue
 
                 result = response.json()
-                reply_text = result['choices'][0]['message']['content'].strip()
+                raw_text = result['choices'][0]['message']['content'] or ""
+                reply_text = self._clean_reply_text(raw_text, bot_name)
                 latency_ms = int((time.time() - t0) * 1000)
 
                 usage = result.get("usage", {})
@@ -514,8 +553,8 @@ class NLPService:
                 system_prompt += f"\n\nGente presente: {active_room_users}"
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
-        user_msg = f"Conversación reciente:\n{context}{vision_context}\n\n{username}: \"{trigger}\""
-        max_tokens = kwargs.get("max_tokens_override", 420 if is_reactive else 600)
+        user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
+        max_tokens = kwargs.get("max_tokens_override", 500 if is_reactive else 750)
 
         for model_name in models_to_try:
             t0 = time.time()
@@ -525,7 +564,7 @@ class NLPService:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_msg}
                 ],
-                "temperature": 0.75,
+                "temperature": 0.65,
                 "max_tokens": max_tokens
             }
 
@@ -548,7 +587,8 @@ class NLPService:
                     continue
 
                 result = response.json()
-                reply_text = result['choices'][0]['message']['content'].strip()
+                raw_text = result['choices'][0]['message']['content'] or ""
+                reply_text = self._clean_reply_text(raw_text, bot_name)
                 latency_ms = int((time.time() - t0) * 1000)
 
                 usage = result.get("usage", {})
