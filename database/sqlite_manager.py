@@ -131,12 +131,28 @@ class SQLiteManager:
                 UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """,
+            # Buzón de Feedbacks enviados por usuarios
+            """
+            CREATE TABLE IF NOT EXISTS Feedbacks (
+                FeedbackID INTEGER PRIMARY KEY AUTOINCREMENT,
+                UserID INTEGER NOT NULL,
+                UserName TEXT NOT NULL,
+                UserAvatar TEXT,
+                ServerID INTEGER,
+                ServerName TEXT,
+                ChannelID INTEGER,
+                ChannelName TEXT,
+                Content TEXT NOT NULL,
+                CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
             # Índices de rendimiento
             "CREATE INDEX IF NOT EXISTS idx_msg_channel ON Messages(ChannelID)",
             "CREATE INDEX IF NOT EXISTS idx_msg_timestamp ON Messages(Timestamp DESC)",
             "CREATE INDEX IF NOT EXISTS idx_cmd_time ON CommandUsage(ExecutedAt DESC)",
             "CREATE INDEX IF NOT EXISTS idx_ai_time ON AIInteractions(InteractedAt DESC)",
             "CREATE INDEX IF NOT EXISTS idx_err_time ON BotErrors(OccurredAt DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_feedback_time ON Feedbacks(CreatedAt DESC)",
         ]
 
         try:
@@ -266,6 +282,62 @@ class SQLiteManager:
                 UpdatedAt = CURRENT_TIMESTAMP
         """
         await cls.execute(query, provider.lower(), requests, prompt_tokens, completion_tokens, cost_usd)
+
+    @classmethod
+    async def save_feedback(
+        cls,
+        user_id: int,
+        user_name: str,
+        user_avatar: str,
+        server_id: int | None,
+        server_name: str | None,
+        channel_id: int | None,
+        channel_name: str | None,
+        content: str
+    ) -> bool:
+        """Guarda un feedback de usuario en la base de datos local SQLite."""
+        query = """
+            INSERT INTO Feedbacks (UserID, UserName, UserAvatar, ServerID, ServerName, ChannelID, ChannelName, Content)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        return await cls.execute(
+            query,
+            user_id,
+            user_name,
+            user_avatar,
+            server_id,
+            server_name,
+            channel_id,
+            channel_name,
+            content
+        )
+
+    @classmethod
+    async def get_feedbacks(cls, limit: int = 50) -> list[dict]:
+        """Obtiene la lista de los feedbacks más recientes ordenados descendentemente."""
+        query = """
+            SELECT FeedbackID, UserID, UserName, UserAvatar, ServerID, ServerName, ChannelID, ChannelName, Content, CreatedAt
+            FROM Feedbacks
+            ORDER BY CreatedAt DESC
+            LIMIT ?
+        """
+        rows = await cls.fetch_all(query, limit)
+        feedbacks = []
+        if rows:
+            for r in rows:
+                feedbacks.append({
+                    "id": r[0],
+                    "user_id": r[1],
+                    "user_name": r[2],
+                    "user_avatar": r[3] or "",
+                    "server_id": r[4],
+                    "server_name": r[5] or "Direct Message",
+                    "channel_id": r[6],
+                    "channel_name": r[7] or "DM",
+                    "content": r[8],
+                    "created_at": str(r[9])
+                })
+        return feedbacks
 
     @classmethod
     async def close(cls):

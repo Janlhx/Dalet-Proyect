@@ -1,8 +1,8 @@
 {
   "deepseek": {
-    "requests": 15,
-    "prompt_tokens": 4500,
-    "completion_tokens": 1500,
+    "requests": 18,
+    "prompt_tokens": 13212,
+    "completion_tokens": 1770,
     "errors": 0
   },
   "gemini": {

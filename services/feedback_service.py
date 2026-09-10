@@ -2,12 +2,13 @@ import os
 import logging
 import discord
 from ui.atoms import DaletAtoms
+from database.sqlite_manager import SQLiteManager
 
 logger = logging.getLogger("dalet.services.feedback")
 
 
 class FeedbackService:
-    """Service to dispatch user feedback directly to the bot owner/developer via DM."""
+    """Service to dispatch user feedback directly to the bot owner/developer via DM and persist it."""
 
     @staticmethod
     async def send_feedback(
@@ -17,7 +18,22 @@ class FeedbackService:
         guild: discord.Guild | None = None,
         channel: discord.abc.GuildChannel | None = None
     ) -> bool:
-        """Sends a private DM to the application owner with formatted feedback."""
+        """Sends a private DM to the application owner and saves feedback into SQLite."""
+        # 1. Guardar siempre en SQLite para consulta en Dashboard
+        try:
+            avatar_url = author.display_avatar.url if author.display_avatar else ""
+            await SQLiteManager.save_feedback(
+                user_id=author.id,
+                user_name=str(author.name),
+                user_avatar=avatar_url,
+                server_id=guild.id if guild else None,
+                server_name=guild.name if guild else "Direct Message",
+                channel_id=channel.id if channel else None,
+                channel_name=channel.name if channel and hasattr(channel, "name") else "DM",
+                content=content
+            )
+        except Exception as e:
+            logger.error(f"Error persistiendo feedback en SQLite: {e}")
         owner = None
 
         # 1. Check bot.owner_id

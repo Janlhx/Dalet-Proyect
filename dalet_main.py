@@ -33,6 +33,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 app = Flask(__name__)
 
 @app.route('/')
+@app.route('/dashboard')
 def home():
     """Sirve la interfaz web del Dashboard de telemetría."""
     return Response(DashboardService.get_dashboard_html(), mimetype='text/html')
@@ -41,6 +42,45 @@ def home():
 def api_telemetry():
     """Devuelve métricas en tiempo real en formato JSON."""
     return jsonify(DashboardService.get_full_telemetry())
+
+@app.route('/api/feedbacks')
+def api_feedbacks():
+    """Devuelve los feedbacks enviados por usuarios en formato JSON (thread-safe WAL)."""
+    try:
+        import sqlite3
+        db_path = os.path.join(os.path.dirname(__file__), "dalet_local.db")
+        if not os.path.exists(db_path):
+            db_path = os.path.join(os.path.dirname(__file__), "data", "dalet_local.db")
+        if not os.path.exists(db_path):
+            return jsonify({"feedbacks": [], "total": 0})
+        conn = sqlite3.connect(db_path, timeout=3.0)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT FeedbackID, UserID, UserName, UserAvatar, ServerID, ServerName, ChannelID, ChannelName, Content, CreatedAt
+            FROM Feedbacks
+            ORDER BY CreatedAt DESC
+            LIMIT 50
+        """)
+        rows = cursor.fetchall()
+        conn.close()
+        feedbacks = []
+        for r in rows:
+            feedbacks.append({
+                "id": r[0],
+                "user_id": r[1],
+                "user_name": r[2],
+                "user_avatar": r[3] or "",
+                "server_id": r[4],
+                "server_name": r[5] or "Direct Message",
+                "channel_id": r[6],
+                "channel_name": r[7] or "DM",
+                "content": r[8],
+                "created_at": str(r[9])
+            })
+        return jsonify({"feedbacks": feedbacks, "total": len(feedbacks)})
+    except Exception as e:
+        logger.error(f"Error consultando feedbacks: {e}")
+        return jsonify({"feedbacks": [], "total": 0, "error": str(e)})
 
 @app.route('/health')
 @app.route('/ping')

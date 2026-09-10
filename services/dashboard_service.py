@@ -720,6 +720,170 @@ class DashboardService:
             color: var(--text-secondary);
         }
 
+        /* Navigation Tabs */
+        .nav-tabs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-subtle);
+            padding-bottom: 10px;
+        }
+
+        .tab-btn {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.15s ease;
+        }
+
+        .tab-btn:hover {
+            background: var(--bg-surface-hover);
+            color: var(--text-primary);
+            border-color: var(--border-medium);
+        }
+
+        .tab-btn.active {
+            background: var(--bg-surface-elevated);
+            color: var(--text-primary);
+            border-color: rgba(255, 255, 255, 0.22);
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .tab-count {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            background: var(--bg-page);
+            padding: 2px 6px;
+            border-radius: 10px;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .tab-pane {
+            display: none;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Feedback Cards */
+        .feedback-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .feedback-grid { grid-template-columns: 1fr; }
+        }
+
+        .feedback-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 18px 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: border-color 0.15s ease;
+        }
+
+        .feedback-card:hover {
+            border-color: var(--border-medium);
+        }
+
+        .feedback-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .feedback-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border-medium);
+            object-fit: cover;
+        }
+
+        .feedback-user-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .feedback-user-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .feedback-meta {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .feedback-body {
+            font-size: 13px;
+            color: var(--text-primary);
+            line-height: 1.5;
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border-subtle);
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin-bottom: 12px;
+        }
+
+        .feedback-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-tertiary);
+        }
+
+        .system-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 800px) {
+            .system-cards-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         footer {
             margin-top: 24px;
             display: flex;
@@ -763,218 +927,232 @@ class DashboardService:
             </div>
         </header>
 
-        <!-- Top KPI Grid -->
-        <div class="kpi-grid">
-            <!-- Card 1: Gasto Acumulado -->
-            <div class="kpi-card">
-                <div>
-                    <div class="kpi-header">
-                        <span class="kpi-label">Gasto Acumulado</span>
-                        <span class="kpi-tag" id="cost-account-type">PAY-AS-YOU-GO</span>
-                    </div>
-                    <div class="kpi-value" id="kpi-spend-usd">$0.000000</div>
-                    <div class="kpi-detail">
-                        <span>DeepSeek V3 ($0.14/1M in · $0.28/1M out)</span>
-                    </div>
-                </div>
-                <div class="kpi-submetrics">
-                    <span id="kpi-credit-row">Saldo prepago: No config.</span>
-                    <span id="kpi-cost-per-k">$0.000 / 1k req</span>
-                </div>
-            </div>
-
-            <!-- Card 2: Volumen de Tokens -->
-            <div class="kpi-card">
-                <div>
-                    <div class="kpi-header">
-                        <span class="kpi-label">Tokens Procesados</span>
-                        <span class="kpi-tag" id="kpi-token-ratio">Ratio 1.0:1</span>
-                    </div>
-                    <div class="kpi-value" id="kpi-total-tokens">0</div>
-                    <div class="token-bar-container">
-                        <div class="token-bar-prompt" id="bar-prompt" style="width: 50%;"></div>
-                        <div class="token-bar-compl" id="bar-compl" style="width: 50%;"></div>
-                    </div>
-                </div>
-                <div class="kpi-submetrics">
-                    <span>Prompt: <b id="kpi-prompt-tokens" style="color: var(--pale-sand);">0</b></span>
-                    <span>Compl: <b id="kpi-compl-tokens" style="color: var(--pale-slate);">0</b></span>
-                </div>
-            </div>
-
-            <!-- Card 3: Peticiones & Ruteo -->
-            <div class="kpi-card">
-                <div>
-                    <div class="kpi-header">
-                        <span class="kpi-label">Invocaciones Totales</span>
-                        <span class="kpi-tag" id="kpi-routing-mode">AUTO-FAILOVER</span>
-                    </div>
-                    <div class="kpi-value" id="kpi-total-requests">0</div>
-                    <div class="kpi-detail">
-                        <span>Distribución multi-proveedor</span>
-                    </div>
-                </div>
-                <div class="kpi-submetrics">
-                    <span>DS: <b id="sub-ds-reqs">0</b> · Groq: <b id="sub-groq-reqs">0</b></span>
-                    <span>Gem: <b id="sub-gem-reqs">0</b> · OR: <b id="sub-or-reqs">0</b></span>
-                </div>
-            </div>
-
-            <!-- Card 4: Latencia & Gateway -->
-            <div class="kpi-card">
-                <div>
-                    <div class="kpi-header">
-                        <span class="kpi-label">Latencia de Red</span>
-                        <span class="kpi-tag" id="kpi-discord-status">ONLINE</span>
-                    </div>
-                    <div class="kpi-value"><span id="kpi-avg-latency">0</span><small style="font-size: 14px; font-weight: 400; color: var(--text-secondary); margin-left: 4px;">ms avg</small></div>
-                    <div class="kpi-detail">
-                        <span>Discord Ping: <span id="kpi-discord-ping" class="font-mono">0ms</span></span>
-                    </div>
-                </div>
-                <div class="kpi-submetrics">
-                    <span>Guilds: <b id="kpi-guilds">0</b></span>
-                    <span>Uptime: <b id="kpi-uptime">0s</b></span>
-                </div>
-            </div>
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <button class="tab-btn active" id="btn-tab-ai" onclick="switchTab('ai')">
+                <span>🧠 Telemetría IA</span>
+            </button>
+            <button class="tab-btn" id="btn-tab-system" onclick="switchTab('system')">
+                <span>⚙️ Infraestructura & Sistema</span>
+            </button>
+            <button class="tab-btn" id="btn-tab-feedback" onclick="switchTab('feedback')">
+                <span>📬 Buzón de Feedback</span>
+                <span class="tab-count" id="badge-feedback-count">0</span>
+            </button>
         </div>
 
-        <!-- Section: Provider Architecture Matrix -->
-        <div class="section-header">
-            <span class="section-title">Matriz de Proveedores de Inferencia</span>
-            <span style="font-size: 11px; color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace;">PRIORITY: DEEPSEEK CORE → GROQ LPU → GEMINI → OPENROUTER</span>
-        </div>
-
-        <div class="provider-grid">
-            <!-- 1. DeepSeek -->
-            <div class="provider-card">
-                <div class="provider-top">
-                    <span class="provider-name">DeepSeek V3</span>
-                    <span class="provider-pill pill-healthy" id="pill-deepseek">HEALTHY</span>
+        <!-- ================= TAB 1: AI TELEMETRY ================= -->
+        <div id="pane-ai" class="tab-pane active">
+            <!-- Top KPI Grid -->
+            <div class="kpi-grid">
+                <!-- Card 1: Gasto Acumulado -->
+                <div class="kpi-card">
+                    <div>
+                        <div class="kpi-header">
+                            <span class="kpi-label">Gasto Acumulado</span>
+                            <span class="kpi-tag" id="cost-account-type">PAY-AS-YOU-GO</span>
+                        </div>
+                        <div class="kpi-value" id="kpi-spend-usd">$0.000000</div>
+                        <div class="kpi-detail">
+                            <span>DeepSeek V3 ($0.14/1M in · $0.28/1M out)</span>
+                        </div>
+                    </div>
+                    <div class="kpi-submetrics">
+                        <span id="kpi-credit-row">Saldo prepago: No config.</span>
+                        <span id="kpi-cost-per-k">$0.000 / 1k req</span>
+                    </div>
                 </div>
-                <span class="provider-model" id="model-deepseek">deepseek-chat</span>
-                <table class="provider-stats-table">
-                    <tr>
-                        <td>Invocaciones</td>
-                        <td id="ds-requests">0</td>
-                    </tr>
-                    <tr>
-                        <td>Tokens Prompt</td>
-                        <td id="ds-prompt">0</td>
-                    </tr>
-                    <tr>
-                        <td>Tokens Respuesta</td>
-                        <td id="ds-completion">0</td>
-                    </tr>
-                    <tr>
-                        <td>Latencia Media</td>
-                        <td id="ds-lat">0ms</td>
-                    </tr>
-                    <tr>
-                        <td>Costo Incurrido</td>
-                        <td id="ds-cost" style="color: var(--pale-sand);">$0.000000</td>
-                    </tr>
-                </table>
+
+                <!-- Card 2: Volumen de Tokens -->
+                <div class="kpi-card">
+                    <div>
+                        <div class="kpi-header">
+                            <span class="kpi-label">Tokens Procesados</span>
+                            <span class="kpi-tag" id="kpi-token-ratio">Ratio 1.0:1</span>
+                        </div>
+                        <div class="kpi-value" id="kpi-total-tokens">0</div>
+                        <div class="token-bar-container">
+                            <div class="token-bar-prompt" id="bar-prompt" style="width: 50%;"></div>
+                            <div class="token-bar-compl" id="bar-compl" style="width: 50%;"></div>
+                        </div>
+                    </div>
+                    <div class="kpi-submetrics">
+                        <span>Prompt: <b id="kpi-prompt-tokens" style="color: var(--pale-sand);">0</b></span>
+                        <span>Compl: <b id="kpi-compl-tokens" style="color: var(--pale-slate);">0</b></span>
+                    </div>
+                </div>
+
+                <!-- Card 3: Peticiones & Ruteo -->
+                <div class="kpi-card">
+                    <div>
+                        <div class="kpi-header">
+                            <span class="kpi-label">Invocaciones Totales</span>
+                            <span class="kpi-tag" id="kpi-routing-mode">AUTO-FAILOVER</span>
+                        </div>
+                        <div class="kpi-value" id="kpi-total-requests">0</div>
+                        <div class="kpi-detail">
+                            <span>Distribución multi-proveedor</span>
+                        </div>
+                    </div>
+                    <div class="kpi-submetrics">
+                        <span>DS: <b id="sub-ds-reqs">0</b> · Groq: <b id="sub-groq-reqs">0</b></span>
+                        <span>Gem: <b id="sub-gem-reqs">0</b> · OR: <b id="sub-or-reqs">0</b></span>
+                    </div>
+                </div>
+
+                <!-- Card 4: Latencia & Gateway -->
+                <div class="kpi-card">
+                    <div>
+                        <div class="kpi-header">
+                            <span class="kpi-label">Latencia Inferencia</span>
+                            <span class="kpi-tag" id="kpi-discord-status">ONLINE</span>
+                        </div>
+                        <div class="kpi-value"><span id="kpi-avg-latency">0</span><small style="font-size: 14px; font-weight: 400; color: var(--text-secondary); margin-left: 4px;">ms avg</small></div>
+                        <div class="kpi-detail">
+                            <span>Discord Ping: <span id="kpi-discord-ping" class="font-mono">0ms</span></span>
+                        </div>
+                    </div>
+                    <div class="kpi-submetrics">
+                        <span>Guilds: <b id="kpi-guilds">0</b></span>
+                        <span>Uptime: <b id="kpi-uptime">0s</b></span>
+                    </div>
+                </div>
             </div>
 
-            <!-- 2. Groq -->
-            <div class="provider-card">
-                <div class="provider-top">
-                    <span class="provider-name">Groq LPU</span>
-                    <span class="provider-pill pill-healthy" id="pill-groq">HEALTHY</span>
-                </div>
-                <span class="provider-model" id="model-groq">openai/gpt-oss-120b</span>
-                <table class="provider-stats-table">
-                    <tr>
-                        <td>Invocaciones</td>
-                        <td id="groq-requests">0</td>
-                    </tr>
-                    <tr>
-                        <td>Tokens Prompt</td>
-                        <td id="groq-prompt">0</td>
-                    </tr>
-                    <tr>
-                        <td>Tokens Respuesta</td>
-                        <td id="groq-completion">0</td>
-                    </tr>
-                    <tr>
-                        <td>Latencia Media</td>
-                        <td id="groq-lat">0ms</td>
-                    </tr>
-                    <tr>
-                        <td>Tarifa</td>
-                        <td style="color: var(--pale-slate);">$0.00 (Free Tier)</td>
-                    </tr>
-                </table>
+            <!-- Section: Provider Architecture Matrix -->
+            <div class="section-header">
+                <span class="section-title">Matriz de Proveedores de Inferencia</span>
+                <span style="font-size: 11px; color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace;">PRIORITY: DEEPSEEK CORE → GROQ LPU → GEMINI → OPENROUTER</span>
             </div>
 
-            <!-- 3. Gemini -->
-            <div class="provider-card">
-                <div class="provider-top">
-                    <span class="provider-name">Google Gemini</span>
-                    <span class="provider-pill pill-healthy" id="pill-gemini">HEALTHY</span>
+            <div class="provider-grid">
+                <!-- 1. DeepSeek -->
+                <div class="provider-card">
+                    <div class="provider-top">
+                        <span class="provider-name">DeepSeek V3</span>
+                        <span class="provider-pill pill-healthy" id="pill-deepseek">HEALTHY</span>
+                    </div>
+                    <span class="provider-model" id="model-deepseek">deepseek-chat</span>
+                    <table class="provider-stats-table">
+                        <tr>
+                            <td>Invocaciones</td>
+                            <td id="ds-requests">0</td>
+                        </tr>
+                        <tr>
+                            <td>Tokens Prompt</td>
+                            <td id="ds-prompt">0</td>
+                        </tr>
+                        <tr>
+                            <td>Tokens Respuesta</td>
+                            <td id="ds-completion">0</td>
+                        </tr>
+                        <tr>
+                            <td>Latencia Media</td>
+                            <td id="ds-lat">0ms</td>
+                        </tr>
+                        <tr>
+                            <td>Costo Incurrido</td>
+                            <td id="ds-cost" style="color: var(--pale-sand);">$0.000000</td>
+                        </tr>
+                    </table>
                 </div>
-                <span class="provider-model" id="model-gemini">gemini-1.5-flash</span>
-                <table class="provider-stats-table">
-                    <tr>
-                        <td>Invocaciones</td>
-                        <td id="gemini-requests">0</td>
-                    </tr>
-                    <tr>
-                        <td>Tokens Prompt</td>
-                        <td id="gemini-prompt">0</td>
-                    </tr>
-                    <tr>
-                        <td>Tokens Respuesta</td>
-                        <td id="gemini-completion">0</td>
-                    </tr>
-                    <tr>
-                        <td>Latencia Media</td>
-                        <td id="gemini-lat">0ms</td>
-                    </tr>
-                    <tr>
-                        <td>Herramientas</td>
-                        <td style="color: var(--pale-mauve);">Search Grounding</td>
-                    </tr>
-                </table>
+
+                <!-- 2. Groq -->
+                <div class="provider-card">
+                    <div class="provider-top">
+                        <span class="provider-name">Groq LPU</span>
+                        <span class="provider-pill pill-healthy" id="pill-groq">HEALTHY</span>
+                    </div>
+                    <span class="provider-model" id="model-groq">openai/gpt-oss-120b</span>
+                    <table class="provider-stats-table">
+                        <tr>
+                            <td>Invocaciones</td>
+                            <td id="groq-requests">0</td>
+                        </tr>
+                        <tr>
+                            <td>Tokens Prompt</td>
+                            <td id="groq-prompt">0</td>
+                        </tr>
+                        <tr>
+                            <td>Tokens Respuesta</td>
+                            <td id="groq-completion">0</td>
+                        </tr>
+                        <tr>
+                            <td>Latencia Media</td>
+                            <td id="groq-lat">0ms</td>
+                        </tr>
+                        <tr>
+                            <td>Tarifa</td>
+                            <td style="color: var(--pale-slate);">$0.00 (Free Tier)</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- 3. Gemini -->
+                <div class="provider-card">
+                    <div class="provider-top">
+                        <span class="provider-name">Google Gemini</span>
+                        <span class="provider-pill pill-healthy" id="pill-gemini">HEALTHY</span>
+                    </div>
+                    <span class="provider-model" id="model-gemini">gemini-1.5-flash</span>
+                    <table class="provider-stats-table">
+                        <tr>
+                            <td>Invocaciones</td>
+                            <td id="gemini-requests">0</td>
+                        </tr>
+                        <tr>
+                            <td>Tokens Prompt</td>
+                            <td id="gemini-prompt">0</td>
+                        </tr>
+                        <tr>
+                            <td>Tokens Respuesta</td>
+                            <td id="gemini-completion">0</td>
+                        </tr>
+                        <tr>
+                            <td>Latencia Media</td>
+                            <td id="gemini-lat">0ms</td>
+                        </tr>
+                        <tr>
+                            <td>Herramientas</td>
+                            <td style="color: var(--pale-mauve);">Search Grounding</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- 4. OpenRouter -->
+                <div class="provider-card">
+                    <div class="provider-top">
+                        <span class="provider-name">OpenRouter</span>
+                        <span class="provider-pill pill-healthy" id="pill-openrouter">HEALTHY</span>
+                    </div>
+                    <span class="provider-model" id="model-openrouter">openrouter/free</span>
+                    <table class="provider-stats-table">
+                        <tr>
+                            <td>Invocaciones</td>
+                            <td id="or-requests">0</td>
+                        </tr>
+                        <tr>
+                            <td>Tokens Prompt</td>
+                            <td id="or-prompt">0</td>
+                        </tr>
+                        <tr>
+                            <td>Tokens Respuesta</td>
+                            <td id="or-completion">0</td>
+                        </tr>
+                        <tr>
+                            <td>Latencia Media</td>
+                            <td id="or-lat">0ms</td>
+                        </tr>
+                        <tr>
+                            <td>Enrutamiento</td>
+                            <td style="color: var(--pale-clay);">Fallback Pool</td>
+                        </tr>
+                    </table>
+                </div>
             </div>
 
-            <!-- 4. OpenRouter -->
-            <div class="provider-card">
-                <div class="provider-top">
-                    <span class="provider-name">OpenRouter</span>
-                    <span class="provider-pill pill-healthy" id="pill-openrouter">HEALTHY</span>
-                </div>
-                <span class="provider-model" id="model-openrouter">openrouter/free</span>
-                <table class="provider-stats-table">
-                    <tr>
-                        <td>Invocaciones</td>
-                        <td id="or-requests">0</td>
-                    </tr>
-                    <tr>
-                        <td>Tokens Prompt</td>
-                        <td id="or-prompt">0</td>
-                    </tr>
-                    <tr>
-                        <td>Tokens Respuesta</td>
-                        <td id="or-completion">0</td>
-                    </tr>
-                    <tr>
-                        <td>Latencia Media</td>
-                        <td id="or-lat">0ms</td>
-                    </tr>
-                    <tr>
-                        <td>Enrutamiento</td>
-                        <td style="color: var(--pale-clay);">Fallback Pool</td>
-                    </tr>
-                </table>
-            </div>
-        </div>
-
-        <!-- Mid Grid: Chart & System Status -->
-        <div class="mid-grid">
             <!-- Chart Card -->
-            <div class="chart-card">
+            <div class="chart-card" style="margin-bottom: 20px;">
                 <div class="section-header" style="margin-bottom: 8px;">
                     <span class="section-title">Distribución de Tokens por Proveedor</span>
                 </div>
@@ -983,68 +1161,265 @@ class DashboardService:
                 </div>
             </div>
 
-            <!-- System Info Card -->
-            <div class="system-info-card">
-                <div class="section-header" style="margin-bottom: 8px;">
-                    <span class="section-title">Infraestructura y Persistencia</span>
+            <!-- Section: Real-time Interaction Feed -->
+            <div class="table-card">
+                <div class="table-card-header">
+                    <span class="section-title">Registro de Interacciones Recientes</span>
+                    <span style="font-size: 11px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace;" id="feed-count">0 eventos</span>
                 </div>
-                <table class="system-table">
-                    <tr>
-                        <td>Base Primaria</td>
-                        <td id="sys-turso-status">ONLINE</td>
-                    </tr>
-                    <tr>
-                        <td>Local Cache (WAL)</td>
-                        <td id="sys-sqlite-status">OPERATIONAL</td>
-                    </tr>
-                    <tr>
-                        <td>Entidad Memoria / Cache</td>
-                        <td id="sys-cache-items">0 items</td>
-                    </tr>
-                    <tr>
-                        <td>Buffer Asíncrono</td>
-                        <td id="sys-log-buffer">0 / 20</td>
-                    </tr>
-                    <tr>
-                        <td>Gateway Discord</td>
-                        <td id="sys-gateway">CONECTADO</td>
-                    </tr>
-                    <tr>
-                        <td>Usuarios Monitoreados</td>
-                        <td id="sys-users">0</td>
-                    </tr>
-                </table>
-                <div style="font-size: 11px; color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace; margin-top: 8px;">
-                    Dalet Engine • High Reliability Load Balancer
+                <div class="table-responsive">
+                    <table class="stream-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">Hora</th>
+                                <th style="width: 110px;">Proveedor</th>
+                                <th style="width: 160px;">Modelo</th>
+                                <th style="width: 120px;">Usuario</th>
+                                <th>Mensaje Activador</th>
+                                <th style="width: 140px; text-align: right;">Tokens (In / Out)</th>
+                                <th style="width: 90px; text-align: right;">Latencia</th>
+                            </tr>
+                        </thead>
+                        <tbody id="interactions-body">
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: var(--text-tertiary); padding: 24px;">Esperando interacciones de usuarios...</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
-        <!-- Section: Real-time Interaction Feed -->
-        <div class="table-card">
-            <div class="table-card-header">
-                <span class="section-title">Registro de Interacciones Recientes</span>
-                <span style="font-size: 11px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace;" id="feed-count">0 eventos</span>
+        <!-- ================= TAB 2: SYSTEM & INFRASTRUCTURE ================= -->
+        <div id="pane-system" class="tab-pane">
+            <!-- System Status Top KPIs -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div>
+                        <div class="kpi-header">
+                            <span class="kpi-label">Gateway Discord</span>
+                            <span class="kpi-tag" id="sys-kpi-gateway-tag">ONLINE</span>
+                        </div>
+                        <div class="kpi-value" id="sys-kpi-ping">0ms</div>
+                        <div class="kpi-detail">
+                            <span>Latencia WebSocket al clúster de Discord</span>
+                        </div>
+                    </div>
+                    <div class="kpi-submetrics">
+                        <span>Estado: <b id="sys-kpi-gateway-state">CONECTADO</b></span>
+                        <span>Shard: <b>0 / 1</b></span>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <div>
+                        <div class="kpi-header">
+                            <span class="kpi-label">Servidores Conectados</span>
+                            <span class="kpi-tag">DISCORD GUILDS</span>
+                        </div>
+                        <div class="kpi-value" id="sys-kpi-guilds">0</div>
+                        <div class="kpi-detail">
+                            <span>Comunidades activas con Dalet</span>
+                        </div>
+                    </div>
+                    <div class="kpi-submetrics">
+                        <span>Canales activos</span>
+                        <span style="color: var(--pale-sage);">Disponibilidad 99.9%</span>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <div>
+                        <div class="kpi-header">
+                            <span class="kpi-label">Usuarios Monitoreados</span>
+                            <span class="kpi-tag">POBLACIÓN</span>
+                        </div>
+                        <div class="kpi-value" id="sys-kpi-users">0</div>
+                        <div class="kpi-detail">
+                            <span>Usuarios en memoria y base de datos</span>
+                        </div>
+                    </div>
+                    <div class="kpi-submetrics">
+                        <span>Caché en memoria: <b id="sys-kpi-cache-count">0 items</b></span>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <div>
+                        <div class="kpi-header">
+                            <span class="kpi-label">Tiempo de Actividad</span>
+                            <span class="kpi-tag">UPTIME</span>
+                        </div>
+                        <div class="kpi-value" id="sys-kpi-uptime">0s</div>
+                        <div class="kpi-detail">
+                            <span>Continuidad del proceso del bot</span>
+                        </div>
+                    </div>
+                    <div class="kpi-submetrics">
+                        <span>Salud: <b style="color: var(--pale-sage);">ESTABLE</b></span>
+                        <span>Auto-reinicio: <b>Activo</b></span>
+                    </div>
+                </div>
             </div>
-            <div class="table-responsive">
-                <table class="stream-table">
-                    <thead>
+
+            <!-- Detailed System Architecture Grids -->
+            <div class="system-cards-grid">
+                <!-- Card 1: Turso LibSQL Cloud -->
+                <div class="kpi-card">
+                    <div>
+                        <div class="kpi-header">
+                            <span class="kpi-label">Base de Datos Primaria</span>
+                            <span class="kpi-tag" style="background: var(--pale-sage-bg); color: var(--pale-sage); border-color: var(--pale-sage-border);">CLOUD EDGE</span>
+                        </div>
+                        <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">Turso LibSQL (Distributed)</h3>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.5;">
+                            Base de datos transaccional con arquitectura edge sobre HTTP pipeline. Almacena perfiles de usuario, balance de créditos, inventario y registros duraderos.
+                        </p>
+                    </div>
+                    <table class="system-table">
                         <tr>
-                            <th style="width: 80px;">Hora</th>
-                            <th style="width: 110px;">Proveedor</th>
-                            <th style="width: 160px;">Modelo</th>
-                            <th style="width: 120px;">Usuario</th>
-                            <th>Mensaje Activador</th>
-                            <th style="width: 140px; text-align: right;">Tokens (In / Out)</th>
-                            <th style="width: 90px; text-align: right;">Latencia</th>
+                            <td>Estado de Conexión</td>
+                            <td id="sys-turso-status-2">ONLINE</td>
                         </tr>
-                    </thead>
-                    <tbody id="interactions-body">
                         <tr>
-                            <td colspan="7" style="text-align: center; color: var(--text-tertiary); padding: 24px;">Esperando interacciones de usuarios...</td>
+                            <td>Protocolo</td>
+                            <td>HTTP Pipeline (LibSQL v2)</td>
                         </tr>
-                    </tbody>
-                </table>
+                        <tr>
+                            <td>Modo de Operación</td>
+                            <td>Distributed Edge Replica</td>
+                        </tr>
+                        <tr>
+                            <td>Tolerancia a Fallos</td>
+                            <td style="color: var(--pale-sage);">Auto-Failover a SQLite WAL</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Card 2: SQLite WAL Local -->
+                <div class="kpi-card">
+                    <div>
+                        <div class="kpi-header">
+                            <span class="kpi-label">Persistencia & Caché Local</span>
+                            <span class="kpi-tag" style="background: var(--pale-slate-bg); color: var(--pale-slate); border-color: var(--pale-slate-border);">LOCAL ENGINE</span>
+                        </div>
+                        <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">SQLite Async WAL</h3>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.5;">
+                            Motor ultrarrápido local con Write-Ahead Logging (WAL) para lecturas no bloqueantes y almacenamiento de respaldo, logs y feedback.
+                        </p>
+                    </div>
+                    <table class="system-table">
+                        <tr>
+                            <td>Estado Local</td>
+                            <td id="sys-sqlite-status-2">OPERATIONAL</td>
+                        </tr>
+                        <tr>
+                            <td>Journal Mode</td>
+                            <td>WAL (Write-Ahead Logging)</td>
+                        </tr>
+                        <tr>
+                            <td>Archivo Local</td>
+                            <td>data/dalet_local.db</td>
+                        </tr>
+                        <tr>
+                            <td>Cola de Telemetría</td>
+                            <td id="sys-log-buffer-2">0 / 20 elementos</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="system-cards-grid">
+                <!-- Card 3: Memory & Concurrency -->
+                <div class="kpi-card">
+                    <div>
+                        <div class="kpi-header">
+                            <span class="kpi-label">Gestión de Memoria & Concurrencia</span>
+                            <span class="kpi-tag">ASYNCIO ENGINE</span>
+                        </div>
+                        <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">Caché L1 y Tareas Asíncronas</h3>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.5;">
+                            Manejo de estados volátiles en memoria con caducidad TTL automática y despachador de eventos no bloqueante.
+                        </p>
+                    </div>
+                    <table class="system-table">
+                        <tr>
+                            <td>Elementos en Caché TTL</td>
+                            <td id="sys-cache-items-2">0 items</td>
+                        </tr>
+                        <tr>
+                            <td>Estrategia de Concurrencia</td>
+                            <td>Asyncio Non-blocking Event Loop</td>
+                        </tr>
+                        <tr>
+                            <td>Daemon Flask Thread</td>
+                            <td style="color: var(--pale-sage);">Activo en 0.0.0.0:8080</td>
+                        </tr>
+                        <tr>
+                            <td>Sincronización de Memoria</td>
+                            <td>Dual-tier (Memory + Disk)</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Card 4: Endpoints & Health -->
+                <div class="kpi-card">
+                    <div>
+                        <div class="kpi-header">
+                            <span class="kpi-label">Servicios Web & Monitoreo</span>
+                            <span class="kpi-tag">HEALTH CHECK</span>
+                        </div>
+                        <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">Endpoints Expuestos</h3>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.5;">
+                            Superficie de monitoreo HTTP expuesta para el panel de control y health checks de plataforma cloud (Render).
+                        </p>
+                    </div>
+                    <table class="system-table">
+                        <tr>
+                            <td>Dashboard Web</td>
+                            <td><code>GET /dashboard</code> (HTTP 200)</td>
+                        </tr>
+                        <tr>
+                            <td>API Telemetría</td>
+                            <td><code>GET /api/telemetry</code> (JSON)</td>
+                        </tr>
+                        <tr>
+                            <td>API Buzón Feedback</td>
+                            <td><code>GET /api/feedbacks</code> (JSON)</td>
+                        </tr>
+                        <tr>
+                            <td>Health Check / Ping</td>
+                            <td style="color: var(--pale-sage);"><code>GET /health</code> (HTTP 200)</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 3: FEEDBACK INBOX ================= -->
+        <div id="pane-feedback" class="tab-pane">
+            <div class="section-header" style="margin-bottom: 16px;">
+                <div>
+                    <span class="section-title">Buzón de Retroalimentación de la Comunidad</span>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                        Mensajes, sugerencias y reportes enviados por usuarios mediante el comando <code>/feedback &lt;mensaje&gt;</code> en Discord.
+                    </p>
+                </div>
+                <button class="btn-refresh" onclick="fetchFeedbacks()">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                    </svg>
+                    <span>Recargar Feedbacks</span>
+                </button>
+            </div>
+
+            <!-- Feedback Cards Container -->
+            <div class="feedback-grid" id="feedback-container">
+                <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); color: var(--text-secondary);">
+                    <div style="font-size: 28px; margin-bottom: 8px;">⏳</div>
+                    <div>Cargando mensajes del buzón...</div>
+                </div>
             </div>
         </div>
 
@@ -1059,6 +1434,24 @@ class DashboardService:
         let autoRefreshMs = 10000;
         let refreshTimer = null;
         let chartInstance = null;
+        let currentTab = 'ai';
+
+        function switchTab(tabId) {
+            currentTab = tabId;
+            const tabs = ['ai', 'system', 'feedback'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`btn-tab-${t}`);
+                const pane = document.getElementById(`pane-${t}`);
+                if (btn) btn.className = 'tab-btn' + (t === tabId ? ' active' : '');
+                if (pane) pane.className = 'tab-pane' + (t === tabId ? ' active' : '');
+            });
+
+            if (tabId === 'ai' && chartInstance) {
+                setTimeout(() => chartInstance.resize(), 50);
+            } else if (tabId === 'feedback') {
+                fetchFeedbacks();
+            }
+        }
 
         function setCadence(ms) {
             autoRefreshMs = ms;
@@ -1071,7 +1464,12 @@ class DashboardService:
                 refreshTimer = null;
             }
             if (ms > 0) {
-                refreshTimer = setInterval(fetchTelemetry, ms);
+                refreshTimer = setInterval(() => {
+                    fetchTelemetry();
+                    if (currentTab === 'feedback') {
+                        fetchFeedbacks();
+                    }
+                }, ms);
             }
         }
 
@@ -1156,6 +1554,63 @@ class DashboardService:
                 document.getElementById('chip-system-status').style.background = "var(--pale-clay-bg)";
                 document.getElementById('chip-system-status').style.color = "var(--pale-clay)";
                 document.getElementById('chip-system-status').style.borderColor = "var(--pale-clay-border)";
+            }
+        }
+
+        async function fetchFeedbacks() {
+            try {
+                const res = await fetch('/api/feedbacks');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                const feedbacks = data.feedbacks || [];
+                
+                const countBadge = document.getElementById('badge-feedback-count');
+                if (countBadge) countBadge.innerText = feedbacks.length;
+                
+                const container = document.getElementById('feedback-container');
+                if (!container) return;
+
+                if (feedbacks.length === 0) {
+                    container.innerHTML = `
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); color: var(--text-secondary);">
+                            <div style="font-size: 32px; margin-bottom: 12px;">📭</div>
+                            <div style="font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">No hay mensajes de feedback aún</div>
+                            <div style="font-size: 12px; color: var(--text-tertiary);">Cuando los usuarios ejecuten el comando <code>/feedback &lt;mensaje&gt;</code> en Discord, aparecerán listados aquí con su avatar, servidor y canal.</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = feedbacks.map(fb => {
+                    const avatar = fb.user_avatar || fb.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png';
+                    const userName = escapeHtml(fb.user_name || 'Usuario desconocido');
+                    const serverName = escapeHtml(fb.server_name || 'DM / Privado');
+                    const channelName = escapeHtml(fb.channel_name || 'general');
+                    const content = escapeHtml(fb.content || '');
+                    const createdAt = escapeHtml(fb.created_at || '--');
+                    const userId = escapeHtml(fb.user_id || 'N/A');
+
+                    return `
+                        <div class="feedback-card">
+                            <div>
+                                <div class="feedback-header">
+                                    <img class="feedback-avatar" src="${avatar}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" alt="Avatar">
+                                    <div class="feedback-user-info">
+                                        <div class="feedback-user-name">${userName}</div>
+                                        <div class="feedback-meta">${serverName} · #${channelName}</div>
+                                    </div>
+                                </div>
+                                <div class="feedback-body">${content}</div>
+                            </div>
+                            <div class="feedback-footer">
+                                <span>ID: ${userId}</span>
+                                <span>${createdAt}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error("Error al obtener feedbacks:", err);
             }
         }
 
@@ -1262,13 +1717,30 @@ class DashboardService:
             document.getElementById('or-lat').innerText = `${op.avg_latency_ms || 0}ms`;
             setProviderPill('pill-openrouter', op.healthy, op.cooldown_remaining);
 
-            // 7. Sistema & Base de Datos
-            document.getElementById('sys-turso-status').innerText = db.turso_online ? "ONLINE" : "STANDBY";
-            document.getElementById('sys-sqlite-status').innerText = db.sqlite_status || "OPERATIONAL";
-            document.getElementById('sys-cache-items').innerText = `${db.cache_items || 0} items`;
-            document.getElementById('sys-log-buffer').innerText = `${db.log_buffer_size || 0} / ${db.log_buffer_max || 20}`;
-            document.getElementById('sys-gateway').innerText = discord.online ? "CONECTADO" : "STANDBY";
-            document.getElementById('sys-users').innerText = (discord.users || 0).toLocaleString();
+            // 7. Sistema & Infraestructura (Tab 2)
+            const sysGatewayTag = document.getElementById('sys-kpi-gateway-tag');
+            if (sysGatewayTag) sysGatewayTag.innerText = discord.online ? "ONLINE" : "STANDBY";
+            const sysPing = document.getElementById('sys-kpi-ping');
+            if (sysPing) sysPing.innerText = `${discord.latency_ms || 0}ms`;
+            const sysGatewayState = document.getElementById('sys-kpi-gateway-state');
+            if (sysGatewayState) sysGatewayState.innerText = discord.online ? "CONECTADO" : "STANDBY";
+            const sysGuilds = document.getElementById('sys-kpi-guilds');
+            if (sysGuilds) sysGuilds.innerText = discord.guilds || 0;
+            const sysUsers = document.getElementById('sys-kpi-users');
+            if (sysUsers) sysUsers.innerText = (discord.users || 0).toLocaleString();
+            const sysCacheCount = document.getElementById('sys-kpi-cache-count');
+            if (sysCacheCount) sysCacheCount.innerText = `${db.cache_items || 0} items`;
+            const sysUptime = document.getElementById('sys-kpi-uptime');
+            if (sysUptime) sysUptime.innerText = discord.uptime_formatted || '0s';
+
+            const sysTurso2 = document.getElementById('sys-turso-status-2');
+            if (sysTurso2) sysTurso2.innerText = db.turso_online ? "ONLINE" : "STANDBY";
+            const sysSqlite2 = document.getElementById('sys-sqlite-status-2');
+            if (sysSqlite2) sysSqlite2.innerText = db.sqlite_status || "OPERATIONAL";
+            const sysBuffer2 = document.getElementById('sys-log-buffer-2');
+            if (sysBuffer2) sysBuffer2.innerText = `${db.log_buffer_size || 0} / ${db.log_buffer_max || 20} elementos`;
+            const sysCache2 = document.getElementById('sys-cache-items-2');
+            if (sysCache2) sysCache2.innerText = `${db.cache_items || 0} items`;
 
             // 8. Chart Update
             if (chartInstance) {
@@ -1340,7 +1812,13 @@ class DashboardService:
         window.onload = () => {
             initChart();
             fetchTelemetry();
-            refreshTimer = setInterval(fetchTelemetry, autoRefreshMs);
+            fetchFeedbacks();
+            refreshTimer = setInterval(() => {
+                fetchTelemetry();
+                if (currentTab === 'feedback') {
+                    fetchFeedbacks();
+                }
+            }, autoRefreshMs);
         };
     </script>
 </body>
