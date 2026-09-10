@@ -358,16 +358,36 @@ class DaletNLPChat(commands.Cog):
                     if embed.image and embed.image.url:
                         image_urls.append(embed.image.url)
 
-            # También revisar imagen del mensaje al que se responde (reply)
-            if not image_urls and message.reference and message.reference.resolved:
+            # También revisar imagen y contenido del mensaje al que se responde (reply)
+            ref_summary = ""
+            if message.reference and message.reference.resolved:
                 ref = message.reference.resolved
                 if isinstance(ref, discord.Message):
-                    for att in ref.attachments:
-                        if any(
-                            att.filename.lower().endswith(ext)
-                            for ext in (".png", ".jpg", ".jpeg", ".gif", ".webp")
-                        ):
-                            image_urls.append(att.url)
+                    if not image_urls:
+                        for att in ref.attachments:
+                            if any(
+                                att.filename.lower().endswith(ext)
+                                for ext in (".png", ".jpg", ".jpeg", ".gif", ".webp")
+                            ):
+                                image_urls.append(att.url)
+
+                    # Extraer texto y/o contenido de Embeds del mensaje al que se responde
+                    if ref.author == self.bot.user:
+                        if ref.embeds:
+                            emb = ref.embeds[0]
+                            parts = []
+                            if emb.title:
+                                parts.append(f"Título: {emb.title}")
+                            if emb.description:
+                                parts.append(f"Descripción: {emb.description}")
+                            for f in emb.fields[:5]:
+                                parts.append(f"{f.name}: {f.value}")
+                            ref_summary = f"[El usuario te está respondiendo directamente a este Embed que enviaste tú ({bot_name}): {' | '.join(parts)}]"
+                        elif ref.content:
+                            ref_summary = f"[El usuario te está respondiendo directamente a tu mensaje anterior: \"{ref.content}\"]"
+                    else:
+                        if ref.content:
+                            ref_summary = f"[El usuario está respondiendo al mensaje de {ref.author.display_name}: \"{ref.content}\"]"
 
             image_urls = list(dict.fromkeys(image_urls))[:1]  # Solo 1 imagen
 
@@ -386,6 +406,8 @@ class DaletNLPChat(commands.Cog):
             context = await self.bot.memory_service.get_relevant_context(
                 message.channel.id, message.author.id, clean_content
             )
+            if ref_summary:
+                context = f"{ref_summary}\n\n{context}" if context else ref_summary
 
             # Inyectar miembros activos solo si es contextualmente relevante
             active_users = ""

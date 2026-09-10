@@ -16,14 +16,21 @@ class ChatLogger(commands.Cog, name="Memoria Global"):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        """Guarda mensajes de usuarios (no comandos, no bots) en el buffer de SQLite."""
-        # Ignorar mensajes de bots
-        if message.author.bot or not message.guild:
+        # Ignorar mensajes de otros bots (permitir a Dalet registrar sus propias respuestas para memoria de chat)
+        if (message.author.bot and message.author != self.bot.user) or not message.guild:
             return
 
-        # Ignorar comandos del bot
+        # Ignorar comandos con prefijo del bot
         if message.content.startswith(("d.", "D.")):
             return
+
+        content = message.content.strip()
+        if not content:
+            if message.author == self.bot.user and message.embeds:
+                emb = message.embeds[0]
+                content = f"[Tarjeta: {emb.title or 'Embed'}]"
+            else:
+                return
 
         try:
             await self.repo.log_message(
@@ -33,7 +40,7 @@ class ChatLogger(commands.Cog, name="Memoria Global"):
                 str(message.guild.name),
                 message.channel.id,
                 str(message.channel.name),
-                message.content.strip()
+                content
             )
         except Exception as e:
             logger.error(f"Error guardando mensaje en buffer: {e}")

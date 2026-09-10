@@ -432,7 +432,7 @@ class OsuPresenter:
         overall = skills_data.get("overall_skill_stars", 0.0)
 
         embed = discord.Embed(
-            title=f"✦ Skill Breakdown — {username} {flag}",
+            title=f"✦ Skill Breakdown ({_mode_title(mode)}) — {username} {flag}",
             url=f"https://osu.ppy.sh/users/{user_id}/{mode}",
             color=DaletAtoms.COLOR_PRIMARY
         )
@@ -449,13 +449,22 @@ class OsuPresenter:
         ]
         embed.description = "\n".join(desc_lines)
 
-        skill_metadata = [
-            ("Aim", DaletAtoms.GLYPH_AIM),
-            ("Speed", DaletAtoms.GLYPH_SPEED),
-            ("Accuracy", DaletAtoms.GLYPH_ACCURACY),
-            ("Stamina", DaletAtoms.GLYPH_STAMINA),
-            ("Reading", DaletAtoms.GLYPH_READING)
-        ]
+        skill_icons = {
+            "Aim": DaletAtoms.GLYPH_AIM,
+            "Speed": DaletAtoms.GLYPH_SPEED,
+            "Accuracy": DaletAtoms.GLYPH_ACCURACY,
+            "Stamina": DaletAtoms.GLYPH_STAMINA,
+            "Reading": DaletAtoms.GLYPH_READING,
+            "Patterning": DaletAtoms.GLYPH_PATTERNING,
+            "Agility": DaletAtoms.GLYPH_AGILITY,
+            "Precision": DaletAtoms.GLYPH_PRECISION,
+            "Chordjack": DaletAtoms.GLYPH_CHORDJACK,
+            "Stream": DaletAtoms.GLYPH_STREAM
+        }
+
+        from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
+        active_skills = OsuAnalyzer.get_mode_skills(mode)
+        skill_metadata = [(sk, skill_icons.get(sk, "✦")) for sk in active_skills]
 
         for sk_name, icon in skill_metadata:
             sk_info = skills_data.get(sk_name, {})

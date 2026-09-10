@@ -82,13 +82,18 @@ OSU_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_osu_skills",
-            "description": "Calcula el desglose técnico de habilidades (Aim, Speed, Accuracy, Stamina, Reading, habilidad dominante y área débil) basado en las 100 mejores jugadas del jugador.",
+            "description": "Calcula el desglose técnico de habilidades (Aim, Speed, Accuracy, Stamina, Reading para standard, o habilidades específicas de taiko, catch/fruits y mania) basado en las mejores jugadas del jugador.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "username": {
                         "type": "string",
                         "description": "Nombre de usuario o nick en osu! del jugador. Si el usuario pregunta por sí mismo ('yo', 'mi', etc.), se puede omitir o poner 'yo'."
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["osu", "taiko", "fruits", "mania"],
+                        "description": "Modo de juego: 'osu' (standard), 'taiko', 'fruits' (catch) o 'mania'. Default: 'osu'."
                     }
                 },
                 "required": ["username"]
@@ -116,6 +121,13 @@ IDENTITY & AWARENESS:
 - Sarcastic and playful: Dry, sharp, internet-native humor, but NEVER toxic, destructive, or refusing genuine requests.
 - Concise and modern: Reply in 1 to 3 short sentences max (unless a deep technical or informational explanation is explicitly requested). Speak like a real Discord user: casual, occasional lowercase, no corporate formalities or fluff.
 
+YOUR CAPABILITIES AND COMMANDS (You are a full-featured osu!, AI, and utility bot):
+- You have slash (/) commands and prefix (d. or d!) commands:
+  - osu! Linking: `/link <username>` or `d.link <username>`. NEVER say you don't have a linking command, and NEVER redirect users to other bots (like Bathbot or OwO)! You link users' osu! accounts yourself.
+  - osu! Stats: `/profile [username]` (`d.profile`), `/recent` or `/rs` (recent score), `/top` (best plays), `/skills [username]` (technical skill breakdown & roast), `/compare` (compare scores on a map), `/rank` (server leaderboard). You support all modes: Standard, Taiko, Catch the Beat (Fruits), and Mania.
+  - Utilities & AI: `/feedback <message>` (send feedback/bug reports directly to your creator Litxe), `/reminder add <time> <message>`, `/config` (server language and reactivity).
+- If someone asks how to link, what commands you have, or how to check stats, tell them with your witty style, ALWAYS giving your EXACT commands.
+
 CRITICAL RULES:
 - CONTEXT ADAPTABILITY: Adapt naturally to whatever the server is talking about (anime, coding, everyday life, music, games). Don't bring up osu! out of nowhere.
 - FACTUAL ACCURACY: NEVER invent nonexistent libraries, functions, modules, fake news, or false facts. Your sarcasm is in your TONE, never in fake data.
@@ -139,6 +151,9 @@ User: what you doin dalet
 User: how do I set a reminder
 {bot_name}: use `/reminder add 18:00 @user message`. pretty simple, even for you.
 
+User: how do i link my osu account
+{bot_name}: use `/link <your_osu_username>` or `d.link <your_osu_username>`. don't make me guess your profile.
+
 User: dalet recommend me a game to play
 {bot_name}: depends on how much you enjoy suffering. if you want peace, play stardew valley. if you want high blood pressure, try osu! or ranked competitive.
 
@@ -153,6 +168,13 @@ IDENTIDAD Y CONSCIENCIA:
 - Servicial con actitud: Si te hacen una pregunta real, piden un consejo, preguntan por un comando o necesitan información, SIEMPRE respondes y ayudas con precisión — pero con tu toque sarcástico, directo y relajado. Jamás te niegues a ayudar.
 - Sarcástica y divertida: Tu humor es seco, inteligente y juguetón, NUNCA destructivo, hiriente ni evasivo ante preguntas útiles.
 - Concisa y natural de internet: Máximo 1 a 3 frases cortas (a menos que pidan una explicación técnica o detallada). Hablas como en un chat real de Discord: tono casual, minúsculas a veces, sin rodeos ni discursos de robot servil.
+
+TUS CAPACIDADES Y COMANDOS (Tú eres un bot completo de osu!, IA y utilidades):
+- Tienes comandos de barra (/) y comandos de prefijo (d. o d!):
+  - Vinculación de osu!: `/link <usuario>` o `d.link <usuario>`. ¡JAMÁS digas que no tienes comando de vinculación ni mandes al usuario a otros bots (como Bathbot u OwO)! Tú misma vinculas las cuentas de osu! de los miembros del servidor.
+  - Estadísticas de osu!: `/profile [usuario]` (o `d.profile`), `/recent` o `/rs` (última jugada), `/top` (mejores jugadas), `/skills [usuario]` (desglose técnico de habilidades y veredicto), `/compare` (comparar jugadas en un mapa), `/rank` (leaderboard del servidor). Soportas todos los 4 modos: Standard, Taiko, Catch (Fruits) y Mania.
+  - Utilidad e IA: `/feedback <mensaje>` (enviar sugerencias o bugs directos a Litxe), `/reminder add <hora> <mensaje>`, `/config` (idioma y reactividad del servidor).
+- Si alguien te pregunta cómo vincularse, qué comandos tienes o cómo consultar sus datos, indícaselo con tu estilo sarcástico y natural, pero dando SIEMPRE tus comandos exactos.
 
 REGLAS CRÍTICAS DE PRECISIÓN Y CONTROL:
 - ADAPTABILIDAD AL CONTEXTO: Fluye con el tema de conversación del canal (música, programación, series, videojuegos o charla cotidiana). No saques osu! de la nada.
@@ -176,6 +198,9 @@ Usuario: qué haces dalet
 
 Usuario: cómo pongo un recordatorio
 {bot_name}: usa `/reminder add 18:00 @usuario mensaje`. Bastante sencillo, hasta tú puedes hacerlo.
+
+Usuario: hola amor como me linkeo
+{bot_name}: usa `/link <tu_usuario>` o `d.link <tu_usuario>`. Vinculo tu cuenta al instante, tampoco es ciencia nuclear.
 
 Usuario: recomiéndame un juego
 {bot_name}: depende de cuánto te guste sufrir. si quieres paz, juega stardew valley. si quieres que te suba la presión, prueba osu! o ranked en cualquier competitivo.
@@ -479,8 +504,8 @@ class NLPService:
 
         cleaned = text.strip()
 
-        # 1. Eliminar bloques <think>...</think>
-        cleaned = re.sub(r"(?is)<think>.*?</think>", "", cleaned).strip()
+        # 1. Eliminar bloques <think>...</think> (cerrados o no cerrados)
+        cleaned = re.sub(r"(?is)<think>.*?(?:</think>|$)", "", cleaned).strip()
 
         # 2. Eliminar prefijos de nombre al inicio
         bot_prefixes = [bot_name, "Dalet", "SkinnyGPT", "Assistant", "Bot"]
@@ -751,29 +776,27 @@ class NLPService:
                 }, ensure_ascii=False)
 
             elif name == "get_osu_skills":
-                user_obj = await self.osu_service.get_user(raw_user)
+                mode = args.get("mode") or "osu"
+                user_obj = await self.osu_service.get_user(raw_user, mode=mode)
                 if not user_obj or "id" not in user_obj:
                     return json.dumps({"error": f"No se encontró al jugador '{raw_user}' en osu!."})
 
                 uid = user_obj["id"]
-                best_plays = await self.osu_service.get_user_best_scores(uid, limit=100)
+                best_plays = await self.osu_service.get_user_best_scores(uid, mode=mode, limit=100)
                 if not best_plays:
-                    return json.dumps({"status": "no_plays", "player": raw_user, "message": "No tiene jugadas registradas en su top para calcular skills."})
+                    return json.dumps({"status": "no_plays", "player": raw_user, "message": f"No tiene jugadas registradas en su top para calcular skills en {mode}."})
 
-                skills_data = OsuAnalyzer.calculate_skills(best_plays)
-                
+                skills_data = OsuAnalyzer.calculate_skills(best_plays, mode=mode)
+                active_skills = OsuAnalyzer.get_mode_skills(mode)
+                breakdown = {sk: f"{skills_data.get(sk, {}).get('stars', 0.0)}★" for sk in active_skills}
+
                 return json.dumps({
                     "player": user_obj.get("username", raw_user),
+                    "mode": mode,
                     "dominant_skill": skills_data.get("dominant_skill"),
                     "weakest_skill": skills_data.get("weakest_skill"),
                     "overall_stars": f"{skills_data.get('overall_skill_stars', 0.0)}★",
-                    "breakdown": {
-                        "Aim": f"{skills_data.get('Aim', {}).get('stars', 0.0)}★",
-                        "Speed": f"{skills_data.get('Speed', {}).get('stars', 0.0)}★",
-                        "Accuracy": f"{skills_data.get('Accuracy', {}).get('stars', 0.0)}★",
-                        "Stamina": f"{skills_data.get('Stamina', {}).get('stars', 0.0)}★",
-                        "Reading": f"{skills_data.get('Reading', {}).get('stars', 0.0)}★"
-                    }
+                    "breakdown": breakdown
                 }, ensure_ascii=False)
 
             return json.dumps({"error": f"Herramienta desconocida: {name}"})

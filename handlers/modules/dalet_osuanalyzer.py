@@ -3,11 +3,25 @@ import logging
 logger = logging.getLogger('dalet.handlers.osuanalyzer')
 
 class OsuAnalyzer:
-    '''Calcula el desglose de habilidades tecnicas para osu!.'''
+    """Calcula el desglose de habilidades técnicas para todos los modos de osu!."""
+
+    MODE_SKILLS = {
+        "osu": ['Aim', 'Speed', 'Accuracy', 'Stamina', 'Reading'],
+        "taiko": ['Speed', 'Stamina', 'Accuracy', 'Reading', 'Patterning'],
+        "fruits": ['Agility', 'Precision', 'Speed', 'Stamina', 'Reading'],
+        "mania": ['Chordjack', 'Stream', 'Speed', 'Stamina', 'Accuracy']
+    }
+
+    @classmethod
+    def get_mode_skills(cls, mode: str = "osu") -> list:
+        m = (mode or "osu").lower().strip()
+        return cls.MODE_SKILLS.get(m, cls.MODE_SKILLS["osu"])
 
     @staticmethod
-    def calculate_skills(best_plays: list) -> dict:
-        skills_def = ['Aim', 'Speed', 'Accuracy', 'Stamina', 'Reading']
+    def calculate_skills(best_plays: list, mode: str = "osu") -> dict:
+        mode_clean = (mode or "osu").lower().strip()
+        skills_def = OsuAnalyzer.get_mode_skills(mode_clean)
+
         if not best_plays:
             return {
                 skill: {'stars': 0.0, 'top_maps': []} for skill in skills_def
@@ -67,57 +81,209 @@ class OsuAnalyzer:
             bm_max = bm.get('max_combo') or total_objects or 1
             combo_ratio = min(1.0, max(0.15, max_combo / max(1, bm_max)))
 
-            acc_penalty = (acc / 0.98) ** 1.25 if acc > 0 else 0.5
-            miss_penalty = max(0.72, 1.0 - (misses * 0.03))
-            combo_factor = combo_ratio ** 0.10
-            exec_factor = min(1.04, max(0.55, acc_penalty * miss_penalty * combo_factor))
+            acc_penalty = (acc / 0.985) ** 1.35 if acc > 0 else 0.5
+            miss_penalty = max(0.68, 1.0 - (misses * 0.035))
+            combo_factor = combo_ratio ** 0.12
+            exec_factor = min(1.05, max(0.50, acc_penalty * miss_penalty * combo_factor))
 
-            circle_ratio = count_circles / max(1, total_objects) if total_objects > 0 else 0.7
-            cs_bonus = max(0.0, (cs - 4.0) * 0.05)
-            aim_score = eff_sr * (0.90 + 0.15 * circle_ratio + cs_bonus) * exec_factor
+            scores = {}
 
-            eff_bpm = bpm * (1.5 if is_dt else 1.0)
-            bpm_mult = 1.0
-            if eff_bpm >= 210:
-                bpm_mult += min(0.15, (eff_bpm - 210) * 0.0025)
-            elif eff_bpm < 160:
-                bpm_mult -= min(0.20, (160 - eff_bpm) * 0.003)
-            if is_dt:
-                bpm_mult += 0.05
-            speed_score = eff_sr * bpm_mult * exec_factor
+            if mode_clean == "taiko":
+                # --- TAIKO: Speed, Stamina, Accuracy, Reading, Patterning ---
+                eff_bpm = bpm * (1.5 if is_dt else 1.0)
+                bpm_mult = 1.0
+                if eff_bpm >= 220:
+                    bpm_mult += min(0.20, (eff_bpm - 220) * 0.003)
+                elif eff_bpm < 160:
+                    bpm_mult -= min(0.18, (160 - eff_bpm) * 0.003)
+                if is_dt:
+                    bpm_mult += 0.08
+                scores['Speed'] = eff_sr * bpm_mult * exec_factor
 
-            eff_od = min(11.0, od * (1.4 if is_hr else (0.5 if is_ez else 1.0)))
-            acc_factor = (acc / 0.98) ** 1.5 if acc > 0 else 0.5
-            acc_score = eff_sr * (eff_od / 9.2) * acc_factor
+                stamina_mult = 1.0
+                if total_objects >= 1600:
+                    stamina_mult += min(0.20, (total_objects - 1600) * 0.00015)
+                elif total_objects < 700:
+                    stamina_mult -= min(0.18, (700 - total_objects) * 0.0003)
+                if drain >= 200:
+                    stamina_mult += min(0.12, (drain - 200) * 0.0008)
+                scores['Stamina'] = eff_sr * min(1.22, max(0.65, stamina_mult)) * exec_factor
 
-            eff_drain = drain / 1.5 if is_dt else drain
-            stamina_mult = 1.0
-            if eff_drain >= 210:
-                stamina_mult += min(0.12, (eff_drain - 210) * 0.0008)
-            elif eff_drain < 90:
-                stamina_mult -= min(0.20, (90 - eff_drain) * 0.003)
-            if total_objects >= 1200:
-                stamina_mult += min(0.10, (total_objects - 1200) * 0.0001)
-            elif total_objects < 500:
-                stamina_mult -= min(0.15, (500 - total_objects) * 0.0003)
-            stamina_score = eff_sr * min(1.18, max(0.70, stamina_mult)) * exec_factor
+                eff_od = min(10.5, od * (1.4 if is_hr else (0.5 if is_ez else 1.0)))
+                acc_scale = (acc / 0.985) ** 1.6
+                scores['Accuracy'] = eff_sr * (eff_od / 9.2) * acc_scale * exec_factor
 
-            eff_ar = min(10.0, ar * 1.4) if is_hr else (ar * 0.5 if is_ez else ar)
-            if is_dt:
-                eff_ar = min(11.1, (eff_ar * 2 + 13) / 3)
-            
-            reading_mult = 1.0
-            if eff_ar <= 8.5:
-                reading_mult += min(0.15, (8.5 - eff_ar) * 0.08)
-            elif eff_ar >= 10.3:
-                reading_mult += min(0.12, (eff_ar - 10.3) * 0.08)
-            if is_hd:
-                reading_mult += 0.08
-            if is_fl:
-                reading_mult += 0.25
-            if is_ez:
-                reading_mult += 0.15
-            reading_score = eff_sr * min(1.20, reading_mult) * exec_factor
+                reading_mult = 0.75
+                if is_hd:
+                    reading_mult += 0.18
+                if is_fl:
+                    reading_mult += 0.32
+                if is_ez:
+                    reading_mult += 0.22
+                if is_dt:
+                    reading_mult += 0.08
+                scores['Reading'] = eff_sr * min(1.25, reading_mult) * exec_factor
+
+                circle_ratio = count_circles / max(1, total_objects) if total_objects > 0 else 0.8
+                pattern_mult = 0.90 + 0.15 * circle_ratio
+                if is_hr:
+                    pattern_mult += 0.08
+                scores['Patterning'] = eff_sr * pattern_mult * exec_factor
+
+            elif mode_clean == "fruits":
+                # --- CATCH (FRUITS): Agility, Precision, Speed, Stamina, Reading ---
+                eff_cs = cs * (1.3 if is_hr else (0.5 if is_ez else 1.0))
+                cs_mult = 0.85 + max(-0.15, (eff_cs - 4.0) * 0.10)
+                scores['Precision'] = eff_sr * min(1.25, cs_mult) * exec_factor
+
+                agility_mult = 0.92
+                if is_hr:
+                    agility_mult += 0.12
+                if is_dt:
+                    agility_mult += 0.08
+                scores['Agility'] = eff_sr * agility_mult * exec_factor
+
+                eff_bpm = bpm * (1.5 if is_dt else 1.0)
+                bpm_mult = 1.0
+                if eff_bpm >= 200:
+                    bpm_mult += min(0.18, (eff_bpm - 200) * 0.0025)
+                elif eff_bpm < 150:
+                    bpm_mult -= min(0.15, (150 - eff_bpm) * 0.0025)
+                if is_dt:
+                    bpm_mult += 0.10
+                scores['Speed'] = eff_sr * bpm_mult * exec_factor
+
+                stamina_mult = 1.0
+                if total_objects >= 1400:
+                    stamina_mult += min(0.18, (total_objects - 1400) * 0.00015)
+                elif total_objects < 600:
+                    stamina_mult -= min(0.15, (600 - total_objects) * 0.0003)
+                if drain >= 180:
+                    stamina_mult += min(0.10, (drain - 180) * 0.0008)
+                scores['Stamina'] = eff_sr * min(1.20, max(0.70, stamina_mult)) * exec_factor
+
+                eff_ar = min(10.0, ar * 1.4) if is_hr else (ar * 0.5 if is_ez else ar)
+                if is_dt:
+                    eff_ar = min(11.1, (eff_ar * 2 + 13) / 3)
+                reading_mult = 0.72
+                if eff_ar <= 8.5:
+                    reading_mult += min(0.20, (8.5 - eff_ar) * 0.08)
+                elif eff_ar >= 10.3:
+                    reading_mult += min(0.15, (eff_ar - 10.3) * 0.08)
+                if is_hd:
+                    reading_mult += 0.20
+                if is_fl:
+                    reading_mult += 0.35
+                if is_ez:
+                    reading_mult += 0.18
+                scores['Reading'] = eff_sr * min(1.28, reading_mult) * exec_factor
+
+            elif mode_clean == "mania":
+                # --- MANIA: Chordjack, Stream, Speed, Stamina, Accuracy ---
+                key_count = int(cs) if cs >= 4 else 4
+                key_bonus = 0.10 if key_count >= 7 else (0.05 if key_count >= 5 else 0.0)
+                chord_mult = 0.90 + key_bonus
+                if is_hr:
+                    chord_mult += 0.08
+                scores['Chordjack'] = eff_sr * chord_mult * exec_factor
+
+                density = total_objects / max(1.0, drain)
+                stream_mult = 0.90
+                if density >= 8.0:
+                    stream_mult += min(0.20, (density - 8.0) * 0.025)
+                elif density < 4.0:
+                    stream_mult -= min(0.15, (4.0 - density) * 0.03)
+                scores['Stream'] = eff_sr * min(1.22, max(0.70, stream_mult)) * exec_factor
+
+                eff_bpm = bpm * (1.5 if is_dt else 1.0)
+                bpm_mult = 1.0
+                if eff_bpm >= 210:
+                    bpm_mult += min(0.18, (eff_bpm - 210) * 0.0025)
+                elif eff_bpm < 150:
+                    bpm_mult -= min(0.15, (150 - eff_bpm) * 0.0025)
+                if is_dt:
+                    bpm_mult += 0.08
+                scores['Speed'] = eff_sr * bpm_mult * exec_factor
+
+                stamina_mult = 1.0
+                if total_objects >= 1800:
+                    stamina_mult += min(0.20, (total_objects - 1800) * 0.00012)
+                elif total_objects < 800:
+                    stamina_mult -= min(0.18, (800 - total_objects) * 0.00025)
+                if drain >= 180:
+                    stamina_mult += min(0.10, (drain - 180) * 0.0008)
+                scores['Stamina'] = eff_sr * min(1.20, max(0.68, stamina_mult)) * exec_factor
+
+                eff_od = min(10.5, od * (1.4 if is_hr else 1.0))
+                acc_scale = (acc / 0.985) ** 1.8
+                scores['Accuracy'] = eff_sr * (eff_od / 9.2) * acc_scale * exec_factor
+
+            else:
+                # --- OSU (STANDARD): Aim, Speed, Accuracy, Stamina, Reading ---
+                circle_ratio = count_circles / max(1, total_objects) if total_objects > 0 else 0.7
+                cs_bonus = max(0.0, (cs - 4.0) * 0.06)
+                aim_mult = 0.95 + 0.15 * circle_ratio + cs_bonus
+                scores['Aim'] = eff_sr * aim_mult * exec_factor
+
+                eff_bpm = bpm * (1.5 if is_dt else 1.0)
+                bpm_mult = 1.0
+                if eff_bpm >= 210:
+                    bpm_mult += min(0.18, (eff_bpm - 210) * 0.0028)
+                elif eff_bpm < 160:
+                    bpm_mult -= min(0.20, (160 - eff_bpm) * 0.003)
+                if is_dt:
+                    bpm_mult += 0.06
+                scores['Speed'] = eff_sr * bpm_mult * exec_factor
+
+                eff_od = min(11.0, od * (1.4 if is_hr else (0.5 if is_ez else 1.0)))
+                od_scale = eff_od / 9.8
+                acc_normalized = max(0.0, (acc - 0.90) / 0.10)
+                acc_curve = acc_normalized ** 1.6
+                acc_mult = min(1.15, max(0.50, 0.75 + 0.35 * acc_curve)) * od_scale
+                scores['Accuracy'] = eff_sr * acc_mult * exec_factor
+
+                eff_drain = drain / 1.5 if is_dt else drain
+                stamina_mult = 1.0
+                if eff_drain >= 210:
+                    stamina_mult += min(0.12, (eff_drain - 210) * 0.0008)
+                elif eff_drain < 90:
+                    stamina_mult -= min(0.20, (90 - eff_drain) * 0.003)
+                if total_objects >= 1200:
+                    stamina_mult += min(0.10, (total_objects - 1200) * 0.0001)
+                elif total_objects < 500:
+                    stamina_mult -= min(0.15, (500 - total_objects) * 0.0003)
+                scores['Stamina'] = eff_sr * min(1.18, max(0.70, stamina_mult)) * exec_factor
+
+                eff_ar = min(10.0, ar * 1.4) if is_hr else (ar * 0.5 if is_ez else ar)
+                if is_dt:
+                    eff_ar = min(11.1, (eff_ar * 2 + 13) / 3)
+
+                reading_mult = 0.70
+                if eff_ar <= 8.5:
+                    reading_mult += min(0.30, (8.5 - eff_ar) * 0.10)
+                    if eff_ar <= 7.0:
+                        reading_mult += 0.10
+                elif eff_ar >= 10.3:
+                    reading_mult += min(0.20, (eff_ar - 10.3) * 0.12)
+
+                if is_hd:
+                    if eff_ar <= 9.0:
+                        reading_mult += 0.16
+                    elif eff_ar >= 10.3:
+                        reading_mult += 0.12
+                    else:
+                        reading_mult += 0.09
+
+                if is_fl:
+                    reading_mult += 0.35
+                if is_ez:
+                    reading_mult += 0.20
+
+                slider_ratio = count_sliders / max(1, total_objects) if total_objects > 0 else 0.3
+                if slider_ratio >= 0.40:
+                    reading_mult += min(0.12, (slider_ratio - 0.40) * 0.25)
+
+                scores['Reading'] = eff_sr * min(1.25, reading_mult) * exec_factor
 
             title = bset.get('title') or bm.get('title', 'Desconocido')
             version = bm.get('version', 'Normal')
@@ -132,13 +298,7 @@ class OsuAnalyzer:
                 'sr': eff_sr,
                 'pp': pp_val,
                 'acc': round(acc * 100.0, 2),
-                'scores': {
-                    'Aim': aim_score,
-                    'Speed': speed_score,
-                    'Accuracy': acc_score,
-                    'Stamina': stamina_score,
-                    'Reading': reading_score
-                }
+                'scores': scores
             })
 
         if not scored_plays:
@@ -152,13 +312,13 @@ class OsuAnalyzer:
 
         skills_result = {}
         for skill in skills_def:
-            sorted_by_skill = sorted(scored_plays, key=lambda x: x['scores'][skill], reverse=True)
+            sorted_by_skill = sorted(scored_plays, key=lambda x: x['scores'].get(skill, 0.0), reverse=True)
             top_3 = sorted_by_skill[:3]
-            
+
             sample = sorted_by_skill[:25]
             weights = [0.95 ** i for i in range(len(sample))]
-            weighted_stars = sum(sample[i]['scores'][skill] * weights[i] for i in range(len(sample))) / max(0.001, sum(weights))
-            
+            weighted_stars = sum(sample[i]['scores'].get(skill, 0.0) * weights[i] for i in range(len(sample))) / max(0.001, sum(weights))
+
             skills_result[skill] = {
                 'stars': round(weighted_stars, 2),
                 'top_maps': [
@@ -168,7 +328,7 @@ class OsuAnalyzer:
                         'beatmap_id': m['beatmap_id'],
                         'mods_str': m['mods_str'],
                         'sr': m['sr'],
-                        'skill_score': round(m['scores'][skill], 2),
+                        'skill_score': round(m['scores'].get(skill, 0.0), 2),
                         'pp': round(m['pp'], 1),
                         'acc': m['acc']
                     }

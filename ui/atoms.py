@@ -54,6 +54,11 @@ class DaletAtoms:
     GLYPH_ACCURACY = "◎"
     GLYPH_STAMINA = "▰"
     GLYPH_READING = "⟡"
+    GLYPH_PATTERNING = "◈"
+    GLYPH_AGILITY = "⚡"
+    GLYPH_PRECISION = "⊹"
+    GLYPH_CHORDJACK = "▮"
+    GLYPH_STREAM = "≋"
     GLYPH_VERDICT = "✦"
 
     # --- Emojis Funcionales y Limpios ---

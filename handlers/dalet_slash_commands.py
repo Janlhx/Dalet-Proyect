@@ -335,7 +335,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             if not best:
                 return await interaction.followup.send(f"**{uname}** no tiene mejores jugadas registradas en {mode}.")
 
-            skills_data = OsuAnalyzer.calculate_skills(best)
+            skills_data = OsuAnalyzer.calculate_skills(best, mode=mode)
 
             dominant = skills_data.get("dominant_skill", "Aim")
             weakest = skills_data.get("weakest_skill", "Stamina")
@@ -353,50 +353,84 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             is_es = server_lang == "es"
             if is_es:
                 micro_prompt = (
-                    f"ROL: Eres Dalet, una bot cínica, técnica y experta en osu!.\n"
-                    f"TAREA: Haz un roast o veredicto técnico contundente (MÁXIMO 2 ORACIONES, 30-40 palabras) sobre el perfil de {uname}:\n"
-                    f"- Habilidad dominante: {dominant} ({skills_data[dominant]['stars']}★)\n"
-                    f"- Habilidad más débil: {weakest} ({skills_data[weakest]['stars']}★)\n"
+                    f"ROL: Eres Dalet, una bot cínica, técnica y experta en osu! ({mode}).\n"
+                    f"TAREA: Haz un roast o veredicto técnico contundente (MÁXIMO 2 ORACIONES, 25-35 palabras) sobre el perfil de {uname}:\n"
+                    f"- Modo: {mode}\n"
+                    f"- Habilidad dominante: {dominant} ({skills_data.get(dominant, {}).get('stars', 0.0)}★)\n"
+                    f"- Habilidad más débil: {weakest} ({skills_data.get(weakest, {}).get('stars', 0.0)}★)\n"
                     f"- Promedio de estrellas: {overall}★\n"
                     f"- Rank global: #{gr}\n"
-                    f"REGLAS: Búrlate con sarcasmo de su debilidad en {weakest} comparado con su {dominant}. Máximo 1 emoji. Cero rodeos. IDIOMA: Español."
+                    f"REGLAS: Búrlate con sarcasmo de su debilidad en {weakest} comparado con su {dominant}. Ve directo al grano sin introducciones. Máximo 1 emoji. Cero rodeos. IDIOMA: Español."
                 )
+                system_override = "Eres Dalet, una IA sarcástica y experta en osu!. Da un veredicto técnico contundente en 1 o 2 oraciones cortas. Ve directo al grano, sin explicaciones previas ni rodeos."
                 fallback_roasts = {
-                    "Speed": "Mucho DT farmeado en mapas cortos, pero ponle una stream rápida y se te traba el cerebro.",
-                    "Stamina": "Aguantas maratones eternos de relleno, lástima que ante una ráfaga de velocidad te derritas.",
+                    "Speed": "Mucho DT farmeado en mapas cortos, pero ponle una ráfaga rápida y se te traba el cerebro.",
+                    "Stamina": "Aguantas maratones eternos de relleno, lástima que ante una ráfaga veloz te derritas.",
                     "Aim": "Metes buen acc en ritmos planos, pero te mueven los círculos dos milímetros y ya estás tirando miss.",
-                    "Accuracy": "Mucho combo y estrellitas infladas, pero ese acc parece que tocas el teclado con guantes de boxeo.",
-                    "Reading": "Buen reading en mapas lentos, pero te suben el AR a 10.3 y ni te enteras de qué nota fallaste."
+                    "Accuracy": "Mucho combo y estrellitas infladas, pero ese acc parece que tocas con guantes de boxeo.",
+                    "Reading": "Buen reading en mapas lentos, pero te suben el scroll y ni te enteras de qué nota fallaste.",
+                    "Patterning": "Te sabes el ritmo de memoria, pero te cambian dos colores de tambor seguidos y te da un colapso mental.",
+                    "Agility": "Muy rápido corriendo en línea recta, pero te piden un cambio brusco de dirección y el plato vuela al vacío.",
+                    "Precision": "Cazas frutas gigantes como si nada, pero achican el plato medio pixel y las gotas caen como lluvia.",
+                    "Chordjack": "Mucho spam de teclas sueltas, pero te tiran tres acordes densos simultáneos y se te apagan los dedos.",
+                    "Stream": "Muy cómodo con acordes estáticos, pero te meten una escalera fluida a 200 BPM y pareces una lavadora rota."
                 }
             else:
                 micro_prompt = (
-                    f"ROLE: You are Dalet, a cynical, witty, and sharp osu! expert.\n"
-                    f"TASK: Write a biting technical roast (MAX 2 SHORT SENTENCES, 30-40 words) about {uname}'s profile in English:\n"
-                    f"- Dominant skill: {dominant} ({skills_data[dominant]['stars']}★)\n"
-                    f"- Weakest skill: {weakest} ({skills_data[weakest]['stars']}★)\n"
+                    f"ROLE: You are Dalet, a cynical, witty, and sharp osu! expert ({mode}).\n"
+                    f"TASK: Write a biting technical roast (MAX 2 SHORT SENTENCES, 25-35 words) about {uname}'s profile in English:\n"
+                    f"- Mode: {mode}\n"
+                    f"- Dominant skill: {dominant} ({skills_data.get(dominant, {}).get('stars', 0.0)}★)\n"
+                    f"- Weakest skill: {weakest} ({skills_data.get(weakest, {}).get('stars', 0.0)}★)\n"
                     f"- Overall stars: {overall}★\n"
                     f"- Global rank: #{gr}\n"
-                    f"RULES: Mock their weak {weakest} compared to their {dominant} with dry sarcasm. Max 1 emoji. No filler. LANGUAGE: English."
+                    f"RULES: Mock their weak {weakest} compared to their {dominant} with dry sarcasm. Be direct with no intro. Max 1 emoji. No filler. LANGUAGE: English."
                 )
+                system_override = "You are Dalet, a sarcastic and witty osu! expert. Give a sharp, punchy technical verdict in 1-2 short sentences. Be direct, no fluff or preliminary reasoning."
                 fallback_roasts = {
-                    "Speed": "Lots of DT farmed on short maps, but throw you a fast stream and your hands fall apart.",
+                    "Speed": "Lots of DT farmed on short maps, but throw you a fast burst and your hands fall apart.",
                     "Stamina": "You can endure endless marathon filler, too bad you melt the second any speed burst hits.",
                     "Aim": "Decent accuracy on flat rhythms, but move the circles two millimeters and you're already dropping misses.",
                     "Accuracy": "Inflated star rating and combo, but with that accuracy you might as well be tapping with boxing gloves.",
-                    "Reading": "Decent reading on slow maps, but bump the AR to 10.3 and you won't even know which note you choked."
+                    "Reading": "Decent reading on slow maps, but bump the scroll speed and you won't even know which note you choked.",
+                    "Patterning": "You memorize the beat fine, but throw two alternating drum colors your way and your brain short-circuits.",
+                    "Agility": "Fast sprinting in a straight line, but ask for a sharp direction snap and your plate flies into the void.",
+                    "Precision": "Catching giant fruits is easy, but shrink the plate half a pixel and droplets pour past you like rain.",
+                    "Chordjack": "Plenty of single-key spam, but throw dense chords at you and your fingers freeze instantly.",
+                    "Stream": "Comfortable on static chords, but face a continuous 200 BPM staircase and you sound like a broken keyboard."
                 }
+
+            def _is_valid_roast(txt: str) -> bool:
+                if not txt or not isinstance(txt, str):
+                    return False
+                t_str = txt.strip()
+                words = t_str.split()
+                if len(words) < 5:
+                    return False
+                if t_str[-1] not in ('.', '!', '?', '"', '”', '*'):
+                    return False
+                dangling = (
+                    ' de', ' que', ' con', ' en', ' por', ' para', ' a', ' del', ' al',
+                    ' of', ' to', ' the', ' with', ' and', ' or', ' but', ' in', ' on', ' at'
+                )
+                clean_no_punct = t_str.rstrip('.!?*"” ').lower()
+                for d in dangling:
+                    if clean_no_punct.endswith(d):
+                        return False
+                return True
 
             roast_text = None
             try:
                 roast_text = await self.bot.nlp_service.generate_reply(
                     micro_prompt, "Skill Roast", uname,
-                    max_tokens_override=120,
+                    max_tokens_override=350,
+                    system_prompt_override=system_override,
                     language=server_lang
                 )
             except Exception as nlp_err:
                 logger.warning(f"No se pudo generar roast para slash skills ({uname}): {nlp_err}")
 
-            if not roast_text:
+            if not _is_valid_roast(roast_text):
                 fallback_default = f"Mucho número inflado en {dominant}, pero en {weakest} das pena ajena." if is_es else f"Over-inflated numbers in {dominant}, but your {weakest} is embarrassing."
                 roast_text = fallback_roasts.get(weakest, fallback_default)
 
