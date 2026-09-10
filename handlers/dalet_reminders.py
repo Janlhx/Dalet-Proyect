@@ -136,17 +136,20 @@ def parse_days_or_date(input_str: str) -> str | None:
         return parsed_dt
     return parse_days(input_str)
 
-def format_days_readable(days_str: str) -> str:
+def format_days_readable(days_str: str, lang: str = "en") -> str:
     if days_str == "daily":
-        return "Todos los días"
+        return "Every day" if lang == "en" else "Todos los días"
     
     # Comprobar si es fecha específica YYYY-MM-DD
     if re.match(r"^\d{4}-\d{2}-\d{2}$", days_str):
         parts = days_str.split("-")
-        return f"El {parts[2]}/{parts[1]}/{parts[0]}"
+        return f"{parts[2]}/{parts[1]}/{parts[0]}" if lang == "en" else f"El {parts[2]}/{parts[1]}/{parts[0]}"
         
     parts = days_str.split(",")
-    readable = [DAY_TRANSLATIONS.get(p, p.capitalize()) for p in parts]
+    if lang == "es":
+        readable = [DAY_TRANSLATIONS.get(p, p.capitalize()) for p in parts]
+    else:
+        readable = [p.capitalize() for p in parts]
     return ", ".join(readable)
 
 
@@ -239,18 +242,26 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
                 channel = await self.bot.fetch_channel(r["ChannelID"])
 
             if channel:
+                server_lang = "en"
+                if hasattr(channel, "guild") and channel.guild and hasattr(self.bot, "admin_repo"):
+                    server_lang = await self.bot.admin_repo.get_server_language(channel.guild.id)
+
                 user_ping = f"<@{r['UserID']}>"
                 pings_str = r.get("Pings")
                 if pings_str:
                     user_ping += f" {pings_str}"
                 
+                title = "Scheduled Reminder" if server_lang == "en" else "Recordatorio Programado"
+                lbl_recipient = "Recipient(s)" if server_lang == "en" else "Destinatario(s)"
+                lbl_time = "Scheduled Time" if server_lang == "en" else "Hora programada"
+
                 embed = discord.Embed(
-                    title="Recordatorio Programado",
+                    title=title,
                     description=r["Message"],
                     color=DaletAtoms.COLOR_PRIMARY
                 )
-                embed.add_field(name="Destinatario(s)", value=user_ping, inline=True)
-                embed.add_field(name="Hora programada", value=f"`{r['ReminderTime']}` ({r['Timezone']})", inline=True)
+                embed.add_field(name=lbl_recipient, value=user_ping, inline=True)
+                embed.add_field(name=lbl_time, value=f"`{r['ReminderTime']}` ({r['Timezone']})", inline=True)
                 
                 # Enviar ping + embed
                 await channel.send(content=user_ping, embed=embed)
@@ -268,122 +279,126 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
 
     @reminder_group.command(name="add", description="Creates a new daily, weekly, or specific date reminder.")
     @app_commands.describe(
-        hora="Reminder time (e.g., 23:00, 11:00 PM, 11pm)",
-        usuario="Primary user to ping for this reminder",
-        dias="Days separated by commas (e.g., monday,wednesday), 'daily', or date (DD/MM/YYYY)",
-        canal="Channel where the reminder will be posted (defaults to current)",
-        mensaje="Reminder message content",
+        time="Reminder time (e.g., 23:00, 11:00 PM, 11pm)",
+        user="Primary user to ping for this reminder",
+        days="Days separated by commas (e.g., monday,wednesday), 'daily', or date (DD/MM/YYYY)",
+        channel="Channel where the reminder will be posted (defaults to current)",
+        message="Reminder message content",
         timezone="Timezone (default: America/Bogota)",
         pings="Additional users or roles to ping (space-separated)"
     )
     async def reminder_add(
         self, interaction: discord.Interaction, 
-        hora: str, 
-        usuario: discord.Member,
-        dias: str = "daily",
-        canal: discord.TextChannel = None,
-        mensaje: str = "¡Es hora del mapa del día!",
+        time: str, 
+        user: discord.Member,
+        days: str = "daily",
+        channel: discord.TextChannel = None,
+        message: str = "¡Es hora del recordatorio!",
         timezone: str = "America/Bogota",
         pings: str = None
     ):
+        server_lang = "en"
+        if interaction.guild_id and hasattr(self.bot, "admin_repo"):
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+
         # Validar huso horario
         try:
             pytz.timezone(timezone)
         except Exception:
-            return await interaction.response.send_message(
-                f"❌ Zona horaria `{timezone}` inválida. Ejemplos válidos: `America/Bogota`, `America/Mexico_City`, `UTC`.",
-                ephemeral=True
-            )
+            err_msg = f"❌ Invalid timezone `{timezone}`. Valid examples: `America/Bogota`, `America/New_York`, `UTC`." if server_lang == "en" else f"❌ Zona horaria `{timezone}` inválida. Ejemplos válidos: `America/Bogota`, `America/Mexico_City`, `UTC`."
+            return await interaction.response.send_message(err_msg, ephemeral=True)
 
         # Validar y parsear hora
-        parsed_time = parse_time(hora)
+        parsed_time = parse_time(time)
         if not parsed_time:
-            return await interaction.response.send_message(
-                "❌ Formato de hora inválido. Usa formatos como `23:00`, `11:00 PM` o `11pm`.",
-                ephemeral=True
-            )
+            err_msg = "❌ Invalid time format. Use formats like `23:00`, `11:00 PM` or `11pm`." if server_lang == "en" else "❌ Formato de hora inválido. Usa formatos como `23:00`, `11:00 PM` o `11pm`."
+            return await interaction.response.send_message(err_msg, ephemeral=True)
 
         # Validar y parsear días o fecha
-        parsed_days = parse_days_or_date(dias)
+        parsed_days = parse_days_or_date(days)
         if not parsed_days:
-            return await interaction.response.send_message(
-                "❌ Días o fecha inválidos. Especifica días separados por comas, `daily` o una fecha válida (ej: `15/07/2026`).",
-                ephemeral=True
-            )
+            err_msg = "❌ Invalid days or date. Specify comma-separated days, `daily`, or a valid date (e.g., `15/07/2026`)." if server_lang == "en" else "❌ Días o fecha inválidos. Especifica días separados por comas, `daily` o una fecha válida (ej: `15/07/2026`)."
+            return await interaction.response.send_message(err_msg, ephemeral=True)
 
-        target_channel = canal or interaction.channel
+        target_channel = channel or interaction.channel
         
         # Guardar en base de datos
         reminder_id = await self.repo.add_reminder(
             server_id=interaction.guild_id,
             channel_id=target_channel.id,
-            user_id=usuario.id,
+            user_id=user.id,
             time_str=parsed_time,
             days_str=parsed_days,
-            message=mensaje,
+            message=message,
             timezone=timezone,
             created_by=interaction.user.id,
             pings=pings
         )
 
         if reminder_id:
-            readable_days = format_days_readable(parsed_days)
+            readable_days = format_days_readable(parsed_days, lang=server_lang)
+            title = "Reminder Created" if server_lang == "en" else "Recordatorio Creado"
+            desc = "The reminder has been successfully scheduled." if server_lang == "en" else "Se ha programado el recordatorio correctamente."
+            lbl_time = "Time" if server_lang == "en" else "Hora"
+            lbl_freq = "Frequency / Date" if server_lang == "en" else "Frecuencia / Fecha"
+            lbl_dest = "Recipient(s)" if server_lang == "en" else "Destinatario(s)"
+            lbl_chan = "Channel" if server_lang == "en" else "Canal"
+            lbl_msg = "Message" if server_lang == "en" else "Mensaje"
+
             embed = discord.Embed(
-                title="Recordatorio Creado",
-                description=f"Se ha programado el recordatorio correctamente.",
+                title=title,
+                description=desc,
                 color=DaletAtoms.COLOR_SUCCESS
             )
             embed.add_field(name="ID", value=f"`#{reminder_id}`", inline=True)
-            embed.add_field(name="Hora", value=f"`{parsed_time}` ({timezone})", inline=True)
-            embed.add_field(name="Frecuencia / Fecha", value=readable_days, inline=True)
+            embed.add_field(name=lbl_time, value=f"`{parsed_time}` ({timezone})", inline=True)
+            embed.add_field(name=lbl_freq, value=readable_days, inline=True)
             
-            dest_val = usuario.mention
+            dest_val = user.mention
             if pings:
                 dest_val += f" {pings}"
-            embed.add_field(name="Destinatario(s)", value=dest_val, inline=True)
-            embed.add_field(name="Canal", value=target_channel.mention, inline=True)
-            embed.add_field(name="Mensaje", value=mensaje, inline=False)
+            embed.add_field(name=lbl_dest, value=dest_val, inline=True)
+            embed.add_field(name=lbl_chan, value=target_channel.mention, inline=True)
+            embed.add_field(name=lbl_msg, value=message, inline=False)
             
             await interaction.response.send_message(embed=embed)
         else:
-            await interaction.response.send_message(
-                "❌ Ocurrió un error al guardar el recordatorio en la base de datos.",
-                ephemeral=True
-            )
+            fail_msg = "❌ An error occurred while saving the reminder." if server_lang == "en" else "❌ Ocurrió un error al guardar el recordatorio en la base de datos."
+            await interaction.response.send_message(fail_msg, ephemeral=True)
 
     @reminder_group.command(name="edit", description="Edits an existing scheduled reminder.")
     @app_commands.describe(
         id="ID of the reminder to edit",
-        hora="New reminder time (e.g., 23:00, 11:00 PM)",
-        usuario="New primary user to ping",
-        dias="New days (e.g., monday,wednesday), 'daily', or date (DD/MM/YYYY)",
-        canal="New channel for the reminder",
-        mensaje="New reminder message content",
+        time="New reminder time (e.g., 23:00, 11:00 PM)",
+        user="New primary user to ping",
+        days="New days (e.g., monday,wednesday), 'daily', or date (DD/MM/YYYY)",
+        channel="New channel for the reminder",
+        message="New reminder message content",
         timezone="New timezone (e.g., America/Bogota)",
         pings="Additional users or roles to ping (space-separated)"
     )
     async def reminder_edit(
         self, interaction: discord.Interaction, 
         id: int,
-        hora: str = None, 
-        usuario: discord.Member = None,
-        dias: str = None,
-        canal: discord.TextChannel = None,
-        mensaje: str = None,
+        time: str = None, 
+        user: discord.Member = None,
+        days: str = None,
+        channel: discord.TextChannel = None,
+        message: str = None,
         timezone: str = None,
         pings: str = None
     ):
+        server_lang = "en"
+        if interaction.guild_id and hasattr(self.bot, "admin_repo"):
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+
         reminder = await self.repo.get_reminder(id)
         if not reminder or reminder["ServerID"] != interaction.guild_id:
-            return await interaction.response.send_message(
-                f"❌ No se encontró ningún recordatorio con el ID `#{id}` en este servidor.",
-                ephemeral=True
-            )
+            msg = f"❌ No reminder found with ID `#{id}` in this server." if server_lang == "en" else f"❌ No se encontró ningún recordatorio con el ID `#{id}` en este servidor."
+            return await interaction.response.send_message(msg, ephemeral=True)
         if reminder.get("CreatedBy") != interaction.user.id:
-            return await interaction.response.send_message(
-                f"❌ Solo puedes editar recordatorios que tú hayas creado.",
-                ephemeral=True
-            )
+            msg = "❌ You can only edit reminders that you created." if server_lang == "en" else "❌ Solo puedes editar recordatorios que tú hayas creado."
+            return await interaction.response.send_message(msg, ephemeral=True)
 
         updates = {}
 
@@ -392,98 +407,120 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
                 pytz.timezone(timezone)
                 updates["Timezone"] = timezone
             except Exception:
-                return await interaction.response.send_message(
-                    f"❌ Zona horaria `{timezone}` inválida. Ejemplos válidos: `America/Bogota`, `UTC`.",
-                    ephemeral=True
-                )
+                msg = f"❌ Invalid timezone `{timezone}`." if server_lang == "en" else f"❌ Zona horaria `{timezone}` inválida."
+                return await interaction.response.send_message(msg, ephemeral=True)
 
-        if hora is not None:
-            parsed_time = parse_time(hora)
+        if time is not None:
+            parsed_time = parse_time(time)
             if not parsed_time:
-                return await interaction.response.send_message(
-                    "❌ Formato de hora inválido. Usa formatos como `23:00`, `11:00 PM` o `11pm`.",
-                    ephemeral=True
-                )
+                msg = "❌ Invalid time format." if server_lang == "en" else "❌ Formato de hora inválido."
+                return await interaction.response.send_message(msg, ephemeral=True)
             updates["ReminderTime"] = parsed_time
 
-        if dias is not None:
-            parsed_days = parse_days_or_date(dias)
+        if days is not None:
+            parsed_days = parse_days_or_date(days)
             if not parsed_days:
-                return await interaction.response.send_message(
-                    "❌ Días o fecha inválidos. Especifica días separados por comas, `daily` o una fecha válida (ej: `15/07/2026`).",
-                    ephemeral=True
-                )
+                msg = "❌ Invalid days or date." if server_lang == "en" else "❌ Días o fecha inválidos."
+                return await interaction.response.send_message(msg, ephemeral=True)
             updates["ReminderDays"] = parsed_days
 
-        if canal is not None:
-            updates["ChannelID"] = canal.id
+        if channel is not None:
+            updates["ChannelID"] = channel.id
 
-        if usuario is not None:
-            updates["UserID"] = usuario.id
+        if user is not None:
+            updates["UserID"] = user.id
 
-        if mensaje is not None:
-            updates["Message"] = mensaje
+        if message is not None:
+            updates["Message"] = message
 
         if pings is not None:
             updates["Pings"] = pings
 
         if not updates:
-            return await interaction.response.send_message(
-                "⚠️ No especificaste ningún campo para modificar.",
-                ephemeral=True
-            )
+            msg = "⚠️ You did not specify any fields to update." if server_lang == "en" else "⚠️ No especificaste ningún campo para modificar."
+            return await interaction.response.send_message(msg, ephemeral=True)
 
         success = await self.repo.update_reminder(id, updates)
         if success:
             updated_reminder = await self.repo.get_reminder(id)
             
-            readable_days = format_days_readable(updated_reminder["ReminderDays"])
+            readable_days = format_days_readable(updated_reminder["ReminderDays"], lang=server_lang)
             target_channel_id = updated_reminder["ChannelID"]
             target_user_id = updated_reminder["UserID"]
             
+            title = "Reminder Updated" if server_lang == "en" else "Recordatorio Modificado"
+            desc = f"Reminder `#{id}` has been successfully updated." if server_lang == "en" else f"Se ha actualizado el recordatorio `#{id}` con éxito."
+            lbl_time = "Time" if server_lang == "en" else "Hora"
+            lbl_freq = "Frequency / Date" if server_lang == "en" else "Frecuencia / Fecha"
+            lbl_dest = "Recipient(s)" if server_lang == "en" else "Destinatario(s)"
+            lbl_chan = "Channel" if server_lang == "en" else "Canal"
+            lbl_msg = "Message" if server_lang == "en" else "Mensaje"
+
             embed = discord.Embed(
-                title="Recordatorio Modificado",
-                description=f"Se ha actualizado el recordatorio `#{id}` con éxito.",
+                title=title,
+                description=desc,
                 color=DaletAtoms.COLOR_SUCCESS
             )
             embed.add_field(name="ID", value=f"`#{id}`", inline=True)
-            embed.add_field(name="Hora", value=f"`{updated_reminder['ReminderTime']}` ({updated_reminder['Timezone']})", inline=True)
-            embed.add_field(name="Frecuencia / Fecha", value=readable_days, inline=True)
+            embed.add_field(name=lbl_time, value=f"`{updated_reminder['ReminderTime']}` ({updated_reminder['Timezone']})", inline=True)
+            embed.add_field(name=lbl_freq, value=readable_days, inline=True)
             
             dest_val = f"<@{target_user_id}>"
             if updated_reminder.get("Pings"):
                 dest_val += f" {updated_reminder['Pings']}"
-            embed.add_field(name="Destinatario(s)", value=dest_val, inline=True)
+            embed.add_field(name=lbl_dest, value=dest_val, inline=True)
             
-            embed.add_field(name="Canal", value=f"<#{target_channel_id}>", inline=True)
-            embed.add_field(name="Mensaje", value=updated_reminder["Message"], inline=False)
+            embed.add_field(name=lbl_chan, value=f"<#{target_channel_id}>", inline=True)
+            embed.add_field(name=lbl_msg, value=updated_reminder["Message"], inline=False)
             
             await interaction.response.send_message(embed=embed)
         else:
-            await interaction.response.send_message(
-                "❌ Ocurrió un error al actualizar el recordatorio en la base de datos.",
-                ephemeral=True
-            )
+            msg = "❌ An error occurred while updating the reminder." if server_lang == "en" else "❌ Ocurrió un error al actualizar el recordatorio en la base de datos."
+            await interaction.response.send_message(msg, ephemeral=True)
 
     @reminder_group.command(name="list", description="Lists the scheduled reminders you created in this server.")
     async def reminder_list(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
+        server_lang = "en"
+        if interaction.guild_id and hasattr(self.bot, "admin_repo"):
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+
         try:
             reminders = await self.repo.get_reminders_by_creator(
                 interaction.guild_id, interaction.user.id
             )
             if not reminders:
-                return await interaction.followup.send("No tienes recordatorios creados en este servidor.")
+                msg = "You don't have any scheduled reminders in this server." if server_lang == "en" else "No tienes recordatorios creados en este servidor."
+                return await interaction.followup.send(msg)
+
+            title = f"Your Reminders — {interaction.guild.name}" if server_lang == "en" else f"Tus recordatorios — {interaction.guild.name}"
+            desc = "Use the **ID** with `/reminder remove`, `/reminder toggle`, or `/reminder edit`." if server_lang == "en" else "Usa el **ID** con `/reminder remove`, `/reminder toggle` o `/reminder edit`."
 
             embed = discord.Embed(
-                title=f"Tus recordatorios — {interaction.guild.name}",
-                description="Usa el **ID** con `/reminder remove` o `/reminder toggle` o `/reminder edit`.",
+                title=title,
+                description=desc,
                 color=DaletAtoms.COLOR_PRIMARY
             )
 
             for r in reminders:
-                status = "Activo" if r["Active"] else "Inactivo"
-                readable_days = format_days_readable(r["ReminderDays"])
+                if server_lang == "en":
+                    status = "Active" if r["Active"] else "Inactive"
+                    lbl_rem = f"Reminder #{r['ReminderID']}"
+                    lbl_for = "For"
+                    lbl_freq = "Frequency / Date"
+                    lbl_msg = "Message"
+                    lbl_status = "Status"
+                    lbl_time = "Time"
+                else:
+                    status = "Activo" if r["Active"] else "Inactivo"
+                    lbl_rem = f"Recordatorio #{r['ReminderID']}"
+                    lbl_for = "Para"
+                    lbl_freq = "Frecuencia / Fecha"
+                    lbl_msg = "Mensaje"
+                    lbl_status = "Estado"
+                    lbl_time = "Hora"
+
+                readable_days = format_days_readable(r["ReminderDays"], lang=server_lang)
                 channel_mention = f"<#{r['ChannelID']}>"
                 user_mention = f"<@{r['UserID']}>"
                 if r.get("Pings"):
@@ -491,14 +528,14 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
                 
                 val = (
                     f"**ID**: `{r['ReminderID']}`\n"
-                    f"**Hora**: `{r['ReminderTime']}` ({r['Timezone']})\n"
-                    f"**Frecuencia / Fecha**: {readable_days}\n"
-                    f"**Para**: {user_mention} en {channel_mention}\n"
-                    f"**Mensaje**: *{r['Message']}*\n"
-                    f"**Estado**: {status}"
+                    f"**{lbl_time}**: `{r['ReminderTime']}` ({r['Timezone']})\n"
+                    f"**{lbl_freq}**: {readable_days}\n"
+                    f"**{lbl_for}**: {user_mention} in {channel_mention}\n"
+                    f"**{lbl_msg}**: *{r['Message']}*\n"
+                    f"**{lbl_status}**: {status}"
                 )
                 embed.add_field(
-                    name=f"Recordatorio #{r['ReminderID']}",
+                    name=lbl_rem,
                     value=val,
                     inline=False
                 )
@@ -506,59 +543,69 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /reminder list: {e}")
-            await interaction.followup.send("Ocurrió un error al obtener la lista de recordatorios.")
+            err = "An error occurred while fetching your reminders." if server_lang == "en" else "Ocurrió un error al obtener la lista de recordatorios."
+            await interaction.followup.send(err)
 
     @reminder_group.command(name="remove", description="Deletes a scheduled reminder by its ID.")
     @app_commands.describe(id="ID of the reminder to delete (e.g., 1)")
     async def reminder_remove(self, interaction: discord.Interaction, id: int):
+        server_lang = "en"
+        if interaction.guild_id and hasattr(self.bot, "admin_repo"):
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+
         reminder = await self.repo.get_reminder(id)
         if not reminder or reminder["ServerID"] != interaction.guild_id:
-            return await interaction.response.send_message(
-                f"No se encontró ningún recordatorio con el ID `#{id}` en este servidor.",
-                ephemeral=True
-            )
+            msg = f"❌ No reminder found with ID `#{id}` in this server." if server_lang == "en" else f"❌ No se encontró ningún recordatorio con el ID `#{id}` en este servidor."
+            return await interaction.response.send_message(msg, ephemeral=True)
         if reminder.get("CreatedBy") != interaction.user.id:
-            return await interaction.response.send_message(
-                f"Solo puedes eliminar recordatorios que tú hayas creado.",
-                ephemeral=True
-            )
+            msg = "❌ You can only delete reminders that you created." if server_lang == "en" else "❌ Solo puedes eliminar recordatorios que tú hayas creado."
+            return await interaction.response.send_message(msg, ephemeral=True)
 
         success = await self.repo.delete_reminder(id)
         if success:
-            await interaction.response.send_message(f"Recordatorio `#{id}` eliminado con éxito.")
+            msg = f"✅ Reminder `#{id}` deleted successfully." if server_lang == "en" else f"✅ Recordatorio `#{id}` eliminado con éxito."
+            await interaction.response.send_message(msg)
         else:
-            await interaction.response.send_message("Error al eliminar el recordatorio de la base de datos.", ephemeral=True)
+            msg = "❌ Error deleting the reminder." if server_lang == "en" else "❌ Error al eliminar el recordatorio de la base de datos."
+            await interaction.response.send_message(msg, ephemeral=True)
 
     @reminder_group.command(name="toggle", description="Enables or disables a scheduled reminder by its ID.")
     @app_commands.describe(id="ID of the reminder to toggle (e.g., 1)")
     async def reminder_toggle(self, interaction: discord.Interaction, id: int):
+        server_lang = "en"
+        if interaction.guild_id and hasattr(self.bot, "admin_repo"):
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+
         reminder = await self.repo.get_reminder(id)
         if not reminder or reminder["ServerID"] != interaction.guild_id:
-            return await interaction.response.send_message(
-                f"No se encontró ningún recordatorio con el ID `#{id}` en este servidor.",
-                ephemeral=True
-            )
+            msg = f"❌ No reminder found with ID `#{id}` in this server." if server_lang == "en" else f"❌ No se encontró ningún recordatorio con el ID `#{id}` en este servidor."
+            return await interaction.response.send_message(msg, ephemeral=True)
         if reminder.get("CreatedBy") != interaction.user.id:
-            return await interaction.response.send_message(
-                f"Solo puedes modificar recordatorios que tú hayas creado.",
-                ephemeral=True
-            )
+            msg = "❌ You can only modify reminders that you created." if server_lang == "en" else "❌ Solo puedes modificar recordatorios que tú hayas creado."
+            return await interaction.response.send_message(msg, ephemeral=True)
 
         new_state = await self.repo.toggle_reminder(id)
         if new_state is not None:
-            status_str = "activado" if new_state else "desactivado"
-            await interaction.response.send_message(f"El recordatorio `#{id}` ha sido {status_str}.")
+            if server_lang == "en":
+                status_str = "enabled" if new_state else "disabled"
+                msg = f"Reminder `#{id}` has been {status_str}."
+            else:
+                status_str = "activado" if new_state else "desactivado"
+                msg = f"El recordatorio `#{id}` ha sido {status_str}."
+            await interaction.response.send_message(msg)
         else:
-            await interaction.response.send_message("Error al cambiar el estado del recordatorio.", ephemeral=True)
+            msg = "❌ Error toggling reminder status." if server_lang == "en" else "❌ Error al cambiar el estado del recordatorio."
+            await interaction.response.send_message(msg, ephemeral=True)
 
     # Autocompletado para zona horaria y días/fechas
     async def timezone_autocomplete(
         self, interaction: discord.Interaction, current: str
     ) -> list[app_commands.Choice[str]]:
         common_timezones = [
-            "America/Bogota", "America/Mexico_City", "America/Santiago",
-            "America/Argentina/Buenos_Aires", "America/Lima", "America/Caracas",
-            "America/Madrid", "UTC"
+            "America/Bogota", "America/New_York", "America/Los_Angeles", "America/Chicago",
+            "America/Mexico_City", "America/Santiago", "America/Argentina/Buenos_Aires",
+            "America/Lima", "America/Caracas", "America/Sao_Paulo", "Europe/London",
+            "Europe/Madrid", "Europe/Paris", "Europe/Berlin", "Asia/Tokyo", "UTC"
         ]
         
         if not current:
@@ -569,25 +616,25 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
         matches = sorted(matches, key=lambda tz: (not tz.lower().startswith(current), tz))
         return [app_commands.Choice(name=tz, value=tz) for tz in matches[:25]]
 
-    async def dias_autocomplete(
+    async def days_autocomplete(
         self, interaction: discord.Interaction, current: str
     ) -> list[app_commands.Choice[str]]:
         today_str = datetime.now().strftime("%d/%m/%Y")
         tomorrow_str = (datetime.now() + timedelta(days=1)).strftime("%d/%m/%Y")
         
         options = [
-            ("Todos los días", "daily"),
-            (f"Hoy ({today_str})", today_str),
-            (f"Mañana ({tomorrow_str})", tomorrow_str),
-            ("Lunes a Viernes (días laborables)", "lunes,martes,miercoles,jueves,viernes"),
-            ("Fin de semana (Sábado y Domingo)", "sabado,domingo"),
-            ("Lunes", "lunes"),
-            ("Martes", "martes"),
-            ("Miércoles", "miercoles"),
-            ("Jueves", "jueves"),
-            ("Viernes", "viernes"),
-            ("Sábado", "sabado"),
-            ("Domingo", "domingo")
+            ("Every day (Daily) • Todos los días", "daily"),
+            (f"Today ({today_str}) • Hoy", today_str),
+            (f"Tomorrow ({tomorrow_str}) • Mañana", tomorrow_str),
+            ("Monday to Friday (Weekdays) • Lunes a Viernes", "monday,tuesday,wednesday,thursday,friday"),
+            ("Weekend (Sat & Sun) • Fin de semana", "saturday,sunday"),
+            ("Monday • Lunes", "monday"),
+            ("Tuesday • Martes", "tuesday"),
+            ("Wednesday • Miércoles", "wednesday"),
+            ("Thursday • Jueves", "thursday"),
+            ("Friday • Viernes", "friday"),
+            ("Saturday • Sábado", "saturday"),
+            ("Sunday • Domingo", "sunday")
         ]
         
         if not current:
@@ -605,17 +652,17 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
     async def reminder_add_timezone_autocomplete(self, interaction: discord.Interaction, current: str):
         return await self.timezone_autocomplete(interaction, current)
 
-    @reminder_add.autocomplete("dias")
-    async def reminder_add_dias_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await self.dias_autocomplete(interaction, current)
+    @reminder_add.autocomplete("days")
+    async def reminder_add_days_autocomplete(self, interaction: discord.Interaction, current: str):
+        return await self.days_autocomplete(interaction, current)
 
     @reminder_edit.autocomplete("timezone")
     async def reminder_edit_timezone_autocomplete(self, interaction: discord.Interaction, current: str):
         return await self.timezone_autocomplete(interaction, current)
 
-    @reminder_edit.autocomplete("dias")
-    async def reminder_edit_dias_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await self.dias_autocomplete(interaction, current)
+    @reminder_edit.autocomplete("days")
+    async def reminder_edit_days_autocomplete(self, interaction: discord.Interaction, current: str):
+        return await self.days_autocomplete(interaction, current)
 
 
 async def setup(bot: commands.Bot):

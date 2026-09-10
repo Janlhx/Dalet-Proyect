@@ -37,9 +37,9 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         )
 
     @app_commands.command(name="stats", description="Displays your server social activity statistics.")
-    @app_commands.describe(usuario="User to inspect (defaults to yourself)")
-    async def slash_stats(self, interaction: discord.Interaction, usuario: discord.Member = None):
-        member = usuario or interaction.user
+    @app_commands.describe(user="User to inspect (defaults to yourself)")
+    async def slash_stats(self, interaction: discord.Interaction, user: discord.Member = None):
+        member = user or interaction.user
         server_lang = "en"
         if interaction.guild_id:
             server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
@@ -54,9 +54,9 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             await interaction.followup.send(t("general.user_stats_fail", server_lang), ephemeral=True)
 
     @app_commands.command(name="userinfo", description="Displays detailed information about a server member.")
-    @app_commands.describe(usuario="Member to inspect")
-    async def slash_userinfo(self, interaction: discord.Interaction, usuario: discord.Member = None):
-        member = usuario or interaction.user
+    @app_commands.describe(user="Member to inspect")
+    async def slash_userinfo(self, interaction: discord.Interaction, user: discord.Member = None):
+        member = user or interaction.user
         server_lang = "en"
         if interaction.guild_id:
             server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
@@ -131,8 +131,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         await interaction.response.send_message(embed=pages[0], view=view, ephemeral=True)
 
     @app_commands.command(name="feedback", description="Sends feedback, suggestions, or bug reports directly to the developer.")
-    @app_commands.describe(mensaje="Feedback, suggestion, or bug report to deliver")
-    async def slash_feedback(self, interaction: discord.Interaction, mensaje: str):
+    @app_commands.describe(message="Feedback, suggestion, or bug report to deliver")
+    async def slash_feedback(self, interaction: discord.Interaction, message: str):
         await interaction.response.defer(ephemeral=True)
         server_lang = "en"
         if interaction.guild_id:
@@ -141,7 +141,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         sent = await FeedbackService.send_feedback(
             bot=self.bot,
             author=interaction.user,
-            content=mensaje,
+            content=message,
             guild=interaction.guild,
             channel=interaction.channel
         )
@@ -156,10 +156,10 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
 
     @app_commands.command(name="op", description="Displays full osu! profile, rank, and stats for a player.")
     @app_commands.describe(
-        usuario="osu! username (or leave empty for your linked account)",
-        modo="Game mode (default: osu)"
+        username="osu! username (or leave empty for your linked account)",
+        mode="Game mode (default: osu)"
     )
-    @app_commands.choices(modo=[
+    @app_commands.choices(mode=[
         app_commands.Choice(name="osu!standard", value="osu"),
         app_commands.Choice(name="osu!taiko",    value="taiko"),
         app_commands.Choice(name="osu!catch",    value="fruits"),
@@ -167,14 +167,14 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     ])
     async def slash_op(
         self, interaction: discord.Interaction,
-        usuario: str = None, modo: str = "osu"
+        username: str = None, mode: str = "osu"
     ):
         await interaction.response.defer()
         try:
-            username = usuario
-            if not username:
-                username = await self.bot.osu_repo.get_linked_username(interaction.user.id)
-            if not username:
+            uname = username
+            if not uname:
+                uname = await self.bot.osu_repo.get_linked_username(interaction.user.id)
+            if not uname:
                 return await interaction.followup.send(
                     "❌ no tienes cuenta vinculada. usa `/link` primero.",
                     ephemeral=True
@@ -182,22 +182,22 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             server_lang = "en"
             if interaction.guild:
                 server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
-            user = await self.bot.osu_service.get_user(username, modo)
-            embed = OsuPresenter.build_profile_card(user, modo, lang=server_lang)
+            user = await self.bot.osu_service.get_user(uname, mode)
+            embed = OsuPresenter.build_profile_card(user, mode, lang=server_lang)
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /op: {e}")
             await interaction.followup.send("⚠️ error obteniendo el perfil.", ephemeral=True)
 
     @app_commands.command(name="link", description="Links your Discord account to your osu! profile.")
-    @app_commands.describe(usuario="Your osu! username")
-    async def slash_link(self, interaction: discord.Interaction, usuario: str):
+    @app_commands.describe(username="Your osu! username")
+    async def slash_link(self, interaction: discord.Interaction, username: str):
         await interaction.response.defer(ephemeral=True)
         try:
-            user_data = await self.bot.osu_service.get_user(usuario)
+            user_data = await self.bot.osu_service.get_user(username)
             if not user_data or "statistics" not in user_data:
                 return await interaction.followup.send(
-                    f"❌ no encontré a '{usuario}' en osu!.", ephemeral=True
+                    f"❌ no encontré a '{username}' en osu!.", ephemeral=True
                 )
             stats = user_data.get("statistics", {})
             await self.bot.osu_repo.link_account(
@@ -219,10 +219,10 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
 
     @app_commands.command(name="recent", description="Displays your most recent osu! play with detailed stats.")
     @app_commands.describe(
-        usuario="osu! username (or leave empty for your linked account)",
-        modo="Game mode"
+        username="osu! username (or leave empty for your linked account)",
+        mode="Game mode"
     )
-    @app_commands.choices(modo=[
+    @app_commands.choices(mode=[
         app_commands.Choice(name="osu!standard", value="osu"),
         app_commands.Choice(name="osu!taiko",    value="taiko"),
         app_commands.Choice(name="osu!catch",    value="fruits"),
@@ -230,13 +230,13 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     ])
     async def slash_recent(
         self, interaction: discord.Interaction,
-        usuario: str = None, modo: str = "osu"
+        username: str = None, mode: str = "osu"
     ):
         await interaction.response.defer()
-        username = usuario
-        if not username:
-            username = await self.bot.osu_repo.get_linked_username(interaction.user.id)
-        if not username:
+        uname = username
+        if not uname:
+            uname = await self.bot.osu_repo.get_linked_username(interaction.user.id)
+        if not uname:
             return await interaction.followup.send(
                 "❌ no tienes cuenta vinculada.", ephemeral=True
             )
@@ -244,16 +244,16 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             server_lang = "en"
             if interaction.guild:
                 server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
-            user = await self.bot.osu_service.get_user(username, modo)
+            user = await self.bot.osu_service.get_user(uname, mode)
             recent = await self.bot.osu_service.get_user_recent_scores(
-                user["id"], modo, limit=1, include_fails=1
+                user["id"], mode, limit=1, include_fails=1
             )
             if not recent:
                 return await interaction.followup.send(
-                    f"**{username}** no tiene jugadas recientes."
+                    f"**{uname}** no tiene jugadas recientes."
                 )
 
-            embed = OsuPresenter.build_recent_card(user.get("username", username), modo, recent[0], user_data=user, lang=server_lang)
+            embed = OsuPresenter.build_recent_card(user.get("username", uname), mode, recent[0], user_data=user, lang=server_lang)
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
@@ -262,21 +262,21 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
 
     @app_commands.command(name="top", description="Displays your top 5 best registered osu! scores.")
     @app_commands.describe(
-        usuario="osu! username (or leave empty for your linked account)",
-        modo="Game mode"
+        username="osu! username (or leave empty for your linked account)",
+        mode="Game mode"
     )
-    @app_commands.choices(modo=[
+    @app_commands.choices(mode=[
         app_commands.Choice(name="osu!standard", value="osu"),
         app_commands.Choice(name="osu!taiko",    value="taiko"),
         app_commands.Choice(name="osu!catch",    value="fruits"),
         app_commands.Choice(name="osu!mania",    value="mania"),
     ])
-    async def slash_top(self, interaction: discord.Interaction, usuario: str = None, modo: str = "osu"):
+    async def slash_top(self, interaction: discord.Interaction, username: str = None, mode: str = "osu"):
         await interaction.response.defer()
-        username = usuario
-        if not username:
-            username = await self.bot.osu_repo.get_linked_username(interaction.user.id)
-        if not username:
+        uname = username
+        if not uname:
+            uname = await self.bot.osu_repo.get_linked_username(interaction.user.id)
+        if not uname:
             return await interaction.followup.send(
                 "❌ no tienes cuenta vinculada.", ephemeral=True
             )
@@ -284,9 +284,9 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             server_lang = "en"
             if interaction.guild:
                 server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
-            user = await self.bot.osu_service.get_user(username, modo)
-            best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=modo, limit=5)
-            embed = OsuPresenter.build_top_card(user.get("username", username), modo, best, user_data=user, lang=server_lang)
+            user = await self.bot.osu_service.get_user(uname, mode)
+            best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=mode, limit=5)
+            embed = OsuPresenter.build_top_card(user.get("username", uname), mode, best, user_data=user, lang=server_lang)
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /top: {e}")
@@ -294,10 +294,10 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
 
     @app_commands.command(name="skills", description="5-dimension osu! skill radar (Aim, Speed, Acc, Stamina, Reading) with Dalet's verdict.")
     @app_commands.describe(
-        usuario="osu! username (or leave empty for your linked account)",
-        modo="Game mode (default: osu)"
+        username="osu! username (or leave empty for your linked account)",
+        mode="Game mode (default: osu)"
     )
-    @app_commands.choices(modo=[
+    @app_commands.choices(mode=[
         app_commands.Choice(name="osu!standard", value="osu"),
         app_commands.Choice(name="osu!taiko",    value="taiko"),
         app_commands.Choice(name="osu!catch",    value="fruits"),
@@ -305,23 +305,23 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     ])
     async def slash_skills(
         self, interaction: discord.Interaction,
-        usuario: str = None, modo: str = "osu"
+        username: str = None, mode: str = "osu"
     ):
         await interaction.response.defer()
         try:
-            username = usuario
-            if not username:
-                username = await self.bot.osu_repo.get_linked_username(interaction.user.id)
-            if not username:
+            uname = username
+            if not uname:
+                uname = await self.bot.osu_repo.get_linked_username(interaction.user.id)
+            if not uname:
                 return await interaction.followup.send(
                     "❌ no tienes cuenta vinculada. usa `/link` primero o especifica un usuario.",
                     ephemeral=True
                 )
 
-            user = await self.bot.osu_service.get_user(username, modo)
-            best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=modo, limit=50)
+            user = await self.bot.osu_service.get_user(uname, mode)
+            best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=mode, limit=50)
             if not best:
-                return await interaction.followup.send(f"**{username}** no tiene mejores jugadas registradas en {modo}.")
+                return await interaction.followup.send(f"**{uname}** no tiene mejores jugadas registradas en {mode}.")
 
             skills_data = OsuAnalyzer.calculate_skills(best)
 
@@ -342,7 +342,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             if is_es:
                 micro_prompt = (
                     f"ROL: Eres Dalet, una bot cínica, técnica y experta en osu!.\n"
-                    f"TAREA: Haz un roast o veredicto técnico contundente (MÁXIMO 2 ORACIONES, 30-40 palabras) sobre el perfil de {username}:\n"
+                    f"TAREA: Haz un roast o veredicto técnico contundente (MÁXIMO 2 ORACIONES, 30-40 palabras) sobre el perfil de {uname}:\n"
                     f"- Habilidad dominante: {dominant} ({skills_data[dominant]['stars']}★)\n"
                     f"- Habilidad más débil: {weakest} ({skills_data[weakest]['stars']}★)\n"
                     f"- Promedio de estrellas: {overall}★\n"
@@ -359,7 +359,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             else:
                 micro_prompt = (
                     f"ROLE: You are Dalet, a cynical, witty, and sharp osu! expert.\n"
-                    f"TASK: Write a biting technical roast (MAX 2 SHORT SENTENCES, 30-40 words) about {username}'s profile in English:\n"
+                    f"TASK: Write a biting technical roast (MAX 2 SHORT SENTENCES, 30-40 words) about {uname}'s profile in English:\n"
                     f"- Dominant skill: {dominant} ({skills_data[dominant]['stars']}★)\n"
                     f"- Weakest skill: {weakest} ({skills_data[weakest]['stars']}★)\n"
                     f"- Overall stars: {overall}★\n"
@@ -377,18 +377,18 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             roast_text = None
             try:
                 roast_text = await self.bot.nlp_service.generate_reply(
-                    micro_prompt, "Skill Roast", username,
+                    micro_prompt, "Skill Roast", uname,
                     max_tokens_override=120,
                     language=server_lang
                 )
             except Exception as nlp_err:
-                logger.warning(f"No se pudo generar roast para slash skills ({username}): {nlp_err}")
+                logger.warning(f"No se pudo generar roast para slash skills ({uname}): {nlp_err}")
 
             if not roast_text:
                 fallback_default = f"Mucho número inflado en {dominant}, pero en {weakest} das pena ajena." if is_es else f"Over-inflated numbers in {dominant}, but your {weakest} is embarrassing."
                 roast_text = fallback_roasts.get(weakest, fallback_default)
 
-            embed = OsuPresenter.build_skills_card(user, skills_data, roast_text=roast_text, mode=modo, lang=server_lang)
+            embed = OsuPresenter.build_skills_card(user, skills_data, roast_text=roast_text, mode=mode, lang=server_lang)
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /skills: {e}")
@@ -429,8 +429,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             await interaction.followup.send(t("rank.error", server_lang), ephemeral=True)
 
     @app_commands.command(name="compare", description="Compares your osu! profile head-to-head against another player.")
-    @app_commands.describe(usuario="Player to compare against")
-    async def slash_compare(self, interaction: discord.Interaction, usuario: str):
+    @app_commands.describe(username="Player to compare against")
+    async def slash_compare(self, interaction: discord.Interaction, username: str):
         await interaction.response.defer()
         user1_name = await self.bot.osu_repo.get_linked_username(interaction.user.id)
         if not user1_name:
@@ -440,7 +440,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         try:
             u1, u2 = await asyncio.gather(
                 self.bot.osu_service.get_user(user1_name),
-                self.bot.osu_service.get_user(usuario),
+                self.bot.osu_service.get_user(username),
             )
             server_lang = "en"
             if interaction.guild:
@@ -456,14 +456,14 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     # ------------------------------------------------------------------
 
     @app_commands.command(name="lore", description="Searches server history and chat archives with cynical AI commentary.")
-    @app_commands.describe(tema="Topic to research in server history")
-    async def slash_lore(self, interaction: discord.Interaction, tema: str):
+    @app_commands.describe(query="Topic to research in server history")
+    async def slash_lore(self, interaction: discord.Interaction, query: str):
         await interaction.response.defer()
         try:
-            resultados = await self.bot.user_repo.search_lore(tema, interaction.channel_id, limit=20)
+            resultados = await self.bot.user_repo.search_lore(query, interaction.channel_id, limit=20)
             if not resultados:
                 return await interaction.followup.send(
-                    f"ni idea de qué es '{tema}'. ese lore te lo inventaste."
+                    f"ni idea de qué es '{query}'. ese lore te lo inventaste."
                 )
             lineas = []
             for r in resultados:
@@ -474,7 +474,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 lineas.append(f"[{fecha}] {usr}: {cnt}")
 
             prompt = (
-                f"ESTÁS INVESTIGANDO EL LORE DEL SERVIDOR sobre \"{tema}\":\n"
+                f"ESTÁS INVESTIGANDO EL LORE DEL SERVIDOR sobre \"{query}\":\n"
                 + "\n".join(lineas)
                 + "\nResponde de forma sarcástica y directa, como quien revisó los archivos."
             )
@@ -487,12 +487,12 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             await interaction.followup.send("error leyendo los archivos.", ephemeral=True)
 
     @app_commands.command(name="resumir", description="Generates a smart AI digest of recent channel conversations.")
-    @app_commands.describe(mensajes="Number of messages to analyze (default: 50)")
-    async def slash_resumir(self, interaction: discord.Interaction, mensajes: int = 50):
+    @app_commands.describe(limit="Number of messages to analyze (default: 50)")
+    async def slash_resumir(self, interaction: discord.Interaction, limit: int = 50):
         await interaction.response.defer()
         try:
             registros = await self.bot.user_repo.get_channel_messages(
-                interaction.channel_id, min(mensajes, 100)
+                interaction.channel_id, min(limit, 100)
             )
             if not registros:
                 return await interaction.followup.send("no hay suficientes mensajes para resumir.")
@@ -569,18 +569,18 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     # ------------------------------------------------------------------
 
     @app_commands.command(name="proactive", description="[ADMIN] Enables or disables proactive AI chat in this channel.")
-    @app_commands.describe(activar="True to enable, False to disable")
+    @app_commands.describe(enabled="True to enable, False to disable")
     @app_commands.checks.has_permissions(administrator=True)
-    async def slash_proactive(self, interaction: discord.Interaction, activar: bool):
+    async def slash_proactive(self, interaction: discord.Interaction, enabled: bool):
         server_lang = "en"
         if interaction.guild_id:
             server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
         try:
             await self.bot.user_repo.set_channel_proactive(
                 interaction.channel_id, interaction.channel.name,
-                interaction.guild_id, activar
+                interaction.guild_id, enabled
             )
-            status_str = t("admin.enabled", server_lang) if activar else t("admin.disabled", server_lang)
+            status_str = t("admin.enabled", server_lang) if enabled else t("admin.disabled", server_lang)
             await interaction.response.send_message(
                 t("admin.proactive_status", server_lang, status=status_str, channel=interaction.channel.mention),
                 ephemeral=True
@@ -590,17 +590,17 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             await interaction.response.send_message("❌ Error", ephemeral=True)
 
     @app_commands.command(name="reactive", description="[ADMIN] Enables or disables reactive AI replies to mentions in the server.")
-    @app_commands.describe(activar="True to enable, False to disable")
+    @app_commands.describe(enabled="True to enable, False to disable")
     @app_commands.checks.has_permissions(administrator=True)
-    async def slash_reactive(self, interaction: discord.Interaction, activar: bool):
+    async def slash_reactive(self, interaction: discord.Interaction, enabled: bool):
         server_lang = "en"
         if interaction.guild_id:
             server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
         try:
             await self.bot.user_repo.set_server_reactive(
-                interaction.guild_id, interaction.guild.name, activar
+                interaction.guild_id, interaction.guild.name, enabled
             )
-            status_str = t("admin.enabled", server_lang) if activar else t("admin.disabled", server_lang)
+            status_str = t("admin.enabled", server_lang) if enabled else t("admin.disabled", server_lang)
             await interaction.response.send_message(
                 t("admin.reactive_status", server_lang, status=status_str),
                 ephemeral=True
@@ -615,16 +615,16 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     # ------------------------------------------------------------------
 
     @app_commands.command(name="setwelcome", description="[ADMIN] Sets the welcome message channel for this server.")
-    @app_commands.describe(canal="Channel where Dalet will send welcome messages")
+    @app_commands.describe(channel="Channel where Dalet will send welcome messages")
     @app_commands.checks.has_permissions(administrator=True)
-    async def slash_setwelcome(self, interaction: discord.Interaction, canal: discord.TextChannel):
+    async def slash_setwelcome(self, interaction: discord.Interaction, channel: discord.TextChannel):
         server_lang = "en"
         if interaction.guild_id:
             server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
         try:
-            await self.bot.admin_repo.set_welcome_channel(interaction.guild_id, canal.id)
+            await self.bot.admin_repo.set_welcome_channel(interaction.guild_id, channel.id)
             await interaction.response.send_message(
-                t("admin.setwelcome_success", server_lang, channel=canal.mention),
+                t("admin.setwelcome_success", server_lang, channel=channel.mention),
                 ephemeral=True
             )
         except Exception as e:
@@ -652,20 +652,20 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     # ------------------------------------------------------------------
 
     @app_commands.command(name="setname", description="[ADMIN] Sets a custom nickname for Dalet in this server.")
-    @app_commands.describe(nombre="Custom nickname (max 32 characters)")
+    @app_commands.describe(name="Custom nickname (max 32 characters)")
     @app_commands.checks.has_permissions(administrator=True)
-    async def slash_setname(self, interaction: discord.Interaction, nombre: str):
+    async def slash_setname(self, interaction: discord.Interaction, name: str):
         server_lang = "en"
         if interaction.guild_id:
             server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
-        if len(nombre) > 32:
+        if len(name) > 32:
             return await interaction.response.send_message(
                 t("admin.name_too_long", server_lang), ephemeral=True
             )
         try:
-            await self.bot.admin_repo.set_server_custom_name(interaction.guild_id, nombre)
+            await self.bot.admin_repo.set_server_custom_name(interaction.guild_id, name)
             await interaction.response.send_message(
-                t("admin.setname_success", server_lang, name=nombre),
+                t("admin.setname_success", server_lang, name=name),
                 ephemeral=True
             )
         except Exception as e:
@@ -677,27 +677,27 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     # ------------------------------------------------------------------
 
     @app_commands.command(name="language", description="[ADMIN] Configures or displays the server language.")
-    @app_commands.describe(idioma="Choose server language (en: English, es: Español)")
-    @app_commands.choices(idioma=[
+    @app_commands.describe(language="Choose server language (en: English, es: Español)")
+    @app_commands.choices(language=[
         app_commands.Choice(name="English (Default)", value="en"),
         app_commands.Choice(name="Español", value="es"),
     ])
     @app_commands.checks.has_permissions(administrator=True)
-    async def slash_language(self, interaction: discord.Interaction, idioma: str = None):
+    async def slash_language(self, interaction: discord.Interaction, language: str = None):
         if not interaction.guild_id:
             return await interaction.response.send_message("❌ This command can only be used in a server.", ephemeral=True)
 
-        if not idioma:
+        if not language:
             current = await self.bot.admin_repo.get_server_language(interaction.guild_id)
             lang_name = "English" if current == "en" else "Español"
             return await interaction.response.send_message(
                 f"{DaletAtoms.GLYPH_POINTER} Current server language is **{lang_name}** (`{current}`).\n"
-                f"{DaletAtoms.GLYPH_SUB} Use `/language [idioma]` to change it.",
+                f"{DaletAtoms.GLYPH_SUB} Use `/language [language]` to change it.",
                 ephemeral=True
             )
 
-        await self.bot.admin_repo.set_server_language(interaction.guild_id, idioma)
-        if idioma == "es":
+        await self.bot.admin_repo.set_server_language(interaction.guild_id, language)
+        if language == "es":
             await interaction.response.send_message(
                 f"{DaletAtoms.EMOJI_DALET} Idioma del servidor actualizado a **Español**. Dalet responderá y mostrará estadísticas en español.",
                 ephemeral=False
