@@ -1,7 +1,7 @@
 {
   "dalet_main.py": {
-    "mtime": 1788999217.2999065,
-    "ast_hash": "f1fd262520ea18529d7c1e12414af363",
+    "mtime": 1789009715.6445923,
+    "ast_hash": "17fbe4d68a7b976f71b227c3837b1b96",
     "semantic_hash": ""
   },
   "database/__init__.py": {
@@ -90,8 +90,8 @@
     "semantic_hash": "35604cdbc5521eda6541b18c3e5e7906"
   },
   "handlers/dalet_helpcommands_handlers.py": {
-    "mtime": 1789008133.4530323,
-    "ast_hash": "de9d7146b491d3ab1919cb292d748077",
+    "mtime": 1789008816.7472842,
+    "ast_hash": "7369dc5d80449103025f41d2274d1ec0",
     "semantic_hash": ""
   },
   "handlers/dalet_nlpchat.py": {
@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "handlers/dalet_slash_commands.py": {
-    "mtime": 1789004110.5449283,
-    "ast_hash": "161a37e3ea76030dbba9c6e293d0cef7",
+    "mtime": 1789008772.907812,
+    "ast_hash": "c51206324d4d739d9517a3feaf2f95c0",
     "semantic_hash": ""
   },
   "handlers/dalet_smartresume.py": {
@@ -282,6 +282,16 @@
   "docs/architecture/dalet-architecture.html": {
     "mtime": 1789005260.3322892,
     "ast_hash": "af9b340ad5c05d6031325639f8324259",
+    "semantic_hash": ""
+  },
+  "docs/PRIVACY_POLICY.md": {
+    "mtime": 1789009703.6034281,
+    "ast_hash": "6da05f02b8c9fdc91fc924ef6bf8f3a6",
+    "semantic_hash": ""
+  },
+  "docs/TERMS_OF_SERVICE.md": {
+    "mtime": 1789009688.161563,
+    "ast_hash": "92ee90bd1010276657438f95e85d16c0",
     "semantic_hash": ""
   }
 }

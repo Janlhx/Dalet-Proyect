@@ -74,6 +74,26 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             embed.set_thumbnail(url=g.icon.url)
         await interaction.response.send_message(embed=embed)
 
+    @app_commands.command(name="info", description="Tarjeta de presentación e información de Dalet.")
+    async def slash_info(self, interaction: discord.Interaction):
+        from ui.molecules import DaletMolecules
+        embed = discord.Embed(
+            title=f"{DaletAtoms.EMOJI_DALET} Dalet {DaletAtoms.VERSION}",
+            description=(
+                f'> *"searching who asked"*\n\n'
+                f"{DaletAtoms.GLYPH_POINTER} **Creador**: Litxe\n"
+                f"{DaletAtoms.GLYPH_POINTER} **Estado**: En línea y juzgando tus jugadas\n"
+                f"{DaletAtoms.GLYPH_POINTER} **Prefijo**: `d.` o mención `@Dalet`\n\n"
+                f"{DaletAtoms.GLYPH_SUB} Escribe `d.changelog` para ver las novedades de la versión.\n"
+                f"{DaletAtoms.GLYPH_SUB} Escribe `d.help` para consultar el menú de comandos."
+            ),
+            color=DaletAtoms.COLOR_PRIMARY
+        )
+        if self.bot.user and self.bot.user.display_avatar:
+            embed.set_thumbnail(url=self.bot.user.display_avatar.url)
+        DaletMolecules.add_standard_footer(embed, context_text=f"{DaletAtoms.VERSION} │ Litxe")
+        await interaction.response.send_message(embed=embed)
+
     # ------------------------------------------------------------------
     # osu!
     # ------------------------------------------------------------------

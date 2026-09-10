@@ -48,6 +48,37 @@ def health():
     """Health check simple para Render."""
     return "OK", 200
 
+@app.route('/terms')
+@app.route('/tos')
+def terms():
+    """Términos de servicio para verificación en Discord."""
+    terms_path = os.path.join(os.path.dirname(__file__), "docs", "TERMS_OF_SERVICE.md")
+    content = "Terms of Service"
+    if os.path.exists(terms_path):
+        with open(terms_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    html = f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Terms of Service — Dalet</title>
+<style>body{{font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #121214; color: #e4e4e7; line-height: 1.6; padding: 40px 20px; max-width: 800px; margin: 0 auto;}} pre{{white-space: pre-wrap; font-family: inherit;}} a{{color: #ff69b4;}}</style>
+</head><body><pre>{content}</pre></body></html>"""
+    return Response(html, mimetype='text/html')
+
+@app.route('/privacy')
+def privacy():
+    """Política de privacidad para verificación en Discord."""
+    privacy_path = os.path.join(os.path.dirname(__file__), "docs", "PRIVACY_POLICY.md")
+    content = "Privacy Policy"
+    if os.path.exists(privacy_path):
+        with open(privacy_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    html = f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Privacy Policy — Dalet</title>
+<style>body{{font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #121214; color: #e4e4e7; line-height: 1.6; padding: 40px 20px; max-width: 800px; margin: 0 auto;}} pre{{white-space: pre-wrap; font-family: inherit;}} a{{color: #ff69b4;}}</style>
+</head><body><pre>{content}</pre></body></html>"""
+    return Response(html, mimetype='text/html')
+
 def run_flask():
     try:
         port = int(os.getenv("PORT", 8080))

@@ -23,6 +23,7 @@ SLASH_CATEGORIES = {
         "color": discord.Color.from_rgb(255, 102, 170),
         "commands": [
             ("/op [usuario]",       "Perfil completo de osu! de un jugador"),
+            ("/skills [usuario]",   "Desglose de habilidades (Aim, Speed, Acc...) y roast"),
             ("/recent [usuario]",   "Última jugada registrada"),
             ("/top [usuario]",      "Mejores plays (top scores)"),
             ("/rank",               "Ranking del servidor de jugadores vinculados"),
@@ -41,6 +42,7 @@ SLASH_CATEGORIES = {
     "Servidor": {
         "color": discord.Color.from_rgb(52, 152, 219),
         "commands": [
+            ("/info",               "Tarjeta de presentación e información de Dalet"),
             ("/ping",               "Latencia del bot en ms"),
             ("/stats [usuario]",    "Estadísticas sociales de un miembro"),
             ("/userinfo [usuario]", "Información detallada de un usuario"),
