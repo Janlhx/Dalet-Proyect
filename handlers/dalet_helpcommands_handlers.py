@@ -47,6 +47,7 @@ SLASH_CATEGORIES_ES = {
             ("/stats [usuario]",    "Estadísticas sociales de un miembro"),
             ("/userinfo [usuario]", "Información detallada de un usuario"),
             ("/serverinfo",         "Información del servidor actual"),
+            ("/feedback <mensaje>", "Envía sugerencias o comentarios al creador"),
         ]
     },
     "Recordatorios": {
@@ -104,6 +105,7 @@ SLASH_CATEGORIES_EN = {
             ("/stats [user]",       "Social activity statistics for a member"),
             ("/userinfo [user]",    "Detailed member account and server information"),
             ("/serverinfo",         "Current server overview and statistics"),
+            ("/feedback <message>", "Sends feedback or bug reports to the developer"),
         ]
     },
     "Reminders": {

@@ -34,27 +34,33 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
     @commands.command()
     async def stats(self, ctx, member: discord.Member = None):
         """📊 Muestra tus estadísticas sociales o las de otro usuario."""
+        server_lang = "en"
+        if ctx.guild:
+            server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
         member = member or ctx.author
         try:
             async with ctx.typing():
                 stats = await self.repo.get_user_social_stats(member.id)
             avatar = member.avatar.url if member.avatar else None
-            embed = DaletOrganisms.create_user_stats_card(member.display_name, stats, avatar)
+            embed = DaletOrganisms.create_user_stats_card(member.display_name, stats, avatar, lang=server_lang)
             await ctx.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en stats: {e}")
-            await ctx.send("No pude calcular tus vicios sociales hoy.")
+            await ctx.send(t("general.user_stats_fail", server_lang))
 
     @commands.command()
     async def userinfo(self, ctx, member: discord.Member = None):
         """Muestra información detallada de un usuario del servidor."""
+        server_lang = "en"
+        if ctx.guild:
+            server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
         member = member or ctx.author
         desc = (
-            f"• {DaletAtoms.bold('ID')}: {DaletAtoms.code(member.id)}\n"
-            f"• {DaletAtoms.bold('Cuenta creada')}: {format_dt(member.created_at, 'D')}\n"
-            f"• {DaletAtoms.bold('Se unió al grupo')}: {format_dt(member.joined_at, 'D')}\n"
+            f"• {DaletAtoms.bold(t('userinfo.id', server_lang))}: {DaletAtoms.code(member.id)}\n"
+            f"• {DaletAtoms.bold(t('userinfo.created', server_lang))}: {format_dt(member.created_at, 'D')}\n"
+            f"• {DaletAtoms.bold(t('userinfo.joined', server_lang))}: {format_dt(member.joined_at, 'D')}\n"
         )
-        embed = DaletOrganisms.create_simple_embed(f"Expediente: {member.display_name}", desc)
+        embed = DaletOrganisms.create_simple_embed(t("userinfo.title", server_lang, username=member.display_name), desc)
         if member.avatar:
             embed.set_thumbnail(url=member.avatar.url)
         await ctx.send(embed=embed)
@@ -62,16 +68,40 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
     @commands.command()
     async def serverinfo(self, ctx):
         """Muestra información detallada del servidor actual."""
+        server_lang = "en"
+        if ctx.guild:
+            server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
         g = ctx.guild
         desc = (
-            f"• {DaletAtoms.bold('Miembros')}: {DaletAtoms.code(g.member_count)}\n"
-            f"• {DaletAtoms.bold('Propietario')}: {g.owner.mention}\n"
-            f"• {DaletAtoms.bold('Fundación')}: {format_dt(g.created_at, 'D')}\n"
+            f"• {DaletAtoms.bold(t('serverinfo.members', server_lang))}: {DaletAtoms.code(g.member_count)}\n"
+            f"• {DaletAtoms.bold(t('serverinfo.owner', server_lang))}: {g.owner.mention}\n"
+            f"• {DaletAtoms.bold(t('serverinfo.created', server_lang))}: {format_dt(g.created_at, 'D')}\n"
         )
-        embed = DaletOrganisms.create_simple_embed(f"Territorio: {g.name}", desc)
+        embed = DaletOrganisms.create_simple_embed(t("serverinfo.title", server_lang, name=g.name), desc)
         if g.icon:
             embed.set_thumbnail(url=g.icon.url)
         await ctx.send(embed=embed)
+
+    @commands.command(name="feedback", aliases=["sugerencia", "suggest"])
+    @commands.cooldown(1, 30, commands.BucketType.user)
+    async def feedback(self, ctx, *, mensaje: str):
+        """📬 Envía comentarios o sugerencias directamente al desarrollador."""
+        from services.feedback_service import FeedbackService
+        server_lang = "en"
+        if ctx.guild:
+            server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
+
+        sent = await FeedbackService.send_feedback(
+            bot=self.bot,
+            author=ctx.author,
+            content=mensaje,
+            guild=ctx.guild,
+            channel=ctx.channel
+        )
+        if sent:
+            await ctx.send(t("feedback.success", server_lang))
+        else:
+            await ctx.send(t("feedback.error", server_lang))
 
     @commands.command()
     async def say(self, ctx, *, mensaje):

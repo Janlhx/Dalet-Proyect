@@ -69,7 +69,57 @@ STRINGS: dict[str, dict[str, str]] = {
         "changelog.skills_title": "Skill Breakdown (`d.skills`)",
         "changelog.skills_desc": "• Visual radar across 5 core skills (Aim, Speed, Accuracy, Stamina, Reading).\n• Real difficulty scaling with mod weighting (DT, HR, EZ, FL) and biting AI verdict.",
         "changelog.i18n_title": "Performance & Full Bilingual Support",
-        "changelog.i18n_desc": "• Global response time optimizations across all servers.\n• Default English language for new servers with Spanish configurable via `d.language` / `/language`."
+        "changelog.i18n_desc": "• Global response time optimizations across all servers.\n• Default English language for new servers with Spanish configurable via `d.language` / `/language`.",
+
+        # --- Stats ---
+        "stats.title": "Social Activity · {username}",
+        "stats.desc": "Activity summary recorded in database.",
+        "stats.messages": "Messages",
+        "stats.active_days": "Active Days",
+        "stats.chars_per_msg": "Chars/Msg",
+
+        # --- Userinfo ---
+        "userinfo.title": "Record: {username}",
+        "userinfo.id": "ID",
+        "userinfo.created": "Account created",
+        "userinfo.joined": "Joined server",
+
+        # --- Serverinfo ---
+        "serverinfo.title": "Server Territory: {name}",
+        "serverinfo.members": "Members",
+        "serverinfo.owner": "Owner",
+        "serverinfo.created": "Founded",
+
+        # --- Rank ---
+        "rank.title": "Server osu! Leaderboard",
+        "rank.empty": "No one in this server has linked their osu! account yet. Use `/link` to join the leaderboard.",
+        "rank.error": "⚠️ Error fetching the leaderboard.",
+
+        # --- Feedback ---
+        "feedback.success": "✅ Thank you for your feedback! It has been sent directly to the developer.",
+        "feedback.error": "❌ Could not send your feedback. Please try again later.",
+        "feedback.dm_title": "📬 New Feedback Received",
+        "feedback.author": "Author",
+        "feedback.server": "Server",
+        "feedback.channel": "Channel",
+        "feedback.dm_alert": "🔔 {mention}, you received a new feedback submission!",
+
+        # --- Admin ---
+        "admin.lock_success": "🔒 Channel {channel} locked. Dalet commands are now disabled here.",
+        "admin.lock_error": "❌ Error locking channel.",
+        "admin.unlock_success": "🔓 Channel {channel} unlocked.",
+        "admin.unlock_error": "❌ Error unlocking channel.",
+        "admin.proactive_status": "Proactive mode **{status}** in {channel}.",
+        "admin.reactive_status": "Reactive mode **{status}** in this server.",
+        "admin.enabled": "enabled ✅",
+        "admin.disabled": "disabled 🛑",
+        "admin.setwelcome_success": "✅ Welcome channel set to {channel}.",
+        "admin.setwelcome_error": "❌ Error configuring welcome channel.",
+        "admin.removewelcome_success": "🗑️ Welcome channel removed. Greetings are now disabled.",
+        "admin.removewelcome_error": "❌ Error removing welcome channel.",
+        "admin.setname_success": "✅ My nickname in this server is now **{name}**.",
+        "admin.setname_error": "❌ Error changing nickname.",
+        "admin.name_too_long": "❌ Nickname cannot exceed 32 characters."
     },
     "es": {
         # --- osu! cards ---
@@ -130,7 +180,57 @@ STRINGS: dict[str, dict[str, str]] = {
         "changelog.skills_title": "Desglose de Habilidades (`d.skills`)",
         "changelog.skills_desc": "• Evaluación visual en 5 áreas (Aim, Speed, Accuracy, Stamina, Reading).\n• Calibración de dificultad real en mods (DT, HR, EZ, FL) y veredicto mordaz.",
         "changelog.i18n_title": "Rendimiento e Internacionalización",
-        "changelog.i18n_desc": "• Optimización de tiempos de respuesta en todos los servidores.\n• Soporte bilingüe completo (Inglés por defecto, Español configurable con `d.language`)."
+        "changelog.i18n_desc": "• Optimización de tiempos de respuesta en todos los servidores.\n• Soporte bilingüe completo (Inglés por defecto, Español configurable con `d.language`).",
+
+        # --- Stats ---
+        "stats.title": "Actividad Social · {username}",
+        "stats.desc": "Resumen de actividad registrada en mis bases de datos.",
+        "stats.messages": "Mensajes",
+        "stats.active_days": "Días Activo",
+        "stats.chars_per_msg": "Letras/Msg",
+
+        # --- Userinfo ---
+        "userinfo.title": "Expediente: {username}",
+        "userinfo.id": "ID",
+        "userinfo.created": "Cuenta creada",
+        "userinfo.joined": "Se unió al grupo",
+
+        # --- Serverinfo ---
+        "serverinfo.title": "Territorio: {name}",
+        "serverinfo.members": "Miembros",
+        "serverinfo.owner": "Propietario",
+        "serverinfo.created": "Fundación",
+
+        # --- Rank ---
+        "rank.title": "Ranking osu! del Servidor",
+        "rank.empty": "Nadie en este servidor tiene cuenta vinculada aún. Usa `/link` para entrar al ranking.",
+        "rank.error": "⚠️ Error obteniendo el ranking.",
+
+        # --- Feedback ---
+        "feedback.success": "✅ ¡Muchas gracias por tu feedback! Ha sido enviado directamente al desarrollador.",
+        "feedback.error": "❌ No se pudo enviar tu feedback. Inténtalo de nuevo más tarde.",
+        "feedback.dm_title": "📬 Nuevo Feedback Recibido",
+        "feedback.author": "Autor",
+        "feedback.server": "Servidor",
+        "feedback.channel": "Canal",
+        "feedback.dm_alert": "🔔 {mention}, ¡has recibido un nuevo mensaje de feedback!",
+
+        # --- Admin ---
+        "admin.lock_success": "🔒 Canal {channel} bloqueado. Los comandos de Dalet están desactivados.",
+        "admin.lock_error": "❌ Error al bloquear el canal.",
+        "admin.unlock_success": "🔓 Canal {channel} desbloqueado.",
+        "admin.unlock_error": "❌ Error al desbloquear el canal.",
+        "admin.proactive_status": "Modo proactivo **{status}** en {channel}.",
+        "admin.reactive_status": "Modo reactivo **{status}** en este servidor.",
+        "admin.enabled": "activado ✅",
+        "admin.disabled": "desactivado 🛑",
+        "admin.setwelcome_success": "✅ Canal de bienvenida establecido en {channel}.",
+        "admin.setwelcome_error": "❌ Error al configurar el canal de bienvenida.",
+        "admin.removewelcome_success": "🗑️ Canal de bienvenida eliminado. Ya no se enviarán bienvenidas.",
+        "admin.removewelcome_error": "❌ Error al eliminar el canal de bienvenida.",
+        "admin.setname_success": "✅ Ahora me llamo **{name}** en este servidor.",
+        "admin.setname_error": "❌ Error al cambiar el nombre.",
+        "admin.name_too_long": "❌ El nombre no puede superar los 32 caracteres."
     }
 }
 

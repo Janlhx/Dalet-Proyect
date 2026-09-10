@@ -114,18 +114,19 @@ class DaletOrganisms:
         return DaletMolecules.add_standard_footer(embed)
 
     @staticmethod
-    def create_user_stats_card(user_name, stats, avatar_url=None):
+    def create_user_stats_card(user_name, stats, avatar_url=None, lang: str = "en"):
         """Organismo para mostrar estadísticas sociales del usuario."""
+        from ui.locales import t
         embed = discord.Embed(
-            title=f"Actividad Social · {user_name}",
+            title=t("stats.title", lang, username=user_name),
             color=DaletAtoms.COLOR_PRIMARY,
-            description="Resumen de actividad registrada en mis bases de datos."
+            description=t("stats.desc", lang)
         )
         if avatar_url:
             embed.set_thumbnail(url=avatar_url)
             
-        embed.add_field(name="Mensajes", value=f"`{stats.get('total_messages', 0)}`", inline=True)
-        embed.add_field(name="Días Activo", value=f"`{stats.get('days_active', 0)}`", inline=True)
-        embed.add_field(name="Letras/Msg", value=f"`{stats.get('avg_len', 0):.1f}`", inline=True)
+        embed.add_field(name=t("stats.messages", lang), value=f"`{stats.get('total_messages', 0)}`", inline=True)
+        embed.add_field(name=t("stats.active_days", lang), value=f"`{stats.get('days_active', 0)}`", inline=True)
+        embed.add_field(name=t("stats.chars_per_msg", lang), value=f"`{stats.get('avg_len', 0):.1f}`", inline=True)
         
         return DaletMolecules.add_standard_footer(embed)

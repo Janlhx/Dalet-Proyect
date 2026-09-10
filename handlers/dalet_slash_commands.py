@@ -10,6 +10,9 @@ import logging
 
 from ui.organisms import DaletOrganisms
 from ui.atoms import DaletAtoms
+from ui.molecules import DaletMolecules
+from ui.locales import t
+from services.feedback_service import FeedbackService
 from handlers.dalet_osu_presenter import OsuPresenter
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
 
@@ -37,26 +40,32 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.describe(usuario="User to inspect (defaults to yourself)")
     async def slash_stats(self, interaction: discord.Interaction, usuario: discord.Member = None):
         member = usuario or interaction.user
+        server_lang = "en"
+        if interaction.guild_id:
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
         await interaction.response.defer()
         try:
             stats = await self.bot.user_repo.get_user_social_stats(member.id)
             avatar = member.avatar.url if member.avatar else None
-            embed = DaletOrganisms.create_user_stats_card(member.display_name, stats, avatar)
+            embed = DaletOrganisms.create_user_stats_card(member.display_name, stats, avatar, lang=server_lang)
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /stats: {e}")
-            await interaction.followup.send("no pude obtener tus stats ahora mismo.", ephemeral=True)
+            await interaction.followup.send(t("general.user_stats_fail", server_lang), ephemeral=True)
 
     @app_commands.command(name="userinfo", description="Displays detailed information about a server member.")
     @app_commands.describe(usuario="Member to inspect")
     async def slash_userinfo(self, interaction: discord.Interaction, usuario: discord.Member = None):
         member = usuario or interaction.user
+        server_lang = "en"
+        if interaction.guild_id:
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
         desc = (
-            f"🆔 **ID**: `{member.id}`\n"
-            f"📅 **Cuenta creada**: {format_dt(member.created_at, 'D')}\n"
-            f"🤝 **Se unió**: {format_dt(member.joined_at, 'D')}\n"
+            f"• {DaletAtoms.bold(t('userinfo.id', server_lang))}: {DaletAtoms.code(member.id)}\n"
+            f"• {DaletAtoms.bold(t('userinfo.created', server_lang))}: {format_dt(member.created_at, 'D')}\n"
+            f"• {DaletAtoms.bold(t('userinfo.joined', server_lang))}: {format_dt(member.joined_at, 'D')}\n"
         )
-        embed = DaletOrganisms.create_simple_embed(f"Expediente: {member.display_name}", desc)
+        embed = DaletOrganisms.create_simple_embed(t("userinfo.title", server_lang, username=member.display_name), desc)
         if member.avatar:
             embed.set_thumbnail(url=member.avatar.url)
         await interaction.response.send_message(embed=embed)
@@ -64,28 +73,43 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.command(name="serverinfo", description="Displays information about the current server.")
     async def slash_serverinfo(self, interaction: discord.Interaction):
         g = interaction.guild
+        server_lang = "en"
+        if interaction.guild_id:
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
         desc = (
-            f"👥 **Miembros**: `{g.member_count}`\n"
-            f"👑 **Dueño**: {g.owner.mention}\n"
-            f"📅 **Creado**: {format_dt(g.created_at, 'D')}\n"
+            f"• {DaletAtoms.bold(t('serverinfo.members', server_lang))}: {DaletAtoms.code(g.member_count)}\n"
+            f"• {DaletAtoms.bold(t('serverinfo.owner', server_lang))}: {g.owner.mention}\n"
+            f"• {DaletAtoms.bold(t('serverinfo.created', server_lang))}: {format_dt(g.created_at, 'D')}\n"
         )
-        embed = DaletOrganisms.create_simple_embed(f"Territorio: {g.name}", desc)
+        embed = DaletOrganisms.create_simple_embed(t("serverinfo.title", server_lang, name=g.name), desc)
         if g.icon:
             embed.set_thumbnail(url=g.icon.url)
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="info", description="Displays Dalet's profile card, version, and information.")
     async def slash_info(self, interaction: discord.Interaction):
-        from ui.molecules import DaletMolecules
+        server_lang = "en"
+        if interaction.guild_id:
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+
+        tagline = t("info.tagline", server_lang)
+        lbl_creator = t("info.creator", server_lang)
+        lbl_status = t("info.status", server_lang)
+        status_desc = t("info.status_desc", server_lang)
+        lbl_prefix = t("info.prefix", server_lang)
+        prefix_desc = t("info.prefix_desc", server_lang)
+        hint_changelog = t("info.changelog_hint", server_lang)
+        hint_help = t("info.help_hint", server_lang)
+
         embed = discord.Embed(
             title=f"{DaletAtoms.EMOJI_DALET} Dalet {DaletAtoms.VERSION}",
             description=(
-                f'> *"searching who asked"*\n\n'
-                f"{DaletAtoms.GLYPH_POINTER} **Creador**: Litxe\n"
-                f"{DaletAtoms.GLYPH_POINTER} **Estado**: En línea y juzgando tus jugadas\n"
-                f"{DaletAtoms.GLYPH_POINTER} **Prefijo**: `d.` o mención `@Dalet`\n\n"
-                f"{DaletAtoms.GLYPH_SUB} Escribe `d.changelog` para ver las novedades de la versión.\n"
-                f"{DaletAtoms.GLYPH_SUB} Escribe `d.help` para consultar el menú de comandos."
+                f'{tagline}\n\n'
+                f"{DaletAtoms.GLYPH_POINTER} **{lbl_creator}**: Litxe\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{lbl_status}**: {status_desc}\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{lbl_prefix}**: {prefix_desc}\n\n"
+                f"{DaletAtoms.GLYPH_SUB} {hint_changelog}\n"
+                f"{DaletAtoms.GLYPH_SUB} {hint_help}"
             ),
             color=DaletAtoms.COLOR_PRIMARY
         )
@@ -93,6 +117,26 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             embed.set_thumbnail(url=self.bot.user.display_avatar.url)
         DaletMolecules.add_standard_footer(embed, context_text=f"{DaletAtoms.VERSION} │ Litxe")
         await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="feedback", description="Sends feedback, suggestions, or bug reports directly to the developer.")
+    @app_commands.describe(mensaje="Feedback, suggestion, or bug report to deliver")
+    async def slash_feedback(self, interaction: discord.Interaction, mensaje: str):
+        await interaction.response.defer(ephemeral=True)
+        server_lang = "en"
+        if interaction.guild_id:
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+
+        sent = await FeedbackService.send_feedback(
+            bot=self.bot,
+            author=interaction.user,
+            content=mensaje,
+            guild=interaction.guild,
+            channel=interaction.channel
+        )
+        if sent:
+            await interaction.followup.send(t("feedback.success", server_lang), ephemeral=True)
+        else:
+            await interaction.followup.send(t("feedback.error", server_lang), ephemeral=True)
 
     # ------------------------------------------------------------------
     # osu!
@@ -341,6 +385,9 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.command(name="rank", description="Server osu! leaderboard for linked members.")
     async def slash_rank(self, interaction: discord.Interaction):
         await interaction.response.defer()
+        server_lang = "en"
+        if interaction.guild_id:
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
         try:
             guild_member_ids = [str(m.id) for m in interaction.guild.members if not m.bot]
             all_rows = await self.bot.osu_repo.get_ranking(limit=200)
@@ -350,9 +397,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             ][:10]
 
             if not server_rows:
-                return await interaction.followup.send(
-                    "nadie en este servidor tiene cuenta vinculada aún. usa `/link` para entrar al ranking."
-                )
+                return await interaction.followup.send(t("rank.empty", server_lang))
             medals = ["✦", "◈", "◇"]
             lines = []
             for i, row in enumerate(server_rows):
@@ -362,14 +407,14 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 acc = float(row.get("Accuracy") or row.get("accuracy") or 0)
                 lines.append(f"{medal} **{name}** — {pp:,.0f}pp • {acc:.2f}%")
             embed = discord.Embed(
-                title=f"{DaletAtoms.EMOJI_DALET} Ranking osu! del Servidor",
+                title=f"{DaletAtoms.EMOJI_DALET} {t('rank.title', server_lang)}",
                 description="\n".join(lines),
                 color=DaletAtoms.COLOR_PRIMARY
             )
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /rank: {e}")
-            await interaction.followup.send("⚠️ error obteniendo el ranking.", ephemeral=True)
+            await interaction.followup.send(t("rank.error", server_lang), ephemeral=True)
 
     @app_commands.command(name="compare", description="Compares your osu! profile head-to-head against another player.")
     @app_commands.describe(usuario="Player to compare against")
@@ -472,34 +517,40 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.command(name="lock", description="[ADMIN] Blocks Dalet interactions and commands in this channel.")
     @app_commands.checks.has_permissions(administrator=True)
     async def slash_lock(self, interaction: discord.Interaction):
+        server_lang = "en"
+        if interaction.guild_id:
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
         try:
             await self.bot.admin_repo.set_channel_lock(
                 interaction.channel_id, interaction.channel.name,
                 interaction.guild_id, interaction.guild.name, True
             )
             await interaction.response.send_message(
-                f"🔒 Canal **{interaction.channel.mention}** bloqueado. Los comandos de Dalet están desactivados.",
+                t("admin.lock_success", server_lang, channel=interaction.channel.mention),
                 ephemeral=True
             )
         except Exception as e:
             logger.error(f"Error en /lock: {e}")
-            await interaction.response.send_message("❌ error al bloquear el canal.", ephemeral=True)
+            await interaction.response.send_message(t("admin.lock_error", server_lang), ephemeral=True)
 
     @app_commands.command(name="unlock", description="[ADMIN] Unblocks Dalet interactions and commands in this channel.")
     @app_commands.checks.has_permissions(administrator=True)
     async def slash_unlock(self, interaction: discord.Interaction):
+        server_lang = "en"
+        if interaction.guild_id:
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
         try:
             await self.bot.admin_repo.set_channel_lock(
                 interaction.channel_id, interaction.channel.name,
                 interaction.guild_id, interaction.guild.name, False
             )
             await interaction.response.send_message(
-                f"🔓 Canal **{interaction.channel.mention}** desbloqueado.",
+                t("admin.unlock_success", server_lang, channel=interaction.channel.mention),
                 ephemeral=True
             )
         except Exception as e:
             logger.error(f"Error en /unlock: {e}")
-            await interaction.response.send_message("❌ error al desbloquear el canal.", ephemeral=True)
+            await interaction.response.send_message(t("admin.unlock_error", server_lang), ephemeral=True)
 
     # ------------------------------------------------------------------
     # Admin: Proactive / Reactive
@@ -509,36 +560,42 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.describe(activar="True to enable, False to disable")
     @app_commands.checks.has_permissions(administrator=True)
     async def slash_proactive(self, interaction: discord.Interaction, activar: bool):
+        server_lang = "en"
+        if interaction.guild_id:
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
         try:
             await self.bot.user_repo.set_channel_proactive(
                 interaction.channel_id, interaction.channel.name,
                 interaction.guild_id, activar
             )
-            estado = "activado ✅" if activar else "desactivado 🛑"
+            status_str = t("admin.enabled", server_lang) if activar else t("admin.disabled", server_lang)
             await interaction.response.send_message(
-                f"Modo proactivo **{estado}** en {interaction.channel.mention}.",
+                t("admin.proactive_status", server_lang, status=status_str, channel=interaction.channel.mention),
                 ephemeral=True
             )
         except Exception as e:
             logger.error(f"Error en /proactive: {e}")
-            await interaction.response.send_message("❌ error configurando el modo proactivo.", ephemeral=True)
+            await interaction.response.send_message("❌ Error", ephemeral=True)
 
     @app_commands.command(name="reactive", description="[ADMIN] Enables or disables reactive AI replies to mentions in the server.")
     @app_commands.describe(activar="True to enable, False to disable")
     @app_commands.checks.has_permissions(administrator=True)
     async def slash_reactive(self, interaction: discord.Interaction, activar: bool):
+        server_lang = "en"
+        if interaction.guild_id:
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
         try:
             await self.bot.user_repo.set_server_reactive(
                 interaction.guild_id, interaction.guild.name, activar
             )
-            estado = "activado ✅" if activar else "desactivado 🛑"
+            status_str = t("admin.enabled", server_lang) if activar else t("admin.disabled", server_lang)
             await interaction.response.send_message(
-                f"Modo reactivo **{estado}** en este servidor.",
+                t("admin.reactive_status", server_lang, status=status_str),
                 ephemeral=True
             )
         except Exception as e:
             logger.error(f"Error en /reactive: {e}")
-            await interaction.response.send_message("❌ error configurando el modo reactivo.", ephemeral=True)
+            await interaction.response.send_message("❌ Error", ephemeral=True)
 
 
     # ------------------------------------------------------------------
@@ -549,28 +606,34 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.describe(canal="Channel where Dalet will send welcome messages")
     @app_commands.checks.has_permissions(administrator=True)
     async def slash_setwelcome(self, interaction: discord.Interaction, canal: discord.TextChannel):
+        server_lang = "en"
+        if interaction.guild_id:
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
         try:
             await self.bot.admin_repo.set_welcome_channel(interaction.guild_id, canal.id)
             await interaction.response.send_message(
-                f"✅ Canal de bienvenida establecido en {canal.mention}.",
+                t("admin.setwelcome_success", server_lang, channel=canal.mention),
                 ephemeral=True
             )
         except Exception as e:
             logger.error(f"Error en /setwelcome: {e}")
-            await interaction.response.send_message("❌ error al configurar el canal de bienvenida.", ephemeral=True)
+            await interaction.response.send_message(t("admin.setwelcome_error", server_lang), ephemeral=True)
 
     @app_commands.command(name="removewelcome", description="[ADMIN] Removes the welcome channel and disables welcome greetings.")
     @app_commands.checks.has_permissions(administrator=True)
     async def slash_removewelcome(self, interaction: discord.Interaction):
+        server_lang = "en"
+        if interaction.guild_id:
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
         try:
             await self.bot.admin_repo.set_welcome_channel(interaction.guild_id, None)
             await interaction.response.send_message(
-                "🗑️ Canal de bienvenida eliminado. Ya no se enviarán bienvenidas.",
+                t("admin.removewelcome_success", server_lang),
                 ephemeral=True
             )
         except Exception as e:
             logger.error(f"Error en /removewelcome: {e}")
-            await interaction.response.send_message("❌ error al eliminar el canal de bienvenida.", ephemeral=True)
+            await interaction.response.send_message(t("admin.removewelcome_error", server_lang), ephemeral=True)
 
     # ------------------------------------------------------------------
     # Admin: Nombre personalizado del bot
@@ -580,19 +643,22 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.describe(nombre="Custom nickname (max 32 characters)")
     @app_commands.checks.has_permissions(administrator=True)
     async def slash_setname(self, interaction: discord.Interaction, nombre: str):
+        server_lang = "en"
+        if interaction.guild_id:
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
         if len(nombre) > 32:
             return await interaction.response.send_message(
-                "❌ el nombre no puede superar los 32 caracteres.", ephemeral=True
+                t("admin.name_too_long", server_lang), ephemeral=True
             )
         try:
             await self.bot.admin_repo.set_server_custom_name(interaction.guild_id, nombre)
             await interaction.response.send_message(
-                f"✅ Ahora me llamo **{nombre}** en este servidor.",
+                t("admin.setname_success", server_lang, name=nombre),
                 ephemeral=True
             )
         except Exception as e:
             logger.error(f"Error en /setname: {e}")
-            await interaction.response.send_message("❌ error al cambiar el nombre.", ephemeral=True)
+            await interaction.response.send_message(t("admin.setname_error", server_lang), ephemeral=True)
 
     # ------------------------------------------------------------------
     # Admin: Idioma del servidor (English / Español)
