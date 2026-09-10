@@ -3,13 +3,14 @@ from discord.ext import commands
 import os
 import discord
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, jsonify, Response
 from threading import Thread
 import sys
 import logging
 import signal
-from database.pool import DatabasePool
+from database.turso_client import TursoClient
 from database.sqlite_manager import SQLiteManager
+from services.dashboard_service import DashboardService
 
 # --- Configuración de Logging ---
 file_handler = logging.FileHandler("dalet.log", encoding='utf-8')
@@ -28,22 +29,32 @@ load_dotenv()
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# --- Servidor Web (Health Check para Render) ---
-app = Flask('')
-
+# --- Servidor Web (Dashboard & Health Check) ---
+app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "dalet está viva."
+    """Sirve la interfaz web del Dashboard de telemetría."""
+    return Response(DashboardService.get_dashboard_html(), mimetype='text/html')
 
+@app.route('/api/telemetry')
+def api_telemetry():
+    """Devuelve métricas en tiempo real en formato JSON."""
+    return jsonify(DashboardService.get_full_telemetry())
+
+@app.route('/health')
+@app.route('/ping')
+def health():
+    """Health check simple para Render."""
+    return "OK", 200
 
 def run_flask():
     try:
-        app.run(host='0.0.0.0', port=8080, debug=False, use_reloader=False)
+        port = int(os.getenv("PORT", 8080))
+        app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
     except Exception as e:
         logger.error(f"Error iniciando Flask: {e}")
         os._exit(1)
-
 
 def keep_alive():
     t = Thread(target=run_flask, daemon=True)
@@ -79,8 +90,8 @@ async def main():
     retry_count = 0
     while True:
         try:
-            # Intentar conectar a Neon (sin bloquear si no está disponible)
-            await DatabasePool.get_pool()
+            # Inicializar Turso client
+            TursoClient.get_client()
 
             from database.repositories.user_repository import UserRepository
             from database.repositories.osu_repository import OsuRepository
@@ -100,9 +111,9 @@ async def main():
             bot.global_error_cooldown = 0
             bot.global_consecutive_429s = 0
 
-            # Semáforo global: máx 2 respuestas de IA generándose en paralelo
-            # Evita bursts de typing indicators y mensajes que desencadenan rate limits de Discord
-            bot.discord_semaphore = asyncio.Semaphore(2)
+            # Semáforo global: máx 6 respuestas de IA generándose en paralelo
+            # Evita bursts descontrolados pero permite interacción simultánea en múltiples servidores
+            bot.discord_semaphore = asyncio.Semaphore(6)
 
             # Inyección de dependencias
             bot.user_repo = UserRepository()
@@ -117,21 +128,10 @@ async def main():
                 client_secret=os.getenv("OSU_CLIENT_SECRET", "")
             )
 
-            # Tarea de purga de mensajes expirados (Postgres, cada hora)
-            async def _purge_expired_messages():
-                while True:
-                    await asyncio.sleep(3600)
-                    try:
-                        pool = await DatabasePool.get_pool()
-                        if pool:
-                            async with pool.acquire() as conn:
-                                await conn.execute("SELECT fn_PurgeExpiredMessages()")
-                    except asyncio.CancelledError:
-                        break
-                    except Exception as e:
-                        logger.debug(f"Purge task skipped: {e}")
+            # Registrar referencia de bot para telemetría en tiempo real del Dashboard
+            DashboardService.register_bot(bot)
 
-            purge_task = asyncio.create_task(_purge_expired_messages())
+            # flush_task para los logs batch de UserRepo
             flush_task = asyncio.create_task(bot.user_repo._periodic_flush())
 
             # Check global: bloqueo de canales
@@ -141,7 +141,7 @@ async def main():
                 if ctx.command and ctx.command.name in allowed:
                     return True
 
-                if not DatabasePool.is_available():
+                if not TursoClient.is_available():
                     return True  # Sin BD, permitir todo
 
                 try:
@@ -181,12 +181,14 @@ async def main():
                     if bot_task.exception():
                         raise bot_task.exception()
 
-                purge_task.cancel()
                 flush_task.cancel()
 
-                # Flush final del buffer de logs antes de cerrar
+                # Flush final del buffer de logs antes de cerrar y liberar recursos
                 await bot.user_repo.flush_logs()
+                if hasattr(bot, "nlp_service") and bot.nlp_service:
+                    await bot.nlp_service.close()
                 await SQLiteManager.close()
+                await asyncio.sleep(0.25)  # Permite al conector SSL de aiohttp/discord cerrarse limpiamente
                 break  # Fin normal
 
         except discord.HTTPException as e:
@@ -215,7 +217,7 @@ async def main():
 
         finally:
             logger.info("Cerrando pools de base de datos...")
-            await DatabasePool.close()
+            TursoClient.close()
             await SQLiteManager.close()
             logger.info("Apagado completo.")
 

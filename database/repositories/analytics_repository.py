@@ -1,6 +1,5 @@
 import logging
 from database.sqlite_manager import SQLiteManager
-from database.pool import get_db
 
 logger = logging.getLogger("dalet.repository.analytics")
 

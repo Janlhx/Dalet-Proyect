@@ -26,10 +26,7 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
         added = []
         try:
             for ch in channels:
-                await self.repo.call_procedure(
-                    "sp_SetChannelProactive",
-                    ch.id, ch.name, ctx.guild.id, ctx.guild.name, True
-                )
+                await self.repo.set_channel_proactive(ch.id, ch.name, ctx.guild.id, True)
                 added.append(ch)
 
             if added:
@@ -47,28 +44,26 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
         removed = []
         try:
             for ch in channels:
-                await self.repo.call_procedure(
-                    "sp_SetChannelProactive",
-                    ch.id, ch.name, ctx.guild.id, ctx.guild.name, False
-                )
+                await self.repo.set_channel_proactive(ch.id, ch.name, ctx.guild.id, False)
                 removed.append(ch)
 
             if removed:
-                await ctx.send(f"🗑️ Canales quitados del modo proactivo: {', '.join([ch.mention for ch in removed])}")
+                await ctx.send(f"Canales quitados del modo proactivo: {', '.join([ch.mention for ch in removed])}")
         except Exception as e:
             logger.error(f"Error in proactive_remove: {e}")
             await ctx.send(f"❌ Error al quitar canales.")
 
     @proactive.command(name="list")
     async def proactive_list(self, ctx):
-        """📜 Muestra todos los canales donde Dalet participa automáticamente."""
+        """Muestra todos los canales donde Dalet participa automáticamente."""
         try:
-            query = "SELECT * FROM fn_GetProactiveChannels($1)"
-            result = await self.repo.fetch_one(query, ctx.guild.id)
-            channel_ids = result[0] if result and result[0] else []
-
-            if channel_ids:
-                await ctx.send(f"📜 Canales con IA proactiva: {', '.join([f'<#{c}>' for c in channel_ids])}")
+            rows = await self.repo.fetch_all(
+                "SELECT ChannelID FROM Channels WHERE ServerID = ? AND IsProactive = 1",
+                ctx.guild.id
+            )
+            if rows:
+                mentions = ', '.join([f'<#{r[0]}>' for r in rows])
+                await ctx.send(f"Canales con IA proactiva: {mentions}")
             else:
                 await ctx.send("No hay canales configurados para el modo proactivo.")
         except Exception as e:
@@ -78,10 +73,13 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
     @proactive.command(name="clear")
     @commands.has_permissions(administrator=True)
     async def proactive_clear(self, ctx):
-        """Desactiva el modo proactivo en todos los canales."""
+        """Desactiva el modo proactivo en todos los canales del servidor."""
         try:
-            await self.repo.call_procedure("sp_ClearProactiveChannels", ctx.guild.id)
-            await ctx.send("💥 Modo proactivo desactivado en todos los canales.")
+            await self.repo.execute(
+                "UPDATE Channels SET IsProactive = 0 WHERE ServerID = ?",
+                ctx.guild.id
+            )
+            await ctx.send("Modo proactivo desactivado en todos los canales.")
         except Exception as e:
             logger.error(f"Error in proactive_clear: {e}")
             await ctx.send(f"❌ Error al limpiar la lista.")
@@ -114,10 +112,7 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
                 cooldown_remaining = max(0, COOLDOWN_TIME - time_since_last)
 
             # Verificar si este canal es proactivo
-            is_proactive = await self.repo.fetch_one(
-                "SELECT fn_IsChannelProactive($1)", ctx.channel.id
-            )
-            channel_is_proactive = bool(is_proactive and is_proactive[0])
+            channel_is_proactive = await self.repo.is_channel_proactive(ctx.channel.id)
             channel_status = "Activa" if channel_is_proactive else "Inactiva"
 
             # Verificar si el canal está bloqueado (Lock)
@@ -218,8 +213,8 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
     async def reactive_on(self, ctx):
         """Activa la respuesta de Dalet a su nombre."""
         try:
-            await self.repo.call_procedure("sp_SetServerReactive", ctx.guild.id, ctx.guild.name, True)
-            await ctx.send("✅ **Modo Reactivo Activado.** Dalet ahora responderá cuando la llamen.")
+            await self.repo.set_server_reactive(ctx.guild.id, ctx.guild.name, True)
+            await ctx.send("Modo Reactivo **Activado**. Dalet responderá cuando la llamen.")
         except Exception as e:
             logger.error(f"Error in reactive_on: {e}")
             await ctx.send(f"❌ Error al activar el modo reactivo.")
@@ -229,8 +224,8 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
     async def reactive_off(self, ctx):
         """Desactiva la respuesta de Dalet a su nombre."""
         try:
-            await self.repo.call_procedure("sp_SetServerReactive", ctx.guild.id, ctx.guild.name, False)
-            await ctx.send("🛑 **Modo Reactivo Desactivado.**")
+            await self.repo.set_server_reactive(ctx.guild.id, ctx.guild.name, False)
+            await ctx.send("Modo Reactivo **Desactivado**.")
         except Exception as e:
             logger.error(f"Error in reactive_off: {e}")
             await ctx.send(f"❌ Error al desactivar el modo reactivo.")

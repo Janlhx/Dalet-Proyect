@@ -586,8 +586,9 @@ class OsuHandler(commands.Cog, name="osu!"):
                     "usa `d.op` regularmente para que vaya registrando tu progreso."
                 )
 
-            chart_file = await self._generate_progress_chart(
-                member.display_name, history
+            loop = asyncio.get_running_loop()
+            chart_file = await loop.run_in_executor(
+                None, _create_progress_chart_sync, member.display_name, history
             )
 
             username = await self.repo.get_linked_username(member.id)
@@ -624,76 +625,78 @@ class OsuHandler(commands.Cog, name="osu!"):
             logger.error(f"Error en progress: {e}")
             await ctx.send("⚠️ error generando el gráfico de progreso.")
 
-    async def _generate_progress_chart(self, username: str, history: list) -> discord.File | None:
-        """Gráfico de línea de PP a lo largo del tiempo."""
-        try:
-            import matplotlib
-            matplotlib.use("Agg")
-            import matplotlib.pyplot as plt
-            import matplotlib.dates as mdates
-            import numpy as np
-            from datetime import datetime
 
-            # History viene de más reciente a más antiguo — invertimos
-            history_chron = list(reversed(history))
+def _create_progress_chart_sync(username: str, history: list) -> discord.File | None:
+    """Gráfico de línea de PP a lo largo del tiempo (ejecución síncrona fuera del loop)."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import matplotlib.dates as mdates
+        import numpy as np
+        from datetime import datetime
 
-            dates, pp_vals = [], []
-            for h in history_chron:
-                ts = h.get("recorded_at", "")
-                pp = h.get("pp", 0)
-                if ts:
-                    try:
-                        if hasattr(ts, "year"):
-                            dates.append(ts)
-                        else:
-                            dates.append(datetime.fromisoformat(str(ts)[:19]))
-                        pp_vals.append(pp)
-                    except Exception:
-                        continue
+        # History viene de más reciente a más antiguo — invertimos
+        history_chron = list(reversed(history))
 
-            if len(dates) < 2:
-                return None
+        dates, pp_vals = [], []
+        for h in history_chron:
+            ts = h.get("recorded_at", "")
+            pp = h.get("pp", 0)
+            if ts:
+                try:
+                    if hasattr(ts, "year"):
+                        dates.append(ts)
+                    else:
+                        dates.append(datetime.fromisoformat(str(ts)[:19]))
+                    pp_vals.append(pp)
+                except Exception:
+                    continue
 
-            fig, ax = plt.subplots(figsize=(10, 4))
-            fig.patch.set_facecolor("#1a1a2e")
-            ax.set_facecolor("#16213e")
-
-            # Área bajo la curva
-            ax.fill_between(dates, pp_vals, alpha=0.2, color="#7f5af0")
-            ax.plot(dates, pp_vals, color="#7f5af0", linewidth=2.5, zorder=5)
-            ax.scatter(dates, pp_vals, color="#e94560", s=30, zorder=6)
-
-            # Línea de tendencia
-            if len(dates) >= 3:
-                x_num = mdates.date2num(dates)
-                z = np.polyfit(x_num, pp_vals, 1)
-                p = np.poly1d(z)
-                x_smooth = np.linspace(x_num[0], x_num[-1], 200)
-                ax.plot(
-                    mdates.num2date(x_smooth), p(x_smooth),
-                    color="#2cb67d", linewidth=1.2, linestyle="--", alpha=0.6
-                )
-
-            ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
-            ax.xaxis.set_major_locator(mdates.AutoDateLocator())
-            plt.xticks(rotation=30, fontsize=8)
-
-            ax.set_ylabel("PP", color="#ccc", fontsize=9)
-            ax.set_title(f"Progreso PP — {username}", color="white", fontsize=12, pad=10)
-            ax.tick_params(colors="#999", labelsize=8)
-            ax.spines[:].set_color("#333")
-            ax.grid(color="#333", alpha=0.4, zorder=1)
-
-            plt.tight_layout()
-            buf = io.BytesIO()
-            plt.savefig(buf, format="png", dpi=120, bbox_inches="tight")
-            plt.close(fig)
-            buf.seek(0)
-            return discord.File(buf, filename="progress.png")
-
-        except Exception as e:
-            logger.warning(f"No se pudo generar gráfico progress: {e}")
+        if len(dates) < 2:
             return None
+
+        fig, ax = plt.subplots(figsize=(10, 4))
+        fig.patch.set_facecolor("#1a1a2e")
+        ax.set_facecolor("#16213e")
+
+        # Área bajo la curva
+        ax.fill_between(dates, pp_vals, alpha=0.2, color="#7f5af0")
+        ax.plot(dates, pp_vals, color="#7f5af0", linewidth=2.5, zorder=5)
+        ax.scatter(dates, pp_vals, color="#e94560", s=30, zorder=6)
+
+        # Línea de tendencia
+        if len(dates) >= 3:
+            x_num = mdates.date2num(dates)
+            z = np.polyfit(x_num, pp_vals, 1)
+            p = np.poly1d(z)
+            x_smooth = np.linspace(x_num[0], x_num[-1], 200)
+            ax.plot(
+                mdates.num2date(x_smooth), p(x_smooth),
+                color="#2cb67d", linewidth=1.2, linestyle="--", alpha=0.6
+            )
+
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
+        ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+        plt.xticks(rotation=30, fontsize=8)
+
+        ax.set_ylabel("PP", color="#ccc", fontsize=9)
+        ax.set_title(f"Progreso PP — {username}", color="white", fontsize=12, pad=10)
+        ax.tick_params(colors="#999", labelsize=8)
+        ax.spines[:].set_color("#333")
+        ax.grid(color="#333", alpha=0.4, zorder=1)
+
+        plt.tight_layout()
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png", dpi=120, bbox_inches="tight")
+        plt.close(fig)
+        buf.seek(0)
+        return discord.File(buf, filename="progress.png")
+
+    except Exception as e:
+        logger.warning(f"No se pudo generar gráfico progress: {e}")
+        return None
+
 
     # ------------------------------------------------------------------
     # d.oa — Análisis IA completo

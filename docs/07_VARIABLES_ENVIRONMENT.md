@@ -12,61 +12,59 @@
 | -------- | ----------- | --------------- |
 | `DISCORD_TOKEN` | Bot authentication token | [Discord Developer Portal](https://discord.com/developers/applications) → Your App → Bot → Token |
 
-### Primary AI (Gemini)
+### Base de Datos Principal (Turso / libSQL)
 
-| Variable | Description | Where to get it |
+| Variable | Descripción | Dónde obtenerla |
 | -------- | ----------- | --------------- |
-| `GEMINI_API_KEY` | Google Gemini API key | [Google AI Studio](https://aistudio.google.com/app/apikey) |
-| `GEMINI_MODEL` | AI model to use _(optional)_ | Default: `gemini-2.0-flash`. Alternatives: `gemini-1.5-pro` |
+| `TURSO_URL` | URL de la base de datos libSQL (`https://...` o `libsql://...`) | [Turso Dashboard](https://turso.tech) → Database → Overview |
+| `TURSO_AUTH_TOKEN` | Token de autenticación de Turso | `turso db tokens create <db_name>` o en la web |
 
-### Alternative AI (Groq)
+### IA Primaria (Google Gemini)
+### 🤖 Configuración de Inteligencia Artificial (Smart Load Balancer)
+| Variable | Requerido | Descripción | Ejemplo / Default |
+| :--- | :--- | :--- | :--- |
+| `AI_ROUTING_MODE` | No | Modo de balanceo: `auto`, `gemini`, `groq` o `openrouter` | `auto` |
+| `GEMINI_API_KEY` | Sí | API Key de Google Gemini | `AIzaSy...` |
+| `GEMINI_MODEL` | No | Modelo principal de Gemini | `gemini-2.5-flash` |
+| `GROQ_API_KEY` | No | API Key de Groq para inferencia ultrarrápida (<200ms) | `gsk_...` |
+| `GROQ_MODEL` | No | Modelo principal en Groq | `openai/gpt-oss-120b` |
+| `GROQ_MODEL_FALLBACK` | No | Modelo secundario en Groq | `openai/gpt-oss-20b` |
+| `OPENROUTER_API_KEY` | No | API Key de OpenRouter (Acceso a modelos gratuitos) | `sk-or-v1-...` |
+| `OPENROUTER_MODEL` | No | Modelo en OpenRouter | `openrouter/free` |
+| `AI_PROVIDER` | No | Proveedor activo | `gemini` (default) o `groq` |
 
-| Variable | Description | Where to get it |
+### osu! API v2
+
+| Variable | Descripción | Dónde obtenerla |
 | -------- | ----------- | --------------- |
-| `GROQ_API_KEY` | Groq API key | [console.groq.com](https://console.groq.com) |
-| `GROQ_MODEL` | Primary Groq model _(optional)_ | Default: `llama-3.3-70b-versatile` |
-| `GROQ_MODEL_FALLBACK` | Emergency Groq model _(optional)_ | Default: `llama-3.1-8b-instant` |
-| `AI_PROVIDER` | Active provider _(optional)_ | `gemini` (default) or `groq` |
-
-### Database (Neon)
-
-| Variable | Description | Where to get it |
-| -------- | ----------- | --------------- |
-| `DATABASE_URL` | PostgreSQL connection URL | [console.neon.tech](https://console.neon.tech) → Project → Connection string |
-
-> Expected format: `postgresql://user:password@host/database?sslmode=require`
-
-### osu! API
-
-| Variable | Description | Where to get it |
-| -------- | ----------- | --------------- |
-| `OSU_CLIENT_ID` | osu! application client ID | [osu.ppy.sh/home/account/edit](https://osu.ppy.sh/home/account/edit) → OAuth → New Application |
-| `OSU_CLIENT_SECRET` | osu! application client secret | Same as above |
+| `OSU_CLIENT_ID` | Client ID de la app de osu! | [osu.ppy.sh/home/account/edit](https://osu.ppy.sh/home/account/edit) → OAuth |
+| `OSU_CLIENT_SECRET` | Client Secret de la app de osu! | Mismo sitio |
 
 ---
 
-## Example `.env` file
+## Archivo `.env` de Ejemplo
 
 ```env
 # Discord
 DISCORD_TOKEN=MTxxxxxxxxxxxxxxxxxxxxxxxx.Gxxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-# Gemini (Primary AI)
-GEMINI_API_KEY=AIzaSyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-GEMINI_MODEL=gemini-2.0-flash
+# Turso (Base de Datos Principal libSQL)
+TURSO_URL=https://tu-db.turso.io
+TURSO_AUTH_TOKEN=eyJh...
 
-# Groq (Fallback AI)
+# Google Gemini (IA Principal)
+GEMINI_API_KEY=AIzaSyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+GEMINI_MODEL=gemini-2.5-flash
+
+# Groq (IA Rápida / Fallback)
 GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 GROQ_MODEL=llama-3.3-70b-versatile
 GROQ_MODEL_FALLBACK=llama-3.1-8b-instant
 
-# Active Provider: "gemini" or "groq"
+# Proveedor Activo: "gemini" o "groq"
 AI_PROVIDER=gemini
 
-# Neon (PostgreSQL)
-DATABASE_URL=postgresql://dalet_owner:password@ep-xxx.us-east-2.aws.neon.tech/dalet?sslmode=require
-
-# osu!
+# osu! API
 OSU_CLIENT_ID=12345
 OSU_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```

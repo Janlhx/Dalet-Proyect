@@ -1,19 +1,15 @@
 import asyncio
 import os
-from database.pool import DatabasePool
+from database.turso_client import TursoClient
 from dotenv import load_dotenv
 
 async def main():
     load_dotenv()
-    pool = await DatabasePool.get_pool()
-    if not pool:
-        print("No pool")
+    client = TursoClient.get_client()
+    if not client:
+        print("No Turso client")
         return
-        
-    async with pool.acquire() as conn:
-        with open('sql/12_WelcomeSystem.sql', 'r') as f:
-            await conn.execute(f.read())
-            print("Postgres Migrated!")
+    print("Turso client OK!")
 
 if __name__ == "__main__":
     asyncio.run(main())

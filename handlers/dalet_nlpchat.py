@@ -16,18 +16,11 @@ MIN_MESSAGES_BETWEEN_REPLIES = 10  # Mensajes mínimos antes de considerar respo
 MAX_MESSAGES_WINDOW = 30  # Ventana de reset si no respondió (más grande para dar espacio a la probabilidad)
 
 # --- Configuración de Sesiones Reactive ---
-REACTIVE_SESSION_MAX = 5       # Máx respuestas reactive por sesión/usuario
-REACTIVE_SESSION_COOLDOWN = 8  # Minutos de cooldown post-sesión
+# Sesión fluida sin corte arbitrario a los 5 mensajes
+REACTIVE_SESSION_MAX = 50      # Cap amplio para evitar loops infinitos
+REACTIVE_SESSION_COOLDOWN = 1  # 1 minuto sólo en caso extremo de saturación
 
-# Frases de cierre cuando la sesión llega al límite
-REACTIVE_CLOSING_PHRASES = [
-    "ya, hasta aquí por ahora.",
-    "ok ya fue, hablamos luego.",
-    "me cansé un rato, vuelve después.",
-    "suficiente por ahora.",
-    "ya me agotaste, luego seguimos.",
-    "hasta aquí llegué, vuelvo en un rato.",
-]
+from discord.ext import tasks
 
 
 class DaletNLPChat(commands.Cog):
@@ -37,34 +30,77 @@ class DaletNLPChat(commands.Cog):
         self.bot = bot
         self.last_reply_time = 0
         self.message_counter = 0
-        self.is_responding = False
+        self.active_user_responses = set()
         self.error_cooldown = 0
         self.consecutive_429s = 0
 
         # --- Rate Limiter (Token Bucket) ---
-        # {channel_id: (tokens, last_update_time)}
+        self.guild_ratelimits = {}
         self.channel_ratelimits = {}
-        # {user_id: (tokens, last_update_time)}
         self.user_ratelimits = {}
 
         # --- Sesiones Reactive (por usuario/servidor) ---
-        # {(guild_id, user_id): {"count": int, "cooldown_until": float}}
         self.reactive_sessions = {}
 
-    def _check_rate_limit(self, channel_id: int, user_id: int) -> bool:
+        # Iniciar tarea de limpieza de memoria en RAM (TTL)
+        self.cleanup_task.start()
+
+    def cog_unload(self):
+        self.cleanup_task.cancel()
+
+    @tasks.loop(hours=1)
+    async def cleanup_task(self):
+        """Limpia periódicamente dicts en RAM con más de 2 horas de inactividad."""
+        now = time.time()
+        ttl = 7200  # 2 horas
+
+        # Limpiar ratelimits
+        for g_id, (_, last) in list(self.guild_ratelimits.items()):
+            if now - last > ttl:
+                self.guild_ratelimits.pop(g_id, None)
+
+        for c_id, (_, last) in list(self.channel_ratelimits.items()):
+            if now - last > ttl:
+                self.channel_ratelimits.pop(c_id, None)
+
+        for u_id, (_, last) in list(self.user_ratelimits.items()):
+            if now - last > ttl:
+                self.user_ratelimits.pop(u_id, None)
+
+        # Limpiar sesiones reactivas expiradas
+        for key, data in list(self.reactive_sessions.items()):
+            cooldown_until = data.get("cooldown_until", 0)
+            if cooldown_until > 0 and now > cooldown_until + ttl:
+                self.reactive_sessions.pop(key, None)
+
+    def _check_rate_limit(self, guild_id: int, channel_id: int, user_id: int, priority: str = "mention") -> bool:
         """
-        Aplica un rate limiter usando Token Bucket.
-        Límite por canal: máx 5 tokens, se regenera 1 token cada 12 segundos (5 por min).
-        Límite por usuario: máx 3 tokens, se regenera 1 token cada 20 segundos.
-        Retorna True si puede pasar (tiene tokens), False si es limitado.
+        Aplica un rate limiter usando Token Bucket en 3 niveles (Guild -> Canal -> Usuario).
+        Límites calibrados para permitir chat natural multi-servidor con DeepSeek:
+        - Level 1 Guild: máx 25 tokens, 1 token / 2.0s (~30 por min).
+        - Level 2 Canal: máx 15 tokens, 1 token / 3.0s (~20 por min).
+        - Level 3 Usuario: máx 8 tokens, 1 token / 4.0s.
         """
         now = time.time()
 
-        # 1. Límite de Canal
-        c_tokens, c_last = self.channel_ratelimits.get(channel_id, (5.0, now))
-        # Regenerar tokens
-        elapsed = now - c_last
-        c_tokens = min(5.0, c_tokens + elapsed * (1.0 / 12.0))
+        # 1. Límite de Guild (Servidor)
+        g_tokens, g_last = self.guild_ratelimits.get(guild_id, (25.0, now))
+        g_elapsed = now - g_last
+        g_tokens = min(25.0, g_tokens + g_elapsed * (1.0 / 2.0))
+        self.guild_ratelimits[guild_id] = (g_tokens, now)
+
+        if priority == "proactive" and g_tokens < 5.0:
+            logger.debug(f"Proactividad omitida para proteger cuota de guild {guild_id}")
+            return False
+
+        if g_tokens < 1.0:
+            logger.warning(f"Rate limit de Servidor excedido para {guild_id} (Tokens: {g_tokens:.2f})")
+            return False
+
+        # 2. Límite de Canal
+        c_tokens, c_last = self.channel_ratelimits.get(channel_id, (15.0, now))
+        c_elapsed = now - c_last
+        c_tokens = min(15.0, c_tokens + c_elapsed * (1.0 / 3.0))
         self.channel_ratelimits[channel_id] = (c_tokens, now)
 
         if c_tokens < 1.0:
@@ -73,10 +109,10 @@ class DaletNLPChat(commands.Cog):
             )
             return False
 
-        # 2. Límite de Usuario
-        u_tokens, u_last = self.user_ratelimits.get(user_id, (3.0, now))
-        elapsed = now - u_last
-        u_tokens = min(3.0, u_tokens + elapsed * (1.0 / 20.0))
+        # 3. Límite de Usuario
+        u_tokens, u_last = self.user_ratelimits.get(user_id, (8.0, now))
+        u_elapsed = now - u_last
+        u_tokens = min(8.0, u_tokens + u_elapsed * (1.0 / 4.0))
         self.user_ratelimits[user_id] = (u_tokens, now)
 
         if u_tokens < 1.0:
@@ -85,7 +121,8 @@ class DaletNLPChat(commands.Cog):
             )
             return False
 
-        # Consumir un token de cada uno
+        # Consumir un token de cada nivel
+        self.guild_ratelimits[guild_id] = (g_tokens - 1.0, now)
         self.channel_ratelimits[channel_id] = (c_tokens - 1.0, now)
         self.user_ratelimits[user_id] = (u_tokens - 1.0, now)
         return True
@@ -93,10 +130,7 @@ class DaletNLPChat(commands.Cog):
     def _check_reactive_session(self, guild_id: int, user_id: int) -> str:
         """
         Controla las sesiones reactive por usuario/servidor.
-        Retorna:
-          'ok'      → responder normalmente
-          'last'    → último mensaje permitido, enviar frase de cierre e iniciar cooldown
-          'blocked' → usuario en cooldown, ignorar
+        Conversación continua y natural sin interrupciones arbitrarias.
         """
         now = time.time()
         key = (guild_id, user_id)
@@ -104,28 +138,20 @@ class DaletNLPChat(commands.Cog):
 
         if session is not None:
             cooldown_until = session.get("cooldown_until", 0)
-
             if cooldown_until > now:
-                # En cooldown activo
                 return "blocked"
 
             if cooldown_until > 0:
-                # Cooldown expirado → resetear sesión
                 self.reactive_sessions[key] = {"count": 1, "cooldown_until": 0}
                 return "ok"
 
-            # Sesión activa sin cooldown — incrementar contador
             session["count"] += 1
             if session["count"] >= REACTIVE_SESSION_MAX:
                 session["cooldown_until"] = now + REACTIVE_SESSION_COOLDOWN * 60
-                return "last"
+                return "blocked"
             return "ok"
 
-        # Sesión nueva
         self.reactive_sessions[key] = {"count": 1, "cooldown_until": 0}
-        if REACTIVE_SESSION_MAX <= 1:
-            self.reactive_sessions[key]["cooldown_until"] = now + REACTIVE_SESSION_COOLDOWN * 60
-            return "last"
         return "ok"
 
     async def _handle_429(self, exception, source="unknown"):
@@ -161,9 +187,6 @@ class DaletNLPChat(commands.Cog):
 
     def _should_respond(self) -> bool:
         """Decide si el bot debe responder proactivamente en este mensaje."""
-        if self.is_responding:
-            return False
-
         self.message_counter += 1
 
         now = time.time()
@@ -242,36 +265,24 @@ class DaletNLPChat(commands.Cog):
 
             if name_mentioned:
                 # Verificar si tiene activada la reactividad en el servidor
-                is_reactive = False
+                is_reactive = True  # fallback: si la DB falla, responder igualmente
                 try:
                     is_reactive = await self.bot.user_repo.is_server_reactive(
                         message.guild.id
                     )
                 except Exception:
-                    pass
+                    pass  # DB no disponible → asumir reactivo para no silenciar al bot
 
                 if not is_reactive:
-                    # Si no es reactivo el servidor, ignoramos la mención silenciosamente
+                    # El servidor tiene la reactividad explícitamente desactivada
                     return
 
-                # Verificar sesión reactive del usuario
-                session_status = self._check_reactive_session(
-                    message.guild.id, message.author.id
-                )
-                if session_status == "blocked":
-                    return
-                if session_status == "last":
-                    # Último mensaje permitido — cerrar con frase ácida
-                    phrase = random.choice(REACTIVE_CLOSING_PHRASES)
-                    try:
-                        await message.reply(phrase)
-                    except discord.HTTPException as e:
-                        if e.status == 429:
-                            await self._handle_429(e, "session_closing")
+                # Verificar sesión reactive (anti-spam básico)
+                if self._check_reactive_session(message.guild.id, message.author.id) == "blocked":
                     return
 
                 # Aplicar Rate Limit a menciones
-                if not self._check_rate_limit(message.channel.id, message.author.id):
+                if not self._check_rate_limit(message.guild.id, message.channel.id, message.author.id, priority="mention"):
                     return
 
                 trigger_type = (
@@ -296,8 +307,9 @@ class DaletNLPChat(commands.Cog):
 
             if is_proactive and self._should_respond():
                 # Aplicar Rate Limit también a proactividad por seguridad
-                if not self._check_rate_limit(message.channel.id, self.bot.user.id):
+                if not self._check_rate_limit(message.guild.id, message.channel.id, self.bot.user.id, priority="proactive"):
                     return
+
 
                 await self.generate_response(
                     message,
@@ -305,10 +317,8 @@ class DaletNLPChat(commands.Cog):
                     trigger_type="proactive",
                     bot_name=custom_name,
                 )
-
         except Exception as e:
-            logger.error(f"Error crítico en lógica de decisión: {e}")
-            self.is_responding = False
+            logger.error(f"Error procesando on_message en DaletNLPChat: {e}")
 
     async def generate_response(
         self,
@@ -318,7 +328,8 @@ class DaletNLPChat(commands.Cog):
         bot_name: str = "Dalet",
         is_reactive: bool = False,
     ):
-        if self.is_responding:
+        user_id = message.author.id
+        if user_id in self.active_user_responses:
             return
 
         if time.time() < self.error_cooldown:
@@ -328,7 +339,7 @@ class DaletNLPChat(commands.Cog):
                 )
             return
 
-        self.is_responding = True
+        self.active_user_responses.add(user_id)
         try:
             # Recopilar imágenes adjuntas o en embeds
             image_urls = []
@@ -376,43 +387,55 @@ class DaletNLPChat(commands.Cog):
                 message.channel.id, message.author.id, clean_content
             )
 
-            # Lista ligera de miembros activos en el canal
-            members_list = [
-                m.display_name for m in message.channel.members if not m.bot
-            ][:8]
-            active_users = ", ".join(members_list)
+            # Inyectar miembros activos solo si es contextualmente relevante
+            active_users = ""
+            content_lower_probe = clean_content.lower()
+            if any(k in content_lower_probe for k in ("quién", "quien", "gente", "todos", "alguien", "sala", "canal")):
+                members_list = [
+                    m.display_name for m in message.channel.members if not m.bot
+                ][:6]
+                active_users = ", ".join(members_list)
 
-            # Generar respuesta (máx 2 en paralelo en todo el bot)
+            # Generar respuesta con protección de timeout estricto (máx 25s)
             async with self.bot.discord_semaphore:
                 try:
                     async with message.channel.typing():
-                        reply = await self.bot.nlp_service.generate_reply(
-                            clean_content,
-                            context,
-                            message.author.display_name,
-                            bot_name=bot_name,
-                            image_urls=image_urls,
-                            user_id=message.author.id,
-                            channel_id=message.channel.id,
-                            active_room_users=active_users,
-                            is_reactive=is_reactive,
+                        reply = await asyncio.wait_for(
+                            self.bot.nlp_service.generate_reply(
+                                clean_content,
+                                context,
+                                message.author.display_name,
+                                bot_name=bot_name,
+                                image_urls=image_urls,
+                                user_id=message.author.id,
+                                channel_id=message.channel.id,
+                                active_room_users=active_users,
+                                is_reactive=is_reactive,
+                            ),
+                            timeout=25.0
                         )
+                except asyncio.TimeoutError:
+                    logger.warning(f"Timeout (25s) generando respuesta para {message.author.display_name}")
+                    reply = None
                 except discord.HTTPException as e:
                     if e.status == 429:
                         await self._handle_429(e, "typing")
                         return
                     # Si falla el typing (permisos), intentar sin él
                     try:
-                        reply = await self.bot.nlp_service.generate_reply(
-                            clean_content,
-                            context,
-                            message.author.display_name,
-                            bot_name=bot_name,
-                            image_urls=image_urls,
-                            user_id=message.author.id,
-                            channel_id=message.channel.id,
-                            active_room_users=active_users,
-                            is_reactive=is_reactive,
+                        reply = await asyncio.wait_for(
+                            self.bot.nlp_service.generate_reply(
+                                clean_content,
+                                context,
+                                message.author.display_name,
+                                bot_name=bot_name,
+                                image_urls=image_urls,
+                                user_id=message.author.id,
+                                channel_id=message.channel.id,
+                                active_room_users=active_users,
+                                is_reactive=is_reactive,
+                            ),
+                            timeout=20.0
                         )
                     except Exception as e:
                         logger.error(f"Error llamando nlp_service (sin typing): {e}")
@@ -462,7 +485,8 @@ class DaletNLPChat(commands.Cog):
             logger.error(f"Error generando respuesta: {e}")
             traceback.print_exc()
         finally:
-            self.is_responding = False
+            self.active_user_responses.discard(user_id)
+
 
     async def _log_interaction(
         self, message: discord.Message, trigger_type: str, provider: str, reply: str
