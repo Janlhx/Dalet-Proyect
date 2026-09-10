@@ -33,10 +33,17 @@ class FeedbackService:
         if not owner:
             try:
                 app_info = await bot.application_info()
+                target_user_id = None
                 if app_info.team:
-                    owner = app_info.team.owner
-                else:
-                    owner = app_info.owner
+                    if app_info.team.owner:
+                        target_user_id = app_info.team.owner.id
+                    elif app_info.team.members:
+                        target_user_id = app_info.team.members[0].id
+                elif app_info.owner:
+                    target_user_id = app_info.owner.id
+
+                if target_user_id:
+                    owner = bot.get_user(target_user_id) or await bot.fetch_user(target_user_id)
             except Exception as e:
                 logger.error(f"Error resolving bot application owner: {e}")
 
