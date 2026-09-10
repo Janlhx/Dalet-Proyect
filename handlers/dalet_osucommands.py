@@ -547,12 +547,12 @@ class OsuHandler(commands.Cog, name="osu!"):
                 )
 
             embed = discord.Embed(
-                title=f"🏆 Ranking osu! del Servidor — {MODE_EMOJIS.get(mode, '')} {mode.upper()}",
-                color=0xFFD700
+                title=f"{DaletAtoms.EMOJI_DALET} Ranking osu! del Servidor — {mode.upper()}",
+                color=DaletAtoms.COLOR_PRIMARY
             )
 
             lines = []
-            medals = ["🥇", "🥈", "🥉"]
+            medals = ["✦", "◈", "◇"]
             for i, row in enumerate(server_rows):
                 medal = medals[i] if i < 3 else f"`{i+1}.`"
                 name  = row.get("UserName") or row.get("username") or row.get("osuusername") or "??"
@@ -807,12 +807,12 @@ def _create_progress_chart_sync(username: str, history: list) -> discord.File | 
                 mods  = _mods_str(s.get("mods", []))
                 title = bset.get("title", "??")[:35]
                 stars = bmap.get("difficulty_rating", 0)
-                lines.append(f"🥇 **{title}** {stars:.1f}★ {mods} — **{pp:.0f}pp**")
+                lines.append(f"{DaletAtoms.EMOJI_DALET} **{title}** {stars:.1f}★ {mods} — **{pp:.0f}pp**")
 
             embed = discord.Embed(
-                title=f"🥇 #1s Globales — {username}",
+                title=f"{DaletAtoms.EMOJI_DALET} #1s Globales — {username}",
                 description="\n".join(lines),
-                color=0xFFD700
+                color=DaletAtoms.COLOR_PRIMARY
             )
             embed.set_thumbnail(url=user.get("avatar_url", ""))
             await ctx.send(embed=embed)

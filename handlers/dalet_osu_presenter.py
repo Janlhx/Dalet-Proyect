@@ -132,7 +132,7 @@ class OsuPresenter:
 
         # Sección 1: Rendimiento
         embed.add_field(
-            name="Rendimiento",
+            name=f"{DaletAtoms.GLYPH_POINTER} Rendimiento",
             value=(
                 f"{DaletAtoms.GLYPH_POINTER} **PP**: {pp_str}\n"
                 f"{DaletAtoms.GLYPH_POINTER} **Precisión**: `{acc}`\n"
@@ -143,7 +143,7 @@ class OsuPresenter:
 
         # Sección 2: Puntuación & Hits
         embed.add_field(
-            name="Puntuación",
+            name=f"{DaletAtoms.GLYPH_ACCURACY} Puntuación",
             value=(
                 f"{DaletAtoms.GLYPH_POINTER} **Score**: `{score}`\n"
                 f"{DaletAtoms.GLYPH_POINTER} **Hits**: `{hits_str}`\n"
@@ -154,7 +154,7 @@ class OsuPresenter:
 
         # Sección 3: Datos del Beatmap
         embed.add_field(
-            name="Mapa",
+            name=f"{DaletAtoms.GLYPH_AIM} Mapa",
             value=(
                 f"{DaletAtoms.GLYPH_POINTER} **Tiempo**: `{length_str}` │ **BPM**: `{bpm:.0f}`\n"
                 f"{DaletAtoms.GLYPH_POINTER} `AR {ar}` · `OD {od}` · `HP {hp}` · `CS {cs}`"
@@ -279,7 +279,7 @@ class OsuPresenter:
         cr_str = f"#{country_rank:,}" if country_rank else "Sin rank"
 
         embed.add_field(
-            name="Rendimiento",
+            name=f"{DaletAtoms.GLYPH_POINTER} Rendimiento",
             value=(
                 f"{DaletAtoms.GLYPH_POINTER} **PP**: `{pp:,.2f}pp`\n"
                 f"{DaletAtoms.GLYPH_POINTER} **Global**: `{gr_str}`\n"
@@ -296,7 +296,7 @@ class OsuPresenter:
         bar = DaletMolecules.create_progress_bar(progress, length=8)
 
         embed.add_field(
-            name="Precisión & Nivel",
+            name=f"{DaletAtoms.GLYPH_ACCURACY} Precisión & Nivel",
             value=(
                 f"{DaletAtoms.GLYPH_POINTER} **Precisión**: `{accuracy:.2f}%`\n"
                 f"{DaletAtoms.GLYPH_POINTER} **Nivel**: `{level}` ({progress}%)\n"
@@ -310,7 +310,7 @@ class OsuPresenter:
         play_time_hours = (stats.get("play_time", 0) or 0) // 3600
 
         embed.add_field(
-            name="Actividad",
+            name=f"{DaletAtoms.GLYPH_SPEED} Actividad",
             value=(
                 f"{DaletAtoms.GLYPH_POINTER} **Partidas**: `{play_count:,}`\n"
                 f"{DaletAtoms.GLYPH_POINTER} **Tiempo de juego**: `{play_time_hours:,}h`"
@@ -325,7 +325,7 @@ class OsuPresenter:
         a = grades.get("a", 0)
 
         embed.add_field(
-            name="Récords Obtenidos",
+            name=f"{DaletAtoms.GLYPH_STAR} Récords Obtenidos",
             value=f"`SS` **{ssh+ss:,}** │ `S` **{sh+s:,}** │ `A` **{a:,}**",
             inline=False
         )
@@ -419,11 +419,11 @@ class OsuPresenter:
         embed.description = "\n".join(desc_lines)
 
         skill_metadata = [
-            ("Aim", "🏹"),
-            ("Speed", "⚡"),
-            ("Accuracy", "🎯"),
-            ("Stamina", "🔋"),
-            ("Reading", "👁️")
+            ("Aim", DaletAtoms.GLYPH_AIM),
+            ("Speed", DaletAtoms.GLYPH_SPEED),
+            ("Accuracy", DaletAtoms.GLYPH_ACCURACY),
+            ("Stamina", DaletAtoms.GLYPH_STAMINA),
+            ("Reading", DaletAtoms.GLYPH_READING)
         ]
 
         for sk_name, icon in skill_metadata:
@@ -458,7 +458,7 @@ class OsuPresenter:
         if roast_text:
             clean_roast = roast_text.strip().replace('"', '')
             embed.add_field(
-                name="💬 Veredicto de Dalet",
+                name=f"{DaletAtoms.GLYPH_VERDICT} Veredicto de Dalet",
                 value=f"> *\"{clean_roast}\"*",
                 inline=False
             )

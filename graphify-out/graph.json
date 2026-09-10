@@ -30,30 +30,17 @@
       "norm_label": "slashcommands"
     },
     {
-      "label": "DaletAtoms",
+      "label": "OsuPresenter",
       "file_type": "code",
-      "source_file": "ui/atoms.py",
-      "source_location": "L4",
+      "source_file": "handlers/dalet_osu_presenter.py",
+      "source_location": "L45",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "ui_atoms_daletatoms",
+      "id": "handlers_dalet_osu_presenter_osupresenter",
       "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "daletatoms"
-    },
-    {
-      "label": "DaletOrganisms",
-      "file_type": "code",
-      "source_file": "ui/organisms.py",
-      "source_location": "L5",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "ui_organisms_daletorganisms",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "daletorganisms"
+      "community_name": "OsuPresenter",
+      "norm_label": "osupresenter"
     },
     {
       "label": "UserRepository",
@@ -351,8 +338,21 @@
       "_origin": "ast",
       "id": "handlers_dalet_helpcommands_handlers_customhelpcommand",
       "community": 46,
-      "community_name": "DaletMolecules",
+      "community_name": "DaletAtoms",
       "norm_label": "customhelpcommand"
+    },
+    {
+      "label": "DaletAtoms",
+      "file_type": "code",
+      "source_file": "ui/atoms.py",
+      "source_location": "L4",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "ui_atoms_daletatoms",
+      "community": 46,
+      "community_name": "DaletAtoms",
+      "norm_label": "daletatoms"
     },
     {
       "label": "DaletMolecules",
@@ -364,8 +364,21 @@
       "_origin": "ast",
       "id": "ui_molecules_daletmolecules",
       "community": 46,
-      "community_name": "DaletMolecules",
+      "community_name": "DaletAtoms",
       "norm_label": "daletmolecules"
+    },
+    {
+      "label": "DaletOrganisms",
+      "file_type": "code",
+      "source_file": "ui/organisms.py",
+      "source_location": "L5",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "ui_organisms_daletorganisms",
+      "community": 46,
+      "community_name": "DaletAtoms",
+      "norm_label": "daletorganisms"
     },
     {
       "label": "AIConfigCommands",
@@ -392,19 +405,6 @@
       "community": 6,
       "community_name": "OsuService",
       "norm_label": "osuservice"
-    },
-    {
-      "label": "OsuPresenter",
-      "file_type": "code",
-      "source_file": "handlers/dalet_osu_presenter.py",
-      "source_location": "L45",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "handlers_dalet_osu_presenter_osupresenter",
-      "community": 7,
-      "community_name": "OsuPresenter",
-      "norm_label": "osupresenter"
     },
     {
       "label": "DatabasePool",
@@ -648,18 +648,6 @@
       "community": 0,
       "community_name": "OsuHandler",
       "norm_label": "setup()"
-    },
-    {
-      "label": ".create_osu_card()",
-      "file_type": "code",
-      "source_file": "ui/organisms.py",
-      "source_location": "L19",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "ui_organisms_daletorganisms_create_osu_card",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": ".create_osu_card()"
     },
     {
       "label": "setup()",
@@ -946,7 +934,7 @@
       "_origin": "ast",
       "id": "handlers_dalet_osu_presenter_setup",
       "community": 10,
-      "community_name": "DaletAtoms",
+      "community_name": "OsuPresenter",
       "norm_label": "setup()"
     },
     {
@@ -958,44 +946,8 @@
       "_origin": "ast",
       "id": "handlers_modules_dalet_osuanalyzer_setup",
       "community": 10,
-      "community_name": "DaletAtoms",
+      "community_name": "OsuPresenter",
       "norm_label": "setup()"
-    },
-    {
-      "label": ".badge()",
-      "file_type": "code",
-      "source_file": "ui/atoms.py",
-      "source_location": "L69",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "ui_atoms_daletatoms_badge",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": ".badge()"
-    },
-    {
-      "label": ".italic()",
-      "file_type": "code",
-      "source_file": "ui/atoms.py",
-      "source_location": "L57",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "ui_atoms_daletatoms_italic",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": ".italic()"
-    },
-    {
-      "label": ".quote()",
-      "file_type": "code",
-      "source_file": "ui/atoms.py",
-      "source_location": "L65",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "ui_atoms_daletatoms_quote",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": ".quote()"
     },
     {
       "label": ".add_user_memory()",
@@ -1620,6 +1572,18 @@
       "community": 14,
       "community_name": ".add_standard_footer",
       "norm_label": ".add_standard_footer()"
+    },
+    {
+      "label": ".create_progress_bar()",
+      "file_type": "code",
+      "source_file": "ui/molecules.py",
+      "source_location": "L22",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "ui_molecules_daletmolecules_create_progress_bar",
+      "community": 14,
+      "community_name": ".add_standard_footer",
+      "norm_label": ".create_progress_bar()"
     },
     {
       "label": ".create_memory_list_embed()",
@@ -2369,7 +2333,7 @@
       "label": ".bold()",
       "file_type": "code",
       "source_file": "ui/atoms.py",
-      "source_location": "L53",
+      "source_location": "L61",
       "_callable": true,
       "_origin": "ast",
       "id": "ui_atoms_daletatoms_bold",
@@ -2381,7 +2345,7 @@
       "label": ".code()",
       "file_type": "code",
       "source_file": "ui/atoms.py",
-      "source_location": "L61",
+      "source_location": "L69",
       "_callable": true,
       "_origin": "ast",
       "id": "ui_atoms_daletatoms_code",
@@ -2969,7 +2933,7 @@
       "label": ".get_grade_color()",
       "file_type": "code",
       "source_file": "ui/atoms.py",
-      "source_location": "L88",
+      "source_location": "L96",
       "_callable": true,
       "_origin": "ast",
       "id": "ui_atoms_daletatoms_get_grade_color",
@@ -2981,13 +2945,25 @@
       "label": ".get_rank_color()",
       "file_type": "code",
       "source_file": "ui/atoms.py",
-      "source_location": "L73",
+      "source_location": "L81",
       "_callable": true,
       "_origin": "ast",
       "id": "ui_atoms_daletatoms_get_rank_color",
       "community": 37,
       "community_name": ".get_rank_color",
       "norm_label": ".get_rank_color()"
+    },
+    {
+      "label": ".create_osu_card()",
+      "file_type": "code",
+      "source_file": "ui/organisms.py",
+      "source_location": "L19",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "ui_organisms_daletorganisms_create_osu_card",
+      "community": 37,
+      "community_name": ".get_rank_color",
+      "norm_label": ".create_osu_card()"
     },
     {
       "label": ".get_osu_progress()",
@@ -3238,7 +3214,7 @@
       "_origin": "ast",
       "id": "handlers_dalet_helpcommands_handlers_customhelpcommand_send_bot_help",
       "community": 46,
-      "community_name": "DaletMolecules",
+      "community_name": "DaletAtoms",
       "norm_label": ".send_bot_help()"
     },
     {
@@ -3250,8 +3226,44 @@
       "_origin": "ast",
       "id": "handlers_dalet_helpcommands_handlers_setup",
       "community": 46,
-      "community_name": "DaletMolecules",
+      "community_name": "DaletAtoms",
       "norm_label": "setup()"
+    },
+    {
+      "label": ".badge()",
+      "file_type": "code",
+      "source_file": "ui/atoms.py",
+      "source_location": "L77",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "ui_atoms_daletatoms_badge",
+      "community": 46,
+      "community_name": "DaletAtoms",
+      "norm_label": ".badge()"
+    },
+    {
+      "label": ".italic()",
+      "file_type": "code",
+      "source_file": "ui/atoms.py",
+      "source_location": "L65",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "ui_atoms_daletatoms_italic",
+      "community": 46,
+      "community_name": "DaletAtoms",
+      "norm_label": ".italic()"
+    },
+    {
+      "label": ".quote()",
+      "file_type": "code",
+      "source_file": "ui/atoms.py",
+      "source_location": "L73",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "ui_atoms_daletatoms_quote",
+      "community": 46,
+      "community_name": "DaletAtoms",
+      "norm_label": ".quote()"
     },
     {
       "label": ".create_button()",
@@ -3262,7 +3274,7 @@
       "_origin": "ast",
       "id": "ui_molecules_daletmolecules_create_button",
       "community": 46,
-      "community_name": "DaletMolecules",
+      "community_name": "DaletAtoms",
       "norm_label": ".create_button()"
     },
     {
@@ -3274,20 +3286,8 @@
       "_origin": "ast",
       "id": "ui_molecules_daletmolecules_create_field",
       "community": 46,
-      "community_name": "DaletMolecules",
+      "community_name": "DaletAtoms",
       "norm_label": ".create_field()"
-    },
-    {
-      "label": ".create_progress_bar()",
-      "file_type": "code",
-      "source_file": "ui/molecules.py",
-      "source_location": "L22",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "ui_molecules_daletmolecules_create_progress_bar",
-      "community": 46,
-      "community_name": "DaletMolecules",
-      "norm_label": ".create_progress_bar()"
     },
     {
       "label": ".__init__()",
@@ -3598,7 +3598,7 @@
       "_origin": "ast",
       "id": "handlers_dalet_osu_presenter_format_acc",
       "community": 7,
-      "community_name": "OsuPresenter",
+      "community_name": ".build_recent_card",
       "norm_label": "_format_acc()"
     },
     {
@@ -3610,7 +3610,7 @@
       "_origin": "ast",
       "id": "handlers_dalet_osu_presenter_format_mods",
       "community": 7,
-      "community_name": "OsuPresenter",
+      "community_name": ".build_recent_card",
       "norm_label": "_format_mods()"
     },
     {
@@ -3622,7 +3622,7 @@
       "_origin": "ast",
       "id": "handlers_dalet_osu_presenter_osupresenter_build_recent_card",
       "community": 7,
-      "community_name": "OsuPresenter",
+      "community_name": ".build_recent_card",
       "norm_label": ".build_recent_card()"
     },
     {
@@ -3634,7 +3634,7 @@
       "_origin": "ast",
       "id": "handlers_dalet_osu_presenter_osupresenter_build_top_card",
       "community": 7,
-      "community_name": "OsuPresenter",
+      "community_name": ".build_recent_card",
       "norm_label": ".build_top_card()"
     },
     {
@@ -3646,31 +3646,31 @@
       "_origin": "ast",
       "id": "handlers_dalet_osu_presenter_osupresenter_extract_score",
       "community": 7,
-      "community_name": "OsuPresenter",
+      "community_name": ".build_recent_card",
       "norm_label": "._extract_score()"
     },
     {
       "label": ".format_duration()",
       "file_type": "code",
       "source_file": "ui/atoms.py",
-      "source_location": "L93",
+      "source_location": "L101",
       "_callable": true,
       "_origin": "ast",
       "id": "ui_atoms_daletatoms_format_duration",
       "community": 7,
-      "community_name": "OsuPresenter",
+      "community_name": ".build_recent_card",
       "norm_label": ".format_duration()"
     },
     {
       "label": ".parse_timestamp_relative()",
       "file_type": "code",
       "source_file": "ui/atoms.py",
-      "source_location": "L102",
+      "source_location": "L110",
       "_callable": true,
       "_origin": "ast",
       "id": "ui_atoms_daletatoms_parse_timestamp_relative",
       "community": 7,
-      "community_name": "OsuPresenter",
+      "community_name": ".build_recent_card",
       "norm_label": ".parse_timestamp_relative()"
     },
     {
@@ -4053,17 +4053,6 @@
       "norm_label": "actualiza estadisticas y snapshot diario si el usuario consulto su propia..."
     },
     {
-      "label": "Organismo complejo para mostrar el perfil de osu!.",
-      "file_type": "rationale",
-      "source_file": "ui/organisms.py",
-      "source_location": "L20",
-      "_origin": "ast",
-      "id": "ui_organisms_rationale_20",
-      "community": 0,
-      "community_name": "OsuHandler",
-      "norm_label": "organismo complejo para mostrar el perfil de osu!."
-    },
-    {
       "label": "choices",
       "file_type": "code",
       "source_file": "",
@@ -4174,17 +4163,6 @@
       "norm_label": "el organismo mas basico: un embed estandar de dalet."
     },
     {
-      "label": "dalet_commands_handlers.py",
-      "file_type": "code",
-      "source_file": "handlers/dalet_commands_handlers.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "handlers_dalet_commands_handlers",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "dalet_commands_handlers.py"
-    },
-    {
       "label": "dalet_osu_presenter.py",
       "file_type": "code",
       "source_file": "handlers/dalet_osu_presenter.py",
@@ -4192,7 +4170,7 @@
       "_origin": "ast",
       "id": "handlers_dalet_osu_presenter",
       "community": 10,
-      "community_name": "DaletAtoms",
+      "community_name": "OsuPresenter",
       "norm_label": "dalet_osu_presenter.py"
     },
     {
@@ -4203,7 +4181,7 @@
       "_origin": "ast",
       "id": "handlers_dalet_osucommands",
       "community": 10,
-      "community_name": "DaletAtoms",
+      "community_name": "OsuPresenter",
       "norm_label": "dalet_osucommands.py"
     },
     {
@@ -4214,7 +4192,7 @@
       "_origin": "ast",
       "id": "handlers_dalet_slash_commands",
       "community": 10,
-      "community_name": "DaletAtoms",
+      "community_name": "OsuPresenter",
       "norm_label": "dalet_slash_commands.py"
     },
     {
@@ -4225,41 +4203,19 @@
       "_origin": "ast",
       "id": "handlers_modules_dalet_osuanalyzer",
       "community": 10,
-      "community_name": "DaletAtoms",
+      "community_name": "OsuPresenter",
       "norm_label": "dalet_osuanalyzer.py"
     },
     {
-      "label": "atoms.py",
-      "file_type": "code",
-      "source_file": "ui/atoms.py",
-      "source_location": "L1",
+      "label": "Presentador de UI para osu! con la identidad visual \u00fanica de Dalet.",
+      "file_type": "rationale",
+      "source_file": "handlers/dalet_osu_presenter.py",
+      "source_location": "L46",
       "_origin": "ast",
-      "id": "ui_atoms",
+      "id": "handlers_dalet_osu_presenter_rationale_46",
       "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "atoms.py"
-    },
-    {
-      "label": "molecules.py",
-      "file_type": "code",
-      "source_file": "ui/molecules.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "ui_molecules",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "molecules.py"
-    },
-    {
-      "label": "organisms.py",
-      "file_type": "code",
-      "source_file": "ui/organisms.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "ui_organisms",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "organisms.py"
+      "community_name": "OsuPresenter",
+      "norm_label": "presentador de ui para osu! con la identidad visual unica de dalet."
     },
     {
       "label": "Slash Commands (Application Commands) de Dalet. Unifica y expone los comandos\u2026",
@@ -4269,7 +4225,7 @@
       "_origin": "ast",
       "id": "handlers_dalet_slash_commands_rationale_1",
       "community": 10,
-      "community_name": "DaletAtoms",
+      "community_name": "OsuPresenter",
       "norm_label": "slash commands (application commands) de dalet. unifica y expone los comandos..."
     },
     {
@@ -4280,7 +4236,7 @@
       "_origin": "ast",
       "id": "handlers_modules_dalet_osuanalyzer_rationale_1",
       "community": 10,
-      "community_name": "DaletAtoms",
+      "community_name": "OsuPresenter",
       "norm_label": "modulo de logica de analisis de osu! (v4.1) esta version corrige el 'edge case'..."
     },
     {
@@ -4291,30 +4247,8 @@
       "_origin": "ast",
       "id": "handlers_modules_dalet_osuanalyzer_rationale_579",
       "community": 10,
-      "community_name": "DaletAtoms",
+      "community_name": "OsuPresenter",
       "norm_label": "funcion 'setup' vacia (este modulo no es un cog)."
-    },
-    {
-      "label": "Design Tokens e Identidad Visual de Dalet.",
-      "file_type": "rationale",
-      "source_file": "ui/atoms.py",
-      "source_location": "L5",
-      "_origin": "ast",
-      "id": "ui_atoms_rationale_5",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "design tokens e identidad visual de dalet."
-    },
-    {
-      "label": "Componentes complejos que forman una secci\u00f3n completa de la UI.",
-      "file_type": "rationale",
-      "source_file": "ui/organisms.py",
-      "source_location": "L6",
-      "_origin": "ast",
-      "id": "ui_organisms_rationale_6",
-      "community": 10,
-      "community_name": "DaletAtoms",
-      "norm_label": "componentes complejos que forman una seccion completa de la ui."
     },
     {
       "label": "user_repository.py",
@@ -4733,6 +4667,17 @@
       "community": 14,
       "community_name": ".add_standard_footer",
       "norm_label": "anade el footer minimalista y caracteristico de dalet."
+    },
+    {
+      "label": "Genera una barra de progreso limpia.",
+      "file_type": "rationale",
+      "source_file": "ui/molecules.py",
+      "source_location": "L23",
+      "_origin": "ast",
+      "id": "ui_molecules_rationale_23",
+      "community": 14,
+      "community_name": ".add_standard_footer",
+      "norm_label": "genera una barra de progreso limpia."
     },
     {
       "label": "Organismo para mostrar estad\u00edsticas sociales del usuario.",
@@ -7004,9 +6949,9 @@
       "label": "Devuelve un color de acento basado en el rango global num\u00e9rico.",
       "file_type": "rationale",
       "source_file": "ui/atoms.py",
-      "source_location": "L74",
+      "source_location": "L82",
       "_origin": "ast",
-      "id": "ui_atoms_rationale_74",
+      "id": "ui_atoms_rationale_82",
       "community": 37,
       "community_name": ".get_rank_color",
       "norm_label": "devuelve un color de acento basado en el rango global numerico."
@@ -7015,12 +6960,23 @@
       "label": "Devuelve el color correspondiente al grade de osu!.",
       "file_type": "rationale",
       "source_file": "ui/atoms.py",
-      "source_location": "L89",
+      "source_location": "L97",
       "_origin": "ast",
-      "id": "ui_atoms_rationale_89",
+      "id": "ui_atoms_rationale_97",
       "community": 37,
       "community_name": ".get_rank_color",
       "norm_label": "devuelve el color correspondiente al grade de osu!."
+    },
+    {
+      "label": "Organismo complejo para mostrar el perfil de osu!.",
+      "file_type": "rationale",
+      "source_file": "ui/organisms.py",
+      "source_location": "L20",
+      "_origin": "ast",
+      "id": "ui_organisms_rationale_20",
+      "community": 37,
+      "community_name": ".get_rank_color",
+      "norm_label": "organismo complejo para mostrar el perfil de osu!."
     },
     {
       "label": "All Variables",
@@ -7771,6 +7727,17 @@
       "norm_label": "\ud83d\udc41\ufe0f views"
     },
     {
+      "label": "dalet_commands_handlers.py",
+      "file_type": "code",
+      "source_file": "handlers/dalet_commands_handlers.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "handlers_dalet_commands_handlers",
+      "community": 46,
+      "community_name": "DaletAtoms",
+      "norm_label": "dalet_commands_handlers.py"
+    },
+    {
       "label": "dalet_helpcommands_handlers.py",
       "file_type": "code",
       "source_file": "handlers/dalet_helpcommands_handlers.py",
@@ -7778,8 +7745,41 @@
       "_origin": "ast",
       "id": "handlers_dalet_helpcommands_handlers",
       "community": 46,
-      "community_name": "DaletMolecules",
+      "community_name": "DaletAtoms",
       "norm_label": "dalet_helpcommands_handlers.py"
+    },
+    {
+      "label": "atoms.py",
+      "file_type": "code",
+      "source_file": "ui/atoms.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "ui_atoms",
+      "community": 46,
+      "community_name": "DaletAtoms",
+      "norm_label": "atoms.py"
+    },
+    {
+      "label": "molecules.py",
+      "file_type": "code",
+      "source_file": "ui/molecules.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "ui_molecules",
+      "community": 46,
+      "community_name": "DaletAtoms",
+      "norm_label": "molecules.py"
+    },
+    {
+      "label": "organisms.py",
+      "file_type": "code",
+      "source_file": "ui/organisms.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "ui_organisms",
+      "community": 46,
+      "community_name": "DaletAtoms",
+      "norm_label": "organisms.py"
     },
     {
       "label": "Handler (Cog) para el Comando de Ayuda Personalizado de Dalet. Sistema\u2026",
@@ -7789,7 +7789,7 @@
       "_origin": "ast",
       "id": "handlers_dalet_helpcommands_handlers_rationale_1",
       "community": 46,
-      "community_name": "DaletMolecules",
+      "community_name": "DaletAtoms",
       "norm_label": "handler (cog) para el comando de ayuda personalizado de dalet. sistema..."
     },
     {
@@ -7800,19 +7800,19 @@
       "_origin": "ast",
       "id": "handlers_dalet_helpcommands_handlers_rationale_190",
       "community": 46,
-      "community_name": "DaletMolecules",
+      "community_name": "DaletAtoms",
       "norm_label": "reemplaza el comando de ayuda por defecto con un panel visual e interactivo."
     },
     {
-      "label": "Genera una barra de progreso limpia.",
+      "label": "Design Tokens e Identidad Visual de Dalet.",
       "file_type": "rationale",
-      "source_file": "ui/molecules.py",
-      "source_location": "L23",
+      "source_file": "ui/atoms.py",
+      "source_location": "L5",
       "_origin": "ast",
-      "id": "ui_molecules_rationale_23",
+      "id": "ui_atoms_rationale_5",
       "community": 46,
-      "community_name": "DaletMolecules",
-      "norm_label": "genera una barra de progreso limpia."
+      "community_name": "DaletAtoms",
+      "norm_label": "design tokens e identidad visual de dalet."
     },
     {
       "label": "Crea un bot\u00f3n de Discord con el estilo Dalet.",
@@ -7822,7 +7822,7 @@
       "_origin": "ast",
       "id": "ui_molecules_rationale_30",
       "community": 46,
-      "community_name": "DaletMolecules",
+      "community_name": "DaletAtoms",
       "norm_label": "crea un boton de discord con el estilo dalet."
     },
     {
@@ -7833,7 +7833,7 @@
       "_origin": "ast",
       "id": "ui_molecules_rationale_5",
       "community": 46,
-      "community_name": "DaletMolecules",
+      "community_name": "DaletAtoms",
       "norm_label": "componentes visuales reutilizables de dalet."
     },
     {
@@ -7844,8 +7844,19 @@
       "_origin": "ast",
       "id": "ui_molecules_rationale_9",
       "community": 46,
-      "community_name": "DaletMolecules",
+      "community_name": "DaletAtoms",
       "norm_label": "crea un diccionario compatible con add_field."
+    },
+    {
+      "label": "Componentes complejos que forman una secci\u00f3n completa de la UI.",
+      "file_type": "rationale",
+      "source_file": "ui/organisms.py",
+      "source_location": "L6",
+      "_origin": "ast",
+      "id": "ui_organisms_rationale_6",
+      "community": 46,
+      "community_name": "DaletAtoms",
+      "norm_label": "componentes complejos que forman una seccion completa de la ui."
     },
     {
       "label": "\ud83d\udd0c `database/pool.py` \u2014 The Connection Pool",
@@ -8196,7 +8207,7 @@
       "_origin": "ast",
       "id": "handlers_dalet_osu_presenter_rationale_176",
       "community": 7,
-      "community_name": "OsuPresenter",
+      "community_name": ".build_recent_card",
       "norm_label": "construye un embed estructurado con los top plays del usuario."
     },
     {
@@ -8207,19 +8218,8 @@
       "_origin": "ast",
       "id": "handlers_dalet_osu_presenter_rationale_18",
       "community": 7,
-      "community_name": "OsuPresenter",
+      "community_name": ".build_recent_card",
       "norm_label": "formatea la precision (0.0 a 1.0) a porcentaje xx.xx%."
-    },
-    {
-      "label": "Presentador de UI para osu! con la identidad visual \u00fanica de Dalet.",
-      "file_type": "rationale",
-      "source_file": "handlers/dalet_osu_presenter.py",
-      "source_location": "L46",
-      "_origin": "ast",
-      "id": "handlers_dalet_osu_presenter_rationale_46",
-      "community": 7,
-      "community_name": "OsuPresenter",
-      "norm_label": "presentador de ui para osu! con la identidad visual unica de dalet."
     },
     {
       "label": "Obtiene el puntaje formateado tanto para scores de Lazer como Classic/Bancho y\u2026",
@@ -8229,7 +8229,7 @@
       "_origin": "ast",
       "id": "handlers_dalet_osu_presenter_rationale_50",
       "community": 7,
-      "community_name": "OsuPresenter",
+      "community_name": ".build_recent_card",
       "norm_label": "obtiene el puntaje formateado tanto para scores de lazer como classic/bancho y..."
     },
     {
@@ -8240,7 +8240,7 @@
       "_origin": "ast",
       "id": "handlers_dalet_osu_presenter_rationale_6",
       "community": 7,
-      "community_name": "OsuPresenter",
+      "community_name": ".build_recent_card",
       "norm_label": "formatea la lista de mods en un string compacto tipo +hddt o +nm."
     },
     {
@@ -8251,30 +8251,30 @@
       "_origin": "ast",
       "id": "handlers_dalet_osu_presenter_rationale_71",
       "community": 7,
-      "community_name": "OsuPresenter",
+      "community_name": ".build_recent_card",
       "norm_label": "construye una tarjeta de jugada reciente unica, estructurada y sin ruido visual."
-    },
-    {
-      "label": "Convierte una fecha ISO a formato Discord timestamp relativo.",
-      "file_type": "rationale",
-      "source_file": "ui/atoms.py",
-      "source_location": "L103",
-      "_origin": "ast",
-      "id": "ui_atoms_rationale_103",
-      "community": 7,
-      "community_name": "OsuPresenter",
-      "norm_label": "convierte una fecha iso a formato discord timestamp relativo."
     },
     {
       "label": "Convierte segundos a formato MM:SS.",
       "file_type": "rationale",
       "source_file": "ui/atoms.py",
-      "source_location": "L94",
+      "source_location": "L102",
       "_origin": "ast",
-      "id": "ui_atoms_rationale_94",
+      "id": "ui_atoms_rationale_102",
       "community": 7,
-      "community_name": "OsuPresenter",
+      "community_name": ".build_recent_card",
       "norm_label": "convierte segundos a formato mm:ss."
+    },
+    {
+      "label": "Convierte una fecha ISO a formato Discord timestamp relativo.",
+      "file_type": "rationale",
+      "source_file": "ui/atoms.py",
+      "source_location": "L111",
+      "_origin": "ast",
+      "id": "ui_atoms_rationale_111",
+      "community": 7,
+      "community_name": ".build_recent_card",
+      "norm_label": "convierte una fecha iso a formato discord timestamp relativo."
     },
     {
       "label": "pool.py",
@@ -14782,7 +14782,7 @@
       "context": "return_type",
       "confidence": "EXTRACTED",
       "source_file": "ui/atoms.py",
-      "source_location": "L88",
+      "source_location": "L96",
       "weight": 1.0,
       "_origin": "ast",
       "source": "ui_atoms_daletatoms_get_grade_color",
@@ -14794,7 +14794,7 @@
       "context": "return_type",
       "confidence": "EXTRACTED",
       "source_file": "ui/atoms.py",
-      "source_location": "L73",
+      "source_location": "L81",
       "weight": 1.0,
       "_origin": "ast",
       "source": "ui_atoms_daletatoms_get_rank_color",
@@ -19579,7 +19579,18 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "ui/atoms.py",
-      "source_location": "L102",
+      "source_location": "L101",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "ui_atoms_daletatoms",
+      "target": "ui_atoms_daletatoms_format_duration",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "ui/atoms.py",
+      "source_location": "L110",
       "weight": 1.0,
       "_origin": "ast",
       "source": "ui_atoms_daletatoms",
@@ -19590,7 +19601,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "ui/atoms.py",
-      "source_location": "L53",
+      "source_location": "L61",
       "weight": 1.0,
       "_origin": "ast",
       "source": "ui_atoms_daletatoms",
@@ -19601,7 +19612,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "ui/atoms.py",
-      "source_location": "L57",
+      "source_location": "L65",
       "weight": 1.0,
       "_origin": "ast",
       "source": "ui_atoms_daletatoms",
@@ -19612,7 +19623,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "ui/atoms.py",
-      "source_location": "L61",
+      "source_location": "L69",
       "weight": 1.0,
       "_origin": "ast",
       "source": "ui_atoms_daletatoms",
@@ -19623,7 +19634,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "ui/atoms.py",
-      "source_location": "L65",
+      "source_location": "L73",
       "weight": 1.0,
       "_origin": "ast",
       "source": "ui_atoms_daletatoms",
@@ -19634,7 +19645,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "ui/atoms.py",
-      "source_location": "L69",
+      "source_location": "L77",
       "weight": 1.0,
       "_origin": "ast",
       "source": "ui_atoms_daletatoms",
@@ -19645,7 +19656,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "ui/atoms.py",
-      "source_location": "L73",
+      "source_location": "L81",
       "weight": 1.0,
       "_origin": "ast",
       "source": "ui_atoms_daletatoms",
@@ -19656,22 +19667,11 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "ui/atoms.py",
-      "source_location": "L88",
+      "source_location": "L96",
       "weight": 1.0,
       "_origin": "ast",
       "source": "ui_atoms_daletatoms",
       "target": "ui_atoms_daletatoms_get_grade_color",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "source_file": "ui/atoms.py",
-      "source_location": "L93",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "ui_atoms_daletatoms",
-      "target": "ui_atoms_daletatoms_format_duration",
       "confidence_score": 1.0
     },
     {
@@ -21581,10 +21581,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "ui/atoms.py",
-      "source_location": "L103",
+      "source_location": "L102",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "ui_atoms_rationale_103",
+      "source": "ui_atoms_rationale_102",
+      "target": "ui_atoms_daletatoms_format_duration",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "ui/atoms.py",
+      "source_location": "L111",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "ui_atoms_rationale_111",
       "target": "ui_atoms_daletatoms_parse_timestamp_relative",
       "confidence_score": 1.0
     },
@@ -21603,10 +21614,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "ui/atoms.py",
-      "source_location": "L74",
+      "source_location": "L82",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "ui_atoms_rationale_74",
+      "source": "ui_atoms_rationale_82",
       "target": "ui_atoms_daletatoms_get_rank_color",
       "confidence_score": 1.0
     },
@@ -21614,22 +21625,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "ui/atoms.py",
-      "source_location": "L89",
+      "source_location": "L97",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "ui_atoms_rationale_89",
+      "source": "ui_atoms_rationale_97",
       "target": "ui_atoms_daletatoms_get_grade_color",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "ui/atoms.py",
-      "source_location": "L94",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "ui_atoms_rationale_94",
-      "target": "ui_atoms_daletatoms_format_duration",
       "confidence_score": 1.0
     },
     {
@@ -22439,5 +22439,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "7e595bfbb7cae6a908e59c7c3cdea554013dc36e"
+  "built_at_commit": "feb713a1bf17631fb9ed703ffe41ad32251116e5"
 }

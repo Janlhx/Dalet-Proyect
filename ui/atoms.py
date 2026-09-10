@@ -45,6 +45,14 @@ class DaletAtoms:
     GLYPH_STAR = "★"
     GLYPH_CORNER = "└"
 
+    # --- Glifos Tipográficos de Habilidades y Métricas ---
+    GLYPH_AIM = "⌖"
+    GLYPH_SPEED = "»"
+    GLYPH_ACCURACY = "◎"
+    GLYPH_STAMINA = "▰"
+    GLYPH_READING = "⟡"
+    GLYPH_VERDICT = "✦"
+
     # --- Emojis Funcionales y Limpios ---
     EMOJI_DALET = "✦"
 

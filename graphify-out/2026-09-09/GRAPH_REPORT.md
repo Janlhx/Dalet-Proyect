@@ -1,7 +1,7 @@
 # Graph Report - Dalet-Proyect  (2026-09-09)
 
 ## Corpus Check
-- 66 files · ~80,008 words
+- 66 files · ~80,293 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `73905f05`
+- Built from commit: `7e595bfb`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 

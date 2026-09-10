@@ -296,7 +296,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 return await interaction.followup.send(
                     "nadie en este servidor tiene cuenta vinculada aún. usa `/link` para entrar al ranking."
                 )
-            medals = ["🥇", "🥈", "🥉"]
+            medals = ["✦", "◈", "◇"]
             lines = []
             for i, row in enumerate(server_rows):
                 medal = medals[i] if i < 3 else f"`{i+1}.`"
@@ -305,9 +305,9 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 acc = float(row.get("Accuracy") or row.get("accuracy") or 0)
                 lines.append(f"{medal} **{name}** — {pp:,.0f}pp • {acc:.2f}%")
             embed = discord.Embed(
-                title="🏆 Ranking osu! del Servidor",
+                title=f"{DaletAtoms.EMOJI_DALET} Ranking osu! del Servidor",
                 description="\n".join(lines),
-                color=0xFFD700
+                color=DaletAtoms.COLOR_PRIMARY
             )
             await interaction.followup.send(embed=embed)
         except Exception as e:
