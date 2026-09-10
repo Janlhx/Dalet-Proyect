@@ -6,7 +6,7 @@
   "4": "AdminCommands",
   "5": "AIConfigCommands",
   "6": "OsuService",
-  "7": ".build_recent_card",
+  "7": "OsuPresenter",
   "8": "TursoClient",
   "9": "OsuAnalyzer",
   "10": "DaletAtoms",
@@ -44,8 +44,7 @@
   "42": "workflows/graphify.md",
   "43": "🏗️ General Architecture of Dalet",
   "44": "SQL Migration Guide for Neon (Dalet Restructuring)",
-  "45": "📖 Project Documentation Index",
-  "46": ".create_button",
-  "47": ".create_field",
-  "48": "PageInputModal"
+  "45": "🗃️ SQL Schema — Tables, Views, Procedures, & Functions",
+  "46": "DaletMolecules",
+  "47": "🔌 `database/pool.py` — The Connection Pool"
 }

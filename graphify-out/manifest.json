@@ -100,8 +100,8 @@
     "semantic_hash": ""
   },
   "handlers/dalet_osucommands.py": {
-    "mtime": 1789001249.7962835,
-    "ast_hash": "b08625a0fe1778e86f18595a5e9df5f6",
+    "mtime": 1789003259.7776773,
+    "ast_hash": "fb30bb5a2a891be08bdc35ad356c1d42",
     "semantic_hash": ""
   },
   "handlers/dalet_reminders.py": {
@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "handlers/dalet_slash_commands.py": {
-    "mtime": 1789001265.1405342,
-    "ast_hash": "3b040f69012855a755bb444a903db036",
+    "mtime": 1789003268.4393482,
+    "ast_hash": "3a1079548af59ad78de759820312404c",
     "semantic_hash": ""
   },
   "handlers/dalet_smartresume.py": {
@@ -125,8 +125,8 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "handlers/modules/dalet_osuanalyzer.py": {
-    "mtime": 1789001206.7050788,
-    "ast_hash": "32c2b668607ea0158688f596ad765590",
+    "mtime": 1789003201.5655327,
+    "ast_hash": "c05b0b1c9c951f6cdde664d407ac18ef",
     "semantic_hash": ""
   },
   "mig.py": {
@@ -255,8 +255,8 @@
     "semantic_hash": ""
   },
   "handlers/dalet_osu_presenter.py": {
-    "mtime": 1789001220.3935244,
-    "ast_hash": "ab2caf449293f6d2ed6312862c16d983",
+    "mtime": 1789003214.4160044,
+    "ast_hash": "80f30dd615d4312801ef1d839a1aa076",
     "semantic_hash": ""
   },
   "assets/bannersito.png": {

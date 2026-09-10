@@ -412,17 +412,10 @@ class OsuPresenter:
         if avatar_url:
             embed.set_thumbnail(url=avatar_url)
 
-        desc_lines = []
-        if roast_text:
-            clean_roast = roast_text.strip().replace('"', '')
-            desc_lines.append(f"> *\"{clean_roast}\"*\n")
-
-        desc_lines.append(
-            f"{DaletAtoms.GLYPH_POINTER} **Promedio General**: `{overall:.2f}★` │ **PP**: `{pp:,.0f}` │ **Rank**: `{rank_str}`"
-        )
-        desc_lines.append(
+        desc_lines = [
+            f"{DaletAtoms.GLYPH_POINTER} **Promedio General**: `{overall:.2f}★` │ **PP**: `{pp:,.0f}` │ **Rank**: `{rank_str}`",
             f"{DaletAtoms.GLYPH_POINTER} **Fuerza Principal**: `{dominant}` │ **Área Débil**: `{weakest}`"
-        )
+        ]
         embed.description = "\n".join(desc_lines)
 
         skill_metadata = [
@@ -442,23 +435,31 @@ class OsuPresenter:
             for m in top_maps[:3]:
                 title = m.get("title", "Desconocido")
                 ver = m.get("version", "Normal")
-                if len(title) > 28:
-                    title = title[:26] + ".."
-                if len(ver) > 16:
-                    ver = ver[:14] + ".."
+                if len(title) > 18:
+                    title = title[:16] + ".."
+                if len(ver) > 10:
+                    ver = ver[:8] + ".."
                 mods = m.get("mods_str", "+NM")
                 sr = m.get("sr", 0.0)
                 pp_val = m.get("pp", 0.0)
                 b_id = m.get("beatmap_id")
 
                 name_part = f"[{title} [{ver}]](https://osu.ppy.sh/b/{b_id})" if b_id else f"{title} [{ver}]"
-                pp_str = f" • `{pp_val:.0f}pp`" if pp_val > 0 else ""
-                lines.append(f"{DaletAtoms.GLYPH_SUB} `{mods}` {name_part} — `{sr:.2f}★`{pp_str}")
+                pp_str = f" ({pp_val:.0f}pp)" if pp_val > 0 else ""
+                lines.append(f"{DaletAtoms.GLYPH_SUB} `{mods}` {name_part} • `{sr:.2f}★`{pp_str}")
 
             field_val = "\n".join(lines) if lines else "Sin suficientes datos."
             embed.add_field(
                 name=f"{icon} {sk_name} — `{stars:.2f}★`",
                 value=field_val,
+                inline=False
+            )
+
+        if roast_text:
+            clean_roast = roast_text.strip().replace('"', '')
+            embed.add_field(
+                name="💬 Veredicto de Dalet",
+                value=f"> *\"{clean_roast}\"*",
                 inline=False
             )
 

@@ -363,36 +363,58 @@ class OsuAnalyzer:
             is_hd = "HD" in mods_list
             is_fl = "FL" in mods_list
             is_ez = "EZ" in mods_list
+            is_ht = "HT" in mods_list
 
-            # 1. Aim: influenciado por CS, DT (velocidad de salto), HR (tamaño) y densidad de círculos
+            # --- Dificultad efectiva en estrellas (★) con mods aplicados ---
+            eff_sr = sr
+            if is_dt:
+                dt_factor = 1.38
+                if bpm >= 200:
+                    dt_factor += min(0.08, (bpm - 200) * 0.001)
+                elif bpm < 150:
+                    dt_factor -= min(0.06, (150 - bpm) * 0.001)
+                eff_sr *= dt_factor
+            if is_hr:
+                eff_sr *= (1.08 + max(0.0, (cs - 4.0) * 0.02))
+            if is_ez:
+                eff_sr *= 0.88
+            if is_ht:
+                eff_sr *= 0.75
+            eff_sr = round(eff_sr, 2)
+
+            # 1. Aim: influenciado por CS, DT y densidad de círculos
             circle_ratio = count_circles / max(1, total_objects) if total_objects > 0 else 0.7
-            cs_bonus = max(0.0, (cs - 4.0) * 0.08)
-            aim_score = sr * (1.28 if is_dt else 1.0) * (1.12 if is_hr else 1.0) * (1.0 + cs_bonus) * (0.85 + 0.30 * circle_ratio)
+            cs_bonus = max(0.0, (cs - 4.0) * 0.05)
+            aim_score = eff_sr * (0.90 + 0.15 * circle_ratio + cs_bonus)
 
-            # 2. Speed: BPM efectivo, DT y alta densidad de BPM
+            # 2. Speed: BPM efectivo y presencia de DT
             eff_bpm = bpm * (1.5 if is_dt else 1.0)
             bpm_mult = 1.0
-            if eff_bpm >= 200:
-                bpm_mult += min(0.5, (eff_bpm - 200) * 0.005)
+            if eff_bpm >= 210:
+                bpm_mult += min(0.15, (eff_bpm - 210) * 0.0025)
             elif eff_bpm < 160:
-                bpm_mult -= min(0.4, (160 - eff_bpm) * 0.004)
-            speed_score = sr * (1.35 if is_dt else 0.88) * max(0.6, bpm_mult)
+                bpm_mult -= min(0.20, (160 - eff_bpm) * 0.003)
+            if is_dt:
+                bpm_mult += 0.05
+            speed_score = eff_sr * bpm_mult
 
-            # 3. Accuracy: OD efectivo y curva exponencial de precisión obtenida
+            # 3. Accuracy: OD efectivo y curva de precisión obtenida
             eff_od = min(11.0, od * (1.4 if is_hr else (0.5 if is_ez else 1.0)))
-            acc_factor = (acc / 0.98) ** 2.0 if acc > 0 else 0.5
-            acc_score = sr * (eff_od / 8.5) * acc_factor
+            acc_factor = (acc / 0.98) ** 1.5 if acc > 0 else 0.5
+            acc_score = eff_sr * (eff_od / 9.2) * acc_factor
 
-            # 4. Stamina: longitud de drain y conteo de objetos (maratones/streams)
+            # 4. Stamina: longitud de drain y conteo de objetos (equilibrado para evitar desbordes)
             eff_drain = drain / 1.5 if is_dt else drain
             stamina_mult = 1.0
-            if eff_drain >= 180:
-                stamina_mult += min(0.35, (eff_drain - 180) * 0.002)
-            if total_objects >= 1000:
-                stamina_mult += min(0.30, (total_objects - 1000) * 0.0003)
-            if is_dt and total_objects >= 800:
-                stamina_mult += 0.10
-            stamina_score = sr * stamina_mult
+            if eff_drain >= 210:
+                stamina_mult += min(0.12, (eff_drain - 210) * 0.0008)
+            elif eff_drain < 90:
+                stamina_mult -= min(0.20, (90 - eff_drain) * 0.003)
+            if total_objects >= 1200:
+                stamina_mult += min(0.10, (total_objects - 1200) * 0.0001)
+            elif total_objects < 500:
+                stamina_mult -= min(0.15, (500 - total_objects) * 0.0003)
+            stamina_score = eff_sr * min(1.18, max(0.70, stamina_mult))
 
             # 5. Reading: AR extremos (Low AR o High AR 10.3+), HD, FL, EZ
             eff_ar = min(10.0, ar * 1.4) if is_hr else (ar * 0.5 if is_ez else ar)
@@ -401,29 +423,28 @@ class OsuAnalyzer:
             
             reading_mult = 1.0
             if eff_ar <= 8.5:
-                reading_mult += (8.5 - eff_ar) * 0.15
+                reading_mult += min(0.15, (8.5 - eff_ar) * 0.08)
             elif eff_ar >= 10.3:
-                reading_mult += (eff_ar - 10.3) * 0.12
+                reading_mult += min(0.12, (eff_ar - 10.3) * 0.08)
             if is_hd:
-                reading_mult += 0.18
+                reading_mult += 0.08
             if is_fl:
-                reading_mult += 0.50
+                reading_mult += 0.25
             if is_ez:
-                reading_mult += 0.35
-            reading_score = sr * reading_mult
+                reading_mult += 0.15
+            reading_score = eff_sr * min(1.20, reading_mult)
 
             title = bset.get("title") or bm.get("title", "Desconocido")
-            artist = bset.get("artist") or bm.get("artist", "")
             version = bm.get("version", "Normal")
             beatmap_id = bm.get("id") or p.get("beatmap_id", 0)
             pp_val = float(p.get("pp") or 0.0)
 
             scored_plays.append({
-                "title": f"{artist} - {title}" if artist else title,
+                "title": title,
                 "version": version,
                 "beatmap_id": beatmap_id,
                 "mods_str": mods_str,
-                "sr": sr,
+                "sr": eff_sr,
                 "pp": pp_val,
                 "acc": round(acc * 100.0, 2),
                 "scores": {

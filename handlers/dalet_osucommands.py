@@ -852,22 +852,32 @@ def _create_progress_chart_sync(username: str, history: list) -> discord.File | 
 
             micro_prompt = (
                 f"ROL: Eres Dalet, una bot cínica, técnica y experta en osu!.\n"
-                f"TAREA: Haz un roast o veredicto técnico ULTRA CORTO (MÁXIMO 2 ORACIONES, 30 palabras) sobre las habilidades de {username}:\n"
+                f"TAREA: Haz un roast o veredicto técnico contundente (MÁXIMO 2 ORACIONES, 30-40 palabras) sobre el perfil de {username}:\n"
                 f"- Habilidad dominante: {dominant} ({skills_data[dominant]['stars']}★)\n"
                 f"- Habilidad más débil: {weakest} ({skills_data[weakest]['stars']}★)\n"
                 f"- Promedio de estrellas: {overall}★\n"
                 f"- Rank global: #{gr}\n"
-                f"REGLAS OBLIGATORIAS: Sé ácida y burlona con su debilidad. Máximo 1 emoji. Sin saludos ni despedidas, habla directamente al grano."
+                f"REGLAS: Búrlate con sarcasmo de su debilidad en {weakest} comparado con su {dominant}. Máximo 1 emoji. Cero rodeos."
             )
 
             roast_text = None
             try:
                 roast_text = await self.bot.nlp_service.generate_reply(
                     micro_prompt, "Skill Roast", username,
-                    max_tokens_override=80
+                    max_tokens_override=120
                 )
             except Exception as nlp_err:
                 logger.warning(f"No se pudo generar roast para skills ({username}): {nlp_err}")
+
+            if not roast_text:
+                fallback_roasts = {
+                    "Speed": "Mucho DT farmeado en mapas cortos, pero ponle una stream rápida y se te traba el cerebro.",
+                    "Stamina": "Aguantas maratones eternos de relleno, lástima que ante una ráfaga de velocidad te derritas.",
+                    "Aim": "Metes buen acc en ritmos planos, pero te mueven los círculos dos milímetros y ya estás tirando miss.",
+                    "Accuracy": "Mucho combo y estrellitas infladas, pero ese acc parece que tocas el teclado con guantes de boxeo.",
+                    "Reading": "Buen reading en mapas lentos, pero te suben el AR a 10.3 y ni te enteras de qué nota fallaste."
+                }
+                roast_text = fallback_roasts.get(weakest, f"Mucho número inflado en {dominant}, pero en {weakest} das pena ajena.")
 
             embed = OsuPresenter.build_skills_card(user, skills_data, roast_text=roast_text, mode=mode)
             await ctx.send(embed=embed)
