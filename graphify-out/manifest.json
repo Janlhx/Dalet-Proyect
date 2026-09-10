@@ -60,8 +60,8 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "handlers/dalet_admcommands_handler.py": {
-    "mtime": 1788999217.8038335,
-    "ast_hash": "a9a6ddcaf10e15ebe917e385022beada",
+    "mtime": 1789008104.003884,
+    "ast_hash": "f7d3e6fcf02a57b86431b1cc789bc966",
     "semantic_hash": ""
   },
   "handlers/dalet_chatlogger.py": {
@@ -70,13 +70,13 @@
     "semantic_hash": "7717c54a6414ee282ffabe53dfe41452"
   },
   "handlers/dalet_commands_handlers.py": {
-    "mtime": 1786493528.7442195,
-    "ast_hash": "d2ac24d3702a7df321684aeefdf17e9e",
-    "semantic_hash": "d2ac24d3702a7df321684aeefdf17e9e"
+    "mtime": 1789008150.2305732,
+    "ast_hash": "ce3c975fccc67bb96b2f0695e707c5a6",
+    "semantic_hash": ""
   },
   "handlers/dalet_events_handlers.py": {
-    "mtime": 1788999217.8058307,
-    "ast_hash": "d7c068c31d54f89bf8f36375c421c93c",
+    "mtime": 1789008111.8387382,
+    "ast_hash": "b1d72a6445e7666fcc6e2573c713dcbc",
     "semantic_hash": ""
   },
   "handlers/dalet_geminicommand.py": {
@@ -90,8 +90,8 @@
     "semantic_hash": "35604cdbc5521eda6541b18c3e5e7906"
   },
   "handlers/dalet_helpcommands_handlers.py": {
-    "mtime": 1788999217.8108323,
-    "ast_hash": "68d252634976dd4514a0298377196003",
+    "mtime": 1789008133.4530323,
+    "ast_hash": "de9d7146b491d3ab1919cb292d748077",
     "semantic_hash": ""
   },
   "handlers/dalet_nlpchat.py": {
@@ -100,8 +100,8 @@
     "semantic_hash": ""
   },
   "handlers/dalet_osucommands.py": {
-    "mtime": 1789004101.602643,
-    "ast_hash": "ba511cec2dc78712029cc7b7558d88ea",
+    "mtime": 1789005879.0348642,
+    "ast_hash": "0499a9a12cf31fa2974c88113e47802d",
     "semantic_hash": ""
   },
   "handlers/dalet_reminders.py": {
@@ -125,8 +125,8 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "handlers/modules/dalet_osuanalyzer.py": {
-    "mtime": 1789003201.5655327,
-    "ast_hash": "c05b0b1c9c951f6cdde664d407ac18ef",
+    "mtime": 1789005919.8183784,
+    "ast_hash": "27dcb7dd5230ffdc07f2914435b77a4a",
     "semantic_hash": ""
   },
   "mig.py": {
@@ -155,8 +155,8 @@
     "semantic_hash": "ffe3497f7e7374974358822ffc834a72"
   },
   "ui/atoms.py": {
-    "mtime": 1789004029.589312,
-    "ast_hash": "578122cb754efb909cda0003220c0757",
+    "mtime": 1789008074.4092913,
+    "ast_hash": "2680feb9e022bdd194b32f340992d88d",
     "semantic_hash": ""
   },
   "ui/molecules.py": {

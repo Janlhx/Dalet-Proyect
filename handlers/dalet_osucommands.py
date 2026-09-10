@@ -699,86 +699,7 @@ def _create_progress_chart_sync(username: str, history: list) -> discord.File | 
         return None
 
 
-    # ------------------------------------------------------------------
-    # d.oa — Análisis IA completo
-    # ------------------------------------------------------------------
 
-    @commands.command(name="oa", aliases=["osuAnalyze", "oc"])
-    async def osu_analyze(self, ctx, *, args: str = None):
-        """Análisis profundo con IA de tu perfil de osu! — coaching incluido."""
-        username, mode = await self._parse_args(ctx, args)
-        if not username:
-            return
-
-        try:
-            async with ctx.typing():
-                user   = await self.osu.get_user(username, mode)
-                recent = await self.osu.get_user_recent_scores(user["id"], mode, limit=50)
-                best   = await self.osu.get_user_best_scores(user["id"], mode, limit=50)
-
-            stats = user.get("statistics", {})
-            embed = discord.Embed(
-                title=f"📊 Análisis Dalet: {username}",
-                url=f"https://osu.ppy.sh/users/{user['id']}/{mode}",
-                color=_rank_color(stats.get("global_rank")),
-                description="🔍 Generando análisis con IA..."
-            )
-            embed.set_thumbnail(url=user.get("avatar_url", ""))
-            embed.add_field(name="PP",   value=f"`{stats.get('pp', 0):,.0f}`", inline=True)
-            embed.add_field(name="Rank", value=f"`#{stats.get('global_rank', '?'):,}`", inline=True)
-            embed.add_field(name="Acc",  value=f"`{stats.get('hit_accuracy', 0):.2f}%`", inline=True)
-            msg = await ctx.send(embed=embed)
-
-            # Generar análisis IA — con más tokens que una respuesta normal
-            analyzer = OsuAnalyzer(self.osu, user, recent, best)
-            prompt   = await analyzer.generate_super_prompt()
-            response = await self.bot.nlp_service.generate_reply(
-                prompt, "Análisis osu!", username,
-                max_tokens_override=2000  # El análisis necesita más espacio
-            )
-
-            if response:
-                # Dividir el reporte por secciones de Markdown (usualmente empiezan con '###')
-                # O por bloques de 1900 caracteres como fallback
-                sections = []
-                current_section = ""
-                
-                for line in response.split("\n"):
-                    if line.startswith("###") and current_section:
-                        sections.append(current_section.strip())
-                        current_section = line + "\n"
-                    else:
-                        current_section += line + "\n"
-                if current_section:
-                    sections.append(current_section.strip())
-
-                # Si no se dividió bien en secciones, dividimos por caracteres
-                if len(sections) <= 1 and len(response) > 1900:
-                    sections = [response[i:i+1900] for i in range(0, len(response), 1900)]
-
-                # Primer bloque va en el embed original
-                embed.description = sections[0] if sections else "Error al procesar el análisis."
-                embed.set_footer(text=f"Análisis generado por Dalet · Página 1/{len(sections)}")
-                await msg.edit(embed=embed)
-
-                # Los bloques siguientes se envían como nuevos embeds en el orden correcto
-                for idx, sec in enumerate(sections[1:], start=2):
-                    next_embed = discord.Embed(
-                        description=sec,
-                        color=embed.color
-                    )
-                    next_embed.set_footer(text=f"Análisis generado por Dalet · Página {idx}/{len(sections)}")
-                    await ctx.send(embed=next_embed)
-            else:
-                embed.description = "no pude generar el análisis esta vez — inténtalo de nuevo."
-                await msg.edit(embed=embed)
-
-            await self._maybe_snapshot(ctx.author.id, username, user)
-
-        except Exception as e:
-            logger.error(f"Error en oa para {username}: {e}")
-            traceback.print_exc()
-            await ctx.send("⚠️ error técnico en el análisis.")
 
     # ------------------------------------------------------------------
     # d.op1s — #1s del usuario (bonus)
@@ -825,7 +746,7 @@ def _create_progress_chart_sync(username: str, history: list) -> discord.File | 
     # d.skills / d.skill — Desglose de habilidades osu! (Skill Breakdown)
     # ------------------------------------------------------------------
 
-    @commands.command(name="skills", aliases=["skill", "osk"])
+    @commands.command(name="skills", aliases=["skill", "osk", "oa", "oc", "osuAnalyze"])
     async def osu_skills(self, ctx, *, args: str = None):
         """Desglose de habilidades (Aim, Speed, Acc, Stamina, Reading) con veredicto de Dalet."""
         username, mode = await self._parse_args(ctx, args)

@@ -23,8 +23,16 @@ class EventsHandler(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         """Se ejecuta cuando el bot está listo y conectado."""
+        from ui.atoms import DaletAtoms
         await self.bot.tree.sync()
         logger.info(f"Bot conectado como {self.bot.user} (ID: {self.bot.user.id})")
+
+        # Configuración de Presencia en Discord
+        status_text = getattr(self.bot, "custom_status", f"{DaletAtoms.VERSION} • searching who asked │ d.help")
+        try:
+            await self.bot.change_presence(activity=discord.CustomActivity(name=status_text))
+        except Exception:
+            await self.bot.change_presence(activity=discord.Game(name=status_text))
 
     # -------------------------------------------------------------------------
     # on_command_error

@@ -1,9 +1,11 @@
 import discord
 import os
 import sys
+import asyncio
 from discord.ext import commands
 import logging
 import traceback
+from ui.atoms import DaletAtoms
 
 logger = logging.getLogger("dalet.handlers.admin")
 
@@ -271,6 +273,54 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
         except Exception as e:
             logger.error(f"Error en dbstats: {e}")
             await ctx.send(f"❌ Error al obtener estadísticas:\n```{e}```")
+
+    @commands.command(name="status", aliases=["setstatus"], hidden=True)
+    @commands.is_owner()
+    async def set_bot_status(self, ctx, *, text: str = None):
+        """
+        [OWNER] Cambia la presencia/estado de Dalet en Discord en tiempo real.
+        Uso:
+          d.status v3.0.1 • mejoré mi modelo │ d.help
+          d.status default  -> Restablece al estado predeterminado
+        """
+        from ui.molecules import DaletMolecules
+        if not text or text.lower() == "default":
+            text = f"{DaletAtoms.VERSION} • searching who asked │ d.help"
+
+        self.bot.custom_status = text
+        try:
+            activity = discord.CustomActivity(name=text)
+            await self.bot.change_presence(activity=activity)
+        except Exception:
+            activity = discord.Game(name=text)
+            await self.bot.change_presence(activity=activity)
+
+        embed = discord.Embed(
+            title=f"{DaletAtoms.EMOJI_DALET} Estado Actualizado",
+            description=f"{DaletAtoms.GLYPH_POINTER} **Nueva presencia:** `{text}`",
+            color=DaletAtoms.COLOR_PRIMARY
+        )
+        DaletMolecules.add_standard_footer(embed, context_text=f"Dalet {DaletAtoms.VERSION}")
+        await ctx.send(embed=embed)
+
+    @commands.command(name="setchangelog", hidden=True)
+    @commands.is_owner()
+    async def set_bot_changelog(self, ctx, *, text: str = None):
+        """
+        [OWNER] Actualiza la nota dinámica del comando d.changelog.
+        Uso:
+          d.setchangelog <texto>
+          d.setchangelog reset  -> Vuelve a las notas oficiales de la versión
+        """
+        if not text:
+            return await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Especifica el texto del changelog o usa `d.setchangelog reset`.")
+
+        if text.lower() == "reset":
+            self.bot.custom_changelog = None
+            return await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Changelog restablecido a las notas predeterminadas de {DaletAtoms.VERSION}.")
+
+        self.bot.custom_changelog = text
+        await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Changelog dinámico actualizado correctamente para {DaletAtoms.VERSION}.")
 
 async def setup(bot):
     await bot.add_cog(AdminCommands(bot))

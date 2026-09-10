@@ -220,15 +220,16 @@ class CustomHelpCommand(commands.HelpCommand):
             title="",
             description=(
                 f"Hola, **{ctx.author.display_name}**.\n\n"
-                f"Soy **Dalet** — bot de osu!, IA y recordatorios.\n"
-                f"Todos mis comandos son slash commands. Escribe `/` en Discord para autocompletar.\n\n"
+                f"Soy **Dalet {DaletAtoms.VERSION}** — bot de osu!, IA conversacional y utilidades.\n"
+                f"Escribe `/` en Discord para autocompletar comandos, o usa `d.help`.\n\n"
                 f"**Categorías:**\n{nav_lines}\n\n"
-                f"Usa el menú desplegable o los botones para navegar entre categorías."
+                f"{DaletAtoms.GLYPH_SUB} Usa el menú desplegable o botones para explorar.\n"
+                f"{DaletAtoms.GLYPH_SUB} Escribe `d.changelog` para consultar las novedades de la versión."
             ),
             color=DaletAtoms.COLOR_PRIMARY,
         )
         portada.set_footer(
-            text="Dalet · Centro de Control  •  d.help para ver esto de nuevo",
+            text=f"Dalet {DaletAtoms.VERSION} │ Centro de Control • d.changelog para novedades",
             icon_url=ctx.bot.user.avatar.url if ctx.bot.user.avatar else None
         )
         pages.insert(0, portada)

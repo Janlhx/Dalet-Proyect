@@ -4,6 +4,9 @@ from datetime import datetime, timezone
 class DaletAtoms:
     """Design Tokens e Identidad Visual de Dalet."""
 
+    # --- Versión de Dalet ---
+    VERSION = "v3.0.1"
+
     # --- Paleta de Colores ---
     COLOR_PRIMARY = discord.Color.from_rgb(255, 105, 180)  # #FF69B4 (Dalet Pink)
     COLOR_DARK = discord.Color.from_rgb(24, 24, 27)        # #18181B (Zinc Dark)

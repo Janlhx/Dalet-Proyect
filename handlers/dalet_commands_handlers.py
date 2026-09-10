@@ -127,6 +127,72 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
             logger.error(f"Error en lore: {e}")
             await ctx.send("Se me han empolvado los archivos y no puedo leer nada ahora mismo.")
 
+    @commands.command(name="info", aliases=["about", "botinfo"])
+    async def show_info(self, ctx):
+        """Muestra la tarjeta de presentación de Dalet."""
+        embed = discord.Embed(
+            title=f"{DaletAtoms.EMOJI_DALET} Dalet {DaletAtoms.VERSION}",
+            description=(
+                f'> *"searching who asked"*\n\n'
+                f"{DaletAtoms.GLYPH_POINTER} **Creador**: Litxe\n"
+                f"{DaletAtoms.GLYPH_POINTER} **Estado**: En línea y juzgando tus jugadas\n"
+                f"{DaletAtoms.GLYPH_POINTER} **Prefijo**: `d.` o mención `@Dalet`\n\n"
+                f"{DaletAtoms.GLYPH_SUB} Escribe `d.changelog` para ver las novedades de la versión.\n"
+                f"{DaletAtoms.GLYPH_SUB} Escribe `d.help` para consultar el menú de comandos."
+            ),
+            color=DaletAtoms.COLOR_PRIMARY
+        )
+        if self.bot.user and self.bot.user.display_avatar:
+            embed.set_thumbnail(url=self.bot.user.display_avatar.url)
+        DaletMolecules.add_standard_footer(embed, context_text=f"{DaletAtoms.VERSION} │ Litxe")
+        await ctx.send(embed=embed)
+
+    @commands.command(name="changelog", aliases=["novedades", "changes", "updates"])
+    async def show_changelog(self, ctx):
+        """Muestra las notas de actualización y novedades de Dalet."""
+        custom = getattr(self.bot, "custom_changelog", None)
+
+        embed = discord.Embed(
+            title=f"{DaletAtoms.EMOJI_DALET} Novedades — Dalet {DaletAtoms.VERSION}",
+            color=DaletAtoms.COLOR_PRIMARY
+        )
+
+        if custom:
+            embed.description = f'> *"{custom}"*\n'
+
+        embed.add_field(
+            name=f"{DaletAtoms.GLYPH_POINTER} Cerebro v3.0",
+            value=(
+                f"{DaletAtoms.GLYPH_SUB} Mayor agilidad conversacional y fluidez de memoria.\n"
+                f"{DaletAtoms.GLYPH_SUB} Personalidad ácida calibrada para respuestas directas y contundentes."
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name=f"{DaletAtoms.GLYPH_POINTER} Desglose de Habilidades (`d.skills`)",
+            value=(
+                f"{DaletAtoms.GLYPH_SUB} Evaluación visual en 5 áreas (Aim, Speed, Accuracy, Stamina, Reading).\n"
+                f"{DaletAtoms.GLYPH_SUB} Calibración de dificultad real en mods (DT, HR, EZ, FL) y veredicto mordaz."
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name=f"{DaletAtoms.GLYPH_POINTER} Rendimiento y Ajustes",
+            value=(
+                f"{DaletAtoms.GLYPH_SUB} Optimización de tiempos de respuesta en todos los servidores.\n"
+                f"{DaletAtoms.GLYPH_SUB} Retiro del viejo comando `osuanalyzer` (ahora integrado en `d.skills`)."
+            ),
+            inline=False
+        )
+
+        if self.bot.user and self.bot.user.display_avatar:
+            embed.set_thumbnail(url=self.bot.user.display_avatar.url)
+
+        DaletMolecules.add_standard_footer(embed, context_text=f"{DaletAtoms.VERSION} │ d.help para comandos")
+        await ctx.send(embed=embed)
+
 
 async def setup(bot):
     await bot.add_cog(CommandsHandler(bot))
