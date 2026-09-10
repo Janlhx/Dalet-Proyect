@@ -120,6 +120,17 @@ class SQLiteManager:
                 UNIQUE(UserID, LogDate)
             )
             """,
+            # Totales persistentes de telemetría de IA
+            """
+            CREATE TABLE IF NOT EXISTS AITelemetryTotals (
+                Provider TEXT PRIMARY KEY,
+                Requests INTEGER DEFAULT 0,
+                PromptTokens INTEGER DEFAULT 0,
+                CompletionTokens INTEGER DEFAULT 0,
+                CostUSD REAL DEFAULT 0.0,
+                UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
             # Índices de rendimiento
             "CREATE INDEX IF NOT EXISTS idx_msg_channel ON Messages(ChannelID)",
             "CREATE INDEX IF NOT EXISTS idx_msg_timestamp ON Messages(Timestamp DESC)",
@@ -211,6 +222,50 @@ class SQLiteManager:
         except Exception as e:
             logger.error(f"SQLite FetchOne Error: {e}")
             return None
+
+    @classmethod
+    async def get_ai_telemetry_totals(cls) -> dict:
+        """Obtiene los totales acumulados de telemetría para todos los proveedores de IA."""
+        query = "SELECT Provider, Requests, PromptTokens, CompletionTokens, CostUSD FROM AITelemetryTotals"
+        rows = await cls.fetch_all(query)
+        result = {}
+        for r in rows:
+            row_dict = dict(r) if hasattr(r, "keys") else {}
+            provider = row_dict.get("Provider") or (r[0] if len(r) > 0 else None)
+            if provider:
+                requests = row_dict.get("Requests", r[1] if len(r) > 1 else 0)
+                prompt_tokens = row_dict.get("PromptTokens", r[2] if len(r) > 2 else 0)
+                completion_tokens = row_dict.get("CompletionTokens", r[3] if len(r) > 3 else 0)
+                cost_usd = row_dict.get("CostUSD", r[4] if len(r) > 4 else 0.0)
+                result[str(provider).lower()] = {
+                    "requests": int(requests or 0),
+                    "prompt_tokens": int(prompt_tokens or 0),
+                    "completion_tokens": int(completion_tokens or 0),
+                    "cost_usd": float(cost_usd or 0.0)
+                }
+        return result
+
+    @classmethod
+    async def update_ai_telemetry_delta(
+        cls,
+        provider: str,
+        requests: int,
+        prompt_tokens: int,
+        completion_tokens: int,
+        cost_usd: float
+    ):
+        """Suma un delta a los totales acumulados de un proveedor de IA en SQLite."""
+        query = """
+            INSERT INTO AITelemetryTotals (Provider, Requests, PromptTokens, CompletionTokens, CostUSD, UpdatedAt)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(Provider) DO UPDATE SET
+                Requests = Requests + excluded.Requests,
+                PromptTokens = PromptTokens + excluded.PromptTokens,
+                CompletionTokens = CompletionTokens + excluded.CompletionTokens,
+                CostUSD = CostUSD + excluded.CostUSD,
+                UpdatedAt = CURRENT_TIMESTAMP
+        """
+        await cls.execute(query, provider.lower(), requests, prompt_tokens, completion_tokens, cost_usd)
 
     @classmethod
     async def close(cls):

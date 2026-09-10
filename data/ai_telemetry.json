@@ -1,0 +1,26 @@
+{
+  "deepseek": {
+    "requests": 15,
+    "prompt_tokens": 4500,
+    "completion_tokens": 1500,
+    "errors": 0
+  },
+  "gemini": {
+    "requests": 0,
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "errors": 0
+  },
+  "groq": {
+    "requests": 0,
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "errors": 0
+  },
+  "openrouter": {
+    "requests": 0,
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "errors": 0
+  }
+}

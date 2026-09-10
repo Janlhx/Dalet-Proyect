@@ -1,6 +1,9 @@
 # Local test scripts & scratch (not for public repo)
 scripts/
 scratch/
+*.db
+*.db-shm
+*.db-wal
 
 # AI knowledge graph & agent configurations
 graphify-out/

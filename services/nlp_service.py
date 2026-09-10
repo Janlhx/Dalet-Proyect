@@ -11,10 +11,14 @@ import httpx
 import logging
 import asyncio
 import hashlib
+import json
 import time
 from database.repositories.user_repository import UserRepository
+from database.sqlite_manager import SQLiteManager
 
 logger = logging.getLogger("dalet.services.nlp")
+
+TELEMETRY_BACKUP_PATH = os.path.join("data", "ai_telemetry.json")
 
 # Personalidad de Dalet en Inglés (Default)
 DALET_PERSONALITY_EN = """You are {bot_name}, an authentic Discord community member. You are NOT a helpful assistant or a generic servile bot — you are a witty, sharp, relaxed, and cynical girl.
@@ -151,15 +155,115 @@ class NLPService:
             "recent_interactions": []  # Últimas 20 interacciones con detalle
         }
 
+        # Cargar métricas acumuladas desde disco si existen
+        self._load_file_telemetry()
+
         # Cliente HTTP persistente
         self._http_client = httpx.AsyncClient(timeout=25.0)
         # Caché de visión en RAM {url_hash: description}
         self._vision_cache = {}
+        self._db_synced = False
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._sync_persisted_telemetry())
+        except RuntimeError:
+            pass
 
         logger.info(f"NLPService iniciado con Smart Load Balancer (DeepSeek Core). Modo: '{self.routing_mode}'")
 
+    def _load_file_telemetry(self):
+        """Carga métricas acumuladas desde data/ai_telemetry.json si existe."""
+        if os.path.exists(TELEMETRY_BACKUP_PATH):
+            try:
+                with open(TELEMETRY_BACKUP_PATH, "r", encoding="utf-8") as f:
+                    saved = json.load(f)
+                    for prov in ("deepseek", "gemini", "groq", "openrouter"):
+                        if prov in saved:
+                            self.telemetry[prov]["requests"] = int(saved[prov].get("requests", 0))
+                            self.telemetry[prov]["prompt_tokens"] = int(saved[prov].get("prompt_tokens", 0))
+                            self.telemetry[prov]["completion_tokens"] = int(saved[prov].get("completion_tokens", 0))
+                            self.telemetry[prov]["errors"] = int(saved[prov].get("errors", 0))
+                logger.info(f"Telemetría cargada desde {TELEMETRY_BACKUP_PATH}")
+            except Exception as e:
+                logger.warning(f"No se pudo cargar telemetría desde JSON: {e}")
+
+    def _save_telemetry_file(self):
+        """Guarda un snapshot de los totales acumulados en data/ai_telemetry.json."""
+        try:
+            os.makedirs(os.path.dirname(TELEMETRY_BACKUP_PATH), exist_ok=True)
+            dump_data = {
+                prov: {
+                    "requests": self.telemetry[prov]["requests"],
+                    "prompt_tokens": self.telemetry[prov]["prompt_tokens"],
+                    "completion_tokens": self.telemetry[prov]["completion_tokens"],
+                    "errors": self.telemetry[prov]["errors"]
+                }
+                for prov in ("deepseek", "gemini", "groq", "openrouter")
+            }
+            with open(TELEMETRY_BACKUP_PATH, "w", encoding="utf-8") as f:
+                json.dump(dump_data, f, indent=2)
+        except Exception as e:
+            logger.warning(f"Error guardando backup de telemetría: {e}")
+
+    async def _sync_persisted_telemetry(self):
+        """Sincroniza totales con SQLite y actualiza la copia JSON local."""
+        try:
+            db_totals = await SQLiteManager.get_ai_telemetry_totals()
+            updated = False
+            for prov, vals in db_totals.items():
+                if prov in self.telemetry:
+                    cur_r = self.telemetry[prov]["requests"]
+                    cur_p = self.telemetry[prov]["prompt_tokens"]
+                    cur_c = self.telemetry[prov]["completion_tokens"]
+
+                    db_r = vals.get("requests", 0)
+                    db_p = vals.get("prompt_tokens", 0)
+                    db_c = vals.get("completion_tokens", 0)
+
+                    if db_r > cur_r or db_p > cur_p or db_c > cur_c:
+                        self.telemetry[prov]["requests"] = max(cur_r, db_r)
+                        self.telemetry[prov]["prompt_tokens"] = max(cur_p, db_p)
+                        self.telemetry[prov]["completion_tokens"] = max(cur_c, db_c)
+                        updated = True
+                    elif cur_r > db_r or cur_p > db_p or cur_c > db_c:
+                        cost = (cur_p * 0.00000014) + (cur_c * 0.00000028) if prov == "deepseek" else 0.0
+                        await SQLiteManager.update_ai_telemetry_delta(
+                            prov,
+                            cur_r - db_r,
+                            cur_p - db_p,
+                            cur_c - db_c,
+                            cost
+                        )
+
+            self._db_synced = True
+            if updated:
+                self._save_telemetry_file()
+                logger.info("Telemetría acumulada sincronizada exitosamente con SQLite.")
+        except Exception as e:
+            logger.warning(f"No se pudo sincronizar telemetría con SQLite: {e}")
+
+    async def _record_telemetry_delta(
+        self, provider: str, requests: int, prompt_tokens: int, completion_tokens: int, cost_usd: float = 0.0
+    ):
+        """Guarda el delta en SQLite y actualiza el archivo JSON en background."""
+        try:
+            self._save_telemetry_file()
+            await SQLiteManager.update_ai_telemetry_delta(
+                provider, requests, prompt_tokens, completion_tokens, cost_usd
+            )
+        except Exception as e:
+            logger.error(f"Error registrando delta de telemetría para {provider}: {e}")
+
     def get_telemetry(self) -> dict:
         """Devuelve un snapshot de telemetría de IA listo para el Dashboard con costo y ratios."""
+        if not self._db_synced:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self._sync_persisted_telemetry())
+            except RuntimeError:
+                pass
+
         now = time.time()
         deepseek_lat = self.telemetry["deepseek"]["latencies_ms"]
         gemini_lat = self.telemetry["gemini"]["latencies_ms"]
@@ -171,10 +275,10 @@ class NLPService:
         avg_groq = round(sum(groq_lat[-20:]) / len(groq_lat[-20:])) if groq_lat else 0
         avg_openrouter = round(sum(openrouter_lat[-20:]) / len(openrouter_lat[-20:])) if openrouter_lat else 0
 
-        # Cálculo de costo estimado DeepSeek ($0.14/1M prompt, $0.28/1M completion)
+        # Cálculo de costo acumulado DeepSeek ($0.14/1M prompt, $0.28/1M completion)
         ds_p = self.telemetry["deepseek"]["prompt_tokens"]
         ds_c = self.telemetry["deepseek"]["completion_tokens"]
-        deepseek_cost = round((ds_p * 0.00000014) + (ds_c * 0.00000028), 5)
+        deepseek_cost = round((ds_p * 0.00000014) + (ds_c * 0.00000028), 6)
 
         total_prompt = (
             self.telemetry["deepseek"]["prompt_tokens"]
@@ -190,10 +294,14 @@ class NLPService:
         )
         ratio_eff = round(total_prompt / max(1, total_completion), 1)
 
+        raw_credit = os.getenv("DEEPSEEK_CREDIT_BALANCE", "").strip()
+        credit_balance = float(raw_credit) if raw_credit else None
+
         return {
             "routing_mode": self.routing_mode,
             "uptime_seconds": int(now - self.telemetry["start_time"]),
             "estimated_cost_usd": deepseek_cost,
+            "credit_balance": credit_balance,
             "prompt_ratio": ratio_eff,
             "deepseek": {
                 "model": (os.getenv("DEEPSEEK_MODEL") or "deepseek-chat").strip(),
@@ -219,7 +327,7 @@ class NLPService:
                 "errors": self.telemetry["gemini"]["errors"]
             },
             "groq": {
-                "model": (os.getenv("GROQ_MODEL") or "llama-3.3-70b-versatile").strip(),
+                "model": (os.getenv("GROQ_MODEL") or "openai/gpt-oss-120b").strip(),
                 "fallback_model": (os.getenv("GROQ_MODEL_FALLBACK") or "llama-3.1-8b-instant").strip(),
                 "healthy": self._is_groq_healthy(),
                 "cooldown_remaining": max(0, int(self._groq_cooldown_until - now)),
@@ -488,6 +596,7 @@ class NLPService:
             usage = result.get("usage", {})
             p_tokens = usage.get("prompt_tokens") or (len(user_msg) // 4)
             c_tokens = usage.get("completion_tokens") or (len(reply_text) // 4)
+            cost_delta = round((p_tokens * 0.00000014) + (c_tokens * 0.00000028), 6)
 
             self.telemetry["deepseek"]["requests"] += 1
             self.telemetry["deepseek"]["prompt_tokens"] += p_tokens
@@ -495,6 +604,8 @@ class NLPService:
             self.telemetry["deepseek"]["latencies_ms"].append(latency_ms)
             if len(self.telemetry["deepseek"]["latencies_ms"]) > 50:
                 self.telemetry["deepseek"]["latencies_ms"].pop(0)
+
+            asyncio.create_task(self._record_telemetry_delta("deepseek", 1, p_tokens, c_tokens, cost_delta))
 
             self.telemetry["recent_interactions"].append({
                 "provider": "DeepSeek",
@@ -583,6 +694,8 @@ class NLPService:
                     self.telemetry["gemini"]["latencies_ms"].append(latency_ms)
                     if len(self.telemetry["gemini"]["latencies_ms"]) > 50:
                         self.telemetry["gemini"]["latencies_ms"].pop(0)
+
+                    asyncio.create_task(self._record_telemetry_delta("gemini", 1, p_tokens, c_tokens, 0.0))
 
                     self.telemetry["recent_interactions"].append({
                         "provider": "Gemini",
@@ -701,6 +814,8 @@ class NLPService:
                 if len(self.telemetry["groq"]["latencies_ms"]) > 50:
                     self.telemetry["groq"]["latencies_ms"].pop(0)
 
+                asyncio.create_task(self._record_telemetry_delta("groq", 1, p_tokens, c_tokens, 0.0))
+
                 self.telemetry["recent_interactions"].append({
                     "provider": "Groq",
                     "model": model_name,
@@ -809,6 +924,8 @@ class NLPService:
                 self.telemetry["openrouter"]["latencies_ms"].append(latency_ms)
                 if len(self.telemetry["openrouter"]["latencies_ms"]) > 50:
                     self.telemetry["openrouter"]["latencies_ms"].pop(0)
+
+                asyncio.create_task(self._record_telemetry_delta("openrouter", 1, p_tokens, c_tokens, 0.0))
 
                 self.telemetry["recent_interactions"].append({
                     "provider": "OpenRouter",
