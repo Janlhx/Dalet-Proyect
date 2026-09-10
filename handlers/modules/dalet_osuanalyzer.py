@@ -271,32 +271,33 @@ class OsuAnalyzer:
                 scores['Stamina'] = eff_sr * min(1.25, max(0.65, stamina_mult)) * exec_factor
 
                 # Lectura (Reading): Dificultad visual genuina por solapamiento de notas, densidad y memorización.
-                # AR alta (>= 10.0 con DT) NO es lectura rítmica; limpia la pantalla y se basa en reacción.
+                # Mantener una base armónica (~0.80 - 0.84) para que la métrica no colapse de forma irreal en el perfil,
+                # pero sin otorgar ventajas a mapas de AR alta donde el desafío es puramente reacción/velocidad.
                 if eff_ar >= 10.0:
-                    reading_mult = 0.50
-                elif eff_ar >= 9.5:
-                    reading_mult = 0.60
+                    reading_mult = 0.80
+                elif eff_ar >= 9.6:
+                    reading_mult = 0.82
                 else:
-                    reading_mult = 0.70
+                    reading_mult = 0.85
 
                 # Bonificaciones genuinas de lectura:
                 if eff_ar <= 8.5:
-                    reading_mult += min(0.35, (8.5 - eff_ar) * 0.12)
+                    reading_mult += min(0.30, (8.5 - eff_ar) * 0.10)
                     if eff_ar <= 7.0:
                         reading_mult += 0.15
 
                 if is_hd:
                     if eff_ar <= 8.5:
-                        reading_mult += 0.25  # HD en baja AR es lectura extrema
-                    elif eff_ar <= 9.5:
-                        reading_mult += 0.12  # HD estándar
+                        reading_mult += 0.22  # HD en baja AR es lectura extrema
+                    elif eff_ar <= 9.6:
+                        reading_mult += 0.10  # HD estándar
                     else:
-                        reading_mult += 0.02  # HD en AR 10+ es casi puro músculo/reacción
+                        reading_mult += 0.04  # HD en AR 10+ es casi puro músculo/reacción
 
                 if is_fl:
-                    reading_mult += 0.45
+                    reading_mult += 0.40
                 if is_ez:
-                    reading_mult += 0.35
+                    reading_mult += 0.30
 
                 slider_ratio = count_sliders / max(1, total_objects) if total_objects > 0 else 0.3
                 if slider_ratio >= 0.35:
