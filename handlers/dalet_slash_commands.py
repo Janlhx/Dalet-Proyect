@@ -26,15 +26,15 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     # Utilidades
     # ------------------------------------------------------------------
 
-    @app_commands.command(name="ping", description="Muestra la latencia del bot en ms.")
+    @app_commands.command(name="ping", description="Checks bot response latency in milliseconds.")
     async def slash_ping(self, interaction: discord.Interaction):
         latency = round(self.bot.latency * 1000)
         await interaction.response.send_message(
-            f"🏓 respondiendo en **{latency}ms**. no me presiones.", ephemeral=True
+            f"🏓 response time: **{latency}ms**. don't rush me.", ephemeral=True
         )
 
-    @app_commands.command(name="stats", description="Muestra tus estadísticas sociales en el servidor.")
-    @app_commands.describe(usuario="Usuario del que ver las stats (por defecto tú)")
+    @app_commands.command(name="stats", description="Displays your server social activity statistics.")
+    @app_commands.describe(usuario="User to inspect (defaults to yourself)")
     async def slash_stats(self, interaction: discord.Interaction, usuario: discord.Member = None):
         member = usuario or interaction.user
         await interaction.response.defer()
@@ -47,8 +47,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             logger.error(f"Error en /stats: {e}")
             await interaction.followup.send("no pude obtener tus stats ahora mismo.", ephemeral=True)
 
-    @app_commands.command(name="userinfo", description="Muestra información de un usuario del servidor.")
-    @app_commands.describe(usuario="Usuario del que ver la info")
+    @app_commands.command(name="userinfo", description="Displays detailed information about a server member.")
+    @app_commands.describe(usuario="Member to inspect")
     async def slash_userinfo(self, interaction: discord.Interaction, usuario: discord.Member = None):
         member = usuario or interaction.user
         desc = (
@@ -61,7 +61,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             embed.set_thumbnail(url=member.avatar.url)
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="serverinfo", description="Información del servidor actual.")
+    @app_commands.command(name="serverinfo", description="Displays information about the current server.")
     async def slash_serverinfo(self, interaction: discord.Interaction):
         g = interaction.guild
         desc = (
@@ -74,7 +74,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             embed.set_thumbnail(url=g.icon.url)
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="info", description="Tarjeta de presentación e información de Dalet.")
+    @app_commands.command(name="info", description="Displays Dalet's profile card, version, and information.")
     async def slash_info(self, interaction: discord.Interaction):
         from ui.molecules import DaletMolecules
         embed = discord.Embed(
@@ -98,10 +98,10 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     # osu!
     # ------------------------------------------------------------------
 
-    @app_commands.command(name="op", description="Perfil de osu! de un jugador.")
+    @app_commands.command(name="op", description="Displays full osu! profile, rank, and stats for a player.")
     @app_commands.describe(
-        usuario="Nombre en osu! (o dejar vacío para tu cuenta vinculada)",
-        modo="Modo de juego (por defecto: osu)"
+        usuario="osu! username (or leave empty for your linked account)",
+        modo="Game mode (default: osu)"
     )
     @app_commands.choices(modo=[
         app_commands.Choice(name="osu!standard", value="osu"),
@@ -133,8 +133,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             logger.error(f"Error en /op: {e}")
             await interaction.followup.send("⚠️ error obteniendo el perfil.", ephemeral=True)
 
-    @app_commands.command(name="link", description="Vincula tu Discord con tu cuenta de osu!.")
-    @app_commands.describe(usuario="Tu nombre de usuario en osu!")
+    @app_commands.command(name="link", description="Links your Discord account to your osu! profile.")
+    @app_commands.describe(usuario="Your osu! username")
     async def slash_link(self, interaction: discord.Interaction, usuario: str):
         await interaction.response.defer(ephemeral=True)
         try:
@@ -161,10 +161,10 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             logger.error(f"Error en /link: {e}")
             await interaction.followup.send("❌ error al vincular.", ephemeral=True)
 
-    @app_commands.command(name="recent", description="Muestra tu última jugada de osu!.")
+    @app_commands.command(name="recent", description="Displays your most recent osu! play with detailed stats.")
     @app_commands.describe(
-        usuario="Nombre en osu! (o dejar vacío para tu cuenta vinculada)",
-        modo="Modo de juego"
+        usuario="osu! username (or leave empty for your linked account)",
+        modo="Game mode"
     )
     @app_commands.choices(modo=[
         app_commands.Choice(name="osu!standard", value="osu"),
@@ -204,10 +204,10 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             logger.error(f"Error en /recent: {e}")
             await interaction.followup.send("⚠️ error obteniendo la jugada.", ephemeral=True)
 
-    @app_commands.command(name="top", description="Muestra tus mejores plays de osu!.")
+    @app_commands.command(name="top", description="Displays your top 5 best registered osu! scores.")
     @app_commands.describe(
-        usuario="Nombre en osu! (o dejar vacío para tu cuenta vinculada)",
-        modo="Modo de juego"
+        usuario="osu! username (or leave empty for your linked account)",
+        modo="Game mode"
     )
     @app_commands.choices(modo=[
         app_commands.Choice(name="osu!standard", value="osu"),
@@ -236,10 +236,10 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             logger.error(f"Error en /top: {e}")
             await interaction.followup.send("⚠️ error obteniendo top plays.", ephemeral=True)
 
-    @app_commands.command(name="skills", description="Desglose de habilidades osu! (Aim, Speed, Acc, Stamina, Reading) con veredicto de Dalet.")
+    @app_commands.command(name="skills", description="5-dimension osu! skill radar (Aim, Speed, Acc, Stamina, Reading) with Dalet's verdict.")
     @app_commands.describe(
-        usuario="Nombre en osu! (o dejar vacío para tu cuenta vinculada)",
-        modo="Modo de juego (por defecto: osu)"
+        usuario="osu! username (or leave empty for your linked account)",
+        modo="Game mode (default: osu)"
     )
     @app_commands.choices(modo=[
         app_commands.Choice(name="osu!standard", value="osu"),
@@ -338,7 +338,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             logger.error(f"Error en /skills: {e}")
             await interaction.followup.send("⚠️ error calculando las habilidades.", ephemeral=True)
 
-    @app_commands.command(name="rank", description="Ranking osu! de los jugadores vinculados en este servidor.")
+    @app_commands.command(name="rank", description="Server osu! leaderboard for linked members.")
     async def slash_rank(self, interaction: discord.Interaction):
         await interaction.response.defer()
         try:
@@ -371,8 +371,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             logger.error(f"Error en /rank: {e}")
             await interaction.followup.send("⚠️ error obteniendo el ranking.", ephemeral=True)
 
-    @app_commands.command(name="compare", description="Compara tu perfil de osu! contra otro jugador.")
-    @app_commands.describe(usuario="Jugador con el que compararte")
+    @app_commands.command(name="compare", description="Compares your osu! profile head-to-head against another player.")
+    @app_commands.describe(usuario="Player to compare against")
     async def slash_compare(self, interaction: discord.Interaction, usuario: str):
         await interaction.response.defer()
         user1_name = await self.bot.osu_repo.get_linked_username(interaction.user.id)
@@ -398,8 +398,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     # Conversaciones / Memoria
     # ------------------------------------------------------------------
 
-    @app_commands.command(name="lore", description="Busca fragmentos del pasado del servidor sobre un tema.")
-    @app_commands.describe(tema="Qué quieres buscar en el lore del servidor")
+    @app_commands.command(name="lore", description="Searches server history and chat archives with cynical AI commentary.")
+    @app_commands.describe(tema="Topic to research in server history")
     async def slash_lore(self, interaction: discord.Interaction, tema: str):
         await interaction.response.defer()
         try:
@@ -429,8 +429,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             logger.error(f"Error en /lore: {e}")
             await interaction.followup.send("error leyendo los archivos.", ephemeral=True)
 
-    @app_commands.command(name="resumir", description="Resume el chat reciente de este canal con IA.")
-    @app_commands.describe(mensajes="Cuántos mensajes analizar (por defecto 50)")
+    @app_commands.command(name="resumir", description="Generates a smart AI digest of recent channel conversations.")
+    @app_commands.describe(mensajes="Number of messages to analyze (default: 50)")
     async def slash_resumir(self, interaction: discord.Interaction, mensajes: int = 50):
         await interaction.response.defer()
         try:
@@ -469,7 +469,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     # Admin: Lock / Unlock
     # ------------------------------------------------------------------
 
-    @app_commands.command(name="lock", description="[ADMIN] Bloquea los comandos de Dalet en este canal.")
+    @app_commands.command(name="lock", description="[ADMIN] Blocks Dalet interactions and commands in this channel.")
     @app_commands.checks.has_permissions(administrator=True)
     async def slash_lock(self, interaction: discord.Interaction):
         try:
@@ -485,7 +485,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             logger.error(f"Error en /lock: {e}")
             await interaction.response.send_message("❌ error al bloquear el canal.", ephemeral=True)
 
-    @app_commands.command(name="unlock", description="[ADMIN] Desbloquea los comandos de Dalet en este canal.")
+    @app_commands.command(name="unlock", description="[ADMIN] Unblocks Dalet interactions and commands in this channel.")
     @app_commands.checks.has_permissions(administrator=True)
     async def slash_unlock(self, interaction: discord.Interaction):
         try:
@@ -505,8 +505,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     # Admin: Proactive / Reactive
     # ------------------------------------------------------------------
 
-    @app_commands.command(name="proactive", description="[ADMIN] Activa o desactiva el modo proactivo en este canal.")
-    @app_commands.describe(activar="True para activar, False para desactivar")
+    @app_commands.command(name="proactive", description="[ADMIN] Enables or disables proactive AI chat in this channel.")
+    @app_commands.describe(activar="True to enable, False to disable")
     @app_commands.checks.has_permissions(administrator=True)
     async def slash_proactive(self, interaction: discord.Interaction, activar: bool):
         try:
@@ -523,8 +523,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             logger.error(f"Error en /proactive: {e}")
             await interaction.response.send_message("❌ error configurando el modo proactivo.", ephemeral=True)
 
-    @app_commands.command(name="reactive", description="[ADMIN] Activa o desactiva el modo reactivo (respuesta a menciones) en el servidor.")
-    @app_commands.describe(activar="True para activar, False para desactivar")
+    @app_commands.command(name="reactive", description="[ADMIN] Enables or disables reactive AI replies to mentions in the server.")
+    @app_commands.describe(activar="True to enable, False to disable")
     @app_commands.checks.has_permissions(administrator=True)
     async def slash_reactive(self, interaction: discord.Interaction, activar: bool):
         try:
@@ -545,8 +545,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     # Admin: Welcome Channel
     # ------------------------------------------------------------------
 
-    @app_commands.command(name="setwelcome", description="[ADMIN] Establece el canal de bienvenida del servidor.")
-    @app_commands.describe(canal="Canal donde Dalet enviará los mensajes de bienvenida")
+    @app_commands.command(name="setwelcome", description="[ADMIN] Sets the welcome message channel for this server.")
+    @app_commands.describe(canal="Channel where Dalet will send welcome messages")
     @app_commands.checks.has_permissions(administrator=True)
     async def slash_setwelcome(self, interaction: discord.Interaction, canal: discord.TextChannel):
         try:
@@ -559,7 +559,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             logger.error(f"Error en /setwelcome: {e}")
             await interaction.response.send_message("❌ error al configurar el canal de bienvenida.", ephemeral=True)
 
-    @app_commands.command(name="removewelcome", description="[ADMIN] Elimina el canal de bienvenida del servidor.")
+    @app_commands.command(name="removewelcome", description="[ADMIN] Removes the welcome channel and disables welcome greetings.")
     @app_commands.checks.has_permissions(administrator=True)
     async def slash_removewelcome(self, interaction: discord.Interaction):
         try:
@@ -576,8 +576,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     # Admin: Nombre personalizado del bot
     # ------------------------------------------------------------------
 
-    @app_commands.command(name="setname", description="[ADMIN] Establece un nombre personalizado para Dalet en este servidor.")
-    @app_commands.describe(nombre="Nombre personalizado (máx. 32 caracteres)")
+    @app_commands.command(name="setname", description="[ADMIN] Sets a custom nickname for Dalet in this server.")
+    @app_commands.describe(nombre="Custom nickname (max 32 characters)")
     @app_commands.checks.has_permissions(administrator=True)
     async def slash_setname(self, interaction: discord.Interaction, nombre: str):
         if len(nombre) > 32:
@@ -598,8 +598,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     # Admin: Idioma del servidor (English / Español)
     # ------------------------------------------------------------------
 
-    @app_commands.command(name="language", description="[ADMIN] Changes or displays the server language / Cambia el idioma del servidor.")
-    @app_commands.describe(idioma="Elige el idioma del servidor (en: English, es: Español)")
+    @app_commands.command(name="language", description="[ADMIN] Configures or displays the server language.")
+    @app_commands.describe(idioma="Choose server language (en: English, es: Español)")
     @app_commands.choices(idioma=[
         app_commands.Choice(name="English (Default)", value="en"),
         app_commands.Choice(name="Español", value="es"),

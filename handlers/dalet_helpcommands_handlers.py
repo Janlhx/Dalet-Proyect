@@ -17,8 +17,8 @@ BANNER_FILE_PATH = "assets/bannersito.png"
 
 # ─── Definición de categorías del menú ──────────────────────────────────────
 
-# Comandos exactamente como están registrados en Discord
-SLASH_CATEGORIES = {
+# Spanish categories
+SLASH_CATEGORIES_ES = {
     "osu!": {
         "color": discord.Color.from_rgb(255, 102, 170),
         "commands": [
@@ -69,22 +69,87 @@ SLASH_CATEGORIES = {
             ("/setwelcome",         "Establece el canal de bienvenida del servidor"),
             ("/removewelcome",      "Elimina el canal de bienvenida del servidor"),
             ("/setname <nombre>",   "Nombre personalizado de Dalet en este servidor"),
+            ("/language [idioma]",  "Configura o muestra el idioma del servidor (en/es)"),
         ]
     },
 }
 
+# English categories (Default)
+SLASH_CATEGORIES_EN = {
+    "osu!": {
+        "color": discord.Color.from_rgb(255, 102, 170),
+        "commands": [
+            ("/op [user]",          "Full osu! player profile and statistics overview"),
+            ("/skills [user]",      "5-dimension skill radar (Aim, Speed, Acc...) and Dalet's roast"),
+            ("/recent [user]",      "Most recent registered play"),
+            ("/top [user]",         "Top 5 best scores registered"),
+            ("/rank",               "Server leaderboard of linked osu! players"),
+            ("/compare [user]",     "Compare your profile head-to-head against another player"),
+            ("/link <user>",        "Link your Discord account to your osu! profile"),
+        ]
+    },
+    "AI & Chat": {
+        "color": discord.Color.from_rgb(130, 100, 255),
+        "commands": [
+            ("/resumir",            "Smart AI digest of recent channel conversations"),
+            ("/lore <search>",      "Search server chat history and archives"),
+            ("@Dalet",              "Chat directly with Dalet (conversational AI)"),
+        ]
+    },
+    "Server": {
+        "color": discord.Color.from_rgb(52, 152, 219),
+        "commands": [
+            ("/info",               "Dalet showcase card and bot information"),
+            ("/ping",               "Checks bot websocket and response latency in ms"),
+            ("/stats [user]",       "Social activity statistics for a member"),
+            ("/userinfo [user]",    "Detailed member account and server information"),
+            ("/serverinfo",         "Current server overview and statistics"),
+        ]
+    },
+    "Reminders": {
+        "color": discord.Color.from_rgb(255, 165, 0),
+        "commands": [
+            ("/reminder add",       "Schedule daily, weekly, or specific date reminders"),
+            ("/reminder list",      "List active reminders created in this server"),
+            ("/reminder edit",      "Edit an existing scheduled reminder"),
+            ("/reminder remove",    "Delete a reminder by ID"),
+            ("/reminder toggle",    "Enable or disable a reminder by ID"),
+        ]
+    },
+    "Admin": {
+        "color": discord.Color.from_rgb(231, 76, 60),
+        "commands": [
+            ("/lock",               "Blocks Dalet interactions and commands in this channel"),
+            ("/unlock",             "Unblocks Dalet interactions and commands in this channel"),
+            ("/proactive",          "Enables or disables proactive AI chat in this channel"),
+            ("/reactive",           "Enables or disables reactive AI replies to mentions"),
+            ("/setwelcome",         "Sets the welcome message channel for this server"),
+            ("/removewelcome",      "Removes the welcome channel and disables greetings"),
+            ("/setname <name>",     "Sets a custom bot nickname in this server"),
+            ("/language [lang]",    "Configures or displays the server language (en/es)"),
+        ]
+    },
+}
+
+# Default backwards-compatible alias
+SLASH_CATEGORIES = SLASH_CATEGORIES_EN
+
 
 # ─── Modal para saltar a página ──────────────────────────────────────────────
 
-class PageInputModal(Modal, title="Ir a Categoría"):
+class PageInputModal(Modal):
     """Modal emergente que pide un número de categoría."""
-    def __init__(self, pages_view):
-        super().__init__()
+    def __init__(self, pages_view, lang: str = "en"):
         self.pages_view = pages_view
+        self.lang = lang
+        title = "Ir a Categoría" if lang == "es" else "Go to Category"
+        super().__init__(title=title)
         total = len(self.pages_view.pages) - 1
+        label = "Número de Categoría" if lang == "es" else "Category Number"
+        ph = f"Escribe el número (1-{total})" if lang == "es" else f"Enter number (1-{total})"
         self.page_number = TextInput(
-            label="Número de Categoría",
-            placeholder=f"Escribe el número de la categoría (1-{total})",
+            label=label,
+            placeholder=ph,
             required=True,
             max_length=2,
         )
@@ -98,28 +163,33 @@ class PageInputModal(Modal, title="Ir a Categoría"):
                 self.pages_view.index = num
                 await self.pages_view.update_page(interaction)
             else:
-                await interaction.response.send_message(
-                    f"Número fuera de rango. Usa entre 1 y {total}.", ephemeral=True
-                )
+                err_msg = f"Número fuera de rango. Usa entre 1 y {total}." if self.lang == "es" else f"Out of range. Please enter 1 to {total}."
+                await interaction.response.send_message(err_msg, ephemeral=True)
         except ValueError:
-            await interaction.response.send_message("Eso no es un número válido.", ephemeral=True)
+            err_val = "Eso no es un número válido." if self.lang == "es" else "That is not a valid number."
+            await interaction.response.send_message(err_val, ephemeral=True)
 
 
 # ─── Select menu de categorías ───────────────────────────────────────────────
 
 class CategorySelect(Select):
     """Menú desplegable para saltar directamente a una categoría."""
-    def __init__(self, pages_view, category_names: list[str]):
+    def __init__(self, pages_view, category_names: list[str], lang: str = "en"):
         self.pages_view = pages_view
+        self.lang = lang
+        home_lbl = "Portada" if lang == "es" else "Overview"
+        home_desc = "Volver a la portada principal" if lang == "es" else "Return to main overview"
+        placeholder = "Ir a una categoría..." if lang == "es" else "Select a category..."
         options = [
-            discord.SelectOption(label="Portada", value="0", description="Volver a la portada principal")
+            discord.SelectOption(label=home_lbl, value="0", description=home_desc)
         ]
         for i, name in enumerate(category_names, start=1):
+            desc = f"Ver comandos de {name}" if lang == "es" else f"View {name} commands"
             options.append(
-                discord.SelectOption(label=name, value=str(i), description=f"Ver comandos de {name}")
+                discord.SelectOption(label=name, value=str(i), description=desc)
             )
         super().__init__(
-            placeholder="Ir a una categoría...",
+            placeholder=placeholder,
             options=options,
             custom_id="help_category_select"
         )
@@ -133,12 +203,25 @@ class CategorySelect(Select):
 
 class HelpPaginator(View):
     """Vista con botones de navegación y select menu de categorías."""
-    def __init__(self, pages: list[discord.Embed], category_names: list[str]):
+    def __init__(self, pages: list[discord.Embed], category_names: list[str], lang: str = "en"):
         super().__init__(timeout=300)
         self.pages = pages
         self.index = 0
+        self.lang = lang
+        # Configurar etiquetas de botones según idioma
+        if lang == "es":
+            self.previous_button.label = "Anterior"
+            self.home_button.label = "Portada"
+            self.goto_button.label = "Ir a..."
+            self.next_button.label = "Siguiente"
+        else:
+            self.previous_button.label = "Previous"
+            self.home_button.label = "Overview"
+            self.goto_button.label = "Go to..."
+            self.next_button.label = "Next"
+
         # Añadir select menu dinámico
-        self.select = CategorySelect(self, category_names)
+        self.select = CategorySelect(self, category_names, lang=lang)
         self.add_item(self.select)
         self.update_buttons()
 
@@ -169,7 +252,7 @@ class HelpPaginator(View):
 
     @discord.ui.button(label="Ir a...", style=discord.ButtonStyle.green, row=1)
     async def goto_button(self, interaction: discord.Interaction, button: Button):
-        modal = PageInputModal(self)
+        modal = PageInputModal(self, lang=self.lang)
         await interaction.response.send_modal(modal)
 
     @discord.ui.button(label="Siguiente", style=discord.ButtonStyle.grey, row=1)
@@ -193,11 +276,16 @@ class CustomHelpCommand(commands.HelpCommand):
 
     async def send_bot_help(self, mapping):
         ctx = self.context
+        server_lang = "en"
+        if ctx.guild and hasattr(ctx.bot, "server_repo"):
+            server_lang = await ctx.bot.server_repo.get_language(ctx.guild.id)
+
+        categories = SLASH_CATEGORIES_ES if server_lang == "es" else SLASH_CATEGORIES_EN
         pages = []
         category_names = []
 
         # 1. Páginas de slash commands por categoría
-        for cat_name, cat_data in SLASH_CATEGORIES.items():
+        for cat_name, cat_data in categories.items():
             category_names.append(cat_name)
             embed = discord.Embed(
                 title=cat_name,
@@ -207,37 +295,57 @@ class CustomHelpCommand(commands.HelpCommand):
             for cmd, desc in cat_data["commands"]:
                 cmd_lines.append(f"`{cmd}`\n╰ {desc}")
             embed.description = "\n\n".join(cmd_lines)
+
+            footer_txt = (
+                f"Dalet · {len(pages)+1} de {len(categories)}  —  Escribe / para autocompletar"
+                if server_lang == "es"
+                else f"Dalet · {len(pages)+1} of {len(categories)}  —  Type / to autocomplete"
+            )
             embed.set_footer(
-                text=f"Dalet · {len(pages)+1} de {len(SLASH_CATEGORIES)}  —  Escribe / para autocompletar",
+                text=footer_txt,
                 icon_url=ctx.bot.user.avatar.url if ctx.bot.user.avatar else None
             )
             pages.append(embed)
 
         # 2. Portada
-        total_slash = sum(len(v["commands"]) for v in SLASH_CATEGORIES.values())
         nav_lines = "\n".join(
             [f"> **{i+1}.** {name}" for i, name in enumerate(category_names)]
         )
-        portada = discord.Embed(
-            title="",
-            description=(
+
+        if server_lang == "es":
+            portada_desc = (
                 f"Hola, **{ctx.author.display_name}**.\n\n"
                 f"Soy **Dalet {DaletAtoms.VERSION}** — bot de osu!, IA conversacional y utilidades.\n"
                 f"Escribe `/` en Discord para autocompletar comandos, o usa `d.help`.\n\n"
                 f"**Categorías:**\n{nav_lines}\n\n"
                 f"{DaletAtoms.GLYPH_SUB} Usa el menú desplegable o botones para explorar.\n"
                 f"{DaletAtoms.GLYPH_SUB} Escribe `d.changelog` para consultar las novedades de la versión."
-            ),
+            )
+            footer_cover = f"Dalet {DaletAtoms.VERSION} │ Centro de Control • d.changelog para novedades"
+        else:
+            portada_desc = (
+                f"Hello, **{ctx.author.display_name}**.\n\n"
+                f"I am **Dalet {DaletAtoms.VERSION}** — osu! companion, conversational AI & server utilities.\n"
+                f"Type `/` in Discord to autocomplete commands, or use `d.help`.\n\n"
+                f"**Categories:**\n{nav_lines}\n\n"
+                f"{DaletAtoms.GLYPH_SUB} Use the dropdown menu or navigation buttons to explore.\n"
+                f"{DaletAtoms.GLYPH_SUB} Type `d.changelog` to check the latest updates."
+            )
+            footer_cover = f"Dalet {DaletAtoms.VERSION} │ Control Center • d.changelog for updates"
+
+        portada = discord.Embed(
+            title="",
+            description=portada_desc,
             color=DaletAtoms.COLOR_PRIMARY,
         )
         portada.set_footer(
-            text=f"Dalet {DaletAtoms.VERSION} │ Centro de Control • d.changelog para novedades",
+            text=footer_cover,
             icon_url=ctx.bot.user.avatar.url if ctx.bot.user.avatar else None
         )
         pages.insert(0, portada)
 
         # 3. Enviar con paginador
-        view = HelpPaginator(pages, category_names)
+        view = HelpPaginator(pages, category_names, lang=server_lang)
 
         # Intentar adjuntar el banner como archivo local o URL pública
         import os

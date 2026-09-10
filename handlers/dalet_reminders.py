@@ -263,18 +263,18 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
     # Grupo de Comandos Slash para /reminder
     reminder_group = app_commands.Group(
         name="reminder", 
-        description="Gestionar recordatorios de mapas u otras actividades diarias/semanales/específicas"
+        description="Manage scheduled reminders for daily, weekly, or specific date activities."
     )
 
-    @reminder_group.command(name="add", description="Crea un nuevo recordatorio diario, semanal o para una fecha específica.")
+    @reminder_group.command(name="add", description="Creates a new daily, weekly, or specific date reminder.")
     @app_commands.describe(
-        hora="Hora del recordatorio (ej: 23:00, 11:00 PM, 11pm)",
-        usuario="Usuario principal al que hacer ping en el recordatorio",
-        dias="Días separados por comas (ej: lunes,miercoles), 'daily' o fecha específica (ej: 15/07/2026)",
-        canal="Canal donde se enviará (por defecto el actual)",
-        mensaje="Mensaje del recordatorio",
-        timezone="Zona horaria (por defecto America/Bogota)",
-        pings="Otros usuarios o roles a pingear (separados por espacio)"
+        hora="Reminder time (e.g., 23:00, 11:00 PM, 11pm)",
+        usuario="Primary user to ping for this reminder",
+        dias="Days separated by commas (e.g., monday,wednesday), 'daily', or date (DD/MM/YYYY)",
+        canal="Channel where the reminder will be posted (defaults to current)",
+        mensaje="Reminder message content",
+        timezone="Timezone (default: America/Bogota)",
+        pings="Additional users or roles to ping (space-separated)"
     )
     async def reminder_add(
         self, interaction: discord.Interaction, 
@@ -351,16 +351,16 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
                 ephemeral=True
             )
 
-    @reminder_group.command(name="edit", description="Edita un recordatorio existente.")
+    @reminder_group.command(name="edit", description="Edits an existing scheduled reminder.")
     @app_commands.describe(
-        id="ID del recordatorio a editar",
-        hora="Nueva hora del recordatorio (ej: 23:00, 11:00 PM)",
-        usuario="Nuevo usuario principal al que hacer ping",
-        dias="Nuevos días (ej: lunes,miercoles), 'daily' o fecha específica (ej: 15/07/2026)",
-        canal="Nuevo canal donde enviar el recordatorio",
-        mensaje="Nuevo mensaje del recordatorio",
-        timezone="Nueva zona horaria (ej: America/Bogota)",
-        pings="Otros usuarios o roles a pingear (separados por espacio)"
+        id="ID of the reminder to edit",
+        hora="New reminder time (e.g., 23:00, 11:00 PM)",
+        usuario="New primary user to ping",
+        dias="New days (e.g., monday,wednesday), 'daily', or date (DD/MM/YYYY)",
+        canal="New channel for the reminder",
+        mensaje="New reminder message content",
+        timezone="New timezone (e.g., America/Bogota)",
+        pings="Additional users or roles to ping (space-separated)"
     )
     async def reminder_edit(
         self, interaction: discord.Interaction, 
@@ -465,7 +465,7 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
                 ephemeral=True
             )
 
-    @reminder_group.command(name="list", description="Muestra los recordatorios que tú has creado en este servidor.")
+    @reminder_group.command(name="list", description="Lists the scheduled reminders you created in this server.")
     async def reminder_list(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         try:
@@ -508,8 +508,8 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
             logger.error(f"Error en /reminder list: {e}")
             await interaction.followup.send("Ocurrió un error al obtener la lista de recordatorios.")
 
-    @reminder_group.command(name="remove", description="Elimina un recordatorio por su ID.")
-    @app_commands.describe(id="ID del recordatorio a eliminar (ej: 1)")
+    @reminder_group.command(name="remove", description="Deletes a scheduled reminder by its ID.")
+    @app_commands.describe(id="ID of the reminder to delete (e.g., 1)")
     async def reminder_remove(self, interaction: discord.Interaction, id: int):
         reminder = await self.repo.get_reminder(id)
         if not reminder or reminder["ServerID"] != interaction.guild_id:
@@ -529,8 +529,8 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
         else:
             await interaction.response.send_message("Error al eliminar el recordatorio de la base de datos.", ephemeral=True)
 
-    @reminder_group.command(name="toggle", description="Activa o desactiva un recordatorio por su ID.")
-    @app_commands.describe(id="ID del recordatorio a activar/desactivar (ej: 1)")
+    @reminder_group.command(name="toggle", description="Enables or disables a scheduled reminder by its ID.")
+    @app_commands.describe(id="ID of the reminder to toggle (e.g., 1)")
     async def reminder_toggle(self, interaction: discord.Interaction, id: int):
         reminder = await self.repo.get_reminder(id)
         if not reminder or reminder["ServerID"] != interaction.guild_id:
