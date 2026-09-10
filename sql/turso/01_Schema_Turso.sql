@@ -8,7 +8,8 @@
 CREATE TABLE IF NOT EXISTS Servers (
   ServerID INTEGER PRIMARY KEY,
   ServerName TEXT NOT NULL,
-  IsReactive BOOLEAN DEFAULT 0,
+  Language TEXT DEFAULT 'en',
+  IsReactive BOOLEAN DEFAULT 1,
   CustomName TEXT DEFAULT 'Dalet',
   WelcomeChannelID INTEGER
 );

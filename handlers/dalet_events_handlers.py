@@ -102,6 +102,12 @@ class EventsHandler(commands.Cog):
         from ui.atoms import DaletAtoms
         from ui.molecules import DaletMolecules
 
+        # Asegurar registro del servidor en la BD con reactividad activa por defecto
+        try:
+            await self.bot.user_repo.set_server_reactive(guild.id, guild.name, True)
+        except Exception as e:
+            logger.debug(f"Error registrando servidor en on_guild_join: {e}")
+
         # Búsqueda inteligente del canal más adecuado
         target_channel = guild.system_channel
         if not target_channel or not target_channel.permissions_for(guild.me).send_messages:
@@ -125,7 +131,7 @@ class EventsHandler(commands.Cog):
             title=f"{DaletAtoms.EMOJI_DALET} Thanks for adding Dalet to {guild.name}!",
             description=(
                 f'> *"searching who asked"*\n\n'
-                f"Hello! I am **Dalet {DaletAtoms.VERSION}** — your high-precision **osu! analytics companion**, "
+                f"Hello! I am **Dalet** — your high-precision **osu! analytics companion**, "
                 f"cynical conversational AI, and community utility bot.\n\n"
                 f"Here is a quick guide to get started in your server:"
             ),

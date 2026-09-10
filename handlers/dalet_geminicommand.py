@@ -235,10 +235,7 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
     async def reactive_status(self, ctx):
         """Muestra si el modo reactivo está activado o desactivado."""
         try:
-            query = "SELECT fn_IsServerReactive($1::BIGINT)"
-            result = await self.repo.fetch_one(query, ctx.guild.id)
-            is_on = result[0] if result and result[0] is not None else False
-
+            is_on = await self.repo.is_server_reactive(ctx.guild.id)
             status = "🟢 **Activado**" if is_on else "🔴 **Desactivado**"
             await ctx.send(f"El modo reactivo está {status}.")
         except Exception as e:
