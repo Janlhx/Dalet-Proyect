@@ -100,6 +100,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         prefix_desc = t("info.prefix_desc", server_lang)
         hint_changelog = t("info.changelog_hint", server_lang)
         hint_help = t("info.help_hint", server_lang)
+        hint_feedback = t("info.feedback_hint", server_lang)
 
         embed = discord.Embed(
             title=f"{DaletAtoms.EMOJI_DALET} Dalet {DaletAtoms.VERSION}",
@@ -108,6 +109,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 f"{DaletAtoms.GLYPH_POINTER} **{lbl_creator}**: Litxe\n"
                 f"{DaletAtoms.GLYPH_POINTER} **{lbl_status}**: {status_desc}\n"
                 f"{DaletAtoms.GLYPH_POINTER} **{lbl_prefix}**: {prefix_desc}\n\n"
+                f"{DaletAtoms.GLYPH_SUB} {hint_feedback}\n"
                 f"{DaletAtoms.GLYPH_SUB} {hint_changelog}\n"
                 f"{DaletAtoms.GLYPH_SUB} {hint_help}"
             ),
@@ -117,6 +119,16 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             embed.set_thumbnail(url=self.bot.user.display_avatar.url)
         DaletMolecules.add_standard_footer(embed, context_text=f"{DaletAtoms.VERSION} │ Litxe")
         await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="help", description="Displays an interactive categorized command guide.")
+    async def slash_help(self, interaction: discord.Interaction):
+        from handlers.dalet_helpcommands_handlers import build_help_pages, HelpPaginator
+        server_lang = "en"
+        if interaction.guild_id:
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+        pages, category_names = build_help_pages(self.bot, interaction.user, server_lang=server_lang)
+        view = HelpPaginator(pages, category_names, lang=server_lang)
+        await interaction.response.send_message(embed=pages[0], view=view, ephemeral=True)
 
     @app_commands.command(name="feedback", description="Sends feedback, suggestions, or bug reports directly to the developer.")
     @app_commands.describe(mensaje="Feedback, suggestion, or bug report to deliver")

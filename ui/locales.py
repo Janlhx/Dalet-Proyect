@@ -62,6 +62,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "info.prefix_desc": "`d.` or mention `@Dalet`",
         "info.changelog_hint": "Type `d.changelog` to view version updates.",
         "info.help_hint": "Type `d.help` to view the command list.",
+        "info.feedback_hint": "Type `/feedback` to send suggestions or report bugs.",
 
         "changelog.title": "Updates — Dalet {version}",
         "changelog.brain_title": "Brain v3.0",
@@ -173,6 +174,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "info.prefix_desc": "`d.` o mención `@Dalet`",
         "info.changelog_hint": "Escribe `d.changelog` para ver las novedades de la versión.",
         "info.help_hint": "Escribe `d.help` para consultar el menú de comandos.",
+        "info.feedback_hint": "Escribe `/feedback` para enviar sugerencias o reportar errores.",
 
         "changelog.title": "Novedades — Dalet {version}",
         "changelog.brain_title": "Cerebro v3.0",

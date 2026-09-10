@@ -176,6 +176,7 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
         prefix_desc = t("info.prefix_desc", server_lang)
         hint_changelog = t("info.changelog_hint", server_lang)
         hint_help = t("info.help_hint", server_lang)
+        hint_feedback = t("info.feedback_hint", server_lang)
 
         embed = discord.Embed(
             title=f"{DaletAtoms.EMOJI_DALET} " + t("info.title", server_lang, version=DaletAtoms.VERSION),
@@ -184,6 +185,7 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
                 f"{DaletAtoms.GLYPH_POINTER} **{lbl_creator}**: Litxe\n"
                 f"{DaletAtoms.GLYPH_POINTER} **{lbl_status}**: {status_desc}\n"
                 f"{DaletAtoms.GLYPH_POINTER} **{lbl_prefix}**: {prefix_desc}\n\n"
+                f"{DaletAtoms.GLYPH_SUB} {hint_feedback}\n"
                 f"{DaletAtoms.GLYPH_SUB} {hint_changelog}\n"
                 f"{DaletAtoms.GLYPH_SUB} {hint_help}"
             ),

@@ -273,96 +273,105 @@ class HelpPaginator(View):
 
 # ─── Help Command ─────────────────────────────────────────────────────────────
 
+# ─── Constructor de páginas de ayuda ─────────────────────────────────────────
+
+def build_help_pages(bot, user, server_lang: str = "en") -> tuple[list[discord.Embed], list[str]]:
+    """Construye las páginas del menú de ayuda según el idioma del servidor."""
+    categories = SLASH_CATEGORIES_ES if server_lang == "es" else SLASH_CATEGORIES_EN
+    pages = []
+    category_names = []
+
+    # 1. Páginas de slash commands por categoría
+    for cat_name, cat_data in categories.items():
+        category_names.append(cat_name)
+        embed = discord.Embed(
+            title=cat_name,
+            color=cat_data["color"],
+        )
+        cmd_lines = []
+        for cmd, desc in cat_data["commands"]:
+            cmd_lines.append(f"`{cmd}`\n╰ {desc}")
+        embed.description = "\n\n".join(cmd_lines)
+
+        footer_txt = (
+            f"Dalet · {len(pages)+1} de {len(categories)}  —  Escribe / para autocompletar"
+            if server_lang == "es"
+            else f"Dalet · {len(pages)+1} of {len(categories)}  —  Type / to autocomplete"
+        )
+        embed.set_footer(
+            text=footer_txt,
+            icon_url=bot.user.avatar.url if bot.user and bot.user.avatar else None
+        )
+        pages.append(embed)
+
+    # 2. Portada
+    nav_lines = "\n".join(
+        [f"> **{i+1}.** {name}" for i, name in enumerate(category_names)]
+    )
+
+    if server_lang == "es":
+        portada_desc = (
+            f"Hola, **{user.display_name}**.\n\n"
+            f"Soy **Dalet {DaletAtoms.VERSION}** — bot de osu!, IA conversacional y utilidades.\n"
+            f"Escribe `/` en Discord para autocompletar comandos, o usa `d.help`.\n\n"
+            f"**Categorías:**\n{nav_lines}\n\n"
+            f"{DaletAtoms.GLYPH_SUB} Usa el menú desplegable o botones para explorar.\n"
+            f"{DaletAtoms.GLYPH_SUB} Escribe `/feedback` o `d.feedback` para enviar sugerencias al creador.\n"
+            f"{DaletAtoms.GLYPH_SUB} Escribe `d.changelog` para consultar las novedades de la versión."
+        )
+        footer_cover = f"Dalet {DaletAtoms.VERSION} │ Centro de Control • /feedback para sugerencias"
+    else:
+        portada_desc = (
+            f"Hello, **{user.display_name}**.\n\n"
+            f"I am **Dalet {DaletAtoms.VERSION}** — osu! companion, conversational AI & server utilities.\n"
+            f"Type `/` in Discord to autocomplete commands, or use `d.help`.\n\n"
+            f"**Categories:**\n{nav_lines}\n\n"
+            f"{DaletAtoms.GLYPH_SUB} Use the dropdown menu or navigation buttons to explore.\n"
+            f"{DaletAtoms.GLYPH_SUB} Type `/feedback` or `d.feedback` to send suggestions directly to the developer.\n"
+            f"{DaletAtoms.GLYPH_SUB} Type `d.changelog` to check the latest updates."
+        )
+        footer_cover = f"Dalet {DaletAtoms.VERSION} │ Control Center • /feedback for suggestions"
+
+    portada = discord.Embed(
+        title="",
+        description=portada_desc,
+        color=DaletAtoms.COLOR_PRIMARY,
+    )
+    portada.set_footer(
+        text=footer_cover,
+        icon_url=bot.user.avatar.url if bot.user and bot.user.avatar else None
+    )
+    if BANNER_URL:
+        portada.set_image(url=BANNER_URL)
+
+    pages.insert(0, portada)
+    return pages, category_names
+
+
+# ─── Help Command ─────────────────────────────────────────────────────────────
+
 class CustomHelpCommand(commands.HelpCommand):
     """Reemplaza el comando de ayuda por defecto con un panel visual e interactivo."""
 
     async def send_bot_help(self, mapping):
         ctx = self.context
         server_lang = "en"
-        if ctx.guild and hasattr(ctx.bot, "server_repo"):
-            server_lang = await ctx.bot.server_repo.get_language(ctx.guild.id)
+        if ctx.guild and hasattr(ctx.bot, "admin_repo"):
+            server_lang = await ctx.bot.admin_repo.get_server_language(ctx.guild.id)
 
-        categories = SLASH_CATEGORIES_ES if server_lang == "es" else SLASH_CATEGORIES_EN
-        pages = []
-        category_names = []
-
-        # 1. Páginas de slash commands por categoría
-        for cat_name, cat_data in categories.items():
-            category_names.append(cat_name)
-            embed = discord.Embed(
-                title=cat_name,
-                color=cat_data["color"],
-            )
-            cmd_lines = []
-            for cmd, desc in cat_data["commands"]:
-                cmd_lines.append(f"`{cmd}`\n╰ {desc}")
-            embed.description = "\n\n".join(cmd_lines)
-
-            footer_txt = (
-                f"Dalet · {len(pages)+1} de {len(categories)}  —  Escribe / para autocompletar"
-                if server_lang == "es"
-                else f"Dalet · {len(pages)+1} of {len(categories)}  —  Type / to autocomplete"
-            )
-            embed.set_footer(
-                text=footer_txt,
-                icon_url=ctx.bot.user.avatar.url if ctx.bot.user.avatar else None
-            )
-            pages.append(embed)
-
-        # 2. Portada
-        nav_lines = "\n".join(
-            [f"> **{i+1}.** {name}" for i, name in enumerate(category_names)]
-        )
-
-        if server_lang == "es":
-            portada_desc = (
-                f"Hola, **{ctx.author.display_name}**.\n\n"
-                f"Soy **Dalet {DaletAtoms.VERSION}** — bot de osu!, IA conversacional y utilidades.\n"
-                f"Escribe `/` en Discord para autocompletar comandos, o usa `d.help`.\n\n"
-                f"**Categorías:**\n{nav_lines}\n\n"
-                f"{DaletAtoms.GLYPH_SUB} Usa el menú desplegable o botones para explorar.\n"
-                f"{DaletAtoms.GLYPH_SUB} Escribe `d.changelog` para consultar las novedades de la versión."
-            )
-            footer_cover = f"Dalet {DaletAtoms.VERSION} │ Centro de Control • d.changelog para novedades"
-        else:
-            portada_desc = (
-                f"Hello, **{ctx.author.display_name}**.\n\n"
-                f"I am **Dalet {DaletAtoms.VERSION}** — osu! companion, conversational AI & server utilities.\n"
-                f"Type `/` in Discord to autocomplete commands, or use `d.help`.\n\n"
-                f"**Categories:**\n{nav_lines}\n\n"
-                f"{DaletAtoms.GLYPH_SUB} Use the dropdown menu or navigation buttons to explore.\n"
-                f"{DaletAtoms.GLYPH_SUB} Type `d.changelog` to check the latest updates."
-            )
-            footer_cover = f"Dalet {DaletAtoms.VERSION} │ Control Center • d.changelog for updates"
-
-        portada = discord.Embed(
-            title="",
-            description=portada_desc,
-            color=DaletAtoms.COLOR_PRIMARY,
-        )
-        portada.set_footer(
-            text=footer_cover,
-            icon_url=ctx.bot.user.avatar.url if ctx.bot.user.avatar else None
-        )
-        pages.insert(0, portada)
-
-        # 3. Enviar con paginador
+        pages, category_names = build_help_pages(ctx.bot, ctx.author, server_lang=server_lang)
         view = HelpPaginator(pages, category_names, lang=server_lang)
 
-        # Intentar adjuntar el banner como archivo local o URL pública
         import os
-        banner_file = None
         if BANNER_URL:
-            portada.set_image(url=BANNER_URL)
             await ctx.send(embed=pages[0], view=view)
         elif os.path.exists(BANNER_FILE_PATH):
             banner_file = discord.File(BANNER_FILE_PATH, filename="dalet_help_banner.jpg")
-            portada.set_image(url="attachment://dalet_help_banner.jpg")
+            pages[0].set_image(url="attachment://dalet_help_banner.jpg")
             await ctx.send(embed=pages[0], view=view, file=banner_file)
         else:
-            # Sin banner: usar el avatar del bot como thumbnail
-            if ctx.bot.user.avatar:
-                portada.set_thumbnail(url=ctx.bot.user.avatar.url)
+            if ctx.bot.user and ctx.bot.user.avatar:
+                pages[0].set_thumbnail(url=ctx.bot.user.avatar.url)
             await ctx.send(embed=pages[0], view=view)
 
 

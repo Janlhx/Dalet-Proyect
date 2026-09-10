@@ -111,6 +111,8 @@ Dalet supports both **native Discord Slash Commands (`/`)** and the traditional 
 | Command | Type | Description |
 | :--- | :--- | :--- |
 | `/language [en/es]` | Slash / `d.language` | Configures server language (English default / Español) |
+| `/help` | Slash / `d.help` | Interactive categorized command navigator and overview |
+| `/feedback <message>` | Slash / `d.feedback` | Sends feedback, suggestions, or bug reports directly to the developer |
 | `/resumir [messages]` | Slash / `d.summary` | Generates a smart AI digest of recent channel conversations |
 | `/lore <topic>` | Slash / `d.lore` | Researches server history and chat archives with cynical commentary |
 | `/info` | Slash / `d.info` | Displays Dalet's version, status, and system information |
