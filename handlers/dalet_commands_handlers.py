@@ -8,6 +8,7 @@ logger = logging.getLogger("dalet.handlers.general")
 from ui.organisms import DaletOrganisms
 from ui.atoms import DaletAtoms
 from ui.molecules import DaletMolecules
+from ui.locales import t
 
 
 class CommandsHandler(commands.Cog, name="Comandos Generales"):
@@ -20,10 +21,13 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
     @commands.command()
     async def ms(self, ctx):
         """🏓 Muestra la latencia del bot en milisegundos."""
+        server_lang = "en"
+        if ctx.guild:
+            server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
         latency = round(self.bot.latency * 1000)
         embed = DaletOrganisms.create_simple_embed(
-            f"{DaletAtoms.EMOJI_SUCCESS} Latencia",
-            f"Mi respuesta está tardando unos {DaletAtoms.code(f'{latency}ms')}. No me presiones."
+            f"{DaletAtoms.EMOJI_SUCCESS} {t('general.latency_title', server_lang)}",
+            t("general.latency_desc", server_lang, latency=latency)
         )
         await ctx.send(embed=embed)
 
@@ -130,15 +134,28 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
     @commands.command(name="info", aliases=["about", "botinfo"])
     async def show_info(self, ctx):
         """Muestra la tarjeta de presentación de Dalet."""
+        server_lang = "en"
+        if ctx.guild:
+            server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
+
+        tagline = t("info.tagline", server_lang)
+        lbl_creator = t("info.creator", server_lang)
+        lbl_status = t("info.status", server_lang)
+        status_desc = t("info.status_desc", server_lang)
+        lbl_prefix = t("info.prefix", server_lang)
+        prefix_desc = t("info.prefix_desc", server_lang)
+        hint_changelog = t("info.changelog_hint", server_lang)
+        hint_help = t("info.help_hint", server_lang)
+
         embed = discord.Embed(
-            title=f"{DaletAtoms.EMOJI_DALET} Dalet {DaletAtoms.VERSION}",
+            title=f"{DaletAtoms.EMOJI_DALET} " + t("info.title", server_lang, version=DaletAtoms.VERSION),
             description=(
-                f'> *"searching who asked"*\n\n'
-                f"{DaletAtoms.GLYPH_POINTER} **Creador**: Litxe\n"
-                f"{DaletAtoms.GLYPH_POINTER} **Estado**: En línea y juzgando tus jugadas\n"
-                f"{DaletAtoms.GLYPH_POINTER} **Prefijo**: `d.` o mención `@Dalet`\n\n"
-                f"{DaletAtoms.GLYPH_SUB} Escribe `d.changelog` para ver las novedades de la versión.\n"
-                f"{DaletAtoms.GLYPH_SUB} Escribe `d.help` para consultar el menú de comandos."
+                f"{tagline}\n\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{lbl_creator}**: Litxe\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{lbl_status}**: {status_desc}\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{lbl_prefix}**: {prefix_desc}\n\n"
+                f"{DaletAtoms.GLYPH_SUB} {hint_changelog}\n"
+                f"{DaletAtoms.GLYPH_SUB} {hint_help}"
             ),
             color=DaletAtoms.COLOR_PRIMARY
         )
@@ -150,10 +167,14 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
     @commands.command(name="changelog", aliases=["novedades", "changes", "updates"])
     async def show_changelog(self, ctx):
         """Muestra las notas de actualización y novedades de Dalet."""
+        server_lang = "en"
+        if ctx.guild:
+            server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
+
         custom = getattr(self.bot, "custom_changelog", None)
 
         embed = discord.Embed(
-            title=f"{DaletAtoms.EMOJI_DALET} Novedades — Dalet {DaletAtoms.VERSION}",
+            title=f"{DaletAtoms.EMOJI_DALET} " + t("changelog.title", server_lang, version=DaletAtoms.VERSION),
             color=DaletAtoms.COLOR_PRIMARY
         )
 
@@ -161,36 +182,28 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
             embed.description = f'> *"{custom}"*\n'
 
         embed.add_field(
-            name=f"{DaletAtoms.GLYPH_POINTER} Cerebro v3.0",
-            value=(
-                f"{DaletAtoms.GLYPH_SUB} Mayor agilidad conversacional y fluidez de memoria.\n"
-                f"{DaletAtoms.GLYPH_SUB} Personalidad ácida calibrada para respuestas directas y contundentes."
-            ),
+            name=f"{DaletAtoms.GLYPH_POINTER} " + t("changelog.brain_title", server_lang),
+            value=t("changelog.brain_desc", server_lang),
             inline=False
         )
 
         embed.add_field(
-            name=f"{DaletAtoms.GLYPH_POINTER} Desglose de Habilidades (`d.skills`)",
-            value=(
-                f"{DaletAtoms.GLYPH_SUB} Evaluación visual en 5 áreas (Aim, Speed, Accuracy, Stamina, Reading).\n"
-                f"{DaletAtoms.GLYPH_SUB} Calibración de dificultad real en mods (DT, HR, EZ, FL) y veredicto mordaz."
-            ),
+            name=f"{DaletAtoms.GLYPH_POINTER} " + t("changelog.skills_title", server_lang),
+            value=t("changelog.skills_desc", server_lang),
             inline=False
         )
 
         embed.add_field(
-            name=f"{DaletAtoms.GLYPH_POINTER} Rendimiento y Ajustes",
-            value=(
-                f"{DaletAtoms.GLYPH_SUB} Optimización de tiempos de respuesta en todos los servidores.\n"
-                f"{DaletAtoms.GLYPH_SUB} Retiro del viejo comando `osuanalyzer` (ahora integrado en `d.skills`)."
-            ),
+            name=f"{DaletAtoms.GLYPH_POINTER} " + t("changelog.i18n_title", server_lang),
+            value=t("changelog.i18n_desc", server_lang),
             inline=False
         )
 
         if self.bot.user and self.bot.user.display_avatar:
             embed.set_thumbnail(url=self.bot.user.display_avatar.url)
 
-        DaletMolecules.add_standard_footer(embed, context_text=f"{DaletAtoms.VERSION} │ d.help para comandos")
+        footer_hint = "d.help for commands" if server_lang == "en" else "d.help para comandos"
+        DaletMolecules.add_standard_footer(embed, context_text=f"{DaletAtoms.VERSION} │ {footer_hint}")
         await ctx.send(embed=embed)
 
 

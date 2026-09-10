@@ -396,6 +396,14 @@ class DaletNLPChat(commands.Cog):
                 ][:6]
                 active_users = ", ".join(members_list)
 
+            # Obtener idioma configurado del servidor (default: 'en')
+            server_lang = "en"
+            if message.guild:
+                try:
+                    server_lang = await self.bot.admin_repo.get_server_language(message.guild.id)
+                except Exception:
+                    server_lang = "en"
+
             # Generar respuesta con protección de timeout estricto (máx 25s)
             async with self.bot.discord_semaphore:
                 try:
@@ -411,6 +419,7 @@ class DaletNLPChat(commands.Cog):
                                 channel_id=message.channel.id,
                                 active_room_users=active_users,
                                 is_reactive=is_reactive,
+                                language=server_lang,
                             ),
                             timeout=25.0
                         )
@@ -434,6 +443,7 @@ class DaletNLPChat(commands.Cog):
                                 channel_id=message.channel.id,
                                 active_room_users=active_users,
                                 is_reactive=is_reactive,
+                                language=server_lang,
                             ),
                             timeout=20.0
                         )

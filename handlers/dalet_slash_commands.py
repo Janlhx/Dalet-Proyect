@@ -123,8 +123,11 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                     "❌ no tienes cuenta vinculada. usa `/link` primero.",
                     ephemeral=True
                 )
+            server_lang = "en"
+            if interaction.guild:
+                server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
             user = await self.bot.osu_service.get_user(username, modo)
-            embed = OsuPresenter.build_profile_card(user, modo)
+            embed = OsuPresenter.build_profile_card(user, modo, lang=server_lang)
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /op: {e}")
@@ -182,6 +185,9 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 "❌ no tienes cuenta vinculada.", ephemeral=True
             )
         try:
+            server_lang = "en"
+            if interaction.guild:
+                server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
             user = await self.bot.osu_service.get_user(username, modo)
             recent = await self.bot.osu_service.get_user_recent_scores(
                 user["id"], modo, limit=1, include_fails=1
@@ -191,7 +197,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                     f"**{username}** no tiene jugadas recientes."
                 )
 
-            embed = OsuPresenter.build_recent_card(user.get("username", username), modo, recent[0], user_data=user)
+            embed = OsuPresenter.build_recent_card(user.get("username", username), modo, recent[0], user_data=user, lang=server_lang)
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
@@ -219,9 +225,12 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 "❌ no tienes cuenta vinculada.", ephemeral=True
             )
         try:
+            server_lang = "en"
+            if interaction.guild:
+                server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
             user = await self.bot.osu_service.get_user(username, modo)
             best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=modo, limit=5)
-            embed = OsuPresenter.build_top_card(user.get("username", username), modo, best, user_data=user)
+            embed = OsuPresenter.build_top_card(user.get("username", username), modo, best, user_data=user, lang=server_lang)
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /top: {e}")
@@ -266,26 +275,24 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             stats = user.get("statistics", {})
             gr = stats.get("global_rank") or "N/A"
 
-            micro_prompt = (
-                f"ROL: Eres Dalet, una bot cínica, técnica y experta en osu!.\n"
-                f"TAREA: Haz un roast o veredicto técnico contundente (MÁXIMO 2 ORACIONES, 30-40 palabras) sobre el perfil de {username}:\n"
-                f"- Habilidad dominante: {dominant} ({skills_data[dominant]['stars']}★)\n"
-                f"- Habilidad más débil: {weakest} ({skills_data[weakest]['stars']}★)\n"
-                f"- Promedio de estrellas: {overall}★\n"
-                f"- Rank global: #{gr}\n"
-                f"REGLAS: Búrlate con sarcasmo de su debilidad en {weakest} comparado con su {dominant}. Máximo 1 emoji. Cero rodeos."
-            )
+            server_lang = "en"
+            if interaction.guild_id:
+                try:
+                    server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+                except Exception:
+                    server_lang = "en"
 
-            roast_text = None
-            try:
-                roast_text = await self.bot.nlp_service.generate_reply(
-                    micro_prompt, "Skill Roast", username,
-                    max_tokens_override=120
+            is_es = server_lang == "es"
+            if is_es:
+                micro_prompt = (
+                    f"ROL: Eres Dalet, una bot cínica, técnica y experta en osu!.\n"
+                    f"TAREA: Haz un roast o veredicto técnico contundente (MÁXIMO 2 ORACIONES, 30-40 palabras) sobre el perfil de {username}:\n"
+                    f"- Habilidad dominante: {dominant} ({skills_data[dominant]['stars']}★)\n"
+                    f"- Habilidad más débil: {weakest} ({skills_data[weakest]['stars']}★)\n"
+                    f"- Promedio de estrellas: {overall}★\n"
+                    f"- Rank global: #{gr}\n"
+                    f"REGLAS: Búrlate con sarcasmo de su debilidad en {weakest} comparado con su {dominant}. Máximo 1 emoji. Cero rodeos. IDIOMA: Español."
                 )
-            except Exception as nlp_err:
-                logger.warning(f"No se pudo generar roast para slash skills ({username}): {nlp_err}")
-
-            if not roast_text:
                 fallback_roasts = {
                     "Speed": "Mucho DT farmeado en mapas cortos, pero ponle una stream rápida y se te traba el cerebro.",
                     "Stamina": "Aguantas maratones eternos de relleno, lástima que ante una ráfaga de velocidad te derritas.",
@@ -293,9 +300,39 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                     "Accuracy": "Mucho combo y estrellitas infladas, pero ese acc parece que tocas el teclado con guantes de boxeo.",
                     "Reading": "Buen reading en mapas lentos, pero te suben el AR a 10.3 y ni te enteras de qué nota fallaste."
                 }
-                roast_text = fallback_roasts.get(weakest, f"Mucho número inflado en {dominant}, pero en {weakest} das pena ajena.")
+            else:
+                micro_prompt = (
+                    f"ROLE: You are Dalet, a cynical, witty, and sharp osu! expert.\n"
+                    f"TASK: Write a biting technical roast (MAX 2 SHORT SENTENCES, 30-40 words) about {username}'s profile in English:\n"
+                    f"- Dominant skill: {dominant} ({skills_data[dominant]['stars']}★)\n"
+                    f"- Weakest skill: {weakest} ({skills_data[weakest]['stars']}★)\n"
+                    f"- Overall stars: {overall}★\n"
+                    f"- Global rank: #{gr}\n"
+                    f"RULES: Mock their weak {weakest} compared to their {dominant} with dry sarcasm. Max 1 emoji. No filler. LANGUAGE: English."
+                )
+                fallback_roasts = {
+                    "Speed": "Lots of DT farmed on short maps, but throw you a fast stream and your hands fall apart.",
+                    "Stamina": "You can endure endless marathon filler, too bad you melt the second any speed burst hits.",
+                    "Aim": "Decent accuracy on flat rhythms, but move the circles two millimeters and you're already dropping misses.",
+                    "Accuracy": "Inflated star rating and combo, but with that accuracy you might as well be tapping with boxing gloves.",
+                    "Reading": "Decent reading on slow maps, but bump the AR to 10.3 and you won't even know which note you choked."
+                }
 
-            embed = OsuPresenter.build_skills_card(user, skills_data, roast_text=roast_text, mode=modo)
+            roast_text = None
+            try:
+                roast_text = await self.bot.nlp_service.generate_reply(
+                    micro_prompt, "Skill Roast", username,
+                    max_tokens_override=120,
+                    language=server_lang
+                )
+            except Exception as nlp_err:
+                logger.warning(f"No se pudo generar roast para slash skills ({username}): {nlp_err}")
+
+            if not roast_text:
+                fallback_default = f"Mucho número inflado en {dominant}, pero en {weakest} das pena ajena." if is_es else f"Over-inflated numbers in {dominant}, but your {weakest} is embarrassing."
+                roast_text = fallback_roasts.get(weakest, fallback_default)
+
+            embed = OsuPresenter.build_skills_card(user, skills_data, roast_text=roast_text, mode=modo, lang=server_lang)
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /skills: {e}")
@@ -348,7 +385,10 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 self.bot.osu_service.get_user(user1_name),
                 self.bot.osu_service.get_user(usuario),
             )
-            embed = OsuPresenter.build_compare_card(u1, u2)
+            server_lang = "en"
+            if interaction.guild:
+                server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
+            embed = OsuPresenter.build_compare_card(u1, u2, lang=server_lang)
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /compare: {e}")
@@ -553,6 +593,42 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         except Exception as e:
             logger.error(f"Error en /setname: {e}")
             await interaction.response.send_message("❌ error al cambiar el nombre.", ephemeral=True)
+
+    # ------------------------------------------------------------------
+    # Admin: Idioma del servidor (English / Español)
+    # ------------------------------------------------------------------
+
+    @app_commands.command(name="language", description="[ADMIN] Changes or displays the server language / Cambia el idioma del servidor.")
+    @app_commands.describe(idioma="Elige el idioma del servidor (en: English, es: Español)")
+    @app_commands.choices(idioma=[
+        app_commands.Choice(name="English (Default)", value="en"),
+        app_commands.Choice(name="Español", value="es"),
+    ])
+    @app_commands.checks.has_permissions(administrator=True)
+    async def slash_language(self, interaction: discord.Interaction, idioma: str = None):
+        if not interaction.guild_id:
+            return await interaction.response.send_message("❌ This command can only be used in a server.", ephemeral=True)
+
+        if not idioma:
+            current = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+            lang_name = "English" if current == "en" else "Español"
+            return await interaction.response.send_message(
+                f"{DaletAtoms.GLYPH_POINTER} Current server language is **{lang_name}** (`{current}`).\n"
+                f"{DaletAtoms.GLYPH_SUB} Use `/language [idioma]` to change it.",
+                ephemeral=True
+            )
+
+        await self.bot.admin_repo.set_server_language(interaction.guild_id, idioma)
+        if idioma == "es":
+            await interaction.response.send_message(
+                f"{DaletAtoms.EMOJI_DALET} Idioma del servidor actualizado a **Español**. Dalet responderá y mostrará estadísticas en español.",
+                ephemeral=False
+            )
+        else:
+            await interaction.response.send_message(
+                f"{DaletAtoms.EMOJI_DALET} Server language updated to **English**. Dalet will now chat and format statistics in English.",
+                ephemeral=False
+            )
 
 
 async def setup(bot: commands.Bot):

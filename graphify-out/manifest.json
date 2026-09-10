@@ -20,8 +20,8 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "database/repositories/admin_repository.py": {
-    "mtime": 1788999217.306782,
-    "ast_hash": "d233c5e02ad8ff18241b5403a64dac2c",
+    "mtime": 1789010573.8256085,
+    "ast_hash": "b9388c1e56f8cac97580be9ce84d6603",
     "semantic_hash": ""
   },
   "database/repositories/analytics_repository.py": {
@@ -60,8 +60,8 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "handlers/dalet_admcommands_handler.py": {
-    "mtime": 1789008104.003884,
-    "ast_hash": "f7d3e6fcf02a57b86431b1cc789bc966",
+    "mtime": 1789010703.618274,
+    "ast_hash": "543b846b1d3b8eb7c9dcb29a3c8fe267",
     "semantic_hash": ""
   },
   "handlers/dalet_chatlogger.py": {
@@ -70,8 +70,8 @@
     "semantic_hash": "7717c54a6414ee282ffabe53dfe41452"
   },
   "handlers/dalet_commands_handlers.py": {
-    "mtime": 1789008150.2305732,
-    "ast_hash": "ce3c975fccc67bb96b2f0695e707c5a6",
+    "mtime": 1789011602.6871178,
+    "ast_hash": "f0a4ce40efe31fdedcfb36ef76cd85bb",
     "semantic_hash": ""
   },
   "handlers/dalet_events_handlers.py": {
@@ -95,13 +95,13 @@
     "semantic_hash": ""
   },
   "handlers/dalet_nlpchat.py": {
-    "mtime": 1788999217.812832,
-    "ast_hash": "4b66b19dd77d225dce76746d3758279f",
+    "mtime": 1789010677.9566076,
+    "ast_hash": "1c622d5e5cc6d8419d4d666fa6869747",
     "semantic_hash": ""
   },
   "handlers/dalet_osucommands.py": {
-    "mtime": 1789005879.0348642,
-    "ast_hash": "0499a9a12cf31fa2974c88113e47802d",
+    "mtime": 1789011576.4245937,
+    "ast_hash": "621bb1d0ae13a3cc422e158fc38cfb3b",
     "semantic_hash": ""
   },
   "handlers/dalet_reminders.py": {
@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "handlers/dalet_slash_commands.py": {
-    "mtime": 1789008772.907812,
-    "ast_hash": "c51206324d4d739d9517a3feaf2f95c0",
+    "mtime": 1789011552.5745492,
+    "ast_hash": "834313cb6657191ee549ae0c6dd0ae29",
     "semantic_hash": ""
   },
   "handlers/dalet_smartresume.py": {
@@ -145,8 +145,8 @@
     "semantic_hash": ""
   },
   "services/nlp_service.py": {
-    "mtime": 1788999217.838833,
-    "ast_hash": "c47f9d31135ead302266cb240d49c522",
+    "mtime": 1789010660.0770304,
+    "ast_hash": "aa5d063c9525cc994212380958a112bd",
     "semantic_hash": ""
   },
   "services/osu_service.py": {
@@ -255,8 +255,8 @@
     "semantic_hash": ""
   },
   "handlers/dalet_osu_presenter.py": {
-    "mtime": 1789004082.0476644,
-    "ast_hash": "0fe2af09be6afefe38dceb4194343b29",
+    "mtime": 1789011529.5946672,
+    "ast_hash": "a1611ec618112b2df2fe7105a76a86c5",
     "semantic_hash": ""
   },
   "assets/bannersito.png": {
@@ -292,6 +292,16 @@
   "docs/TERMS_OF_SERVICE.md": {
     "mtime": 1789009688.161563,
     "ast_hash": "92ee90bd1010276657438f95e85d16c0",
+    "semantic_hash": ""
+  },
+  "scratch/test_locales.py": {
+    "mtime": 1789011613.261034,
+    "ast_hash": "d0ff54c093a5d2bf563ef797705860b3",
+    "semantic_hash": ""
+  },
+  "ui/locales.py": {
+    "mtime": 1789011458.658831,
+    "ast_hash": "e88b4c8f8f247aea72e4511b7bef52ca",
     "semantic_hash": ""
   }
 }

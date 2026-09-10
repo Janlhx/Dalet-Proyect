@@ -190,6 +190,28 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
             logger.error(f"Error in channel_status: {e}")
             await ctx.send("❌ Error al obtener el estado del canal.")
 
+    @commands.command(name="language", aliases=["lang", "idioma"])
+    @commands.has_permissions(administrator=True)
+    async def set_language_cmd(self, ctx, lang: str = None):
+        """[ADMIN] Configura el idioma de Dalet para este servidor (en / es). Default: en."""
+        if not ctx.guild:
+            return await ctx.send("❌ Este comando solo puede usarse en un servidor.")
+
+        if not lang:
+            current = await self.bot.admin_repo.get_server_language(ctx.guild.id)
+            lang_name = "English" if current == "en" else "Español"
+            return await ctx.send(
+                f"{DaletAtoms.GLYPH_POINTER} Server language is currently set to **{lang_name}** (`{current}`).\n"
+                f"{DaletAtoms.GLYPH_SUB} Use `d.language en` or `d.language es` to change it."
+            )
+
+        clean_lang = "es" if lang.lower().strip() in ("es", "spanish", "español") else "en"
+        await self.bot.admin_repo.set_server_language(ctx.guild.id, clean_lang)
+
+        if clean_lang == "es":
+            await ctx.send(f"{DaletAtoms.EMOJI_DALET} Idioma del servidor actualizado a **Español**. Dalet responderá y mostrará estadísticas en español.")
+        else:
+            await ctx.send(f"{DaletAtoms.EMOJI_DALET} Server language updated to **English**. Dalet will now chat and format statistics in English.")
 
     @commands.command(name="dbstats", hidden=True)
     @commands.has_permissions(administrator=True)

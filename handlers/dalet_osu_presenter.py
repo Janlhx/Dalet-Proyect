@@ -1,6 +1,7 @@
 import discord
 from ui.atoms import DaletAtoms
 from ui.molecules import DaletMolecules
+from ui.locales import t
 
 def _format_mods(mods: list) -> str:
     """Formatea la lista de mods en un string compacto tipo +HDDT o +NM."""
@@ -67,7 +68,7 @@ class OsuPresenter:
         return "0"
 
     @staticmethod
-    def build_recent_card(username: str, mode: str, play: dict, user_data: dict = None) -> discord.Embed:
+    def build_recent_card(username: str, mode: str, play: dict, user_data: dict = None, lang: str = "en") -> discord.Embed:
         """Construye una tarjeta de jugada reciente única, estructurada y sin ruido visual."""
         beatmap = play.get("beatmap", {})
         beatmapset = play.get("beatmapset", {})
@@ -85,7 +86,8 @@ class OsuPresenter:
         acc = _format_acc(play.get("accuracy", 0.0))
 
         pp = play.get("pp")
-        pp_str = f"**{pp:.2f}pp**" if pp is not None else "**Sin PP**"
+        no_pp_label = t("osu.no_pp", lang)
+        pp_str = f"**{pp:.2f}pp**" if pp is not None else f"**{no_pp_label}**"
 
         score = OsuPresenter._extract_score(play)
         max_combo = play.get("max_combo", 0)
@@ -113,13 +115,14 @@ class OsuPresenter:
 
         # Indicador de estado si falló el mapa
         passed = play.get("passed", True)
-        rank_badge = f"` {rank} `" if passed else f"` {rank} (Fallido) `"
+        fail_txt = t("osu.failed", lang)
+        rank_badge = f"` {rank} `" if passed else f"` {rank} ({fail_txt}) `"
 
         embed = discord.Embed(
             color=DaletAtoms.get_grade_color(rank)
         )
         embed.set_author(
-            name=f"Jugada Reciente · {username} ({_mode_title(mode)})",
+            name=t("osu.recent_author", lang, username=username, mode=_mode_title(mode)),
             icon_url=user_data.get("avatar_url") if user_data else None,
             url=f"https://osu.ppy.sh/users/{user_data.get('id', username)}/{mode}" if user_data else None
         )
@@ -132,10 +135,10 @@ class OsuPresenter:
 
         # Sección 1: Rendimiento
         embed.add_field(
-            name=f"{DaletAtoms.GLYPH_POINTER} Rendimiento",
+            name=f"{DaletAtoms.GLYPH_POINTER} {t('osu.performance', lang)}",
             value=(
                 f"{DaletAtoms.GLYPH_POINTER} **PP**: {pp_str}\n"
-                f"{DaletAtoms.GLYPH_POINTER} **Precisión**: `{acc}`\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.accuracy', lang)}**: `{acc}`\n"
                 f"{DaletAtoms.GLYPH_POINTER} **Combo**: `{combo_str}`"
             ),
             inline=True
@@ -143,20 +146,20 @@ class OsuPresenter:
 
         # Sección 2: Puntuación & Hits
         embed.add_field(
-            name=f"{DaletAtoms.GLYPH_ACCURACY} Puntuación",
+            name=f"{DaletAtoms.GLYPH_ACCURACY} {t('osu.score_hits', lang)}",
             value=(
-                f"{DaletAtoms.GLYPH_POINTER} **Score**: `{score}`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **Hits**: `{hits_str}`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **Misses**: `{miss}`"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.score', lang)}**: `{score}`\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.hits', lang)}**: `{hits_str}`\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.misses', lang)}**: `{miss}`"
             ),
             inline=True
         )
 
         # Sección 3: Datos del Beatmap
         embed.add_field(
-            name=f"{DaletAtoms.GLYPH_AIM} Mapa",
+            name=f"{DaletAtoms.GLYPH_AIM} {t('osu.map', lang)}",
             value=(
-                f"{DaletAtoms.GLYPH_POINTER} **Tiempo**: `{length_str}` │ **BPM**: `{bpm:.0f}`\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.length', lang)}**: `{length_str}` │ **BPM**: `{bpm:.0f}`\n"
                 f"{DaletAtoms.GLYPH_POINTER} `AR {ar}` · `OD {od}` · `HP {hp}` · `CS {cs}`"
             ),
             inline=False
@@ -172,23 +175,24 @@ class OsuPresenter:
         return embed
 
     @staticmethod
-    def build_top_card(username: str, mode: str, plays: list, user_data: dict = None) -> discord.Embed:
+    def build_top_card(username: str, mode: str, plays: list, user_data: dict = None, lang: str = "en") -> discord.Embed:
         """Construye un Embed estructurado con los Top Plays del usuario."""
         country_code = user_data.get("country", {}).get("code", "").lower() if user_data else ""
         flag_md = f":flag_{country_code}: " if country_code else ""
 
+        title_txt = t("osu.top_title", lang, username=username, mode=_mode_title(mode))
         embed = discord.Embed(
-            title=f"{flag_md}Top Scores · {username} ({_mode_title(mode)})",
+            title=f"{flag_md}{title_txt}",
             color=DaletAtoms.COLOR_PRIMARY
         )
         embed.set_author(
-            name=f"Perfil de osu! de {username}",
+            name=t("osu.top_author", lang, username=username),
             icon_url=user_data.get("avatar_url") if user_data else None,
             url=f"https://osu.ppy.sh/users/{user_data.get('id', username)}/{mode}" if user_data else None
         )
 
         if not plays:
-            embed.description = "No se encontraron jugadas registradas en este modo."
+            embed.description = t("osu.top_none", lang)
             DaletMolecules.add_standard_footer(embed, context_text="Bancho Server")
             return embed
 
@@ -246,7 +250,7 @@ class OsuPresenter:
         return embed
 
     @staticmethod
-    def build_profile_card(user_data: dict, mode: str = "osu") -> discord.Embed:
+    def build_profile_card(user_data: dict, mode: str = "osu", lang: str = "en") -> discord.Embed:
         """Construye la tarjeta de perfil osu! limpia y estructurada."""
         username = user_data.get("username", "Desconocido")
         user_id = user_data.get("id", 0)
@@ -261,7 +265,7 @@ class OsuPresenter:
             color=color
         )
         embed.set_author(
-            name=f"{flag} osu! {_mode_title(mode)} Profile for {username}",
+            name=f"{flag} " + t("osu.top_author", lang, username=username),
             icon_url=user_data.get("avatar_url"),
             url=f"https://osu.ppy.sh/users/{user_id}/{mode}"
         )
@@ -275,15 +279,16 @@ class OsuPresenter:
         pp = stats.get("pp", 0)
         global_rank = stats.get("global_rank", 0)
         country_rank = stats.get("country_rank", 0)
-        gr_str = f"#{global_rank:,}" if global_rank else "Sin rank"
-        cr_str = f"#{country_rank:,}" if country_rank else "Sin rank"
+        unranked_txt = t("osu.unranked", lang)
+        gr_str = f"#{global_rank:,}" if global_rank else unranked_txt
+        cr_str = f"#{country_rank:,}" if country_rank else unranked_txt
 
         embed.add_field(
-            name=f"{DaletAtoms.GLYPH_POINTER} Rendimiento",
+            name=f"{DaletAtoms.GLYPH_POINTER} {t('osu.performance', lang)}",
             value=(
                 f"{DaletAtoms.GLYPH_POINTER} **PP**: `{pp:,.2f}pp`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **Global**: `{gr_str}`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **País** ({country.get('code', '??')}): `{cr_str}`"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.global_rank', lang)}**: `{gr_str}`\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.country_rank', lang, code=country.get('code', '??'))}**: `{cr_str}`"
             ),
             inline=True
         )
@@ -296,10 +301,10 @@ class OsuPresenter:
         bar = DaletMolecules.create_progress_bar(progress, length=8)
 
         embed.add_field(
-            name=f"{DaletAtoms.GLYPH_ACCURACY} Precisión & Nivel",
+            name=f"{DaletAtoms.GLYPH_ACCURACY} {t('osu.accuracy_level', lang)}",
             value=(
-                f"{DaletAtoms.GLYPH_POINTER} **Precisión**: `{accuracy:.2f}%`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **Nivel**: `{level}` ({progress}%)\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.accuracy', lang)}**: `{accuracy:.2f}%`\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.level', lang)}**: `{level}` ({progress}%)\n"
                 f"`{bar}`"
             ),
             inline=True
@@ -310,10 +315,10 @@ class OsuPresenter:
         play_time_hours = (stats.get("play_time", 0) or 0) // 3600
 
         embed.add_field(
-            name=f"{DaletAtoms.GLYPH_SPEED} Actividad",
+            name=f"{DaletAtoms.GLYPH_SPEED} {t('osu.activity', lang)}",
             value=(
-                f"{DaletAtoms.GLYPH_POINTER} **Partidas**: `{play_count:,}`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **Tiempo de juego**: `{play_time_hours:,}h`"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.plays', lang)}**: `{play_count:,}`\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.play_time', lang)}**: `{play_time_hours:,}h`"
             ),
             inline=True
         )
@@ -325,7 +330,7 @@ class OsuPresenter:
         a = grades.get("a", 0)
 
         embed.add_field(
-            name=f"{DaletAtoms.GLYPH_STAR} Récords Obtenidos",
+            name=f"{DaletAtoms.GLYPH_STAR} {t('osu.grade_history', lang)}",
             value=f"`SS` **{ssh+ss:,}** │ `S` **{sh+s:,}** │ `A` **{a:,}**",
             inline=False
         )
@@ -334,7 +339,7 @@ class OsuPresenter:
         return embed
 
     @staticmethod
-    def build_compare_card(user1_data: dict, user2_data: dict, mode: str = "osu") -> discord.Embed:
+    def build_compare_card(user1_data: dict, user2_data: dict, mode: str = "osu", lang: str = "en") -> discord.Embed:
         """Construye una tarjeta comparativa limpia entre dos jugadores."""
         u1_name = user1_data.get("username", "Jugador 1")
         u2_name = user2_data.get("username", "Jugador 2")
@@ -354,21 +359,24 @@ class OsuPresenter:
         winner = u1_name if u1_pp >= u2_pp else u2_name
         diff_pp = abs(u1_pp - u2_pp)
 
+        title_txt = t("osu.comparison_title", lang, mode=_mode_title(mode))
+        lead_txt = t("osu.leads_pp", lang, winner=winner, diff_pp=diff_pp)
         embed = discord.Embed(
-            title=f"Comparación osu! {_mode_title(mode)}",
-            description=f"**{u1_name}** vs **{u2_name}**\n{DaletAtoms.GLYPH_POINTER} Lidera en PP: **{winner}** (`+{diff_pp:,.2f}pp`)",
+            title=title_txt,
+            description=f"**{u1_name}** vs **{u2_name}**\n{DaletAtoms.GLYPH_POINTER} {lead_txt}",
             color=DaletAtoms.COLOR_PRIMARY
         )
 
-        u1_gr_str = f"#{u1_rank:,}" if u1_rank else "Sin rank"
-        u2_gr_str = f"#{u2_rank:,}" if u2_rank else "Sin rank"
+        unranked_txt = t("osu.unranked", lang)
+        u1_gr_str = f"#{u1_rank:,}" if u1_rank else unranked_txt
+        u2_gr_str = f"#{u2_rank:,}" if u2_rank else unranked_txt
 
         embed.add_field(
             name=u1_name,
             value=(
                 f"{DaletAtoms.GLYPH_POINTER} **PP**: `{u1_pp:,.2f}pp`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **Global**: `{u1_gr_str}`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **Precisión**: `{u1_acc:.2f}%`"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.global_rank', lang)}**: `{u1_gr_str}`\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.accuracy', lang)}**: `{u1_acc:.2f}%`"
             ),
             inline=True
         )
@@ -377,8 +385,8 @@ class OsuPresenter:
             name=u2_name,
             value=(
                 f"{DaletAtoms.GLYPH_POINTER} **PP**: `{u2_pp:,.2f}pp`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **Global**: `{u2_gr_str}`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **Precisión**: `{u2_acc:.2f}%`"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.global_rank', lang)}**: `{u2_gr_str}`\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.accuracy', lang)}**: `{u2_acc:.2f}%`"
             ),
             inline=True
         )
@@ -387,7 +395,7 @@ class OsuPresenter:
         return embed
 
     @staticmethod
-    def build_skills_card(user_data: dict, skills_data: dict, roast_text: str = None, mode: str = "osu") -> discord.Embed:
+    def build_skills_card(user_data: dict, skills_data: dict, roast_text: str = None, mode: str = "osu", lang: str = "en") -> discord.Embed:
         """Construye una tarjeta visual y detallada del desglose de habilidades (Skill Breakdown)."""
         username = user_data.get("username", "Jugador")
         user_id = user_data.get("id", 0)
@@ -395,7 +403,8 @@ class OsuPresenter:
 
         pp = stats.get("pp", 0) or 0
         rank = stats.get("global_rank", 0) or 0
-        rank_str = f"#{rank:,}" if rank else "Sin rank"
+        unranked_txt = t("osu.unranked", lang)
+        rank_str = f"#{rank:,}" if rank else unranked_txt
         country = user_data.get("country_code", "")
         flag = _get_country_flag(country)
         avatar_url = user_data.get("avatar_url", "")
@@ -412,9 +421,13 @@ class OsuPresenter:
         if avatar_url:
             embed.set_thumbnail(url=avatar_url)
 
+        lbl_overall = t("osu.skills_overall", lang)
+        lbl_strength = t("osu.skills_strength", lang)
+        lbl_weakness = t("osu.skills_weakness", lang)
+
         desc_lines = [
-            f"{DaletAtoms.GLYPH_POINTER} **Promedio General**: `{overall:.2f}★` │ **PP**: `{pp:,.0f}` │ **Rank**: `{rank_str}`",
-            f"{DaletAtoms.GLYPH_POINTER} **Fuerza Principal**: `{dominant}` │ **Área Débil**: `{weakest}`"
+            f"{DaletAtoms.GLYPH_POINTER} **{lbl_overall}**: `{overall:.2f}★` │ **PP**: `{pp:,.0f}` │ **Rank**: `{rank_str}`",
+            f"{DaletAtoms.GLYPH_POINTER} **{lbl_strength}**: `{dominant}` │ **{lbl_weakness}**: `{weakest}`"
         ]
         embed.description = "\n".join(desc_lines)
 
@@ -448,7 +461,8 @@ class OsuPresenter:
                 pp_str = f" ({pp_val:.0f}pp)" if pp_val > 0 else ""
                 lines.append(f"{DaletAtoms.GLYPH_SUB} `{mods}` {name_part} • `{sr:.2f}★`{pp_str}")
 
-            field_val = "\n".join(lines) if lines else "Sin suficientes datos."
+            no_data_msg = t("osu.skills_no_data", lang)
+            field_val = "\n".join(lines) if lines else no_data_msg
             embed.add_field(
                 name=f"{icon} {sk_name} — `{stars:.2f}★`",
                 value=field_val,
@@ -457,8 +471,9 @@ class OsuPresenter:
 
         if roast_text:
             clean_roast = roast_text.strip().replace('"', '')
+            verdict_title = f"{DaletAtoms.GLYPH_VERDICT} " + t("osu.skills_verdict", lang)
             embed.add_field(
-                name=f"{DaletAtoms.GLYPH_VERDICT} Veredicto de Dalet",
+                name=verdict_title,
                 value=f"> *\"{clean_roast}\"*",
                 inline=False
             )

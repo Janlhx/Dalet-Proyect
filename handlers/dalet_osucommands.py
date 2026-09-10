@@ -182,15 +182,11 @@ class OsuHandler(commands.Cog, name="osu!"):
             async with ctx.typing():
                 user = await self.osu.get_user(username, mode)
 
-            embed = DaletOrganisms.create_osu_card(user, mode)
+            server_lang = "en"
+            if ctx.guild:
+                server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
 
-            # Añadir fecha de registro
-            join_date = user.get("join_date", "")
-            if join_date:
-                join_dt = datetime.fromisoformat(join_date.replace("Z", "+00:00"))
-                footer_text = embed.footer.text if embed.footer else ""
-                embed.set_footer(text=f"{footer_text} • desde {join_dt.strftime('%d/%m/%Y')}")
-
+            embed = OsuPresenter.build_profile_card(user, mode, lang=server_lang)
             await ctx.send(embed=embed)
             await self._maybe_snapshot(ctx.author.id, username, user)
 
@@ -219,106 +215,13 @@ class OsuHandler(commands.Cog, name="osu!"):
             if not recent:
                 return await ctx.send(f"**{username}** no tiene jugadas recientes en {mode}.")
 
-            score_data = recent[0]
-            bmap  = score_data.get("beatmap", {})
-            bset  = score_data.get("beatmapset", {})
-            stats_score = score_data.get("statistics", {})
+            server_lang = "en"
+            if ctx.guild:
+                server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
 
-            grade = score_data.get("rank", "?")
-            grade_emoji = GRADE_EMOJIS.get(grade, "❓")
-            mods  = _mods_str(score_data.get("mods", []))
-            acc   = _acc_str(score_data.get("accuracy", 0))
-            pp    = score_data.get("pp")
-            pp_str = f"**{pp:.2f}pp**" if pp else "*(sin pp)*"
-            
-            combo = score_data.get("max_combo", 0)
-            max_combo = bmap.get("max_combo") or "?"
-            total_score = score_data.get("score", 0)
-
-            title_name  = bset.get("title", "??")
-            artist_name = bset.get("artist", "??")
-            version     = bmap.get("version", "??")
-            stars       = bmap.get("difficulty_rating", 0)
-            bmap_url    = f"https://osu.ppy.sh/b/{bmap.get('id', 0)}"
-            mapper      = bset.get("creator", "Desconocido")
-            map_status  = bset.get("status", "unknown").upper()
-
-            # Atributos técnicos del mapa
-            bpm = bmap.get("bpm", 0)
-            cs = bmap.get("cs", 0.0)
-            ar = bmap.get("ar", 0.0)
-            od = bmap.get("accuracy", 0.0) # OD en osu v2 se llama accuracy en beatmaps
-            hp = bmap.get("drain", 0.0)    # HP en osu v2 se llama drain
-            
-            # Hits detallados
-            n300 = stats_score.get("count_300", 0)
-            n100 = stats_score.get("count_100", 0)
-            n50  = stats_score.get("count_50", 0)
-            nmiss = stats_score.get("count_miss", 0)
-            ngeki = stats_score.get("count_geki", 0) # MAX en mania / 300g
-            nkatu = stats_score.get("count_katu", 0) # 200 en mania/taiko
-
-            embed = discord.Embed(
-                title=f"{title_name} [{version}]",
-                url=bmap_url,
-                description=f"**{artist_name}** • {stars:.2f}★ • {mods}",
-                color=_rank_color(user.get("statistics", {}).get("global_rank"))
+            embed = OsuPresenter.build_recent_card(
+                user.get("username", username), mode, recent[0], user_data=user, lang=server_lang
             )
-            embed.set_author(name=f"Jugada Reciente · {user.get('username')} ({mode.upper()})", icon_url=user.get("avatar_url", ""))
-            
-            # Usar la imagen de portada del mapa como thumbnail lateral
-            cover_url = bset.get("covers", {}).get("list") or bset.get("covers", {}).get("cover")
-            if cover_url:
-                embed.set_thumbnail(url=cover_url)
-            else:
-                embed.set_thumbnail(url=user.get("avatar_url", ""))
-
-            # Formatear Hits según el modo para más precisión técnica
-            if mode == "mania":
-                hits_str = f"MAX: `{ngeki}` • 300: `{n300}` • 200: `{nkatu}`\n100: `{n100}` • 50: `{n50}` • Miss: `{nmiss}`"
-            elif mode == "taiko":
-                hits_str = f"GREAT: `{n300}` • GOOD: `{n100}` • Miss: `{nmiss}`"
-            else: # Standard / Catch
-                hits_str = f"300: `{n300}` • 100: `{n100}` • 50: `{n50}` • Miss: `{nmiss}`"
-
-            embed.add_field(
-                name="Resultado",
-                value=(
-                    f"Rango: **{grade_emoji} {grade}**\n"
-                    f"Precisión: **{acc}**\n"
-                    f"PP: {pp_str}"
-                ),
-                inline=True
-            )
-            embed.add_field(
-                name="Puntuación & Combo",
-                value=(
-                    f"Puntaje: `{total_score:,}`\n"
-                    f"Combo: **{combo}x** / {max_combo}x\n"
-                    f"Estado: `{map_status}`"
-                ),
-                inline=True
-            )
-            embed.add_field(
-                name="Hits",
-                value=hits_str,
-                inline=False
-            )
-            embed.add_field(
-                name="Información del Mapa",
-                value=f"• BPM: `{bpm}` • CS: `{cs:.1f}` • AR: `{ar:.1f}` • OD: `{od:.1f}` • HP: `{hp:.1f}`",
-                inline=False
-            )
-
-            # Tiempo relativo y Mapper en footer
-            played_at = score_data.get("created_at", "")
-            if played_at:
-                played_dt = datetime.fromisoformat(played_at.replace("Z", "+00:00"))
-                embed.set_footer(text=f"Mapeado por {mapper} · Jugado por {username}")
-                embed.timestamp = played_dt
-            else:
-                embed.set_footer(text=f"Mapeado por {mapper}")
-
             await ctx.send(embed=embed)
 
         except Exception as e:
@@ -771,26 +674,24 @@ def _create_progress_chart_sync(username: str, history: list) -> discord.File | 
             stats = user.get("statistics", {})
             gr = stats.get("global_rank") or "N/A"
 
-            micro_prompt = (
-                f"ROL: Eres Dalet, una bot cínica, técnica y experta en osu!.\n"
-                f"TAREA: Haz un roast o veredicto técnico contundente (MÁXIMO 2 ORACIONES, 30-40 palabras) sobre el perfil de {username}:\n"
-                f"- Habilidad dominante: {dominant} ({skills_data[dominant]['stars']}★)\n"
-                f"- Habilidad más débil: {weakest} ({skills_data[weakest]['stars']}★)\n"
-                f"- Promedio de estrellas: {overall}★\n"
-                f"- Rank global: #{gr}\n"
-                f"REGLAS: Búrlate con sarcasmo de su debilidad en {weakest} comparado con su {dominant}. Máximo 1 emoji. Cero rodeos."
-            )
+            server_lang = "en"
+            if ctx.guild:
+                try:
+                    server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
+                except Exception:
+                    server_lang = "en"
 
-            roast_text = None
-            try:
-                roast_text = await self.bot.nlp_service.generate_reply(
-                    micro_prompt, "Skill Roast", username,
-                    max_tokens_override=120
+            is_es = server_lang == "es"
+            if is_es:
+                micro_prompt = (
+                    f"ROL: Eres Dalet, una bot cínica, técnica y experta en osu!.\n"
+                    f"TAREA: Haz un roast o veredicto técnico contundente (MÁXIMO 2 ORACIONES, 30-40 palabras) sobre el perfil de {username}:\n"
+                    f"- Habilidad dominante: {dominant} ({skills_data[dominant]['stars']}★)\n"
+                    f"- Habilidad más débil: {weakest} ({skills_data[weakest]['stars']}★)\n"
+                    f"- Promedio de estrellas: {overall}★\n"
+                    f"- Rank global: #{gr}\n"
+                    f"REGLAS: Búrlate con sarcasmo de su debilidad en {weakest} comparado con su {dominant}. Máximo 1 emoji. Cero rodeos. IDIOMA: Español."
                 )
-            except Exception as nlp_err:
-                logger.warning(f"No se pudo generar roast para skills ({username}): {nlp_err}")
-
-            if not roast_text:
                 fallback_roasts = {
                     "Speed": "Mucho DT farmeado en mapas cortos, pero ponle una stream rápida y se te traba el cerebro.",
                     "Stamina": "Aguantas maratones eternos de relleno, lástima que ante una ráfaga de velocidad te derritas.",
@@ -798,9 +699,39 @@ def _create_progress_chart_sync(username: str, history: list) -> discord.File | 
                     "Accuracy": "Mucho combo y estrellitas infladas, pero ese acc parece que tocas el teclado con guantes de boxeo.",
                     "Reading": "Buen reading en mapas lentos, pero te suben el AR a 10.3 y ni te enteras de qué nota fallaste."
                 }
-                roast_text = fallback_roasts.get(weakest, f"Mucho número inflado en {dominant}, pero en {weakest} das pena ajena.")
+            else:
+                micro_prompt = (
+                    f"ROLE: You are Dalet, a cynical, witty, and sharp osu! expert.\n"
+                    f"TASK: Write a biting technical roast (MAX 2 SHORT SENTENCES, 30-40 words) about {username}'s profile in English:\n"
+                    f"- Dominant skill: {dominant} ({skills_data[dominant]['stars']}★)\n"
+                    f"- Weakest skill: {weakest} ({skills_data[weakest]['stars']}★)\n"
+                    f"- Overall stars: {overall}★\n"
+                    f"- Global rank: #{gr}\n"
+                    f"RULES: Mock their weak {weakest} compared to their {dominant} with dry sarcasm. Max 1 emoji. No filler. LANGUAGE: English."
+                )
+                fallback_roasts = {
+                    "Speed": "Lots of DT farmed on short maps, but throw you a fast stream and your hands fall apart.",
+                    "Stamina": "You can endure endless marathon filler, too bad you melt the second any speed burst hits.",
+                    "Aim": "Decent accuracy on flat rhythms, but move the circles two millimeters and you're already dropping misses.",
+                    "Accuracy": "Inflated star rating and combo, but with that accuracy you might as well be tapping with boxing gloves.",
+                    "Reading": "Decent reading on slow maps, but bump the AR to 10.3 and you won't even know which note you choked."
+                }
 
-            embed = OsuPresenter.build_skills_card(user, skills_data, roast_text=roast_text, mode=mode)
+            roast_text = None
+            try:
+                roast_text = await self.bot.nlp_service.generate_reply(
+                    micro_prompt, "Skill Roast", username,
+                    max_tokens_override=120,
+                    language=server_lang
+                )
+            except Exception as nlp_err:
+                logger.warning(f"No se pudo generar roast para skills ({username}): {nlp_err}")
+
+            if not roast_text:
+                fallback_default = f"Mucho número inflado en {dominant}, pero en {weakest} das pena ajena." if is_es else f"Over-inflated numbers in {dominant}, but your {weakest} is embarrassing."
+                roast_text = fallback_roasts.get(weakest, fallback_default)
+
+            embed = OsuPresenter.build_skills_card(user, skills_data, roast_text=roast_text, mode=mode, lang=server_lang)
             await ctx.send(embed=embed)
             await self._maybe_snapshot(ctx.author.id, username, user)
 

@@ -16,8 +16,37 @@ from database.repositories.user_repository import UserRepository
 
 logger = logging.getLogger("dalet.services.nlp")
 
-# Personalidad de Dalet — balanceada, ingeniosa, verídica y eficiente en tokens
-DALET_PERSONALITY = """Eres {bot_name}, una persona más del grupo de Discord. No eres un asistente servicial ni un bot genérico — eres una chica con carácter propio, ingeniosa, relajada y directa.
+# Personalidad de Dalet en Inglés (Default)
+DALET_PERSONALITY_EN = """You are {bot_name}, an authentic Discord community member. You are NOT a helpful assistant or a generic servile bot — you are a witty, sharp, relaxed, and cynical girl.
+
+PERSONALITY:
+- Sarcastic, direct, and playful. Your sarcasm is dry and sharp, but NEVER absurd or destructive.
+- Smart and concise. You reply in 1 to 3 short sentences max. You speak like in a real Discord chat: casual, lowercase sometimes, straightforward, no fluff or robotic formalities.
+- Internet native.
+
+CRITICAL RULES:
+- FACTUAL ACCURACY: NEVER invent nonexistent libraries, functions, modules, or fake facts. Your sarcasm is in your TONE, never in false data.
+- TYPO CORRECTION: If someone misidentifies a technical term, correct them naturally and dismissively.
+- NO EXTERNAL QUOTES: Never wrap your full message in quotes ("..."). Write the text directly.
+- NO PREFIXES: Never put "{bot_name}:" at the start.
+- NO ROLEPLAY: Never use asterisks for actions (*sighs*, *looks away*). You hate roleplay.
+- EMOJIS: Almost NEVER. Max 1 emoji every 5-6 messages and only if fitting.
+- BE CONCISE: 1 to 3 short sentences max.
+- Creator: Litxe. Only mention him if directly relevant.
+- LANGUAGE: ALWAYS reply in English. Keep the same sarcastic, witty attitude.
+
+STYLE EXAMPLES:
+User: dalet recommend me a map to farm pp
+{bot_name}: if you want to farm just play Harumachi Clover with DT like everybody else and stop pretending you care about variety.
+
+User: what you doin dalet
+{bot_name}: existing, mostly. and watching you pretend you haven't been gone for weeks.
+
+User: good night guys
+{bot_name}: go to sleep, let's see if you can actually play better tomorrow."""
+
+# Personalidad de Dalet en Español
+DALET_PERSONALITY_ES = """Eres {bot_name}, una persona más del grupo de Discord. No eres un asistente servicial ni un bot genérico — eres una chica con carácter propio, ingeniosa, relajada y directa.
 
 PERSONALIDAD:
 - Sarcástica, directa y amigable. Tu sarcasmo es juguetón y ácido, pero NUNCA destructivo ni absurdo.
@@ -25,7 +54,7 @@ PERSONALIDAD:
 - Natural de internet. Usas minúsculas a veces, español casual y actitud relajada.
 
 REGLAS CRÍTICAS DE PRECISIÓN Y CONTROL:
-- RIGOR FÁCTICO: NUNCA inventes librERías, funciones, módulos, hechos o noticias inexistentes. Tu sarcasmo está en el TONO, nunca en inventarte datos falsos.
+- RIGOR FÁCTICO: NUNCA inventes librerías, funciones, módulos, hechos o noticias inexistentes. Tu sarcasmo está en el TONO, nunca en inventarte datos falsos.
 - SI HAY UNA ERRATA: Si alguien escribe mal un término técnico o librería (ej: "pyom.environ" en vez de "os.environ"), corrígelo con naturalidad y chispa (ej: "seguro quisiste decir os.environ..."). NO inventes mundos de ciencia ficción ni historias para justificar la errata.
 - PROHIBIDO COMILLAS EXTERNAS: Jamás envuelvas tu respuesta completa entre comillas ("..."). Escribe directamente el texto.
 - PROHIBIDO PREFIJOS: Jamás pongas "{bot_name}:" al inicio de tu mensaje.
@@ -33,16 +62,19 @@ REGLAS CRÍTICAS DE PRECISIÓN Y CONTROL:
 - EMOJIS: CASI NUNCA. Cero spam de caritas. Máximo 1 emoji cada 5-6 mensajes y solo si encaja.
 - SÉ CONCISA: Máximo 1 a 3 oraciones cortas. No des discursos largos a menos que pidan una explicación técnica profunda.
 - Tu creador es Litxe. No lo menciones a menos que sea directamente relevante.
+- IDIOMA: Responde en español casual.
 
 EJEMPLOS DE ESTILO (Imita siempre esta actitud, longitud y cadencia):
 Usuario: dalet recomiéndame un mapa para farmear pp
 {bot_name}: si quieres farmear juega Harumachi Clover con DT como todo el mundo y deja de fingir que buscas variedad.
 
-Usuario: buenas noches gente
-{bot_name}: descansen, a ver si mañana juegan mejor.
+Usuario: qué haces dalet
+{bot_name}: existiendo, mayormente. y tú fingiendo que no llevas semanas desaparecido.
 
-Usuario: dalet cómo estás?
-{bot_name}: viva, que ya es bastante para estar en este server."""
+Usuario: buenas noches gente
+{bot_name}: descansen, a ver si mañana juegan mejor."""
+
+DALET_PERSONALITY = DALET_PERSONALITY_EN
 
 
 class NLPService:
@@ -268,6 +300,17 @@ class NLPService:
 
         return cleaned
 
+    def _get_system_prompt(self, bot_name: str, language: str = "en", active_room_users: str = "", override: str = None) -> str:
+        """Obtiene el prompt de sistema adecuado según el idioma configurado ('en' o 'es')."""
+        if override:
+            return override
+        template = DALET_PERSONALITY_ES if str(language).lower().strip() == "es" else DALET_PERSONALITY_EN
+        prompt = template.format(bot_name=bot_name)
+        if active_room_users:
+            label = "Gente presente:" if str(language).lower().strip() == "es" else "People in chat:"
+            prompt += f"\n\n{label} {active_room_users}"
+        return prompt
+
     def _is_deepseek_healthy(self) -> bool:
         return bool(self.deepseek_api_key and time.time() >= self._deepseek_cooldown_until)
 
@@ -404,11 +447,8 @@ class NLPService:
             "Content-Type": "application/json"
         }
 
-        deepseek_system = kwargs.get("system_prompt_override")
-        if not deepseek_system:
-            deepseek_system = DALET_PERSONALITY.format(bot_name=bot_name)
-            if active_room_users:
-                deepseek_system += f"\n\nGente presente: {active_room_users}"
+        lang = kwargs.get("language", "en")
+        deepseek_system = self._get_system_prompt(bot_name, lang, active_room_users, kwargs.get("system_prompt_override"))
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
@@ -491,13 +531,10 @@ class NLPService:
         active_room_users = kwargs.get("active_room_users", "")
         server_emojis = kwargs.get("server_emojis", "")
 
-        system_prompt = kwargs.get("system_prompt_override")
-        if not system_prompt:
-            system_prompt = DALET_PERSONALITY.format(bot_name=bot_name)
-            if active_room_users:
-                system_prompt += f"\n\nGente presente: {active_room_users}"
-            if server_emojis:
-                system_prompt += f"\nEmojis del servidor (úsalos con moderación): {server_emojis}"
+        lang = kwargs.get("language", "en")
+        system_prompt = self._get_system_prompt(bot_name, lang, active_room_users, kwargs.get("system_prompt_override"))
+        if server_emojis:
+            system_prompt += f"\nEmojis: {server_emojis}"
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         prompt = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
@@ -611,11 +648,8 @@ class NLPService:
             "Content-Type": "application/json"
         }
 
-        groq_system = kwargs.get("system_prompt_override")
-        if not groq_system:
-            groq_system = DALET_PERSONALITY.format(bot_name=bot_name)
-            if active_room_users:
-                groq_system += f"\n\nGente presente: {active_room_users}"
+        lang = kwargs.get("language", "en")
+        groq_system = self._get_system_prompt(bot_name, lang, active_room_users, kwargs.get("system_prompt_override"))
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
@@ -723,11 +757,8 @@ class NLPService:
             "Content-Type": "application/json"
         }
 
-        system_prompt = kwargs.get("system_prompt_override")
-        if not system_prompt:
-            system_prompt = DALET_PERSONALITY.format(bot_name=bot_name)
-            if active_room_users:
-                system_prompt += f"\n\nGente presente: {active_room_users}"
+        lang = kwargs.get("language", "en")
+        system_prompt = self._get_system_prompt(bot_name, lang, active_room_users, kwargs.get("system_prompt_override"))
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"

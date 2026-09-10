@@ -4,209 +4,237 @@
 
 # Dalet
 
-**Bot conversacional inteligente para Discord con memoria persistente, integración avanzada de osu!, balanceador de carga multi-IA y Dashboard web de telemetría en tiempo real.**
+**Witty AI companion & specialized osu! tracking bot for Discord with context-aware memory, 5-dimension skill breakdowns, multi-LLM load balancing, and a real-time telemetry dashboard.**
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![discord.py](https://img.shields.io/badge/discord.py-2.x-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discordpy.readthedocs.io)
+[![DeepSeek](https://img.shields.io/badge/DeepSeek-V3-4D6BFE?style=for-the-badge&logo=deepseek&logoColor=white)](https://deepseek.com)
 [![Google Gemini](https://img.shields.io/badge/Google%20Gemini-2.5%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://aistudio.google.com)
 [![Groq](https://img.shields.io/badge/Groq-LPU%20Speed-F55036?style=for-the-badge&logo=fastapi&logoColor=white)](https://console.groq.com)
-[![OpenRouter](https://img.shields.io/badge/OpenRouter-Free%20Tier-6366F1?style=for-the-badge&logo=openai&logoColor=white)](https://openrouter.ai)
 [![Turso](https://img.shields.io/badge/Turso-libSQL%20Cloud-00E599?style=for-the-badge&logo=sqlite&logoColor=black)](https://turso.tech)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
-[✨ Características](#-características) · [🛠️ Stack Tecnológico](#️-stack-tecnológico) · [🖥️ Web Dashboard](#-web-dashboard--telemetría) · [🎮 osu! UI System](#-integración-y-diseño-de-osu) · [🚀 Instalación](#-instalación-y-despliegue) · [💬 Comandos](#-comandos) · [🏗️ Arquitectura](#️-arquitectura) · [📚 Docs](#-documentación)
+[✨ Features](#-features) · [🎮 osu! System](#-osu-tracking--skill-breakdown) · [🧠 Conversational Brain](#-conversational-brain-v30) · [🛠️ Tech Stack](#️-tech-stack) · [🖥️ Web Dashboard](#-telemetry-dashboard) · [🚀 Getting Started](#-getting-started) · [💬 Commands](#-commands) · [🏗️ Architecture](#️-architecture) · [📚 Documentation](#-documentation)
 
 </div>
 
 ---
 
-## ✨ Características
+## ✨ Features
 
-Dalet combina inteligencia artificial conversacional, análisis en tiempo real y persistencia híbrida:
+Dalet bridges cutting-edge conversational AI with competitive rhythm game analytics and enterprise-grade resilience:
 
-- 🧠 **Smart Tri-Load Balancer**: Distribución inteligente de tráfico entre **Google Gemini** (calidad y visión), **Groq** (inferencia ultrarrápida <200ms) y **OpenRouter** (catálogo libre de cuotas).
-- 🛡️ **Circuit Breakers y Auto-Failover**: Tolerancia total a fallos. Si una API alcanza su límite de tasa (`429`) o saturación (`503`), el bot desvía el 100% del tráfico automáticamente sin interrupción de servicio.
-- 🖥️ **Web Dashboard en Vivo**: Panel web oscuro con gráficos interactivos (Chart.js), conteo en tiempo real de **Prompt y Completion Tokens**, latencias y estado de salud de los modelos.
-- 💾 **Persistencia Híbrida libSQL + SQLite**: Base de datos en la nube con **Turso (libSQL HTTP Pipeline)** y fallback local instantáneo con **SQLite en modo WAL** y buffers de escritura por lotes.
-- 🎮 **osu! Atomic UI System**: Tarjetas rediseñadas de alta densidad para `/recent`, `/top`, `/profile` y `/compare` con compatibilidad para scores de Lazer y Classic, banderas nativas y telemetría completa.
-- 📝 **Smart Channel Summaries**: Lectura de historial y generación de resúmenes contextuales inteligentes mediante `/resumir` y `d.summary`.
-- 🧠 **Memoria Contextual a Largo Plazo**: Recuerda detalles y preferencias explícitas de los usuarios a través de reinicios.
+- 🎯 **5-Dimension Skill Breakdown (`/skills`)**: Algorithmic evaluation of user top plays across **Aim, Speed, Accuracy, Stamina, and Reading** in star ratings ($\star$) with mod re-weighting (DT, HR, EZ, FL) and a biting AI verdict.
+- 🧠 **Smart Multi-LLM Load Balancer**: High-throughput routing across **DeepSeek V3**, **Google Gemini 2.5 Flash**, **Groq** (<200ms inference), and **OpenRouter** with automatic circuit breaker failover.
+- 🌐 **Full Bilingual Support (i18n)**: English by default for global communities, switchable to Spanish per guild with zero-overhead RAM caching via `/language`.
+- 🎨 **Atomic Design UI**: Modern, clean, and typographic Discord embeds for scores, user profiles, rankings, and comparisons without visual emoji clutter.
+- 💾 **Hybrid libSQL Cloud + SQLite Storage**: Cloud-synced database via **Turso (HTTP Pipeline)** with an instant local **SQLite WAL** fallback and asynchronous batching.
+- 🖥️ **Live Telemetry & Dashboard**: Real-time dark-mode web panel (Flask + Chart.js) tracking Prompt/Completion token burn, provider latencies, and circuit breaker status.
+- 📝 **Smart Channel Summaries**: Intelligent historical digest generation via `/resumir` and `d.summary`.
+- 🧠 **Persistent Long-Term Memory**: Explicit user preferences, facts, and conversation context retained across bot restarts.
 
 ---
 
-## 🛠️ Stack Tecnológico
+## 🎮 osu! Tracking & Skill Breakdown
 
-| Capa | Tecnologías |
+Dalet features a complete presentation layer built on the **Dalet Atomic Design System** ([docs/08_DESIGN_SYSTEM.md](docs/08_DESIGN_SYSTEM.md)), extracting both Bancho Classic and Lazer score formats:
+
+### ✦ Skill Breakdown (`/skills` / `d.skills`)
+Evaluates a player's top 50/100 plays through mathematical heuristics:
+- **Aim**: Circle Size (CS), jump velocity, and spatial pattern difficulty.
+- **Speed**: Effective BPM scaling (1.5x with DoubleTime) and high-density burst analysis.
+- **Accuracy**: Overall Difficulty (OD), hit distribution ($300$s vs $100$s/$50$s), and strict timing mod multipliers.
+- **Stamina**: Drain length, note count ($\ge 1200$), and sustained streams.
+- **Reading**: Low Approach Rate (AR $\le 8.5$), technical map patterns, and Hidden (HD) reading pressure.
+- **Dalet's Verdict**: A sharp, 2-line AI roast dissecting player imbalances and choke habits.
+
+### ✦ Core Cards
+- **`/recent` (`d.recent` / `d.or`)**: High-density recent play card with mods, stars, detailed hits `[300/100/50/Miss]`, PP, combo, and technical map stats (`AR`, `OD`, `HP`, `CS`, `BPM`, `Length`).
+- **`/top` (`d.top`)**: Top 5 ranked scores with native country flags and clean formatting.
+- **`/op` (`d.op`)**: Full user profile overview, global/country rank, progress bar, and grade counts (`SS`, `S`, `A`).
+- **`/compare`**: Direct head-to-head comparison between two players displaying PP differentials and stat leads.
+
+---
+
+## 🧠 Conversational Brain v3.0
+
+Dalet features a unique, cynical persona that provides witty, concise, and direct answers rather than generic AI responses.
+
+- **Dynamic Persona Adaptation**: Responds in English or Spanish depending on guild configuration.
+- **Micro-Prompt Architecture**: High token efficiency — prompts consume under 60 input tokens and produce focused ~40 token replies for game verdicts.
+- **Auto-Failover Circuit Breakers**: If an LLM provider encounters rate limits (`429`) or downtime (`503`), requests instantly reroute to alternative providers without interrupting user sessions.
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technologies |
 | :--- | :--- |
-| **Lenguaje & Core** | Python 3.11+ · discord.py 2.x (asyncio) |
-| **Modelos de IA** | Google Gemini (`gemini-2.5-flash` / `2.0`) · Groq (`openai/gpt-oss-120b`, `20b`) · OpenRouter (`openrouter/free`, `deepseek-r1:free`, `llama-3.3:free`) |
-| **Persistencia Cloud** | [Turso](https://turso.tech) (libSQL Database over HTTP Pipeline) |
-| **Persistencia Local** | SQLite 3 (WAL Mode, in-memory LRU caching & async log batching) |
-| **Dashboard & Web** | Flask · Chart.js · CSS Grid Glassmorphism |
-| **osu! API** | [osu! API v2](https://osu.ppy.sh/docs/index.html) (OAuth2 Client Credentials) |
-| **Hosting & Deploy** | [Render](https://render.com) (Web Service con Health Check en `:8080`) |
+| **Language & Core** | Python 3.11+ · discord.py 2.x (asyncio) |
+| **AI Models** | DeepSeek V3 · Google Gemini (`gemini-2.5-flash`) · Groq (`openai/gpt-oss-120b`, `20b`) · OpenRouter |
+| **Cloud Persistence** | [Turso](https://turso.tech) (libSQL Cloud Database over HTTP Pipeline) |
+| **Local Persistence** | SQLite 3 (WAL mode, in-memory LRU caching & async log batching) |
+| **Web & Telemetry** | Flask · Chart.js · Glassmorphism CSS |
+| **Rhythm Game API** | [osu! API v2](https://osu.ppy.sh/docs/index.html) (OAuth2 Client Credentials) |
+| **Deployment** | [Render](https://render.com) (Web Service with Health Check on `:8080`) |
 
 ---
 
-## 🖥️ Web Dashboard & Telemetría
+## 🖥️ Telemetry Dashboard
 
-Dalet incluye un panel web en tiempo real accesible directamente en el puerto del servicio (por ejemplo `https://dalet-proyect.onrender.com/` o `http://localhost:8080/`):
+Dalet includes a built-in real-time monitoring web dashboard hosted on the application port (`http://localhost:8080/` or your production URL):
 
-- **Tokens Consumidos**: Desglose exacto de Prompt / Completion Tokens para Gemini, Groq y OpenRouter.
-- **Gráficos de Tráfico**: Comparativa visual en tiempo real de carga de trabajo entre modelos.
-- **Estado de Circuit Breakers**: Indicadores de salud (`HEALTHY` / `COOLDOWN`).
-- **Gateway & Uptime**: Latencia de Discord, servidores conectados, miembros y tiempo activo.
-- **Feed en Vivo**: Registro en vivo con las últimas interacciones de IA y latencias.
-
----
-
-## 🎮 Integración y Diseño de osu!
-
-Las tarjetas de osu! fueron desarrolladas bajo el **Sistema de Diseño Atómico de Dalet** ([docs/08_DESIGN_SYSTEM.md](docs/08_DESIGN_SYSTEM.md)):
-
-- **`/recent`**: Tarjeta estructurada con mods (`+HDDT`), dificultad `[6.52★]`, desglose de aciertos `[300/100/50/Miss]`, PP, precisión, duración `MM:SS`, BPM y atributos `AR / OD / HP / CS`.
-- **`/top`**: Top 5 mejores puntuaciones del jugador en un formato compacto con banderas nativas.
-- **`/profile` & `/compare`**: Perfil global, rangos de país y comparación directa entre jugadores.
-- **Lazer & Classic Support**: Extracción correcta de scores estandarizados de Lazer y cálculo estimado para partidas fallidas (`Rank: F`).
+- **Token Consumption**: Real-time breakdown of Prompt and Completion tokens for DeepSeek, Gemini, Groq, and OpenRouter.
+- **Traffic Graphs**: Visual request distribution and provider load balancing.
+- **Circuit Breaker Status**: Health indicators (`HEALTHY`, `COOLDOWN`, `TRIPPED`).
+- **Gateway Metrics**: Discord API latency, connected guilds, total members, and uptime.
+- **Live Event Feed**: Real-time log of AI queries, response latencies, and system events.
 
 ---
 
-## 🚀 Instalación y Despliegue
+## 💬 Commands
 
-### 1. Clonar el repositorio
+Dalet supports both **native Discord Slash Commands (`/`)** and the traditional `d.` prefix:
+
+### 🎮 osu! Commands
+| Command | Type | Description |
+| :--- | :--- | :--- |
+| `/skills [user] [mode]` | Slash / `d.skills` | 5-dimension skill radar (Aim, Speed, Acc, Stamina, Reading) with AI verdict |
+| `/recent [user] [mode]` | Slash / `d.recent`, `d.or` | Displays your latest play with full hit and map stats |
+| `/top [user] [mode]` | Slash / `d.top` | Shows your top 5 best registered scores |
+| `/op [user] [mode]` | Slash / `d.op` | Displays complete osu! profile, rank, accuracy, and grade history |
+| `/compare <user>` | Slash | Compares your stats head-to-head against another player |
+| `/link <username>` | Slash / `d.link` | Links your Discord account to your osu! profile |
+| `d.unlink` | Prefix | Unlinks your osu! account |
+
+### 🤖 AI, Social & Utilities
+| Command | Type | Description |
+| :--- | :--- | :--- |
+| `/language [en/es]` | Slash / `d.language` | Configures server language (English default / Español) |
+| `/resumir [messages]` | Slash / `d.summary` | Generates a smart AI digest of recent channel conversations |
+| `/lore <topic>` | Slash / `d.lore` | Researches server history and chat archives with cynical commentary |
+| `/info` | Slash / `d.info` | Displays Dalet's version, status, and system information |
+| `d.changelog` | Prefix | Displays version release notes and recent updates |
+| `d.ms` | Prefix | Checks bot response latency in milliseconds |
+
+---
+
+## 🚀 Getting Started
+
+### 1. Clone the repository
 ```bash
 git clone https://github.com/Janlhx/Dalet-Proyect.git
 cd Dalet-Proyect
 ```
 
-### 2. Crear entorno virtual e instalar dependencias
+### 2. Create virtual environment & install dependencies
 ```bash
 python -m venv venv
-# En Windows:
+
+# Windows:
 venv\Scripts\activate
-# En Linux/macOS:
+
+# Linux / macOS:
 source venv/bin/activate
 
 pip install -r requirements.txt
 ```
 
-### 3. Configurar variables de entorno (`.env`)
-Crea un archivo `.env` en la raíz del proyecto:
+### 3. Configure environment variables (`.env`)
+Create a `.env` file in the project root:
 
 ```env
 # --- Discord Bot ---
-DISCORD_TOKEN=tu_discord_bot_token
+DISCORD_TOKEN=your_discord_bot_token
 
-# --- Bases de Datos (Turso libSQL Cloud + SQLite Local) ---
-TURSO_DATABASE_URL=https://tu-db-nombre.turso.io
-TURSO_AUTH_TOKEN=tu_turso_auth_token
+# --- Hybrid Databases (Turso libSQL Cloud + Local SQLite) ---
+TURSO_DATABASE_URL=https://your-database-name.turso.io
+TURSO_AUTH_TOKEN=your_turso_auth_token
 
-# --- Inteligencia Artificial (Smart Tri-Load Balancer) ---
+# --- Artificial Intelligence (Smart Tri-Load Balancer) ---
 AI_ROUTING_MODE=auto
 
-# 1. Google Gemini (Primario para Visión y Búsquedas Web)
-GEMINI_API_KEY=tu_gemini_api_key
+# 1. DeepSeek V3
+DEEPSEEK_API_KEY=your_deepseek_api_key
+
+# 2. Google Gemini (Vision & Context)
+GEMINI_API_KEY=your_gemini_api_key
 GEMINI_MODEL=gemini-2.5-flash
 
-# 2. Groq (Ultra Velocidad <200ms)
-GROQ_API_KEY=tu_groq_api_key
+# 3. Groq (Ultra-low latency <200ms)
+GROQ_API_KEY=your_groq_api_key
 GROQ_MODEL=openai/gpt-oss-120b
-GROQ_MODEL_FALLBACK=openai/gpt-oss-20b
 
-# 3. OpenRouter (Modelos Gratuitos & Variedad)
-OPENROUTER_API_KEY=tu_openrouter_api_key
+# 4. OpenRouter (Fallback & Free Tier)
+OPENROUTER_API_KEY=your_openrouter_api_key
 OPENROUTER_MODEL=openrouter/free
 
 # --- osu! API v2 ---
-OSU_CLIENT_ID=tu_osu_client_id
-OSU_CLIENT_SECRET=tu_osu_client_secret
+OSU_CLIENT_ID=your_osu_client_id
+OSU_CLIENT_SECRET=your_osu_client_secret
 
 # --- Web Dashboard Port ---
 PORT=8080
 ```
 
-### 4. Ejecutar el Bot
+### 4. Launch Dalet
 ```bash
 python dalet_main.py
 ```
 
 ---
 
-## 💬 Comandos
-
-Dalet soporta **Slash Commands nativos (`/`)** y el prefijo tradicional `d.`:
-
-### 🎮 osu! Commands
-| Comando | Tipo | Descripción |
-| :--- | :--- | :--- |
-| `/recent` o `d.recent` | Slash / Prefijo | Muestra tu última jugada en osu! con diseño estructurado |
-| `/top` o `d.top` | Slash / Prefijo | Muestra tus 5 mejores jugadas registradas |
-| `/profile` o `d.profile` | Slash / Prefijo | Muestra tu perfil de jugador, rango y estadísticas |
-| `/compare` | Slash | Compara tu récord en el mapa actual contra otro jugador |
-| `d.osuLink <user>` | Prefijo | Vincula tu cuenta de osu! a tu Discord |
-| `d.osuAnalyze` | Prefijo | Análisis con IA sobre tu estilo de juego y áreas de mejora |
-| `d.osuCoach` | Prefijo | Plan de entrenamiento personalizado generado por la IA |
-
-### 🤖 Inteligencia Artificial & Utilidades
-| Comando | Tipo | Descripción |
-| :--- | :--- | :--- |
-| `/resumir [mensajes]` | Slash | Genera un resumen inteligente de los últimos mensajes del canal |
-| `/lore` | Slash | Cuenta la historia y personalidad de Dalet |
-| `/gemini <proactive/reactive>`| Slash | Configura si Dalet habla libremente o solo por mención |
-| `/help` | Slash | Menú interactivo de ayuda categorizado |
-| `d.admin blockChannel` | Prefijo | Bloquea la interacción de Dalet en un canal específico |
-| `d.admin unblockChannel` | Prefijo | Desbloquea un canal para permitir interacción |
-
----
-
-## 🏗️ Arquitectura
+## 🏗️ Architecture
 
 ```
 Dalet-Proyect/
-├── dalet_main.py                  ← Bootstrap del bot, semáforos y servidor Flask
+├── dalet_main.py                  ← Application bootstrap, task runner & Flask dashboard
 │
-├── handlers/                      ← Discord Cogs y controladores de eventos
-│   ├── dalet_nlpchat.py           ← Motor de conversación reactivo/proactivo
-│   ├── dalet_slash_commands.py    ← Slash commands nativos de Discord
-│   ├── dalet_osu_presenter.py     ← Presentador visual de tarjetas de osu!
-│   ├── dalet_smartresume.py       ← Generador de resúmenes con IA
-│   ├── dalet_osucommands.py       ← Comandos tradicionales de osu!
-│   ├── dalet_helpcommands_handlers.py
-│   └── dalet_events_handlers.py
+├── handlers/                      ← Discord Cogs and command handlers
+│   ├── dalet_slash_commands.py    ← Unified application slash commands (/)
+│   ├── dalet_osucommands.py       ← Traditional prefix commands (d.skills, d.op, d.recent)
+│   ├── dalet_osu_presenter.py     ← High-density visual card presenter
+│   ├── dalet_nlpchat.py           ← Contextual conversation engine
+│   ├── dalet_commands_handlers.py ← Utility commands (info, changelog, latency, stats)
+│   ├── dalet_admcommands_handler.py ← Admin controls (d.language, channel blocking)
+│   ├── dalet_helpcommands_handlers.py ← Help menus and documentation cards
+│   └── modules/
+│       └── dalet_osuanalyzer.py   ← 5-dimension skill calculation engine
 │
-├── services/                      ← Capa de Lógica de Negocio
-│   ├── nlp_service.py             ← Smart Tri-Load Balancer (Gemini + Groq + OpenRouter)
-│   ├── dashboard_service.py       ← Servidor web del Dashboard & API de telemetría
-│   ├── memory_service.py          ← Gestión de memoria y contexto de chat
-│   └── osu_service.py             ← Cliente async de la API v2 de osu!
+├── services/                      ← Business logic layer
+│   ├── nlp_service.py             ← Multi-LLM load balancer (DeepSeek, Gemini, Groq)
+│   ├── osu_service.py             ← Async osu! API v2 client
+│   ├── memory_service.py          ← Conversation context and user memory
+│   └── dashboard_service.py       ← Flask telemetry dashboard & metrics
 │
-├── database/                      ← Persistencia Híbrida
-│   ├── turso_client.py            ← Cliente libSQL HTTP Pipeline para Turso Cloud
-│   ├── sqlite_manager.py          ← SQLite local (WAL) para analíticas y fallback
-│   └── repositories/              ← Repositorios de datos (User, Osu, Admin, Analytics)
+├── database/                      ← Hybrid persistence layer
+│   ├── turso_client.py            ← libSQL HTTP Pipeline client for Turso Cloud
+│   ├── sqlite_manager.py          ← SQLite (WAL) fallback and local analytics
+│   └── repositories/              ← Data access repositories (Admin, User, Osu, Analytics)
 │
-├── ui/                            ← Atomic Design System
-│   ├── atoms.py                   ← Tokens de color, badges de rango y glifos
-│   ├── molecules.py               ← Barras de progreso ASCII y footers
-│   └── organisms.py               ← Embeds compuestos
+├── ui/                            ← Atomic Design System & Localization
+│   ├── locales.py                 ← Centralized i18n string catalog (EN / ES) & t() helper
+│   ├── atoms.py                   ← Visual design tokens, glyphs, and grade colors
+│   ├── molecules.py               ← Progress bars, footers, and field helpers
+│   └── organisms.py               ← Composite embeds
 │
-└── docs/                          ← Documentación técnica completa
+└── docs/                          ← Architecture specifications & technical documentation
 ```
 
 ---
 
-## 📚 Documentación
+## 📚 Documentation
 
-| Documento | Descripción |
+| Document | Description |
 | :--- | :--- |
-| [01 — Arquitectura](docs/01_ARCHITECTURE.md) | Flujo general del sistema y capas de abstracción |
-| [07 — Variables de Entorno](docs/07_VARIABLES_ENVIRONMENT.md) | Guía completa de configuración de variables |
-| [08 — Sistema de Diseño](docs/08_DESIGN_SYSTEM.md) | Tokens de diseño, tipografía y Atomic UI |
+| [01 — Architecture](docs/01_ARCHITECTURE.md) | High-level system design and abstraction layers |
+| [07 — Environment Variables](docs/07_VARIABLES_ENVIRONMENT.md) | Complete guide to configuring credentials and API keys |
+| [08 — Design System](docs/08_DESIGN_SYSTEM.md) | Atomic UI design tokens, typography, and embed layouts |
 
 ---
 
 <div align="center">
 
-Hecho con ❤️ por **Litxe** · Colombia 🇨🇴
+Crafted with ❤️ by **Litxe** · Colombia 🇨🇴
 
 </div>

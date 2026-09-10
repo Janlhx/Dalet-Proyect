@@ -54,4 +54,50 @@ class AdminRepository(BaseRepository):
         """
         return await self.execute(query, server_id, channel_id)
 
+    # --- Configuración de Idioma (Default: 'en') ---
+
+    _lang_cache: dict = {}
+
+    async def get_server_language(self, server_id: int) -> str:
+        """
+        Obtiene el idioma configurado para el servidor ('en' o 'es').
+        Predeterminado para cualquier servidor nuevo: 'en' (Inglés).
+        """
+        if server_id in self._lang_cache:
+            return self._lang_cache[server_id]
+
+        try:
+            query = "SELECT Language FROM Servers WHERE ServerID = ?"
+            result = await self.fetch_one(query, server_id)
+            if result and result[0]:
+                lang = str(result[0]).lower().strip()
+                if lang in ("es", "en"):
+                    self._lang_cache[server_id] = lang
+                    return lang
+        except Exception as e:
+            # Si la columna aún no existe o falla la BD, fallback seguro a 'en'
+            pass
+
+        self._lang_cache[server_id] = "en"
+        return "en"
+
+    async def set_server_language(self, server_id: int, language: str):
+        """Establece el idioma ('en' o 'es') para un servidor."""
+        lang = "es" if language.lower().strip() in ("es", "spanish", "español") else "en"
+        self._lang_cache[server_id] = lang
+
+        # Intentar crear la columna por si no existe aún en la tabla Servers
+        try:
+            await self.execute("ALTER TABLE Servers ADD COLUMN Language TEXT DEFAULT 'en'")
+        except Exception:
+            pass
+
+        query = """
+            INSERT INTO Servers (ServerID, ServerName, Language)
+            VALUES (?, 'Unknown', ?)
+            ON CONFLICT(ServerID) DO UPDATE SET Language = excluded.Language
+        """
+        return await self.execute(query, server_id, lang)
+
+
 
