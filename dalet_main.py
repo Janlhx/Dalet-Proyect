@@ -152,12 +152,17 @@ async def main():
             bot.admin_repo = AdminRepository()
             bot.analytics_repo = AnalyticsRepository()
 
-            bot.nlp_service = NLPService(GEMINI_API_KEY, user_repo=bot.user_repo)
-            bot.memory_service = MemoryService(bot.user_repo)
             bot.osu_service = OsuService(
                 client_id=int(os.getenv("OSU_CLIENT_ID", 0)),
                 client_secret=os.getenv("OSU_CLIENT_SECRET", "")
             )
+            bot.nlp_service = NLPService(
+                GEMINI_API_KEY,
+                user_repo=bot.user_repo,
+                osu_service=bot.osu_service,
+                osu_repo=bot.osu_repo
+            )
+            bot.memory_service = MemoryService(bot.user_repo)
 
             # Registrar referencia de bot para telemetría en tiempo real del Dashboard
             DashboardService.register_bot(bot)

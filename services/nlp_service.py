@@ -20,6 +20,73 @@ logger = logging.getLogger("dalet.services.nlp")
 
 TELEMETRY_BACKUP_PATH = os.path.join("data", "ai_telemetry.json")
 
+# Herramientas osu! expuestas a DeepSeek V3 vía Function Calling
+OSU_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_recent_osu_play",
+            "description": "Obtiene la jugada o score más reciente de un jugador en osu! (mapa, dificultad, mods, precisión, combo, misses, rango, si pasó o falló, y pp).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "description": "Nombre de usuario o nick en osu! del jugador."
+                    }
+                },
+                "required": ["username"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_top_osu_play",
+            "description": "Obtiene la mejor jugada (top 1 o posición específica en sus mejores scores) de un jugador en osu! con su pp, precisión, mapa y mods.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "description": "Nombre de usuario o nick en osu! del jugador."
+                    },
+                    "index": {
+                        "type": "integer",
+                        "description": "Posición en el top de mejores jugadas (1 para top 1, 2 para top 2, etc.). Por defecto 1."
+                    }
+                },
+                "required": ["username"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_osu_user_profile",
+            "description": "Obtiene estadísticas del perfil de osu! de un jugador: rango global, rango por país, pp totales, precisión promedio y nivel.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "description": "Nombre de usuario o nick en osu! del jugador."
+                    }
+                },
+                "required": ["username"]
+            }
+        }
+    }
+]
+
+# Palabras clave para activar Function Calling de osu! y ahorrar tokens en chat general
+OSU_TRIGGER_KEYWORDS = (
+    "osu", "play", "plays", "score", "scores", "choke", "chokeó", "chokeo",
+    "pp", "farm", "farmeo", "perfil", "top 1", "top play", "top score",
+    "rank", "rango", "global rank", "mrekk", "lifeline", "whitecat",
+    "akolibed", "vaxei", "baryon", "shigetora", "cookiezi", "beatmap", "mapa"
+)
+
 # Personalidad de Dalet en Inglés (Default)
 DALET_PERSONALITY_EN = """You are {bot_name}, a self-aware Discord bot and conversational companion created by Litxe. You know you are an AI running on a server, but you are NOT a corporate or sycophantic chatbot — you are sharp, witty, cynical, and genuinely helpful when asked.
 
@@ -107,7 +174,7 @@ class NLPService:
     - Circuit Breaker: Auto-recuperación ante 429 Rate Limits sin interrupción de servicio.
     """
 
-    def __init__(self, gemini_api_key: str, user_repo=None):
+    def __init__(self, gemini_api_key: str, user_repo=None, osu_service=None, osu_repo=None):
         from dotenv import load_dotenv
         load_dotenv(override=True)
 
@@ -126,6 +193,8 @@ class NLPService:
         self.groq_api_key = (os.getenv("GROQ_API_KEY") or "").strip()
         self.openrouter_api_key = (os.getenv("OPENROUTER_API_KEY") or "").strip()
         self.repo = user_repo or UserRepository()
+        self.osu_service = osu_service
+        self.osu_repo = osu_repo
 
         # Modo de enrutamiento: "auto" / "deepseek" (default), "gemini", "groq" o "openrouter"
         raw_mode = os.getenv("AI_ROUTING_MODE") or os.getenv("AI_PROVIDER") or "auto"
@@ -557,6 +626,115 @@ class NLPService:
 
         return reply
 
+    async def _execute_osu_tool(self, name: str, args: dict, user_id: int = None) -> str:
+        """Ejecuta una herramienta de osu! en Bancho API y devuelve un payload JSON compacto."""
+        if not self.osu_service:
+            return json.dumps({"error": "El servicio de osu! no está configurado en el bot."})
+
+        raw_user = (args.get("username") or "").strip()
+        # Si el usuario no especificó nick o dijo "yo"/"mi", intentar resolver cuenta de Discord enlazada
+        if (not raw_user or raw_user.lower() in ("yo", "mi", "me", "conmigo", "mio", "mío")) and user_id and self.osu_repo:
+            try:
+                linked = await self.osu_repo.get_linked_username(user_id)
+                if linked:
+                    raw_user = linked
+            except Exception as e:
+                logger.warning(f"Error resolviendo cuenta osu enlazada para {user_id}: {e}")
+
+        if not raw_user:
+            return json.dumps({"error": "No se especificó un nombre de usuario en osu! y no tiene cuenta enlazada."})
+
+        try:
+            if name == "get_recent_osu_play":
+                user_obj = await self.osu_service.get_user(raw_user)
+                if not user_obj or "id" not in user_obj:
+                    return json.dumps({"error": f"No se encontró al jugador '{raw_user}' en osu!."})
+
+                uid = user_obj["id"]
+                scores = await self.osu_service.get_user_recent_scores(uid, limit=1)
+                if not scores:
+                    return json.dumps({"status": "no_recent_plays", "player": raw_user, "message": "No ha jugado nada en las últimas 24 horas."})
+
+                s = scores[0]
+                bm = s.get("beatmapset", {})
+                title = bm.get("title", "Desconocido")
+                artist = bm.get("artist", "Desconocido")
+                version = s.get("beatmap", {}).get("version", "")
+                rank = s.get("rank", "")
+                acc = round(float(s.get("accuracy", 0.0)) * 100.0, 2)
+                mods = "".join(s.get("mods", [])) or "None"
+                pp = round(float(s.get("pp")), 1) if s.get("pp") else "0 (unranked/choke)"
+                passed = s.get("passed", False)
+                misses = s.get("statistics", {}).get("count_miss", 0)
+
+                return json.dumps({
+                    "player": user_obj.get("username", raw_user),
+                    "beatmap": f"{artist} - {title} [{version}]",
+                    "grade": rank,
+                    "accuracy": f"{acc}%",
+                    "mods": mods,
+                    "pp": pp,
+                    "misses": misses,
+                    "passed": passed
+                }, ensure_ascii=False)
+
+            elif name == "get_top_osu_play":
+                idx = max(1, int(args.get("index", 1)))
+                user_obj = await self.osu_service.get_user(raw_user)
+                if not user_obj or "id" not in user_obj:
+                    return json.dumps({"error": f"No se encontró al jugador '{raw_user}' en osu!."})
+
+                uid = user_obj["id"]
+                scores = await self.osu_service.get_user_best_scores(uid, limit=max(idx, 5))
+                if not scores or len(scores) < idx:
+                    return json.dumps({"status": "no_top_plays", "player": raw_user, "message": f"No tiene jugadas registradas hasta el top #{idx}."})
+
+                s = scores[idx - 1]
+                bm = s.get("beatmapset", {})
+                title = bm.get("title", "Desconocido")
+                artist = bm.get("artist", "Desconocido")
+                version = s.get("beatmap", {}).get("version", "")
+                rank = s.get("rank", "")
+                acc = round(float(s.get("accuracy", 0.0)) * 100.0, 2)
+                mods = "".join(s.get("mods", [])) or "None"
+                pp = round(float(s.get("pp") or 0.0), 1)
+
+                return json.dumps({
+                    "player": user_obj.get("username", raw_user),
+                    "position": f"Top #{idx}",
+                    "beatmap": f"{artist} - {title} [{version}]",
+                    "grade": rank,
+                    "accuracy": f"{acc}%",
+                    "mods": mods,
+                    "pp": f"{pp}pp"
+                }, ensure_ascii=False)
+
+            elif name == "get_osu_user_profile":
+                user_obj = await self.osu_service.get_user(raw_user)
+                if not user_obj or "id" not in user_obj:
+                    return json.dumps({"error": f"No se encontró al jugador '{raw_user}' en osu!."})
+
+                stats = user_obj.get("statistics", {})
+                global_rank = stats.get("global_rank") or "N/A"
+                country_rank = stats.get("country_rank") or "N/A"
+                pp = round(float(stats.get("pp", 0.0)), 1)
+                acc = round(float(stats.get("hit_accuracy", 0.0)), 2)
+                country = user_obj.get("country", {}).get("name", "Desconocido")
+
+                return json.dumps({
+                    "player": user_obj.get("username", raw_user),
+                    "country": country,
+                    "global_rank": f"#{global_rank:,}" if isinstance(global_rank, (int, float)) else str(global_rank),
+                    "country_rank": f"#{country_rank:,}" if isinstance(country_rank, (int, float)) else str(country_rank),
+                    "pp": f"{pp:,}pp",
+                    "accuracy": f"{acc}%"
+                }, ensure_ascii=False)
+
+            return json.dumps({"error": f"Herramienta desconocida: {name}"})
+        except Exception as e:
+            logger.error(f"Excepción ejecutando herramienta osu '{name}': {e}")
+            return json.dumps({"error": f"Error consultando osu! API: {str(e)}"})
+
     async def _generate_deepseek_reply(
         self, trigger: str, context: str, username: str,
         bot_name: str, image_description: str = "", is_fallback: bool = False,
@@ -566,6 +744,7 @@ class NLPService:
             return None
 
         active_room_users = kwargs.get("active_room_users", "")
+        caller_user_id = kwargs.get("user_id")
         model_name = (os.getenv("DEEPSEEK_MODEL") or "deepseek-chat").strip()
         url = "https://api.deepseek.com/chat/completions"
         headers = {
@@ -580,20 +759,30 @@ class NLPService:
         user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
         max_tokens = kwargs.get("max_tokens_override", 400 if is_reactive else 650)
 
-        t0 = time.time()
+        # Determinar si activamos herramientas (Function Calling) de osu!
+        use_tools = False
+        trigger_lower = trigger.lower()
+        if self.osu_service and any(kw in trigger_lower for kw in OSU_TRIGGER_KEYWORDS):
+            use_tools = True
+
+        messages = [
+            {"role": "system", "content": deepseek_system},
+            {"role": "user", "content": user_msg}
+        ]
+
         data = {
             "model": model_name,
-            "messages": [
-                {"role": "system", "content": deepseek_system},
-                {"role": "user", "content": user_msg}
-            ],
+            "messages": messages,
             "temperature": 0.7,
             "max_tokens": max_tokens
         }
+        if use_tools:
+            data["tools"] = OSU_TOOLS
 
+        t0 = time.time()
         try:
-            logger.info(f"Llamando DeepSeek: {model_name} (fallback={is_fallback})")
-            response = await self._http_client.post(url, headers=headers, json=data, timeout=8.0)
+            logger.info(f"Llamando DeepSeek: {model_name} (tools={use_tools}, fallback={is_fallback})")
+            response = await self._http_client.post(url, headers=headers, json=data, timeout=10.0)
 
             if response.status_code == 429:
                 logger.warning(f"DeepSeek 429 Rate Limit. Circuit Breaker abierto por 30s.")
@@ -607,13 +796,58 @@ class NLPService:
                 return None
 
             result = response.json()
-            raw_text = result['choices'][0]['message']['content'] or ""
+            choice = result['choices'][0]
+            choice_msg = choice['message']
+            usage = result.get("usage", {})
+            p_tokens = usage.get("prompt_tokens") or (len(user_msg) // 4)
+            c_tokens = usage.get("completion_tokens") or 0
+
+            # Caso A: DeepSeek solicitó ejecutar una herramienta (Function Calling)
+            if choice_msg.get("tool_calls"):
+                tool_calls = choice_msg["tool_calls"]
+                messages.append(choice_msg)
+
+                for tc in tool_calls:
+                    fn_name = tc.get("function", {}).get("name", "")
+                    fn_args_raw = tc.get("function", {}).get("arguments", "{}")
+                    try:
+                        fn_args = json.loads(fn_args_raw)
+                    except Exception:
+                        fn_args = {}
+
+                    logger.info(f"DeepSeek Tool Call: '{fn_name}' con args: {fn_args}")
+                    tool_output = await self._execute_osu_tool(fn_name, fn_args, user_id=caller_user_id)
+
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc.get("id"),
+                        "content": tool_output
+                    })
+
+                # Segunda llamada con los datos obtenidos para que redacte con su personalidad
+                data_step2 = {
+                    "model": model_name,
+                    "messages": messages,
+                    "temperature": 0.7,
+                    "max_tokens": max_tokens
+                }
+                resp2 = await self._http_client.post(url, headers=headers, json=data_step2, timeout=10.0)
+                if resp2.status_code == 200:
+                    result2 = resp2.json()
+                    raw_text = result2['choices'][0]['message']['content'] or ""
+                    usage2 = result2.get("usage", {})
+                    p_tokens += usage2.get("prompt_tokens") or 0
+                    c_tokens += usage2.get("completion_tokens") or 0
+                else:
+                    logger.warning(f"Error en paso 2 de DeepSeek Tools: HTTP {resp2.status_code}")
+                    raw_text = choice_msg.get("content") or ""
+            else:
+                raw_text = choice_msg.get("content") or ""
+
             reply_text = self._clean_reply_text(raw_text, bot_name)
             latency_ms = int((time.time() - t0) * 1000)
 
-            usage = result.get("usage", {})
-            p_tokens = usage.get("prompt_tokens") or (len(user_msg) // 4)
-            c_tokens = usage.get("completion_tokens") or (len(reply_text) // 4)
+            c_tokens = c_tokens or (len(reply_text) // 4)
             cost_delta = round((p_tokens * 0.00000014) + (c_tokens * 0.00000028), 6)
 
             self.telemetry["deepseek"]["requests"] += 1
@@ -641,7 +875,7 @@ class NLPService:
             return reply_text
 
         except asyncio.TimeoutError:
-            logger.warning(f"Timeout (8s) en DeepSeek {model_name}. Intentando siguiente proveedor...")
+            logger.warning(f"Timeout en DeepSeek {model_name}. Intentando siguiente proveedor...")
             self.telemetry["deepseek"]["errors"] += 1
             return None
         except Exception as e:
