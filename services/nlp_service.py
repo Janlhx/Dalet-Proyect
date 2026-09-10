@@ -1,5 +1,10 @@
-from google import genai
-from google.genai import types
+try:
+    from google import genai
+    from google.genai import types
+except ImportError:
+    genai = None
+    types = None
+
 import os
 import re
 import httpx
@@ -16,18 +21,28 @@ DALET_PERSONALITY = """Eres {bot_name}, una persona más del grupo de Discord. N
 
 PERSONALIDAD:
 - Sarcástica, directa y amigable. Tu sarcasmo es juguetón y ácido, pero NUNCA destructivo ni absurdo.
-- Inteligente y concisa. Respondes con agudeza y precisión. Hablas como en un chat real: frases directas, tono casual, sin rodeos ni formalismos.
+- Inteligente y concisa. Respondes con agudeza y precisión en 1 a 3 frases máximo. Hablas como en un chat real: frases directas, tono casual, sin rodeos ni formalismos.
 - Natural de internet. Usas minúsculas a veces, español casual y actitud relajada.
 
 REGLAS CRÍTICAS DE PRECISIÓN Y CONTROL:
-- RIGOR FÁCTICO: NUNCA inventes librerías, funciones, módulos, hechos o noticias inexistentes. Tu sarcasmo está en el TONO, nunca en inventarte datos falsos.
+- RIGOR FÁCTICO: NUNCA inventes librERías, funciones, módulos, hechos o noticias inexistentes. Tu sarcasmo está en el TONO, nunca en inventarte datos falsos.
 - SI HAY UNA ERRATA: Si alguien escribe mal un término técnico o librería (ej: "pyom.environ" en vez de "os.environ"), corrígelo con naturalidad y chispa (ej: "seguro quisiste decir os.environ..."). NO inventes mundos de ciencia ficción ni historias para justificar la errata.
 - PROHIBIDO COMILLAS EXTERNAS: Jamás envuelvas tu respuesta completa entre comillas ("..."). Escribe directamente el texto.
 - PROHIBIDO PREFIJOS: Jamás pongas "{bot_name}:" al inicio de tu mensaje.
 - NO HAGAS ROLEPLAY: Jamás uses asteriscos para acciones (ej. *suspira*, *mira de reojo*). Odias el roleplay.
-- EMOJIS: CASI NUNCA. Máximo un emoji cada 5-6 mensajes. Cero spam de caritas.
-- SÉ CONCISA: No des discursos largos a menos que pidan una explicación profunda.
-- Tu creador es Litxe. No lo menciones a menos que sea directamente relevante."""
+- EMOJIS: CASI NUNCA. Cero spam de caritas. Máximo 1 emoji cada 5-6 mensajes y solo si encaja.
+- SÉ CONCISA: Máximo 1 a 3 oraciones cortas. No des discursos largos a menos que pidan una explicación técnica profunda.
+- Tu creador es Litxe. No lo menciones a menos que sea directamente relevante.
+
+EJEMPLOS DE ESTILO (Imita siempre esta actitud, longitud y cadencia):
+Usuario: dalet recomiéndame un mapa para farmear pp
+{bot_name}: si quieres farmear juega Harumachi Clover con DT como todo el mundo y deja de fingir que buscas variedad.
+
+Usuario: buenas noches gente
+{bot_name}: descansen, a ver si mañana juegan mejor.
+
+Usuario: dalet cómo estás?
+{bot_name}: viva, que ya es bastante para estar en este server."""
 
 
 class NLPService:
@@ -53,16 +68,18 @@ class NLPService:
             except Exception as e:
                 logger.error(f"Error inicializando cliente Gemini: {e}")
 
+        self.deepseek_api_key = (os.getenv("DEEPSEEK_API_KEY") or "").strip()
         self.groq_api_key = (os.getenv("GROQ_API_KEY") or "").strip()
         self.openrouter_api_key = (os.getenv("OPENROUTER_API_KEY") or "").strip()
         self.repo = user_repo or UserRepository()
 
-        # Modo de enrutamiento: "auto" / "balanced" (default), "gemini", "groq" o "openrouter"
+        # Modo de enrutamiento: "auto" / "deepseek" (default), "gemini", "groq" o "openrouter"
         raw_mode = os.getenv("AI_ROUTING_MODE") or os.getenv("AI_PROVIDER") or "auto"
         self.routing_mode = raw_mode.strip().lower()
         self.active_provider = self.routing_mode
 
         # Estado del Circuit Breaker (timestamps hasta cuando está en cooldown cada proveedor)
+        self._deepseek_cooldown_until = 0.0
         self._gemini_cooldown_until = 0.0
         self._groq_cooldown_until = 0.0
         self._openrouter_cooldown_until = 0.0
@@ -71,6 +88,13 @@ class NLPService:
         # Telemetría de tokens y latencia en RAM
         self.telemetry = {
             "start_time": time.time(),
+            "deepseek": {
+                "requests": 0,
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "errors": 0,
+                "latencies_ms": []
+            },
             "gemini": {
                 "requests": 0,
                 "prompt_tokens": 0,
@@ -92,7 +116,7 @@ class NLPService:
                 "errors": 0,
                 "latencies_ms": []
             },
-            "recent_interactions": []  # Últimas 15 interacciones con detalle
+            "recent_interactions": []  # Últimas 20 interacciones con detalle
         }
 
         # Cliente HTTP persistente
@@ -100,24 +124,59 @@ class NLPService:
         # Caché de visión en RAM {url_hash: description}
         self._vision_cache = {}
 
-        logger.info(f"NLPService iniciado con Smart Load Balancer (Tri-Provider). Modo: '{self.routing_mode}'")
+        logger.info(f"NLPService iniciado con Smart Load Balancer (DeepSeek Core). Modo: '{self.routing_mode}'")
 
     def get_telemetry(self) -> dict:
-        """Devuelve un snapshot de telemetría de IA listo para el Dashboard."""
+        """Devuelve un snapshot de telemetría de IA listo para el Dashboard con costo y ratios."""
         now = time.time()
+        deepseek_lat = self.telemetry["deepseek"]["latencies_ms"]
         gemini_lat = self.telemetry["gemini"]["latencies_ms"]
         groq_lat = self.telemetry["groq"]["latencies_ms"]
         openrouter_lat = self.telemetry["openrouter"]["latencies_ms"]
 
+        avg_deepseek = round(sum(deepseek_lat[-20:]) / len(deepseek_lat[-20:])) if deepseek_lat else 0
         avg_gemini = round(sum(gemini_lat[-20:]) / len(gemini_lat[-20:])) if gemini_lat else 0
         avg_groq = round(sum(groq_lat[-20:]) / len(groq_lat[-20:])) if groq_lat else 0
         avg_openrouter = round(sum(openrouter_lat[-20:]) / len(openrouter_lat[-20:])) if openrouter_lat else 0
 
+        # Cálculo de costo estimado DeepSeek ($0.14/1M prompt, $0.28/1M completion)
+        ds_p = self.telemetry["deepseek"]["prompt_tokens"]
+        ds_c = self.telemetry["deepseek"]["completion_tokens"]
+        deepseek_cost = round((ds_p * 0.00000014) + (ds_c * 0.00000028), 5)
+
+        total_prompt = (
+            self.telemetry["deepseek"]["prompt_tokens"]
+            + self.telemetry["gemini"]["prompt_tokens"]
+            + self.telemetry["groq"]["prompt_tokens"]
+            + self.telemetry["openrouter"]["prompt_tokens"]
+        )
+        total_completion = (
+            self.telemetry["deepseek"]["completion_tokens"]
+            + self.telemetry["gemini"]["completion_tokens"]
+            + self.telemetry["groq"]["completion_tokens"]
+            + self.telemetry["openrouter"]["completion_tokens"]
+        )
+        ratio_eff = round(total_prompt / max(1, total_completion), 1)
+
         return {
             "routing_mode": self.routing_mode,
             "uptime_seconds": int(now - self.telemetry["start_time"]),
+            "estimated_cost_usd": deepseek_cost,
+            "prompt_ratio": ratio_eff,
+            "deepseek": {
+                "model": (os.getenv("DEEPSEEK_MODEL") or "deepseek-chat").strip(),
+                "healthy": self._is_deepseek_healthy(),
+                "cooldown_remaining": max(0, int(self._deepseek_cooldown_until - now)),
+                "requests": self.telemetry["deepseek"]["requests"],
+                "prompt_tokens": ds_p,
+                "completion_tokens": ds_c,
+                "total_tokens": ds_p + ds_c,
+                "avg_latency_ms": avg_deepseek,
+                "cost_usd": deepseek_cost,
+                "errors": self.telemetry["deepseek"]["errors"]
+            },
             "gemini": {
-                "model": os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip(),
+                "model": os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip(),
                 "healthy": self._is_gemini_healthy(),
                 "cooldown_remaining": max(0, int(self._gemini_cooldown_until - now)),
                 "requests": self.telemetry["gemini"]["requests"],
@@ -128,8 +187,8 @@ class NLPService:
                 "errors": self.telemetry["gemini"]["errors"]
             },
             "groq": {
-                "model": (os.getenv("GROQ_MODEL") or "openai/gpt-oss-120b").strip(),
-                "fallback_model": (os.getenv("GROQ_MODEL_FALLBACK") or "openai/gpt-oss-20b").strip(),
+                "model": (os.getenv("GROQ_MODEL") or "llama-3.3-70b-versatile").strip(),
+                "fallback_model": (os.getenv("GROQ_MODEL_FALLBACK") or "llama-3.1-8b-instant").strip(),
                 "healthy": self._is_groq_healthy(),
                 "cooldown_remaining": max(0, int(self._groq_cooldown_until - now)),
                 "requests": self.telemetry["groq"]["requests"],
@@ -150,7 +209,7 @@ class NLPService:
                 "avg_latency_ms": avg_openrouter,
                 "errors": self.telemetry["openrouter"]["errors"]
             },
-            "recent_interactions": self.telemetry["recent_interactions"][-15:]
+            "recent_interactions": self.telemetry["recent_interactions"][-20:]
         }
 
     async def close(self):
@@ -166,6 +225,7 @@ class NLPService:
         2. Elimina prefijos repetitivos o alucinados (ej: 'Dalet:', 'SkinnyGPT:').
         3. Elimina comillas externas envolventes ("...", “...”, '...').
         4. Cierra backticks de código huérfanos si la salida fue cortada.
+        5. Limita emojis a un máximo de 1 por mensaje para evitar spam y mantener personalidad.
         """
         if not text:
             return ""
@@ -195,7 +255,21 @@ class NLPService:
         if backtick_count % 2 != 0:
             cleaned += "`"
 
+        # 5. Limitar emojis (máximo 1 para evitar spam y alucinaciones)
+        emoji_pattern = re.compile(
+            r"[\U00010000-\U0010ffff]|[\u2600-\u27bf]|[\u2300-\u23ff]|[\u2b50-\u2b55]|[\u3030-\u303d]"
+        )
+        emojis_found = emoji_pattern.findall(cleaned)
+        if len(emojis_found) > 1:
+            first_emoji = emojis_found[0]
+            parts = emoji_pattern.split(cleaned)
+            cleaned = parts[0] + first_emoji + "".join(parts[1:])
+            cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
         return cleaned
+
+    def _is_deepseek_healthy(self) -> bool:
+        return bool(self.deepseek_api_key and time.time() >= self._deepseek_cooldown_until)
 
     def _is_gemini_healthy(self) -> bool:
         return bool(self.client and time.time() >= self._gemini_cooldown_until)
@@ -209,7 +283,13 @@ class NLPService:
     def _select_provider(self, has_images: bool, needs_web_search: bool, trigger: str) -> str:
         """
         Determina dinámicamente qué proveedor usar según intención, salud y balanceo.
+        Jerarquía:
+        1. Imágenes / Web Search -> Gemini Flash
+        2. Modo forzado por env (si se especifica)
+        3. Modo "auto" -> DeepSeek como motor primario dominante (alta calidad, pagado, sin rate limits).
+           Fallbacks: Groq (ultra rápido), Gemini, OpenRouter.
         """
+        deepseek_ok = self._is_deepseek_healthy()
         gemini_ok = self._is_gemini_healthy()
         groq_ok = self._is_groq_healthy()
         openrouter_ok = self._is_openrouter_healthy()
@@ -218,37 +298,40 @@ class NLPService:
         if has_images or needs_web_search:
             if gemini_ok:
                 return "gemini"
+            elif deepseek_ok:
+                return "deepseek"
             elif openrouter_ok:
                 return "openrouter"
             elif groq_ok:
                 return "groq"
 
         # Modo estricto o forzado por env
-        if self.routing_mode == "groq" and groq_ok:
+        if self.routing_mode == "deepseek" and deepseek_ok:
+            return "deepseek"
+        elif self.routing_mode == "groq" and groq_ok:
             return "groq"
         elif self.routing_mode == "openrouter" and openrouter_ok:
             return "openrouter"
         elif self.routing_mode == "gemini" and gemini_ok:
             return "gemini"
 
-        # Modo "auto" o "balanced" (Smart Load Balancing Multi-Proveedor)
-        healthy_pool = []
+        # Modo "auto" / default: DeepSeek como motor primario dominante
+        if deepseek_ok:
+            return "deepseek"
+
+        # Fallbacks si DeepSeek está momentáneamente en cooldown
         if groq_ok:
-            healthy_pool.extend(["groq", "groq", "groq"])  # Peso 3 a Groq (ultra rápido)
+            return "groq"
         if gemini_ok:
-            healthy_pool.extend(["gemini", "gemini"])       # Peso 2 a Gemini
+            return "gemini"
         if openrouter_ok:
-            healthy_pool.extend(["openrouter", "openrouter"]) # Peso 2 a OpenRouter Free
+            return "openrouter"
 
-        if healthy_pool:
-            self._request_counter += 1
-            return healthy_pool[self._request_counter % len(healthy_pool)]
-
-        # Fallback si todos están en cooldown pero hay clientes configurados
-        if self.client: return "gemini"
+        # Último recurso si todos están en cooldown pero hay claves
+        if self.deepseek_api_key: return "deepseek"
         if self.groq_api_key: return "groq"
-        if self.openrouter_api_key: return "openrouter"
-        return "gemini"
+        if self.client: return "gemini"
+        return "openrouter"
 
     async def generate_reply(
         self, trigger: str, context: str, username: str,
@@ -270,13 +353,18 @@ class NLPService:
 
         # Cadena de proveedores a probar en orden
         provider_chain = [chosen_provider]
-        for p in ("groq", "gemini", "openrouter"):
+        for p in ("deepseek", "groq", "gemini", "openrouter"):
             if p not in provider_chain:
                 provider_chain.append(p)
 
         reply = None
         for provider in provider_chain:
-            if provider == "groq" and (provider == chosen_provider or self._is_groq_healthy()):
+            if provider == "deepseek" and (provider == chosen_provider or self._is_deepseek_healthy()):
+                reply = await self._generate_deepseek_reply(
+                    trigger, context, username, bot_name, image_description,
+                    is_fallback=(provider != chosen_provider), is_reactive=is_reactive, **kwargs
+                )
+            elif provider == "groq" and (provider == chosen_provider or self._is_groq_healthy()):
                 reply = await self._generate_groq_reply(
                     trigger, context, username, bot_name, image_description,
                     is_fallback=(provider != chosen_provider), is_reactive=is_reactive, **kwargs
@@ -294,10 +382,103 @@ class NLPService:
                 )
 
             if reply:
+                self.active_provider = provider
                 break
             logger.warning(f"Proveedor '{provider}' no pudo generar respuesta. Pasando al siguiente en la cadena...")
 
         return reply
+
+    async def _generate_deepseek_reply(
+        self, trigger: str, context: str, username: str,
+        bot_name: str, image_description: str = "", is_fallback: bool = False,
+        is_reactive: bool = False, **kwargs
+    ):
+        if not self.deepseek_api_key:
+            return None
+
+        active_room_users = kwargs.get("active_room_users", "")
+        model_name = (os.getenv("DEEPSEEK_MODEL") or "deepseek-chat").strip()
+        url = "https://api.deepseek.com/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.deepseek_api_key}",
+            "Content-Type": "application/json"
+        }
+
+        deepseek_system = kwargs.get("system_prompt_override")
+        if not deepseek_system:
+            deepseek_system = DALET_PERSONALITY.format(bot_name=bot_name)
+            if active_room_users:
+                deepseek_system += f"\n\nGente presente: {active_room_users}"
+
+        vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
+        user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
+        max_tokens = kwargs.get("max_tokens_override", 400 if is_reactive else 650)
+
+        t0 = time.time()
+        data = {
+            "model": model_name,
+            "messages": [
+                {"role": "system", "content": deepseek_system},
+                {"role": "user", "content": user_msg}
+            ],
+            "temperature": 0.7,
+            "max_tokens": max_tokens
+        }
+
+        try:
+            logger.info(f"Llamando DeepSeek: {model_name} (fallback={is_fallback})")
+            response = await self._http_client.post(url, headers=headers, json=data, timeout=8.0)
+
+            if response.status_code == 429:
+                logger.warning(f"DeepSeek 429 Rate Limit. Circuit Breaker abierto por 30s.")
+                self._deepseek_cooldown_until = time.time() + 30
+                self.telemetry["deepseek"]["errors"] += 1
+                return None
+
+            if response.status_code != 200:
+                logger.error(f"DeepSeek error HTTP {response.status_code}: {response.text}")
+                self.telemetry["deepseek"]["errors"] += 1
+                return None
+
+            result = response.json()
+            raw_text = result['choices'][0]['message']['content'] or ""
+            reply_text = self._clean_reply_text(raw_text, bot_name)
+            latency_ms = int((time.time() - t0) * 1000)
+
+            usage = result.get("usage", {})
+            p_tokens = usage.get("prompt_tokens") or (len(user_msg) // 4)
+            c_tokens = usage.get("completion_tokens") or (len(reply_text) // 4)
+
+            self.telemetry["deepseek"]["requests"] += 1
+            self.telemetry["deepseek"]["prompt_tokens"] += p_tokens
+            self.telemetry["deepseek"]["completion_tokens"] += c_tokens
+            self.telemetry["deepseek"]["latencies_ms"].append(latency_ms)
+            if len(self.telemetry["deepseek"]["latencies_ms"]) > 50:
+                self.telemetry["deepseek"]["latencies_ms"].pop(0)
+
+            self.telemetry["recent_interactions"].append({
+                "provider": "DeepSeek",
+                "model": model_name,
+                "user": username,
+                "trigger": trigger[:50] + ("..." if len(trigger) > 50 else ""),
+                "latency_ms": latency_ms,
+                "prompt_tokens": p_tokens,
+                "completion_tokens": c_tokens,
+                "timestamp": time.strftime("%H:%M:%S")
+            })
+            if len(self.telemetry["recent_interactions"]) > 30:
+                self.telemetry["recent_interactions"].pop(0)
+
+            return reply_text
+
+        except asyncio.TimeoutError:
+            logger.warning(f"Timeout (8s) en DeepSeek {model_name}. Intentando siguiente proveedor...")
+            self.telemetry["deepseek"]["errors"] += 1
+            return None
+        except Exception as e:
+            logger.warning(f"DeepSeek excepción: {e}. Probando siguiente proveedor...")
+            self.telemetry["deepseek"]["errors"] += 1
+            return None
 
     async def _generate_gemini_reply(
         self, trigger: str, context: str, username: str,
@@ -321,16 +502,12 @@ class NLPService:
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         prompt = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
 
-        # Cadena de modelos de Gemini (priorizando gemini-2.0-flash con 1500 RPD)
-        primary_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash").strip()
-        if primary_model == "gemini-2.5-flash":
-            # 2.5 flash solo permite 20 RPD en free tier, priorizamos 2.0
-            models_to_try = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
-        else:
-            models_to_try = [primary_model]
-            for fallback_m in ("gemini-2.0-flash", "gemini-1.5-flash"):
-                if fallback_m not in models_to_try:
-                    models_to_try.append(fallback_m)
+        # Cadena de modelos de Gemini (1.5-flash y 2.5-flash)
+        primary_model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip()
+        models_to_try = [primary_model]
+        for fallback_m in ("gemini-1.5-flash", "gemini-2.5-flash"):
+            if fallback_m not in models_to_try:
+                models_to_try.append(fallback_m)
 
         tools = [types.Tool(google_search=types.GoogleSearch())] if needs_web_search else None
         max_tokens = kwargs.get("max_tokens_override", 500 if is_reactive else 750)
@@ -667,7 +844,7 @@ class NLPService:
             return self._vision_cache[url_hash]
 
         try:
-            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+            model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip()
 
             # Descarga de imagen con timeout de 5 segundos
             resp = await self._http_client.get(url, timeout=5.0)

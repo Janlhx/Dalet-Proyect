@@ -11,55 +11,57 @@ class MemoryService:
     """
     def __init__(self, user_repo):
         self.repo = user_repo
-        self.max_db_history = 15      # Mensajes cronológicos (incluyen ahora al bot)
-
+        self.max_db_history = 6  # Ventana optimizada de 6 mensajes (ahorro masivo de tokens)
 
     async def get_relevant_context(self, channel_id: int, user_id: int, current_message: str, check_user_memory: bool = True):
         """
-        Construye el contexto de conversación combinando:
-        1. Historial reciente del canal (BD + local RAM)
-        2. Memorias relevantes del usuario (búsqueda simple por texto, sin embeddings)
+        Construye el contexto de conversación optimizado combinando:
+        1. Historial reciente del canal (BD + local RAM, ventana adaptativa)
+        2. Memorias relevantes del usuario (máx 2 datos clave)
         """
         history_section = []
         
+        # Ajustar límite de mensajes según longitud del mensaje actual
+        msg_len = len(current_message.split())
+        history_limit = 4 if msg_len <= 3 else self.max_db_history
+
         # 1. Historial Unificado (BD + Buffer, que ahora incluye a Dalet)
         try:
-            db_history = await self.repo.get_channel_messages(channel_id, self.max_db_history)
+            db_history = await self.repo.get_channel_messages(channel_id, history_limit)
             if db_history:
                 for record in reversed(db_history):
                     usr = record.get('username') or record.get('UserName') or 'Desconocido'
                     cnt = record.get('content') or record.get('Content') or ''
-                    history_section.append(f"{usr}: {cnt}")
+                    if cnt.strip():
+                        history_section.append(f"{usr}: {cnt}")
         except Exception as e:
             logger.error(f"Error obteniendo historial: {e}")
 
-        # 3. Memorias de usuario — búsqueda simple por palabras clave (SIN embeddings/API)
+        # 2. Memorias de usuario — búsqueda simple por palabras clave (SIN embeddings/API)
         memory_section = []
         if check_user_memory:
             try:
                 memories_raw = await self.repo.get_all_user_memories(user_id)
                 if memories_raw:
-                    # Filtro simple: incluir memorias que tengan palabras del mensaje actual
                     msg_words = set(current_message.lower().split())
-                    for m in memories_raw[:10]:  # Máximo 10 memorias a revisar
+                    for m in memories_raw[:6]:
                         content = m.get('content', '')
-                        # Si hay alguna palabra en común, incluir la memoria
                         memory_words = set(content.lower().split())
-                        # Incluir si hay coincidencia o si las memorias son pocas
-                        if memory_words & msg_words or len(memories_raw) <= 3:
-                            memory_section.append(f"Recuerdo sobre este usuario: {content}")
+                        if memory_words & msg_words:
+                            memory_section.append(f"Dato usuario: {content}")
+                            if len(memory_section) >= 2:
+                                break
                     
-                    # Si no hay coincidencias, incluir las últimas 2 memorias de todas formas
+                    # Fallback a 1 memoria reciente si no hubo match
                     if not memory_section and memories_raw:
-                        for m in memories_raw[-2:]:
-                            memory_section.append(f"Dato del usuario: {m.get('content', '')}")
+                        memory_section.append(f"Dato usuario: {memories_raw[-1].get('content', '')}")
             except Exception as e:
                 logger.error(f"Error obteniendo memorias: {e}")
 
-        # Construir contexto final
+        # Construir contexto final compacto
         final_context = ""
         if memory_section:
-            final_context += "DATOS SOBRE QUIEN TE HABLA:\n" + "\n".join(memory_section[:3]) + "\n\n"
+            final_context += "INFO USUARIO:\n" + "\n".join(memory_section[:2]) + "\n\n"
         
         if history_section:
             final_context += "CHAT RECIENTE:\n" + "\n".join(history_section)
