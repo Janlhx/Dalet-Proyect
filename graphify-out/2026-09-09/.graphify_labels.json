@@ -6,10 +6,10 @@
   "4": "AdminCommands",
   "5": "AIConfigCommands",
   "6": "OsuService",
-  "7": "OsuPresenter",
+  "7": ".build_recent_card",
   "8": "TursoClient",
   "9": "OsuAnalyzer",
-  "10": "DaletAtoms",
+  "10": "OsuPresenter",
   "11": "UserRepository",
   "12": "EventsHandler",
   "13": "DaletNLPChat",
@@ -45,6 +45,6 @@
   "43": "🏗️ General Architecture of Dalet",
   "44": "SQL Migration Guide for Neon (Dalet Restructuring)",
   "45": "🗃️ SQL Schema — Tables, Views, Procedures, & Functions",
-  "46": "DaletMolecules",
+  "46": "DaletAtoms",
   "47": "🔌 `database/pool.py` — The Connection Pool"
 }

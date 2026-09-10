@@ -1,0 +1,376 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Dalet Discord Bot — System Architecture",
+    "output": "dalet-architecture.html",
+    "quality_profile": "standard",
+    "views": [
+      {
+        "id": "ai-flow",
+        "label": "AI Conversational & Roast Flow",
+        "focus": [
+          "discord",
+          "bot_core",
+          "handlers",
+          "nlp_balancer",
+          "deepseek",
+          "groq",
+          "gemini"
+        ],
+        "note": "Trace how user chats and AI roasts route through the multi-provider Load Balancer."
+      },
+      {
+        "id": "osu-pipeline",
+        "label": "osu! Skills & Scoring Pipeline",
+        "focus": [
+          "discord",
+          "bot_core",
+          "handlers",
+          "presenter",
+          "osu_service",
+          "bancho",
+          "database"
+        ],
+        "note": "Follow profile queries and skill breakdown calculations from Bancho to atomic UI."
+      },
+      {
+        "id": "telemetry-web",
+        "label": "Telemetry & Monitoring",
+        "focus": [
+          "admin",
+          "dashboard_web",
+          "nlp_balancer",
+          "database"
+        ],
+        "note": "Monitor real-time token usage, DeepSeek USD spending, and system latencies."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "discord",
+      "type": "external",
+      "label": "Discord Gateway",
+      "sublabel": "Events & Interactions",
+      "pos": [
+        40,
+        260
+      ],
+      "size": [
+        130,
+        64
+      ]
+    },
+    {
+      "id": "admin",
+      "type": "external",
+      "label": "Web Browser",
+      "sublabel": "Admin Operator",
+      "pos": [
+        40,
+        110
+      ],
+      "size": [
+        130,
+        64
+      ]
+    },
+    {
+      "id": "dashboard_web",
+      "type": "backend",
+      "label": "Dashboard Service",
+      "sublabel": "Flask :5000",
+      "pos": [
+        280,
+        110
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "bot_core",
+      "type": "backend",
+      "label": "Dalet Core Bot",
+      "sublabel": "discord.py Client",
+      "pos": [
+        280,
+        260
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "tag": "Asyncio"
+    },
+    {
+      "id": "handlers",
+      "type": "backend",
+      "label": "Command Cogs",
+      "sublabel": "Prefix & Slash Cogs",
+      "pos": [
+        520,
+        190
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "presenter",
+      "type": "backend",
+      "label": "Atomic UI Presenter",
+      "sublabel": "Atoms & Molecules",
+      "pos": [
+        520,
+        330
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "nlp_balancer",
+      "type": "backend",
+      "label": "NLP Load Balancer",
+      "sublabel": "Smart Provider Router",
+      "pos": [
+        760,
+        150
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "DeepSeek-First"
+    },
+    {
+      "id": "osu_service",
+      "type": "backend",
+      "label": "osu! API Service",
+      "sublabel": "OAuth2 Token Manager",
+      "pos": [
+        760,
+        330
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "label": "Turso / SQLite",
+      "sublabel": "aiosqlite & LibSQL",
+      "pos": [
+        760,
+        480
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "deepseek",
+      "type": "cloud",
+      "label": "DeepSeek V3",
+      "sublabel": "Primary Paid LLM",
+      "pos": [
+        1020,
+        70
+      ],
+      "size": [
+        130,
+        58
+      ],
+      "tag": ".14/1M"
+    },
+    {
+      "id": "groq",
+      "type": "cloud",
+      "label": "Groq Llama 3.3",
+      "sublabel": "Fast Chat Fallback",
+      "pos": [
+        1020,
+        150
+      ],
+      "size": [
+        130,
+        58
+      ]
+    },
+    {
+      "id": "gemini",
+      "type": "cloud",
+      "label": "Google Gemini",
+      "sublabel": "Vision & Search",
+      "pos": [
+        1020,
+        230
+      ],
+      "size": [
+        130,
+        58
+      ]
+    },
+    {
+      "id": "bancho",
+      "type": "cloud",
+      "label": "ppy.sh Bancho",
+      "sublabel": "osu! API v2 REST",
+      "pos": [
+        1020,
+        330
+      ],
+      "size": [
+        130,
+        58
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Dalet Host Environment",
+      "wraps": [
+        "dashboard_web",
+        "bot_core",
+        "handlers",
+        "presenter",
+        "nlp_balancer",
+        "osu_service",
+        "database"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "External AI Mesh",
+      "wraps": [
+        "deepseek",
+        "groq",
+        "gemini"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "admin-to-dash",
+      "from": "admin",
+      "to": "dashboard_web",
+      "label": "HTTP"
+    },
+    {
+      "id": "discord-to-bot",
+      "from": "discord",
+      "to": "bot_core",
+      "label": "Gateway WSS",
+      "labelDy": -20,
+      "variant": "emphasis"
+    },
+    {
+      "id": "bot-to-handlers",
+      "from": "bot_core",
+      "to": "handlers",
+      "label": "dispatch"
+    },
+    {
+      "id": "handlers-to-presenter",
+      "from": "handlers",
+      "to": "presenter",
+      "label": "render",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "handlers-to-nlp",
+      "from": "handlers",
+      "to": "nlp_balancer",
+      "label": "prompt",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "handlers-to-osu",
+      "from": "handlers",
+      "to": "osu_service",
+      "label": "fetch",
+      "fromSide": "bottom",
+      "toSide": "left"
+    },
+    {
+      "id": "dash-to-nlp",
+      "from": "dashboard_web",
+      "to": "nlp_balancer",
+      "label": "metrics",
+      "variant": "dashed"
+    },
+    {
+      "id": "nlp-to-deepseek",
+      "from": "nlp_balancer",
+      "to": "deepseek",
+      "label": "Primary",
+      "labelDy": -15,
+      "variant": "emphasis"
+    },
+    {
+      "id": "nlp-to-groq",
+      "from": "nlp_balancer",
+      "to": "groq",
+      "label": "fallback"
+    },
+    {
+      "id": "nlp-to-gemini",
+      "from": "nlp_balancer",
+      "to": "gemini",
+      "label": "vision"
+    },
+    {
+      "id": "osu-to-bancho",
+      "from": "osu_service",
+      "to": "bancho",
+      "label": "REST v2"
+    },
+    {
+      "id": "bot-to-db",
+      "from": "bot_core",
+      "to": "database",
+      "label": "write",
+      "fromSide": "bottom",
+      "toSide": "left"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Inbound / Ingestion",
+      "items": [
+        "Discord Gateway websocket pushes messages & interactions",
+        "Admin web dashboard served over local HTTP :5000"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Processing & Business Logic",
+      "items": [
+        "Smart NLP Load Balancer prioritizes DeepSeek V3 (.14/1M)",
+        "OsuAnalyzer evaluates Aim, Speed, Acc, Stamina, Reading",
+        "Atomic Presenter builds clean Discord embeds"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Data & State",
+      "items": [
+        "Turso / SQLite stores linked accounts & snapshots",
+        "osu! OAuth2 tokens cached in memory with auto-refresh"
+      ]
+    }
+  ]
+}

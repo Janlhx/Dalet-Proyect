@@ -273,5 +273,15 @@
     "mtime": 1788999217.8348472,
     "ast_hash": "be9a58e9188a1188b6fb9d00f8ae003b",
     "semantic_hash": ""
+  },
+  ".agents/rules/archify.md": {
+    "mtime": 1789005053.923955,
+    "ast_hash": "c0d7ac7eab739aac99e4c53fd02fa850",
+    "semantic_hash": ""
+  },
+  "docs/architecture/dalet-architecture.html": {
+    "mtime": 1789005260.3322892,
+    "ast_hash": "af9b340ad5c05d6031325639f8324259",
+    "semantic_hash": ""
   }
 }
