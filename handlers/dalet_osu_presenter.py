@@ -54,6 +54,24 @@ class OsuPresenter:
             if val is not None and val > 0:
                 return f"{val:,}"
 
+        # Si el score viene en 0 por ser jugada en osu! Lazer (solo_score)
+        if play.get("passed", True) and (not play.get("score") or play.get("score") == 0):
+            stats = play.get("statistics", {})
+            c300 = stats.get("count_300", 0) or 0
+            c100 = stats.get("count_100", 0) or 0
+            c50 = stats.get("count_50", 0) or 0
+            miss = stats.get("count_miss", 0) or 0
+            total_hits = c300 + c100 + c50 + miss
+            acc = float(play.get("accuracy", 0.0) or 0.0)
+            max_combo = int(play.get("max_combo", 0) or 0)
+            bm = play.get("beatmap", {})
+            bm_max = bm.get("max_combo") or total_hits or 1
+            combo_portion = (max_combo / max(1, bm_max)) * 700000
+            acc_portion = (acc ** 2) * 300000
+            lazer_score = int(combo_portion + acc_portion)
+            if lazer_score > 0:
+                return f"{lazer_score:,}"
+
         # Si el score viene en 0 de Bancho por ser jugada fallida (F)
         if not play.get("passed", True) or str(play.get("rank", "")).upper() == "F":
             stats = play.get("statistics", {})

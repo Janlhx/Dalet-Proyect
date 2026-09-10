@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 
 logger = logging.getLogger('dalet.handlers.osuanalyzer')
 
@@ -61,9 +61,20 @@ class OsuAnalyzer:
                 eff_sr *= 0.75
             eff_sr = round(eff_sr, 2)
 
+            # Factor de Rendimiento de Ejecución (Pondera según acc real, misses y combo alcanzado)
+            misses = int(p.get('statistics', {}).get('count_miss', 0) or 0)
+            max_combo = int(p.get('max_combo', 0) or 0)
+            bm_max = bm.get('max_combo') or total_objects or 1
+            combo_ratio = min(1.0, max(0.15, max_combo / max(1, bm_max)))
+
+            acc_penalty = (acc / 0.98) ** 1.25 if acc > 0 else 0.5
+            miss_penalty = max(0.72, 1.0 - (misses * 0.03))
+            combo_factor = combo_ratio ** 0.10
+            exec_factor = min(1.04, max(0.55, acc_penalty * miss_penalty * combo_factor))
+
             circle_ratio = count_circles / max(1, total_objects) if total_objects > 0 else 0.7
             cs_bonus = max(0.0, (cs - 4.0) * 0.05)
-            aim_score = eff_sr * (0.90 + 0.15 * circle_ratio + cs_bonus)
+            aim_score = eff_sr * (0.90 + 0.15 * circle_ratio + cs_bonus) * exec_factor
 
             eff_bpm = bpm * (1.5 if is_dt else 1.0)
             bpm_mult = 1.0
@@ -73,7 +84,7 @@ class OsuAnalyzer:
                 bpm_mult -= min(0.20, (160 - eff_bpm) * 0.003)
             if is_dt:
                 bpm_mult += 0.05
-            speed_score = eff_sr * bpm_mult
+            speed_score = eff_sr * bpm_mult * exec_factor
 
             eff_od = min(11.0, od * (1.4 if is_hr else (0.5 if is_ez else 1.0)))
             acc_factor = (acc / 0.98) ** 1.5 if acc > 0 else 0.5
@@ -89,7 +100,7 @@ class OsuAnalyzer:
                 stamina_mult += min(0.10, (total_objects - 1200) * 0.0001)
             elif total_objects < 500:
                 stamina_mult -= min(0.15, (500 - total_objects) * 0.0003)
-            stamina_score = eff_sr * min(1.18, max(0.70, stamina_mult))
+            stamina_score = eff_sr * min(1.18, max(0.70, stamina_mult)) * exec_factor
 
             eff_ar = min(10.0, ar * 1.4) if is_hr else (ar * 0.5 if is_ez else ar)
             if is_dt:
@@ -106,7 +117,7 @@ class OsuAnalyzer:
                 reading_mult += 0.25
             if is_ez:
                 reading_mult += 0.15
-            reading_score = eff_sr * min(1.20, reading_mult)
+            reading_score = eff_sr * min(1.20, reading_mult) * exec_factor
 
             title = bset.get('title') or bm.get('title', 'Desconocido')
             version = bm.get('version', 'Normal')
