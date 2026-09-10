@@ -1,95 +1,53 @@
-# 🔑 Environment Variables (`.env`)
+# 🔑 Environment Variables Reference (`.env`)
 
-> This file contains all the **secrets and configurations** for the bot. It should never be committed to Git (it is included in `.gitignore`).
+> This document provides a complete reference for all required and optional configuration keys used by Dalet. Secrets should never be committed to source control (the `.env` file is excluded via `.gitignore`).
 
 ---
 
-## All Variables
+## 📋 Configuration Keys
 
-### Discord
-
-| Variable | Description | Where to get it |
-| -------- | ----------- | --------------- |
-| `DISCORD_TOKEN` | Bot authentication token | [Discord Developer Portal](https://discord.com/developers/applications) → Your App → Bot → Token |
-
-### Base de Datos Principal (Turso / libSQL)
-
-| Variable | Descripción | Dónde obtenerla |
-| -------- | ----------- | --------------- |
-| `TURSO_URL` | URL de la base de datos libSQL (`https://...` o `libsql://...`) | [Turso Dashboard](https://turso.tech) → Database → Overview |
-| `TURSO_AUTH_TOKEN` | Token de autenticación de Turso | `turso db tokens create <db_name>` o en la web |
-
-### IA Primaria (Google Gemini)
-### 🤖 Configuración de Inteligencia Artificial (Smart Load Balancer)
-| Variable | Requerido | Descripción | Ejemplo / Default |
+### 1. Discord Gateway
+| Variable | Required | Description | Where to obtain |
 | :--- | :--- | :--- | :--- |
-| `AI_ROUTING_MODE` | No | Modo de balanceo: `auto`, `gemini`, `groq` o `openrouter` | `auto` |
-| `GEMINI_API_KEY` | Sí | API Key de Google Gemini | `AIzaSy...` |
-| `GEMINI_MODEL` | No | Modelo principal de Gemini | `gemini-2.5-flash` |
-| `GROQ_API_KEY` | No | API Key de Groq para inferencia ultrarrápida (<200ms) | `gsk_...` |
-| `GROQ_MODEL` | No | Modelo principal en Groq | `openai/gpt-oss-120b` |
-| `GROQ_MODEL_FALLBACK` | No | Modelo secundario en Groq | `openai/gpt-oss-20b` |
-| `OPENROUTER_API_KEY` | No | API Key de OpenRouter (Acceso a modelos gratuitos) | `sk-or-v1-...` |
-| `OPENROUTER_MODEL` | No | Modelo en OpenRouter | `openrouter/free` |
-| `AI_PROVIDER` | No | Proveedor activo | `gemini` (default) o `groq` |
-
-### osu! API v2
-
-| Variable | Descripción | Dónde obtenerla |
-| -------- | ----------- | --------------- |
-| `OSU_CLIENT_ID` | Client ID de la app de osu! | [osu.ppy.sh/home/account/edit](https://osu.ppy.sh/home/account/edit) → OAuth |
-| `OSU_CLIENT_SECRET` | Client Secret de la app de osu! | Mismo sitio |
+| `DISCORD_TOKEN` | **Yes** | Authentication token for your Discord bot application | [Discord Developer Portal](https://discord.com/developers/applications) → Your App → Bot → Reset Token |
 
 ---
 
-## Archivo `.env` de Ejemplo
-
-```env
-# Discord
-DISCORD_TOKEN=MTxxxxxxxxxxxxxxxxxxxxxxxx.Gxxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
-# Turso (Base de Datos Principal libSQL)
-TURSO_URL=https://tu-db.turso.io
-TURSO_AUTH_TOKEN=eyJh...
-
-# Google Gemini (IA Principal)
-GEMINI_API_KEY=AIzaSyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-GEMINI_MODEL=gemini-2.5-flash
-
-# Groq (IA Rápida / Fallback)
-GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-GROQ_MODEL=llama-3.3-70b-versatile
-GROQ_MODEL_FALLBACK=llama-3.1-8b-instant
-
-# Proveedor Activo: "gemini" o "groq"
-AI_PROVIDER=gemini
-
-# osu! API
-OSU_CLIENT_ID=12345
-OSU_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
+### 2. Hybrid Persistence (Turso Cloud + Local SQLite)
+| Variable | Required | Description | Default / Example |
+| :--- | :--- | :--- | :--- |
+| `TURSO_DATABASE_URL` | **Yes** | HTTP/libSQL endpoint for your cloud database | `https://your-db-name.turso.io` |
+| `TURSO_AUTH_TOKEN` | **Yes** | JWT authorization token issued by Turso | Generated via `turso db tokens create <name>` |
+| `LOCAL_DB_PATH` | No | Path to local SQLite WAL fallback database | `dalet_local.db` |
 
 ---
 
-## How are these variables loaded in the code?
-
-```python
-from dotenv import load_dotenv
-import os
-
-load_dotenv()  # Reads the .env file and injects variables into the environment
-
-DATABASE_URL = os.getenv("DATABASE_URL")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-```
-
-The `python-dotenv` library is used for this purpose. In production environments (like Render), variables are configured directly in the deployment dashboard as "Environment Variables," and a physical `.env` file is not required.
+### 3. Artificial Intelligence & Multi-LLM Load Balancer
+| Variable | Required | Description | Default / Example |
+| :--- | :--- | :--- | :--- |
+| `AI_ROUTING_MODE` | No | Routing strategy: `auto`, `deepseek`, `gemini`, `groq`, or `openrouter` | `auto` |
+| `DEEPSEEK_API_KEY` | No | DeepSeek API key for conversational reasoning | `sk-...` |
+| `DEEPSEEK_MODEL` | No | DeepSeek model identifier | `deepseek-chat` |
+| `GEMINI_API_KEY` | **Yes** | Google Gemini API key (primary for vision and fallback) | [Google AI Studio](https://aistudio.google.com) |
+| `GEMINI_MODEL` | No | Active Gemini model name | `gemini-2.5-flash` |
+| `GROQ_API_KEY` | No | Groq API key for ultra-fast low-latency inference (<200ms) | [Groq Console](https://console.groq.com) |
+| `GROQ_MODEL` | No | Primary model hosted on Groq LPU | `openai/gpt-oss-120b` |
+| `GROQ_MODEL_FALLBACK` | No | Fallback model on Groq | `openai/gpt-oss-20b` |
+| `OPENROUTER_API_KEY` | No | OpenRouter API key for free-tier and diverse open-source models | [OpenRouter](https://openrouter.ai) |
+| `OPENROUTER_MODEL` | No | Model slug on OpenRouter | `openrouter/free` |
 
 ---
 
-## On Render (Production)
+### 4. osu! API v2
+| Variable | Required | Description | Where to obtain |
+| :--- | :--- | :--- | :--- |
+| `OSU_CLIENT_ID` | **Yes** | OAuth2 Client ID from osu! account settings | [osu.ppy.sh Account Settings](https://osu.ppy.sh/home/account/edit) → OAuth |
+| `OSU_CLIENT_SECRET` | **Yes** | OAuth2 Client Secret from osu! account settings | Generated upon registering application |
 
-Variables should be configured in:  
-`Render Dashboard → Your Service → Environment → Environment Variables`
+---
 
-They are the exact same variables but managed by the platform instead of a local file.
+### 5. Web Telemetry Dashboard & Hosting
+| Variable | Required | Description | Default / Example |
+| :--- | :--- | :--- | :--- |
+| `PORT` | No | Port for the live Flask web dashboard and Render health checks | `8080` |
+| `OWNER_ID` | No | Discord User ID of the bot creator (grants administrative override) | Numeric Discord Snowflake (e.g. `293847582910293847`) |

@@ -1,64 +1,55 @@
-# 📖 Project Documentation Index
+# 📖 Dalet Documentation Index
 
-Welcome to the technical documentation for **Dalet**, a conversational Discord bot featuring AI-driven dialogue, osu! integration, and a persistent memory system.
-
----
-
-## 📂 Documentation Sections
-
-| File | Description |
-| ---- | ----------- |
-| [01 — Architecture](./01_ARCHITECTURE.md) | High-level system overview, data flow, and core logic patterns. |
-| [02 — Entry Point](./02_ENTRY_POINT.md) | Deep dive into `dalet_main.py` — how the bot starts and the keep-alive server. |
-| [03 — Handlers](./03_HANDLERS.md) | Cog breakdown — every command module and how they interact with users. |
-| [04 — Services](./04_SERVICES.md) | `NLPService` and `MemoryService` — the AI engine and persistent context logic. |
-| [05 — Database](./05_DATABASE.md) | Connection pooling, repositories, and the Repository Pattern implementation. |
-| [06 — SQL Schema](./06_SQL_SCHEMA.md) | Complete database reference: tables, views, procedures, and triggers. |
-| [07 — Environment Variables](./07_VARIABLES_ENVIRONMENT.md) | Reference for `.env` secrets and configurations. |
-| [Neon Migration Guide](./NEON_MIGRATION.md) | Step-by-step guide for cloud deployment on Neon.tech. |
+Welcome to the technical documentation for **Dalet**, a witty, conversational Discord bot featuring multi-LLM load balancing, specialized osu! analytics, a 5-dimension skill radar, and a hybrid cloud/local persistence layer.
 
 ---
 
-## 🗺️ Project Structure
+## 📂 Documentation Directory
+
+| Document | Description |
+| :--- | :--- |
+| [01 — Architecture](./01_ARCHITECTURE.md) | High-level system architecture, data flows, and multi-LLM circuit breakers |
+| [07 — Environment Variables](./07_VARIABLES_ENVIRONMENT.md) | Comprehensive reference for all `.env` secrets and credentials |
+| [08 — Design System](./08_DESIGN_SYSTEM.md) | Dalet Atomic UI design standards, color tokens, and embed layouts |
+| [Interactive Architecture](./architecture/dalet-architecture.html) | Standalone interactive visual architecture diagram (open in browser) |
+| [Privacy Policy](./PRIVACY_POLICY.md) | User data privacy disclosures (required for Discord App Directory) |
+| [Terms of Service](./TERMS_OF_SERVICE.md) | End-user terms and guidelines (required for Discord App Directory) |
+
+---
+
+## 🗺️ Project Architecture Overview
 
 ```
 Dalet-Proyect/
-├── dalet_main.py           ← Main entry point
-├── .env                    ← Environment variables (secrets)
-├── requirements.txt        ← Python dependencies
+├── dalet_main.py                  ← Entry point, event loop & web dashboard
 │
-├── handlers/               ← Feature modules (discord.py Cogs)
-│   ├── dalet_nlpchat.py        ← Conversational AI engine
-│   ├── dalet_chatlogger.py     ← Database message logging
-│   ├── dalet_admcommands_handler.py  ← Admin utility commands
-│   ├── dalet_geminicommand.py  ← AI mode config (proactive/reactive)
-│   ├── dalet_commands_handlers.py    ← General user commands
-│   ├── dalet_helpcommands_handlers.py ← Help system
-│   ├── dalet_events_handlers.py      ← Discord event listeners
-│   ├── dalet_osucommands.py    ← osu! API commands
-│   └── dalet_smartresume.py    ← AI chat summarization
+├── handlers/                      ← Discord command modules (Cogs)
+│   ├── dalet_slash_commands.py    ← Unified application slash commands (/)
+│   ├── dalet_osucommands.py       ← Traditional prefix commands (d.skills, d.op, d.recent)
+│   ├── dalet_osu_presenter.py     ← High-density visual card presenter
+│   ├── dalet_nlpchat.py           ← Contextual conversational engine
+│   ├── dalet_commands_handlers.py ← Utility commands (info, changelog, latency, stats)
+│   ├── dalet_admcommands_handler.py ← Administrative controls (d.language, channel blocking)
+│   ├── dalet_helpcommands_handlers.py ← Interactive help menus
+│   └── modules/
+│       └── dalet_osuanalyzer.py   ← 5-dimension skill calculation engine
 │
-├── services/               ← Core business logic
-│   ├── nlp_service.py          ← Response generation (Gemini/Groq)
-│   ├── memory_service.py       ← Persistent context & memories
-│   └── osu_service.py          ← osu! API integration client
+├── services/                      ← Business logic layer
+│   ├── nlp_service.py             ← Multi-LLM load balancer (DeepSeek, Gemini, Groq)
+│   ├── osu_service.py             ← Async osu! API v2 client
+│   ├── memory_service.py          ← Conversation context & user memory
+│   └── dashboard_service.py       ← Flask telemetry metrics & dashboard
 │
-├── database/               ← Data Access Layer (DAL)
-│   ├── pool.py                 ← PostgreSQL connection pooling
-│   └── repositories/
-│       ├── base_repository.py      ← Generic SQL execution
-│       ├── user_repository.py      ← User, message, and memory data
-│       ├── admin_repository.py     ← Server & channel settings
-│       ├── osu_repository.py       ← osu! accounts and scores
-│       └── analytics_repository.py ← Performance metrics & logs
+├── database/                      ← Hybrid persistence layer
+│   ├── turso_client.py            ← libSQL HTTP Pipeline client for Turso Cloud
+│   ├── sqlite_manager.py          ← SQLite (WAL mode) fallback & local analytics
+│   └── repositories/              ← Data access repositories (Admin, User, Osu, Analytics)
 │
-├── sql/                    ← Database schema & migration scripts
-│   ├── 01_Schema.sql           ← Base tables
-│   ├── 03_Procedures_Functions.sql ← Business logic in SQL
-│   ├── 04_Views.sql            ← Efficient data views
-│   ├── 08_Privacy_TTL.sql      ← Automated data retention policy
-│   ├── 09_Enhancements.sql     ← Table improvements
-│   └── 10_New_Tables.sql       ← Analytics & tracking tables
+├── ui/                            ← Atomic Design System & Localization
+│   ├── locales.py                 ← Centralized i18n string catalog (EN / ES) & t() helper
+│   ├── atoms.py                   ← Visual design tokens, glyphs, and grade colors
+│   ├── molecules.py               ← Progress bars, footers, and field helpers
+│   └── organisms.py               ← Composite embeds
 │
-└── docs/                   ← Technical documentation (This folder)
+└── docs/                          ← Technical specifications & guides
 ```
