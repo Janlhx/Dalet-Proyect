@@ -27,7 +27,7 @@
 | :--- | :--- | :--- | :--- |
 | `AI_ROUTING_MODE` | No | Routing strategy: `auto`, `deepseek`, `gemini`, `groq`, or `openrouter` | `auto` |
 | `DEEPSEEK_API_KEY` | No | DeepSeek API key for conversational reasoning | `sk-...` |
-| `DEEPSEEK_MODEL` | No | DeepSeek model identifier | `deepseek-chat` |
+| `DEEPSEEK_MODEL` | No | DeepSeek model identifier (DeepSeek V4.1-Flash) | `deepseek-flash` |
 | `GEMINI_API_KEY` | **Yes** | Google Gemini API key (primary for vision and fallback) | [Google AI Studio](https://aistudio.google.com) |
 | `GEMINI_MODEL` | No | Active Gemini model name | `gemini-2.5-flash` |
 | `GROQ_API_KEY` | No | Groq API key for ultra-fast low-latency inference (<200ms) | [Groq Console](https://console.groq.com) |

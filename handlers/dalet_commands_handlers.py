@@ -83,13 +83,24 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
         await ctx.send(embed=embed)
 
     @commands.command(name="feedback", aliases=["sugerencia", "suggest"])
-    @commands.cooldown(1, 30, commands.BucketType.user)
     async def feedback(self, ctx, *, mensaje: str):
         """📬 Envía comentarios o sugerencias directamente al desarrollador."""
         from services.feedback_service import FeedbackService
         server_lang = "en"
         if ctx.guild:
             server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
+
+        # Anti-spam Cooldown (5 minutos)
+        cooldown_remaining = await FeedbackService.check_user_cooldown(ctx.author.id)
+        if cooldown_remaining > 0:
+            mins = max(1, (cooldown_remaining + 59) // 60)
+            warning_msg = (
+                f"⏳ Has enviado una sugerencia recientemente. Para evitar saturación, por favor espera **{mins} minuto(s)** antes de enviar otra."
+                if server_lang == "es"
+                else f"⏳ You have submitted feedback recently. To prevent spam, please wait **{mins} minute(s)** before sending another."
+            )
+            await ctx.send(warning_msg)
+            return
 
         sent = await FeedbackService.send_feedback(
             bot=self.bot,

@@ -57,7 +57,7 @@ class DashboardService:
             ds_data = persisted.get("deepseek", {})
             ds_p = ds_data.get("prompt_tokens", 0)
             ds_c = ds_data.get("completion_tokens", 0)
-            ds_cost = round((ds_p * 0.00000014) + (ds_c * 0.00000028), 6)
+            ds_cost = round((ds_p * 0.00000015) + (ds_c * 0.00000060), 6)
 
             gem_data = persisted.get("gemini", {})
             groq_data = persisted.get("groq", {})
@@ -76,7 +76,7 @@ class DashboardService:
                 "credit_balance": credit_balance,
                 "prompt_ratio": round(total_prompt / max(1, total_compl), 1),
                 "deepseek": {
-                    "model": (os.getenv("DEEPSEEK_MODEL") or "deepseek-chat").strip(),
+                    "model": (os.getenv("DEEPSEEK_MODEL") or "deepseek-flash").strip(),
                     "healthy": True,
                     "cooldown_remaining": 0,
                     "requests": ds_data.get("requests", 0),
@@ -954,7 +954,7 @@ class DashboardService:
                         </div>
                         <div class="kpi-value" id="kpi-spend-usd">$0.000000</div>
                         <div class="kpi-detail">
-                            <span>DeepSeek V3 ($0.14/1M in · $0.28/1M out)</span>
+                            <span>DeepSeek V4.1-Flash ($0.15/1M in · $0.60/1M out)</span>
                         </div>
                     </div>
                     <div class="kpi-submetrics">
@@ -1029,10 +1029,10 @@ class DashboardService:
                 <!-- 1. DeepSeek -->
                 <div class="provider-card">
                     <div class="provider-top">
-                        <span class="provider-name">DeepSeek V3</span>
+                        <span class="provider-name">DeepSeek V4.1</span>
                         <span class="provider-pill pill-healthy" id="pill-deepseek">HEALTHY</span>
                     </div>
-                    <span class="provider-model" id="model-deepseek">deepseek-chat</span>
+                    <span class="provider-model" id="model-deepseek">deepseek-flash</span>
                     <table class="provider-stats-table">
                         <tr>
                             <td>Invocaciones</td>
@@ -1685,7 +1685,7 @@ class DashboardService:
 
             // 6. Matriz de Proveedores
             // DeepSeek
-            document.getElementById('model-deepseek').innerText = ds.model || 'deepseek-chat';
+            document.getElementById('model-deepseek').innerText = ds.model || 'deepseek-flash';
             document.getElementById('ds-requests').innerText = (ds.requests || 0).toLocaleString();
             document.getElementById('ds-prompt').innerText = (ds.prompt_tokens || 0).toLocaleString();
             document.getElementById('ds-completion').innerText = (ds.completion_tokens || 0).toLocaleString();

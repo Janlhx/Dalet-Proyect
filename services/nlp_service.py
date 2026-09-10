@@ -382,10 +382,10 @@ class NLPService:
         avg_groq = round(sum(groq_lat[-20:]) / len(groq_lat[-20:])) if groq_lat else 0
         avg_openrouter = round(sum(openrouter_lat[-20:]) / len(openrouter_lat[-20:])) if openrouter_lat else 0
 
-        # Cálculo de costo acumulado DeepSeek ($0.14/1M prompt, $0.28/1M completion)
+        # Cálculo de costo acumulado DeepSeek ($0.15/1M prompt, $0.60/1M completion para V4.1-Flash)
         ds_p = self.telemetry["deepseek"]["prompt_tokens"]
         ds_c = self.telemetry["deepseek"]["completion_tokens"]
-        deepseek_cost = round((ds_p * 0.00000014) + (ds_c * 0.00000028), 6)
+        deepseek_cost = round((ds_p * 0.00000015) + (ds_c * 0.00000060), 6)
 
         total_prompt = (
             self.telemetry["deepseek"]["prompt_tokens"]
@@ -411,7 +411,7 @@ class NLPService:
             "credit_balance": credit_balance,
             "prompt_ratio": ratio_eff,
             "deepseek": {
-                "model": (os.getenv("DEEPSEEK_MODEL") or "deepseek-chat").strip(),
+                "model": (os.getenv("DEEPSEEK_MODEL") or "deepseek-flash").strip(),
                 "healthy": self._is_deepseek_healthy(),
                 "cooldown_remaining": max(0, int(self._deepseek_cooldown_until - now)),
                 "requests": self.telemetry["deepseek"]["requests"],
@@ -791,7 +791,7 @@ class NLPService:
 
         active_room_users = kwargs.get("active_room_users", "")
         caller_user_id = kwargs.get("user_id")
-        model_name = (os.getenv("DEEPSEEK_MODEL") or "deepseek-chat").strip()
+        model_name = (os.getenv("DEEPSEEK_MODEL") or "deepseek-flash").strip()
         url = "https://api.deepseek.com/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.deepseek_api_key}",

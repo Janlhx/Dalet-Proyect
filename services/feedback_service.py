@@ -1,4 +1,6 @@
 import os
+import time
+import datetime
 import logging
 import discord
 from ui.atoms import DaletAtoms
@@ -10,8 +12,45 @@ logger = logging.getLogger("dalet.services.feedback")
 class FeedbackService:
     """Service to dispatch user feedback directly to the bot owner/developer via DM and persist it."""
 
-    @staticmethod
+    COOLDOWN_SECONDS: int = 300  # 5 minutos de cooldown anti-spam
+    _cooldowns: dict[int, float] = {}
+
+    @classmethod
+    def get_remaining_cooldown(cls, user_id: int) -> int:
+        """Returns remaining cooldown in seconds for a user based on memory cache."""
+        now = time.time()
+        last_time = cls._cooldowns.get(user_id, 0.0)
+        remaining = int(cls.COOLDOWN_SECONDS - (now - last_time))
+        return max(0, remaining)
+
+    @classmethod
+    async def check_user_cooldown(cls, user_id: int) -> int:
+        """Verifica cooldown en memoria y en SQLite para que persista incluso tras reinicios."""
+        mem_rem = cls.get_remaining_cooldown(user_id)
+        if mem_rem > 0:
+            return mem_rem
+
+        try:
+            feedbacks = await SQLiteManager.fetch_all(
+                "SELECT CreatedAt FROM Feedbacks WHERE UserID = ? ORDER BY CreatedAt DESC LIMIT 1",
+                user_id
+            )
+            if feedbacks and feedbacks[0] and feedbacks[0][0]:
+                raw_time = str(feedbacks[0][0])
+                # SQLite CURRENT_TIMESTAMP is UTC: YYYY-MM-DD HH:MM:SS
+                dt = datetime.datetime.fromisoformat(raw_time).replace(tzinfo=datetime.timezone.utc)
+                diff = (datetime.datetime.now(datetime.timezone.utc) - dt).total_seconds()
+                if diff < cls.COOLDOWN_SECONDS:
+                    rem = int(cls.COOLDOWN_SECONDS - diff)
+                    cls._cooldowns[user_id] = time.time() - diff
+                    return max(0, rem)
+        except Exception:
+            pass
+        return 0
+
+    @classmethod
     async def send_feedback(
+        cls,
         bot,
         author: discord.User | discord.Member,
         content: str,
@@ -32,6 +71,7 @@ class FeedbackService:
                 channel_name=channel.name if channel and hasattr(channel, "name") else "DM",
                 content=content
             )
+            cls._cooldowns[author.id] = time.time()
         except Exception as e:
             logger.error(f"Error persistiendo feedback en SQLite: {e}")
         owner = None

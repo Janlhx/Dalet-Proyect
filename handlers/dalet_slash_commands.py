@@ -138,6 +138,18 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         if interaction.guild_id:
             server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
 
+        # Anti-spam Cooldown (5 minutos)
+        cooldown_remaining = await FeedbackService.check_user_cooldown(interaction.user.id)
+        if cooldown_remaining > 0:
+            mins = max(1, (cooldown_remaining + 59) // 60)
+            warning_msg = (
+                f"⏳ Has enviado una sugerencia recientemente. Para evitar saturación, por favor espera **{mins} minuto(s)** antes de enviar otra."
+                if server_lang == "es"
+                else f"⏳ You have submitted feedback recently. To prevent spam, please wait **{mins} minute(s)** before sending another."
+            )
+            await interaction.followup.send(warning_msg, ephemeral=True)
+            return
+
         sent = await FeedbackService.send_feedback(
             bot=self.bot,
             author=interaction.user,
