@@ -43,8 +43,12 @@ class DashboardService:
         else:
             ai_stats = {
                 "routing_mode": os.getenv("AI_ROUTING_MODE", "auto"),
-                "gemini": {"model": "gemini-2.5-flash", "healthy": True, "requests": 0, "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "avg_latency_ms": 0, "errors": 0},
+                "estimated_cost_usd": 0.0,
+                "prompt_ratio": 1.0,
+                "deepseek": {"model": "deepseek-chat", "healthy": True, "requests": 0, "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "avg_latency_ms": 0, "cost_usd": 0.0, "errors": 0},
+                "gemini": {"model": "gemini-1.5-flash", "healthy": True, "requests": 0, "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "avg_latency_ms": 0, "errors": 0},
                 "groq": {"model": "llama-3.3-70b-versatile", "healthy": True, "requests": 0, "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "avg_latency_ms": 0, "errors": 0},
+                "openrouter": {"model": "openrouter/free", "healthy": True, "requests": 0, "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "avg_latency_ms": 0, "errors": 0},
                 "recent_interactions": []
             }
 
@@ -212,8 +216,8 @@ class DashboardService:
         /* Grid Layout */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 18px;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 16px;
             margin-bottom: 24px;
         }
 
@@ -221,7 +225,7 @@ class DashboardService:
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
-            padding: 22px;
+            padding: 20px;
             position: relative;
             overflow: hidden;
             transition: transform 0.2s ease, border-color 0.2s ease;
@@ -232,10 +236,10 @@ class DashboardService:
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
         .card-title {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             color: var(--text-muted);
             text-transform: uppercase;
@@ -252,19 +256,20 @@ class DashboardService:
         }
 
         .metric-value {
-            font-size: 32px;
+            font-size: 28px;
             font-weight: 800;
             letter-spacing: -1px;
             color: #fff;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             font-family: 'JetBrains Mono', monospace;
         }
         .metric-sub {
-            font-size: 13px;
+            font-size: 12px;
             color: var(--text-muted);
             display: flex;
             align-items: center;
             gap: 6px;
+            flex-wrap: wrap;
         }
 
         /* Accent Top Bars */
@@ -281,6 +286,7 @@ class DashboardService:
         .card-sky { --accent-bar: var(--sky); }
         .card-emerald { --accent-bar: var(--emerald); }
         .card-amber { --accent-bar: var(--amber); }
+        .card-purple { --accent-bar: var(--purple); }
 
         /* Two Column Section */
         .dashboard-row {
@@ -297,15 +303,15 @@ class DashboardService:
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
-            padding: 24px;
+            padding: 22px;
         }
         .chart-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 18px;
         }
-        .chart-title { font-size: 16px; font-weight: 700; }
+        .chart-title { font-size: 15px; font-weight: 700; }
         .chart-container { position: relative; height: 260px; width: 100%; }
 
         /* Provider Cards Breakdown */
@@ -313,17 +319,17 @@ class DashboardService:
             background: var(--surface-hover);
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 14px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
         }
         .provider-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
         .provider-name {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 700;
             display: flex;
             align-items: center;
@@ -332,7 +338,7 @@ class DashboardService:
         .provider-status {
             font-size: 11px;
             font-weight: 700;
-            padding: 3px 8px;
+            padding: 2px 7px;
             border-radius: 6px;
         }
         .status-ok { background: var(--emerald-glow); color: var(--emerald); border: 1px solid rgba(34, 197, 94, 0.3); }
@@ -341,9 +347,9 @@ class DashboardService:
         .token-row {
             display: flex;
             justify-content: space-between;
-            font-size: 13px;
+            font-size: 12px;
             color: var(--text-muted);
-            margin-top: 6px;
+            margin-top: 4px;
             font-family: 'JetBrains Mono', monospace;
         }
         .token-row span:last-child { color: var(--text); font-weight: 600; }
@@ -353,7 +359,7 @@ class DashboardService:
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
-            padding: 24px;
+            padding: 22px;
             margin-bottom: 24px;
             overflow-x: auto;
         }
@@ -364,7 +370,7 @@ class DashboardService:
             font-size: 13px;
         }
         th {
-            padding: 12px 16px;
+            padding: 12px 14px;
             color: var(--text-muted);
             font-weight: 600;
             text-transform: uppercase;
@@ -373,7 +379,7 @@ class DashboardService:
             border-bottom: 1px solid var(--border);
         }
         td {
-            padding: 14px 16px;
+            padding: 12px 14px;
             border-bottom: 1px solid var(--border);
             color: var(--text);
         }
@@ -383,11 +389,52 @@ class DashboardService:
         .tag-model {
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
-            padding: 3px 8px;
+            padding: 2px 7px;
             background: var(--surface-hover);
             border: 1px solid var(--border);
             border-radius: 6px;
             color: var(--pink);
+        }
+
+        .badge-ds {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(168, 85, 247, 0.15);
+            color: #c084fc;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+        }
+        .badge-groq {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--amber);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+        .badge-gemini {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(14, 165, 233, 0.15);
+            color: var(--sky);
+            border: 1px solid rgba(14, 165, 233, 0.3);
+        }
+        .badge-openrouter {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--emerald);
+            border: 1px solid rgba(34, 197, 94, 0.3);
         }
 
         .latency-badge {
@@ -425,7 +472,7 @@ class DashboardService:
             </div>
         </header>
 
-        <!-- Top Metrics Grid -->
+        <!-- Top Metrics Grid (5 Cards) -->
         <div class="stats-grid">
             <div class="card card-pink">
                 <div class="card-header">
@@ -438,25 +485,36 @@ class DashboardService:
                 </div>
             </div>
 
+            <div class="card card-purple">
+                <div class="card-header">
+                    <span class="card-title">Costo DeepSeek (V3)</span>
+                    <span class="card-tag" style="color: #c084fc;">PREPAGO $5</span>
+                </div>
+                <div class="metric-value" id="deepseek-cost">$0.0000</div>
+                <div class="metric-sub">
+                    <span>Saldo Restante: <b id="deepseek-balance" style="color: var(--emerald);">$5.0000</b></span>
+                </div>
+            </div>
+
             <div class="card card-emerald">
                 <div class="card-header">
-                    <span class="card-title">Interacciones de IA</span>
+                    <span class="card-title">Interacciones IA</span>
                     <span class="card-tag">TOTAL</span>
                 </div>
                 <div class="metric-value" id="total-ai-requests">0</div>
                 <div class="metric-sub">
-                    <span>Gemini: <b id="gemini-reqs">0</b></span> • <span>Groq: <b id="groq-reqs">0</b></span>
+                    <span>DeepSeek: <b id="ds-reqs">0</b></span> • <span>Groq: <b id="groq-reqs">0</b></span> • <span>Gemini: <b id="gemini-reqs">0</b></span>
                 </div>
             </div>
 
             <div class="card card-sky">
                 <div class="card-header">
-                    <span class="card-title">Latencia Promedio</span>
+                    <span class="card-title">Latencia Media</span>
                     <span class="card-tag">IA ENGINE</span>
                 </div>
                 <div class="metric-value" id="avg-latency">0<small style="font-size: 16px;">ms</small></div>
                 <div class="metric-sub">
-                    <span>Groq: <b id="groq-lat">0ms</b></span> • <span>Gemini: <b id="gemini-lat">0ms</b></span>
+                    <span>DeepSeek: <b id="ds-lat">0ms</b></span> • <span>Groq: <b id="groq-lat">0ms</b></span>
                 </div>
             </div>
 
@@ -465,7 +523,7 @@ class DashboardService:
                     <span class="card-title">Discord & Uptime</span>
                     <span class="card-tag" id="discord-ping">0ms</span>
                 </div>
-                <div class="metric-value" id="uptime-str" style="font-size: 24px; padding-top: 6px;">0s</div>
+                <div class="metric-value" id="uptime-str" style="font-size: 22px; padding-top: 4px;">0s</div>
                 <div class="metric-sub">
                     <span><b id="guilds-count">0</b> Servidores</span> • <span><b id="users-count">0</b> Miembros</span>
                 </div>
@@ -476,8 +534,8 @@ class DashboardService:
         <div class="dashboard-row">
             <div class="chart-card">
                 <div class="chart-header">
-                    <span class="chart-title">Distribución de Tráfico y Tokens</span>
-                    <span class="card-tag">Gemini vs Groq</span>
+                    <span class="chart-title">Distribución de Tráfico y Tokens por Proveedor</span>
+                    <span class="card-tag">PROMPT VS COMPLETION</span>
                 </div>
                 <div class="chart-container">
                     <canvas id="tokensChart"></canvas>
@@ -488,6 +546,18 @@ class DashboardService:
                 <div class="chart-header">
                     <span class="chart-title">Estado de Proveedores</span>
                     <span class="card-tag">CIRCUIT BREAKER</span>
+                </div>
+
+                <!-- DeepSeek Provider Box (Primary) -->
+                <div class="provider-box" style="border-color: rgba(168, 85, 247, 0.3);">
+                    <div class="provider-header">
+                        <span class="provider-name" style="color: #c084fc;">🔮 DeepSeek (Primary Core)</span>
+                        <span class="provider-status status-ok" id="deepseek-status-badge">HEALTHY</span>
+                    </div>
+                    <div class="token-row"><span>Modelo</span><span id="deepseek-model-name">deepseek-chat</span></div>
+                    <div class="token-row"><span>Tokens Totales</span><span id="deepseek-total-tokens">0</span></div>
+                    <div class="token-row"><span>Latencia Media</span><span id="deepseek-avg-lat">0ms</span></div>
+                    <div class="token-row"><span>Gasto Acumulado</span><span id="deepseek-box-cost" style="color: #c084fc;">$0.0000</span></div>
                 </div>
 
                 <!-- Groq Provider Box -->
@@ -504,7 +574,7 @@ class DashboardService:
                 <!-- Gemini Provider Box -->
                 <div class="provider-box">
                     <div class="provider-header">
-                        <span class="provider-name">🔵 Google Gemini</span>
+                        <span class="provider-name">🔵 Google Gemini (Visión / Search)</span>
                         <span class="provider-status status-ok" id="gemini-status-badge">HEALTHY</span>
                     </div>
                     <div class="token-row"><span>Modelo</span><span id="gemini-model-name">-</span></div>
@@ -550,7 +620,7 @@ class DashboardService:
         </div>
 
         <footer>
-            Dalet • Antigravity Agentic Bot Framework • Sistema de Persistencia Híbrida libSQL + SQLite
+            Dalet • Smart Load Balancer Multi-Proveedor (DeepSeek V3 Core) • Sistema de Persistencia Híbrida libSQL + SQLite
         </footer>
     </div>
 
@@ -564,18 +634,18 @@ class DashboardService:
             chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: ['Groq (LPUs)', 'Gemini Flash', 'OpenRouter Free'],
+                    labels: ['DeepSeek V3', 'Groq (LPUs)', 'Gemini Flash', 'OpenRouter Free'],
                     datasets: [
                         {
                             label: 'Prompt Tokens',
-                            data: [0, 0, 0],
-                            backgroundColor: 'rgba(255, 105, 180, 0.7)',
+                            data: [0, 0, 0, 0],
+                            backgroundColor: 'rgba(255, 105, 180, 0.75)',
                             borderRadius: 6
                         },
                         {
                             label: 'Completion Tokens',
-                            data: [0, 0, 0],
-                            backgroundColor: 'rgba(14, 165, 233, 0.7)',
+                            data: [0, 0, 0, 0],
+                            backgroundColor: 'rgba(14, 165, 233, 0.75)',
                             borderRadius: 6
                         }
                     ]
@@ -607,6 +677,7 @@ class DashboardService:
 
         function updateUI(data) {
             const ai = data.ai || {};
+            const deepseek = ai.deepseek || {};
             const gemini = ai.gemini || {};
             const groq = ai.groq || {};
             const openrouter = ai.openrouter || {};
@@ -619,29 +690,57 @@ class DashboardService:
             document.getElementById('users-count').innerText = discord.users || 0;
             document.getElementById('gateway-status').innerText = discord.online ? 'ONLINE' : 'DISCONNECTED';
 
-            // AI Card
-            const totalTokens = (gemini.total_tokens || 0) + (groq.total_tokens || 0) + (openrouter.total_tokens || 0);
-            const totalPrompt = (gemini.prompt_tokens || 0) + (groq.prompt_tokens || 0) + (openrouter.prompt_tokens || 0);
-            const totalCompl = (gemini.completion_tokens || 0) + (groq.completion_tokens || 0) + (openrouter.completion_tokens || 0);
-            const totalReqs = (gemini.requests || 0) + (groq.requests || 0) + (openrouter.requests || 0);
+            // Token totals across all providers
+            const totalTokens = (deepseek.total_tokens || 0) + (gemini.total_tokens || 0) + (groq.total_tokens || 0) + (openrouter.total_tokens || 0);
+            const totalPrompt = (deepseek.prompt_tokens || 0) + (gemini.prompt_tokens || 0) + (groq.prompt_tokens || 0) + (openrouter.prompt_tokens || 0);
+            const totalCompl = (deepseek.completion_tokens || 0) + (gemini.completion_tokens || 0) + (groq.completion_tokens || 0) + (openrouter.completion_tokens || 0);
+            const totalReqs = (deepseek.requests || 0) + (gemini.requests || 0) + (groq.requests || 0) + (openrouter.requests || 0);
 
             document.getElementById('total-tokens').innerText = totalTokens.toLocaleString();
             document.getElementById('prompt-tokens').innerText = totalPrompt.toLocaleString();
             document.getElementById('completion-tokens').innerText = totalCompl.toLocaleString();
             document.getElementById('routing-mode-tag').innerText = (ai.routing_mode || 'AUTO').toUpperCase();
 
+            // DeepSeek Cost Card
+            const dsCost = ai.estimated_cost_usd || deepseek.cost_usd || 0;
+            document.getElementById('deepseek-cost').innerText = `$${dsCost.toFixed(4)}`;
+            const remaining = Math.max(0, 5.0 - dsCost);
+            document.getElementById('deepseek-balance').innerText = `$${remaining.toFixed(4)}`;
+
+            // Requests Card
             document.getElementById('total-ai-requests').innerText = totalReqs.toLocaleString();
+            document.getElementById('ds-reqs').innerText = (deepseek.requests || 0).toLocaleString();
             document.getElementById('gemini-reqs').innerText = (gemini.requests || 0).toLocaleString();
             document.getElementById('groq-reqs').innerText = (groq.requests || 0).toLocaleString();
 
-            // Latencies
-            document.getElementById('gemini-lat').innerText = `${gemini.avg_latency_ms || 0}ms`;
+            // Latencies Card
+            document.getElementById('ds-lat').innerText = `${deepseek.avg_latency_ms || 0}ms`;
             document.getElementById('groq-lat').innerText = `${groq.avg_latency_ms || 0}ms`;
-            const overallAvg = totalReqs > 0 ? Math.round(((gemini.avg_latency_ms || 0) * (gemini.requests || 0) + (groq.avg_latency_ms || 0) * (groq.requests || 0) + (openrouter.avg_latency_ms || 0) * (openrouter.requests || 0)) / totalReqs) : 0;
+            const overallAvg = totalReqs > 0 ? Math.round(
+                ((deepseek.avg_latency_ms || 0) * (deepseek.requests || 0) +
+                 (gemini.avg_latency_ms || 0) * (gemini.requests || 0) +
+                 (groq.avg_latency_ms || 0) * (groq.requests || 0) +
+                 (openrouter.avg_latency_ms || 0) * (openrouter.requests || 0)) / totalReqs
+            ) : 0;
             document.getElementById('avg-latency').innerHTML = `${overallAvg}<small style="font-size: 16px;">ms</small>`;
 
             // Provider Boxes
-            document.getElementById('groq-model-name').innerText = groq.model || 'openai/gpt-oss-120b';
+            // 1. DeepSeek
+            document.getElementById('deepseek-model-name').innerText = deepseek.model || 'deepseek-chat';
+            document.getElementById('deepseek-total-tokens').innerText = (deepseek.total_tokens || 0).toLocaleString();
+            document.getElementById('deepseek-avg-lat').innerText = `${deepseek.avg_latency_ms || 0}ms`;
+            document.getElementById('deepseek-box-cost').innerText = `$${dsCost.toFixed(4)}`;
+            const dsBadge = document.getElementById('deepseek-status-badge');
+            if (deepseek.healthy) {
+                dsBadge.className = "provider-status status-ok";
+                dsBadge.innerText = "HEALTHY";
+            } else {
+                dsBadge.className = "provider-status status-warn";
+                dsBadge.innerText = `COOLDOWN (${deepseek.cooldown_remaining}s)`;
+            }
+
+            // 2. Groq
+            document.getElementById('groq-model-name').innerText = groq.model || 'llama-3.3-70b-versatile';
             document.getElementById('groq-total-tokens').innerText = (groq.total_tokens || 0).toLocaleString();
             document.getElementById('groq-avg-lat').innerText = `${groq.avg_latency_ms || 0}ms`;
             const groqBadge = document.getElementById('groq-status-badge');
@@ -653,7 +752,8 @@ class DashboardService:
                 groqBadge.innerText = `COOLDOWN (${groq.cooldown_remaining}s)`;
             }
 
-            document.getElementById('gemini-model-name').innerText = gemini.model || 'gemini-2.5-flash';
+            // 3. Gemini
+            document.getElementById('gemini-model-name').innerText = gemini.model || 'gemini-1.5-flash';
             document.getElementById('gemini-total-tokens').innerText = (gemini.total_tokens || 0).toLocaleString();
             document.getElementById('gemini-avg-lat').innerText = `${gemini.avg_latency_ms || 0}ms`;
             const geminiBadge = document.getElementById('gemini-status-badge');
@@ -665,6 +765,7 @@ class DashboardService:
                 geminiBadge.innerText = `COOLDOWN (${gemini.cooldown_remaining}s)`;
             }
 
+            // 4. OpenRouter
             document.getElementById('openrouter-model-name').innerText = openrouter.model || 'openrouter/free';
             document.getElementById('openrouter-total-tokens').innerText = (openrouter.total_tokens || 0).toLocaleString();
             document.getElementById('openrouter-avg-lat').innerText = `${openrouter.avg_latency_ms || 0}ms`;
@@ -679,8 +780,18 @@ class DashboardService:
 
             // Update Chart
             if (chartInstance) {
-                chartInstance.data.datasets[0].data = [groq.prompt_tokens || 0, gemini.prompt_tokens || 0, openrouter.prompt_tokens || 0];
-                chartInstance.data.datasets[1].data = [groq.completion_tokens || 0, gemini.completion_tokens || 0, openrouter.completion_tokens || 0];
+                chartInstance.data.datasets[0].data = [
+                    deepseek.prompt_tokens || 0,
+                    groq.prompt_tokens || 0,
+                    gemini.prompt_tokens || 0,
+                    openrouter.prompt_tokens || 0
+                ];
+                chartInstance.data.datasets[1].data = [
+                    deepseek.completion_tokens || 0,
+                    groq.completion_tokens || 0,
+                    gemini.completion_tokens || 0,
+                    openrouter.completion_tokens || 0
+                ];
                 chartInstance.update();
             }
 
@@ -688,17 +799,23 @@ class DashboardService:
             const tbody = document.getElementById('interactions-body');
             const items = ai.recent_interactions || [];
             if (items.length > 0) {
-                tbody.innerHTML = items.slice().reverse().map(it => `
+                tbody.innerHTML = items.slice().reverse().map(it => {
+                    let provBadgeClass = "badge-groq";
+                    if ((it.provider || '').toLowerCase().includes('deepseek')) provBadgeClass = "badge-ds";
+                    else if ((it.provider || '').toLowerCase().includes('gemini')) provBadgeClass = "badge-gemini";
+                    else if ((it.provider || '').toLowerCase().includes('openrouter')) provBadgeClass = "badge-openrouter";
+
+                    return `
                     <tr>
                         <td style="font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">${it.timestamp}</td>
-                        <td><b>${it.provider}</b></td>
+                        <td><span class="${provBadgeClass}">${it.provider}</span></td>
                         <td><span class="tag-model">${it.model}</span></td>
                         <td>${it.user}</td>
                         <td style="color: var(--text-muted); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${it.trigger}</td>
                         <td style="font-family: 'JetBrains Mono', monospace;">${it.prompt_tokens} / ${it.completion_tokens}</td>
                         <td><span class="latency-badge">${it.latency_ms}ms</span></td>
                     </tr>
-                `).join('');
+                `}).join('');
             }
         }
 
