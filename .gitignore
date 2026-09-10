@@ -1,5 +1,10 @@
-# Local test scripts (not for public repo)
+# Local test scripts & scratch (not for public repo)
 scripts/
+scratch/
+
+# AI knowledge graph & agent configurations
+graphify-out/
+.agents/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
