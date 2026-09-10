@@ -2,7 +2,7 @@
 Handler de Eventos Globales de Discord.
 Maneja: on_ready, on_command_error, on_guild_join.
 """
-from discord.ext import commands
+from discord.ext import commands, tasks
 import discord
 import logging
 import traceback
@@ -15,6 +15,37 @@ class EventsHandler(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        self._presence_index = 0
+        self._activities = [
+            discord.Activity(type=discord.ActivityType.playing, name="osu! • /skills │ /help"),
+            discord.Activity(type=discord.ActivityType.watching, name="replays • /recent"),
+            discord.Activity(type=discord.ActivityType.listening, name="circle clicks • /op"),
+            discord.Activity(type=discord.ActivityType.competing, name="top ranks • /top"),
+            discord.Activity(type=discord.ActivityType.playing, name="osu! • /compare │ /feedback"),
+        ]
+        self.rotate_presence.start()
+
+    def cog_unload(self):
+        self.rotate_presence.cancel()
+
+    @tasks.loop(minutes=4)
+    async def rotate_presence(self):
+        """Ciclo rotativo de actividades en tiempo real para el perfil de Discord."""
+        await self.bot.wait_until_ready()
+        custom = getattr(self.bot, "custom_status", None)
+        if custom:
+            try:
+                await self.bot.change_presence(activity=discord.Game(name=custom))
+            except Exception as e:
+                logger.debug(f"Error setting custom status: {e}")
+            return
+
+        activity = self._activities[self._presence_index % len(self._activities)]
+        self._presence_index += 1
+        try:
+            await self.bot.change_presence(activity=activity)
+        except Exception as e:
+            logger.debug(f"Error rotating presence: {e}")
 
     # -------------------------------------------------------------------------
     # on_ready
@@ -23,16 +54,8 @@ class EventsHandler(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         """Se ejecuta cuando el bot está listo y conectado."""
-        from ui.atoms import DaletAtoms
         await self.bot.tree.sync()
         logger.info(f"Bot conectado como {self.bot.user} (ID: {self.bot.user.id})")
-
-        # Configuración de Presencia en Discord
-        status_text = getattr(self.bot, "custom_status", f"{DaletAtoms.VERSION} • searching who asked │ d.help")
-        try:
-            await self.bot.change_presence(activity=discord.CustomActivity(name=status_text))
-        except Exception:
-            await self.bot.change_presence(activity=discord.Game(name=status_text))
 
     # -------------------------------------------------------------------------
     # on_command_error

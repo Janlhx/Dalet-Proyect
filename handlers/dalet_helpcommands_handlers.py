@@ -312,25 +312,25 @@ def build_help_pages(bot, user, server_lang: str = "en") -> tuple[list[discord.E
     if server_lang == "es":
         portada_desc = (
             f"Hola, **{user.display_name}**.\n\n"
-            f"Soy **Dalet {DaletAtoms.VERSION}** — bot de osu!, IA conversacional y utilidades.\n"
+            f"Soy **Dalet** — bot de osu!, IA conversacional y utilidades.\n"
             f"Escribe `/` en Discord para autocompletar comandos, o usa `d.help`.\n\n"
             f"**Categorías:**\n{nav_lines}\n\n"
             f"{DaletAtoms.GLYPH_SUB} Usa el menú desplegable o botones para explorar.\n"
             f"{DaletAtoms.GLYPH_SUB} Escribe `/feedback` o `d.feedback` para enviar sugerencias al creador.\n"
-            f"{DaletAtoms.GLYPH_SUB} Escribe `d.changelog` para consultar las novedades de la versión."
+            f"{DaletAtoms.GLYPH_SUB} Escribe `d.changelog` para consultar las novedades."
         )
-        footer_cover = f"Dalet {DaletAtoms.VERSION} │ Centro de Control • /feedback para sugerencias"
+        footer_cover = "Dalet │ Centro de Control • /feedback para sugerencias"
     else:
         portada_desc = (
             f"Hello, **{user.display_name}**.\n\n"
-            f"I am **Dalet {DaletAtoms.VERSION}** — osu! companion, conversational AI & server utilities.\n"
+            f"I am **Dalet** — osu! companion, conversational AI & server utilities.\n"
             f"Type `/` in Discord to autocomplete commands, or use `d.help`.\n\n"
             f"**Categories:**\n{nav_lines}\n\n"
             f"{DaletAtoms.GLYPH_SUB} Use the dropdown menu or navigation buttons to explore.\n"
             f"{DaletAtoms.GLYPH_SUB} Type `/feedback` or `d.feedback` to send suggestions directly to the developer.\n"
             f"{DaletAtoms.GLYPH_SUB} Type `d.changelog` to check the latest updates."
         )
-        footer_cover = f"Dalet {DaletAtoms.VERSION} │ Control Center • /feedback for suggestions"
+        footer_cover = "Dalet │ Control Center • /feedback for suggestions"
 
     portada = discord.Embed(
         title="",

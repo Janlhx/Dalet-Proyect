@@ -302,27 +302,28 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
         """
         [OWNER] Cambia la presencia/estado de Dalet en Discord en tiempo real.
         Uso:
-          d.status v3.0.1 • mejoré mi modelo │ d.help
-          d.status default  -> Restablece al estado predeterminado
+          d.status osu! • jugando │ d.help
+          d.status default  -> Restablece al ciclo rotativo automático
         """
         from ui.molecules import DaletMolecules
-        if not text or text.lower() == "default":
-            text = f"{DaletAtoms.VERSION} • searching who asked │ d.help"
+        if not text or text.lower() in ("default", "reset", "auto"):
+            self.bot.custom_status = None
+            events_cog = self.bot.get_cog("EventsHandler")
+            if events_cog and hasattr(events_cog, "rotate_presence"):
+                events_cog._presence_index = 0
+                await events_cog.rotate_presence()
+            return await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Presencia restablecida al ciclo rotativo automático de Dalet.")
 
         self.bot.custom_status = text
-        try:
-            activity = discord.CustomActivity(name=text)
-            await self.bot.change_presence(activity=activity)
-        except Exception:
-            activity = discord.Game(name=text)
-            await self.bot.change_presence(activity=activity)
+        activity = discord.Game(name=text)
+        await self.bot.change_presence(activity=activity)
 
         embed = discord.Embed(
             title=f"{DaletAtoms.EMOJI_DALET} Estado Actualizado",
-            description=f"{DaletAtoms.GLYPH_POINTER} **Nueva presencia:** `{text}`",
+            description=f"{DaletAtoms.GLYPH_POINTER} **Nueva presencia (Playing):** `{text}`",
             color=DaletAtoms.COLOR_PRIMARY
         )
-        DaletMolecules.add_standard_footer(embed, context_text=f"Dalet {DaletAtoms.VERSION}")
+        DaletMolecules.add_standard_footer(embed, context_text="Dalet")
         await ctx.send(embed=embed)
 
     @commands.command(name="setchangelog", hidden=True)
