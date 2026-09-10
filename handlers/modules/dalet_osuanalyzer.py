@@ -233,6 +233,12 @@ class OsuAnalyzer:
                     bpm_mult -= min(0.20, (160 - eff_bpm) * 0.003)
                 if is_dt:
                     bpm_mult += 0.06
+                # El tiempo de reacción en alta AR (>= 10.0) pertenece a Speed (mecánica y reflejos de lectura rápida)
+                eff_ar = min(10.0, ar * 1.4) if is_hr else (ar * 0.5 if is_ez else ar)
+                if is_dt:
+                    eff_ar = min(11.1, (eff_ar * 2 + 13) / 3)
+                if eff_ar >= 10.0:
+                    bpm_mult += min(0.12, (eff_ar - 10.0) * 0.08)
                 scores['Speed'] = eff_sr * bpm_mult * exec_factor
 
                 eff_od = min(11.0, od * (1.4 if is_hr else (0.5 if is_ez else 1.0)))
@@ -242,48 +248,61 @@ class OsuAnalyzer:
                 acc_mult = min(1.15, max(0.50, 0.75 + 0.35 * acc_curve)) * od_scale
                 scores['Accuracy'] = eff_sr * acc_mult * exec_factor
 
-                eff_drain = drain / 1.5 if is_dt else drain
+                # Resistencia (Stamina): Pondera densidad de notas por segundo (NPS) y maratones.
+                # Con DT, el mapa dura menos tiempo pero la densidad de notas por segundo es 1.5x mayor.
+                real_drain = drain / 1.5 if is_dt else drain
+                density = total_objects / max(1.0, real_drain)
                 stamina_mult = 1.0
-                if eff_drain >= 210:
-                    stamina_mult += min(0.12, (eff_drain - 210) * 0.0008)
-                elif eff_drain < 90:
-                    stamina_mult -= min(0.20, (90 - eff_drain) * 0.003)
-                if total_objects >= 1200:
-                    stamina_mult += min(0.10, (total_objects - 1200) * 0.0001)
+                if density >= 6.0:
+                    stamina_mult += min(0.22, (density - 6.0) * 0.04)
+                elif density < 3.5:
+                    stamina_mult -= min(0.15, (3.5 - density) * 0.04)
+
+                if is_dt and bpm >= 160:
+                    stamina_mult += 0.08
+
+                if total_objects >= 1100:
+                    stamina_mult += min(0.15, (total_objects - 1100) * 0.00015)
                 elif total_objects < 500:
                     stamina_mult -= min(0.15, (500 - total_objects) * 0.0003)
-                scores['Stamina'] = eff_sr * min(1.18, max(0.70, stamina_mult)) * exec_factor
 
-                eff_ar = min(10.0, ar * 1.4) if is_hr else (ar * 0.5 if is_ez else ar)
-                if is_dt:
-                    eff_ar = min(11.1, (eff_ar * 2 + 13) / 3)
+                if real_drain >= 180:
+                    stamina_mult += min(0.10, (real_drain - 180) * 0.0008)
+                scores['Stamina'] = eff_sr * min(1.25, max(0.65, stamina_mult)) * exec_factor
 
-                reading_mult = 0.70
+                # Lectura (Reading): Dificultad visual genuina por solapamiento de notas, densidad y memorización.
+                # AR alta (>= 10.0 con DT) NO es lectura rítmica; limpia la pantalla y se basa en reacción.
+                if eff_ar >= 10.0:
+                    reading_mult = 0.50
+                elif eff_ar >= 9.5:
+                    reading_mult = 0.60
+                else:
+                    reading_mult = 0.70
+
+                # Bonificaciones genuinas de lectura:
                 if eff_ar <= 8.5:
-                    reading_mult += min(0.30, (8.5 - eff_ar) * 0.10)
+                    reading_mult += min(0.35, (8.5 - eff_ar) * 0.12)
                     if eff_ar <= 7.0:
-                        reading_mult += 0.10
-                elif eff_ar >= 10.3:
-                    reading_mult += min(0.20, (eff_ar - 10.3) * 0.12)
+                        reading_mult += 0.15
 
                 if is_hd:
-                    if eff_ar <= 9.0:
-                        reading_mult += 0.16
-                    elif eff_ar >= 10.3:
-                        reading_mult += 0.12
+                    if eff_ar <= 8.5:
+                        reading_mult += 0.25  # HD en baja AR es lectura extrema
+                    elif eff_ar <= 9.5:
+                        reading_mult += 0.12  # HD estándar
                     else:
-                        reading_mult += 0.09
+                        reading_mult += 0.02  # HD en AR 10+ es casi puro músculo/reacción
 
                 if is_fl:
-                    reading_mult += 0.35
+                    reading_mult += 0.45
                 if is_ez:
-                    reading_mult += 0.20
+                    reading_mult += 0.35
 
                 slider_ratio = count_sliders / max(1, total_objects) if total_objects > 0 else 0.3
-                if slider_ratio >= 0.40:
-                    reading_mult += min(0.12, (slider_ratio - 0.40) * 0.25)
+                if slider_ratio >= 0.35:
+                    reading_mult += min(0.18, (slider_ratio - 0.35) * 0.30)
 
-                scores['Reading'] = eff_sr * min(1.25, reading_mult) * exec_factor
+                scores['Reading'] = eff_sr * min(1.30, reading_mult) * exec_factor
 
             title = bset.get('title') or bm.get('title', 'Desconocido')
             version = bm.get('version', 'Normal')
