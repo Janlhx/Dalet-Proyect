@@ -11,6 +11,7 @@ import logging
 from ui.organisms import DaletOrganisms
 from ui.atoms import DaletAtoms
 from handlers.dalet_osu_presenter import OsuPresenter
+from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
 
 logger = logging.getLogger("dalet.handlers.slash")
 
@@ -205,6 +206,70 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         except Exception as e:
             logger.error(f"Error en /top: {e}")
             await interaction.followup.send("⚠️ error obteniendo top plays.", ephemeral=True)
+
+    @app_commands.command(name="skills", description="Desglose de habilidades osu! (Aim, Speed, Acc, Stamina, Reading) con veredicto de Dalet.")
+    @app_commands.describe(
+        usuario="Nombre en osu! (o dejar vacío para tu cuenta vinculada)",
+        modo="Modo de juego (por defecto: osu)"
+    )
+    @app_commands.choices(modo=[
+        app_commands.Choice(name="osu!standard", value="osu"),
+        app_commands.Choice(name="osu!taiko",    value="taiko"),
+        app_commands.Choice(name="osu!catch",    value="fruits"),
+        app_commands.Choice(name="osu!mania",    value="mania"),
+    ])
+    async def slash_skills(
+        self, interaction: discord.Interaction,
+        usuario: str = None, modo: str = "osu"
+    ):
+        await interaction.response.defer()
+        try:
+            username = usuario
+            if not username:
+                username = await self.bot.osu_repo.get_linked_username(interaction.user.id)
+            if not username:
+                return await interaction.followup.send(
+                    "❌ no tienes cuenta vinculada. usa `/link` primero o especifica un usuario.",
+                    ephemeral=True
+                )
+
+            user = await self.bot.osu_service.get_user(username, modo)
+            best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=modo, limit=50)
+            if not best:
+                return await interaction.followup.send(f"**{username}** no tiene mejores jugadas registradas en {modo}.")
+
+            skills_data = OsuAnalyzer.calculate_skills(best)
+
+            dominant = skills_data.get("dominant_skill", "Aim")
+            weakest = skills_data.get("weakest_skill", "Stamina")
+            overall = skills_data.get("overall_skill_stars", 0.0)
+            stats = user.get("statistics", {})
+            gr = stats.get("global_rank") or "N/A"
+
+            micro_prompt = (
+                f"ROL: Eres Dalet, una bot cínica, técnica y experta en osu!.\n"
+                f"TAREA: Haz un roast o veredicto técnico ULTRA CORTO (MÁXIMO 2 ORACIONES, 30 palabras) sobre las habilidades de {username}:\n"
+                f"- Habilidad dominante: {dominant} ({skills_data[dominant]['stars']}★)\n"
+                f"- Habilidad más débil: {weakest} ({skills_data[weakest]['stars']}★)\n"
+                f"- Promedio de estrellas: {overall}★\n"
+                f"- Rank global: #{gr}\n"
+                f"REGLAS OBLIGATORIAS: Sé ácida y burlona con su debilidad. Máximo 1 emoji. Sin saludos ni despedidas, habla directamente al grano."
+            )
+
+            roast_text = None
+            try:
+                roast_text = await self.bot.nlp_service.generate_reply(
+                    micro_prompt, "Skill Roast", username,
+                    max_tokens_override=80
+                )
+            except Exception as nlp_err:
+                logger.warning(f"No se pudo generar roast para slash skills ({username}): {nlp_err}")
+
+            embed = OsuPresenter.build_skills_card(user, skills_data, roast_text=roast_text, mode=modo)
+            await interaction.followup.send(embed=embed)
+        except Exception as e:
+            logger.error(f"Error en /skills: {e}")
+            await interaction.followup.send("⚠️ error calculando las habilidades.", ephemeral=True)
 
     @app_commands.command(name="rank", description="Ranking osu! de los jugadores vinculados en este servidor.")
     async def slash_rank(self, interaction: discord.Interaction):

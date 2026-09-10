@@ -386,6 +386,85 @@ class OsuPresenter:
         DaletMolecules.add_standard_footer(embed)
         return embed
 
+    @staticmethod
+    def build_skills_card(user_data: dict, skills_data: dict, roast_text: str = None, mode: str = "osu") -> discord.Embed:
+        """Construye una tarjeta visual y detallada del desglose de habilidades (Skill Breakdown)."""
+        username = user_data.get("username", "Jugador")
+        user_id = user_data.get("id", 0)
+        stats = user_data.get("statistics", {})
+
+        pp = stats.get("pp", 0) or 0
+        rank = stats.get("global_rank", 0) or 0
+        rank_str = f"#{rank:,}" if rank else "Sin rank"
+        country = user_data.get("country_code", "")
+        flag = _get_country_flag(country)
+        avatar_url = user_data.get("avatar_url", "")
+
+        dominant = skills_data.get("dominant_skill", "N/A")
+        weakest = skills_data.get("weakest_skill", "N/A")
+        overall = skills_data.get("overall_skill_stars", 0.0)
+
+        embed = discord.Embed(
+            title=f"✦ Skill Breakdown — {username} {flag}",
+            url=f"https://osu.ppy.sh/users/{user_id}/{mode}",
+            color=DaletAtoms.COLOR_PRIMARY
+        )
+        if avatar_url:
+            embed.set_thumbnail(url=avatar_url)
+
+        desc_lines = []
+        if roast_text:
+            clean_roast = roast_text.strip().replace('"', '')
+            desc_lines.append(f"> *\"{clean_roast}\"*\n")
+
+        desc_lines.append(
+            f"{DaletAtoms.GLYPH_POINTER} **Promedio General**: `{overall:.2f}★` │ **PP**: `{pp:,.0f}` │ **Rank**: `{rank_str}`"
+        )
+        desc_lines.append(
+            f"{DaletAtoms.GLYPH_POINTER} **Fuerza Principal**: `{dominant}` │ **Área Débil**: `{weakest}`"
+        )
+        embed.description = "\n".join(desc_lines)
+
+        skill_metadata = [
+            ("Aim", "🏹"),
+            ("Speed", "⚡"),
+            ("Accuracy", "🎯"),
+            ("Stamina", "🔋"),
+            ("Reading", "👁️")
+        ]
+
+        for sk_name, icon in skill_metadata:
+            sk_info = skills_data.get(sk_name, {})
+            stars = sk_info.get("stars", 0.0)
+            top_maps = sk_info.get("top_maps", [])
+
+            lines = []
+            for m in top_maps[:3]:
+                title = m.get("title", "Desconocido")
+                ver = m.get("version", "Normal")
+                if len(title) > 28:
+                    title = title[:26] + ".."
+                if len(ver) > 16:
+                    ver = ver[:14] + ".."
+                mods = m.get("mods_str", "+NM")
+                sr = m.get("sr", 0.0)
+                pp_val = m.get("pp", 0.0)
+                b_id = m.get("beatmap_id")
+
+                name_part = f"[{title} [{ver}]](https://osu.ppy.sh/b/{b_id})" if b_id else f"{title} [{ver}]"
+                pp_str = f" • `{pp_val:.0f}pp`" if pp_val > 0 else ""
+                lines.append(f"{DaletAtoms.GLYPH_SUB} `{mods}` {name_part} — `{sr:.2f}★`{pp_str}")
+
+            field_val = "\n".join(lines) if lines else "Sin suficientes datos."
+            embed.add_field(
+                name=f"{icon} {sk_name} — `{stars:.2f}★`",
+                value=field_val,
+                inline=False
+            )
+
+        DaletMolecules.add_standard_footer(embed, context_text=f"ID: {user_id} • osu! {_mode_title(mode)}")
+        return embed
+
 
 async def setup(bot):
     pass

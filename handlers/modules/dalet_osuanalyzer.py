@@ -308,6 +308,177 @@ class OsuAnalyzer:
             logger.error(f"[OsuAnalyzer] Error en API Map Search Fallback: {e}") 
             return []
 
+    # --- ANÁLISIS DE HABILIDADES (SKILL BREAKDOWN) ---
+
+    @staticmethod
+    def calculate_skills(best_plays: list) -> dict:
+        """
+        Calcula 5 habilidades (Aim, Speed, Accuracy, Stamina, Reading) en escala de estrellas (★)
+        a partir de los mejores scores (top plays) y extrae los top 3 mapas para cada categoría.
+        """
+        skills_def = ["Aim", "Speed", "Accuracy", "Stamina", "Reading"]
+        if not best_plays:
+            return {
+                skill: {"stars": 0.0, "top_maps": []} for skill in skills_def
+            } | {
+                "dominant_skill": "N/A",
+                "weakest_skill": "N/A",
+                "overall_skill_stars": 0.0
+            }
+
+        scored_plays = []
+        for p in best_plays:
+            bm = p.get("beatmap") or {}
+            bset = p.get("beatmapset") or bm.get("beatmapset") or {}
+            
+            sr = float(bm.get("difficulty_rating") or 0.0)
+            if sr <= 0.0:
+                continue
+
+            cs = float(bm.get("cs") or 4.0)
+            bpm = float(bm.get("bpm") or 180.0)
+            od = float(bm.get("accuracy") or 8.0)
+            ar = float(bm.get("ar") or 9.0)
+            drain = float(bm.get("hit_length") or bm.get("drain") or bm.get("total_length") or 120.0)
+            
+            count_circles = int(bm.get("count_circles") or 0)
+            count_sliders = int(bm.get("count_sliders") or 0)
+            count_spinners = int(bm.get("count_spinners") or 0)
+            total_objects = count_circles + count_sliders + count_spinners
+
+            raw_acc = float(p.get("accuracy") or 0.98)
+            acc = raw_acc / 100.0 if raw_acc > 1.0 else raw_acc
+
+            raw_mods = p.get("mods") or []
+            mods_list = []
+            for m in raw_mods:
+                if isinstance(m, str):
+                    mods_list.append(m.upper())
+                elif isinstance(m, dict) and "acronym" in m:
+                    mods_list.append(str(m["acronym"]).upper())
+
+            mods_str = "+" + "".join(mods_list) if mods_list else "+NM"
+            is_dt = "DT" in mods_list or "NC" in mods_list
+            is_hr = "HR" in mods_list
+            is_hd = "HD" in mods_list
+            is_fl = "FL" in mods_list
+            is_ez = "EZ" in mods_list
+
+            # 1. Aim: influenciado por CS, DT (velocidad de salto), HR (tamaño) y densidad de círculos
+            circle_ratio = count_circles / max(1, total_objects) if total_objects > 0 else 0.7
+            cs_bonus = max(0.0, (cs - 4.0) * 0.08)
+            aim_score = sr * (1.28 if is_dt else 1.0) * (1.12 if is_hr else 1.0) * (1.0 + cs_bonus) * (0.85 + 0.30 * circle_ratio)
+
+            # 2. Speed: BPM efectivo, DT y alta densidad de BPM
+            eff_bpm = bpm * (1.5 if is_dt else 1.0)
+            bpm_mult = 1.0
+            if eff_bpm >= 200:
+                bpm_mult += min(0.5, (eff_bpm - 200) * 0.005)
+            elif eff_bpm < 160:
+                bpm_mult -= min(0.4, (160 - eff_bpm) * 0.004)
+            speed_score = sr * (1.35 if is_dt else 0.88) * max(0.6, bpm_mult)
+
+            # 3. Accuracy: OD efectivo y curva exponencial de precisión obtenida
+            eff_od = min(11.0, od * (1.4 if is_hr else (0.5 if is_ez else 1.0)))
+            acc_factor = (acc / 0.98) ** 2.0 if acc > 0 else 0.5
+            acc_score = sr * (eff_od / 8.5) * acc_factor
+
+            # 4. Stamina: longitud de drain y conteo de objetos (maratones/streams)
+            eff_drain = drain / 1.5 if is_dt else drain
+            stamina_mult = 1.0
+            if eff_drain >= 180:
+                stamina_mult += min(0.35, (eff_drain - 180) * 0.002)
+            if total_objects >= 1000:
+                stamina_mult += min(0.30, (total_objects - 1000) * 0.0003)
+            if is_dt and total_objects >= 800:
+                stamina_mult += 0.10
+            stamina_score = sr * stamina_mult
+
+            # 5. Reading: AR extremos (Low AR o High AR 10.3+), HD, FL, EZ
+            eff_ar = min(10.0, ar * 1.4) if is_hr else (ar * 0.5 if is_ez else ar)
+            if is_dt:
+                eff_ar = min(11.1, (eff_ar * 2 + 13) / 3)
+            
+            reading_mult = 1.0
+            if eff_ar <= 8.5:
+                reading_mult += (8.5 - eff_ar) * 0.15
+            elif eff_ar >= 10.3:
+                reading_mult += (eff_ar - 10.3) * 0.12
+            if is_hd:
+                reading_mult += 0.18
+            if is_fl:
+                reading_mult += 0.50
+            if is_ez:
+                reading_mult += 0.35
+            reading_score = sr * reading_mult
+
+            title = bset.get("title") or bm.get("title", "Desconocido")
+            artist = bset.get("artist") or bm.get("artist", "")
+            version = bm.get("version", "Normal")
+            beatmap_id = bm.get("id") or p.get("beatmap_id", 0)
+            pp_val = float(p.get("pp") or 0.0)
+
+            scored_plays.append({
+                "title": f"{artist} - {title}" if artist else title,
+                "version": version,
+                "beatmap_id": beatmap_id,
+                "mods_str": mods_str,
+                "sr": sr,
+                "pp": pp_val,
+                "acc": round(acc * 100.0, 2),
+                "scores": {
+                    "Aim": aim_score,
+                    "Speed": speed_score,
+                    "Accuracy": acc_score,
+                    "Stamina": stamina_score,
+                    "Reading": reading_score
+                }
+            })
+
+        if not scored_plays:
+            return {
+                skill: {"stars": 0.0, "top_maps": []} for skill in skills_def
+            } | {
+                "dominant_skill": "N/A",
+                "weakest_skill": "N/A",
+                "overall_skill_stars": 0.0
+            }
+
+        skills_result = {}
+        for skill in skills_def:
+            sorted_by_skill = sorted(scored_plays, key=lambda x: x["scores"][skill], reverse=True)
+            top_3 = sorted_by_skill[:3]
+            
+            sample = sorted_by_skill[:25]
+            weights = [0.95 ** i for i in range(len(sample))]
+            weighted_stars = sum(sample[i]["scores"][skill] * weights[i] for i in range(len(sample))) / max(0.001, sum(weights))
+            
+            skills_result[skill] = {
+                "stars": round(weighted_stars, 2),
+                "top_maps": [
+                    {
+                        "title": m["title"],
+                        "version": m["version"],
+                        "beatmap_id": m["beatmap_id"],
+                        "mods_str": m["mods_str"],
+                        "sr": m["sr"],
+                        "skill_score": round(m["scores"][skill], 2),
+                        "pp": round(m["pp"], 1),
+                        "acc": m["acc"]
+                    }
+                    for m in top_3
+                ]
+            }
+
+        dominant_skill = max(skills_def, key=lambda k: skills_result[k]["stars"])
+        weakest_skill = min(skills_def, key=lambda k: skills_result[k]["stars"])
+        overall = round(sum(skills_result[k]["stars"] for k in skills_def) / len(skills_def), 2)
+
+        skills_result["dominant_skill"] = dominant_skill
+        skills_result["weakest_skill"] = weakest_skill
+        skills_result["overall_skill_stars"] = overall
+        return skills_result
+
 
     # --- GENERADOR DE PROMPT UNIFICADO (v5.0 - SUPER ANALYZE) ---
 

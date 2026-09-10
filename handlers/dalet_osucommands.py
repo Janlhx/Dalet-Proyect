@@ -12,6 +12,7 @@ logger = logging.getLogger("dalet.handlers.osu")
 from ui.organisms import DaletOrganisms
 from ui.atoms import DaletAtoms
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
+from handlers.dalet_osu_presenter import OsuPresenter
 
 # Modos de juego válidos
 VALID_MODES = {"osu", "taiko", "fruits", "mania"}
@@ -819,6 +820,63 @@ def _create_progress_chart_sync(username: str, history: list) -> discord.File | 
         except Exception as e:
             logger.error(f"Error en op1s: {e}")
             await ctx.send(f"⚠️ error obteniendo los #1s de '{username}'.")
+
+    # ------------------------------------------------------------------
+    # d.skills / d.skill — Desglose de habilidades osu! (Skill Breakdown)
+    # ------------------------------------------------------------------
+
+    @commands.command(name="skills", aliases=["skill", "osk"])
+    async def osu_skills(self, ctx, *, args: str = None):
+        """Desglose de habilidades (Aim, Speed, Acc, Stamina, Reading) con veredicto de Dalet."""
+        username, mode = await self._parse_args(ctx, args)
+        if not username:
+            return
+
+        try:
+            async with ctx.typing():
+                user = await self.osu.get_user(username, mode)
+                best = await self.osu.get_user_best_scores(user["id"], mode, limit=50)
+
+            if not best:
+                return await ctx.send(f"**{username}** no tiene mejores jugadas registradas en {mode}.")
+
+            # 1. Calcular habilidades ponderadas
+            skills_data = OsuAnalyzer.calculate_skills(best)
+
+            # 2. Generar roast/veredicto ultra conciso con Dalet (micro-prompt)
+            dominant = skills_data.get("dominant_skill", "Aim")
+            weakest = skills_data.get("weakest_skill", "Stamina")
+            overall = skills_data.get("overall_skill_stars", 0.0)
+            stats = user.get("statistics", {})
+            gr = stats.get("global_rank") or "N/A"
+
+            micro_prompt = (
+                f"ROL: Eres Dalet, una bot cínica, técnica y experta en osu!.\n"
+                f"TAREA: Haz un roast o veredicto técnico ULTRA CORTO (MÁXIMO 2 ORACIONES, 30 palabras) sobre las habilidades de {username}:\n"
+                f"- Habilidad dominante: {dominant} ({skills_data[dominant]['stars']}★)\n"
+                f"- Habilidad más débil: {weakest} ({skills_data[weakest]['stars']}★)\n"
+                f"- Promedio de estrellas: {overall}★\n"
+                f"- Rank global: #{gr}\n"
+                f"REGLAS OBLIGATORIAS: Sé ácida y burlona con su debilidad. Máximo 1 emoji. Sin saludos ni despedidas, habla directamente al grano."
+            )
+
+            roast_text = None
+            try:
+                roast_text = await self.bot.nlp_service.generate_reply(
+                    micro_prompt, "Skill Roast", username,
+                    max_tokens_override=80
+                )
+            except Exception as nlp_err:
+                logger.warning(f"No se pudo generar roast para skills ({username}): {nlp_err}")
+
+            embed = OsuPresenter.build_skills_card(user, skills_data, roast_text=roast_text, mode=mode)
+            await ctx.send(embed=embed)
+            await self._maybe_snapshot(ctx.author.id, username, user)
+
+        except Exception as e:
+            logger.error(f"Error en d.skills para {username}: {e}")
+            traceback.print_exc()
+            await ctx.send("⚠️ error calculando el desglose de habilidades.")
 
 
 async def setup(bot):
