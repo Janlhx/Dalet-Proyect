@@ -15,6 +15,7 @@ import json
 import time
 from database.repositories.user_repository import UserRepository
 from database.sqlite_manager import SQLiteManager
+from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
 
 logger = logging.getLogger("dalet.services.nlp")
 
@@ -76,6 +77,23 @@ OSU_TOOLS = [
                 "required": ["username"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_osu_skills",
+            "description": "Calcula el desglose técnico de habilidades (Aim, Speed, Accuracy, Stamina, Reading, habilidad dominante y área débil) basado en las 100 mejores jugadas del jugador.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "description": "Nombre de usuario o nick en osu! del jugador. Si el usuario pregunta por sí mismo ('yo', 'mi', etc.), se puede omitir o poner 'yo'."
+                    }
+                },
+                "required": ["username"]
+            }
+        }
     }
 ]
 
@@ -84,7 +102,9 @@ OSU_TRIGGER_KEYWORDS = (
     "osu", "play", "plays", "score", "scores", "choke", "chokeó", "chokeo",
     "pp", "farm", "farmeo", "perfil", "top 1", "top play", "top score",
     "rank", "rango", "global rank", "mrekk", "lifeline", "whitecat",
-    "akolibed", "vaxei", "baryon", "shigetora", "cookiezi", "beatmap", "mapa"
+    "akolibed", "vaxei", "baryon", "shigetora", "cookiezi", "beatmap", "mapa",
+    "skill", "skills", "skillset", "destaco", "destaca", "destacar", "fuerte",
+    "debil", "débil", "aim", "speed", "stamina", "reading", "accuracy"
 )
 
 # Personalidad de Dalet en Inglés (Default)
@@ -728,6 +748,32 @@ class NLPService:
                     "country_rank": f"#{country_rank:,}" if isinstance(country_rank, (int, float)) else str(country_rank),
                     "pp": f"{pp:,}pp",
                     "accuracy": f"{acc}%"
+                }, ensure_ascii=False)
+
+            elif name == "get_osu_skills":
+                user_obj = await self.osu_service.get_user(raw_user)
+                if not user_obj or "id" not in user_obj:
+                    return json.dumps({"error": f"No se encontró al jugador '{raw_user}' en osu!."})
+
+                uid = user_obj["id"]
+                best_plays = await self.osu_service.get_user_best_scores(uid, limit=100)
+                if not best_plays:
+                    return json.dumps({"status": "no_plays", "player": raw_user, "message": "No tiene jugadas registradas en su top para calcular skills."})
+
+                skills_data = OsuAnalyzer.calculate_skills(best_plays)
+                
+                return json.dumps({
+                    "player": user_obj.get("username", raw_user),
+                    "dominant_skill": skills_data.get("dominant_skill"),
+                    "weakest_skill": skills_data.get("weakest_skill"),
+                    "overall_stars": f"{skills_data.get('overall_skill_stars', 0.0)}★",
+                    "breakdown": {
+                        "Aim": f"{skills_data.get('Aim', {}).get('stars', 0.0)}★",
+                        "Speed": f"{skills_data.get('Speed', {}).get('stars', 0.0)}★",
+                        "Accuracy": f"{skills_data.get('Accuracy', {}).get('stars', 0.0)}★",
+                        "Stamina": f"{skills_data.get('Stamina', {}).get('stars', 0.0)}★",
+                        "Reading": f"{skills_data.get('Reading', {}).get('stars', 0.0)}★"
+                    }
                 }, ensure_ascii=False)
 
             return json.dumps({"error": f"Herramienta desconocida: {name}"})
