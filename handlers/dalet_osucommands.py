@@ -664,28 +664,28 @@ def _create_progress_chart_sync(username: str, history: list) -> discord.File | 
             if not best:
                 return await ctx.send(f"**{username}** no tiene mejores jugadas registradas en {mode}.")
 
-            # 1. Calcular habilidades ponderadas según el modo
-            skills_data = OsuAnalyzer.calculate_skills(best, mode=mode)
-
-            # 2. Generar roast/veredicto ultra conciso con Dalet (micro-prompt)
-            dominant = skills_data.get("dominant_skill", "Aim")
-            weakest = skills_data.get("weakest_skill", "Stamina")
-            overall = skills_data.get("overall_skill_stars", 0.0)
-            overall_pts = skills_data.get("overall_skill_points", 0.0)
-            overall_tier = skills_data.get("overall_tier_name", "Maestro")
-            dom_pts = skills_data.get(dominant, {}).get("points", 0.0)
-            dom_tier = skills_data.get(dominant, {}).get("tier_name", "")
-            weak_pts = skills_data.get(weakest, {}).get("points", 0.0)
-            weak_tier = skills_data.get(weakest, {}).get("tier_name", "")
-            stats = user.get("statistics", {})
-            gr = stats.get("global_rank") or "N/A"
-
             server_lang = "en"
             if ctx.guild:
                 try:
                     server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
                 except Exception:
                     server_lang = "en"
+
+            # 1. Calcular habilidades ponderadas según el modo
+            skills_data = OsuAnalyzer.calculate_skills(best, mode=mode, lang=server_lang)
+
+            # 2. Generar roast/veredicto ultra conciso con Dalet (micro-prompt)
+            dominant = skills_data.get("dominant_skill", "Aim")
+            weakest = skills_data.get("weakest_skill", "Stamina")
+            overall = skills_data.get("overall_skill_stars", 0.0)
+            overall_pts = skills_data.get("overall_skill_points", 0.0)
+            overall_tier = skills_data.get("overall_tier_name", "Master")
+            dom_pts = skills_data.get(dominant, {}).get("points", 0.0)
+            dom_tier = skills_data.get(dominant, {}).get("tier_name", "")
+            weak_pts = skills_data.get(weakest, {}).get("points", 0.0)
+            weak_tier = skills_data.get(weakest, {}).get("tier_name", "")
+            stats = user.get("statistics", {})
+            gr = stats.get("global_rank") or "N/A"
 
             is_es = server_lang == "es"
             if is_es:

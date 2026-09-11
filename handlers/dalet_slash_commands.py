@@ -335,26 +335,26 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             if not best:
                 return await interaction.followup.send(f"**{uname}** no tiene mejores jugadas registradas en {mode}.")
 
-            skills_data = OsuAnalyzer.calculate_skills(best, mode=mode)
-
-            dominant = skills_data.get("dominant_skill", "Aim")
-            weakest = skills_data.get("weakest_skill", "Stamina")
-            overall = skills_data.get("overall_skill_stars", 0.0)
-            overall_pts = skills_data.get("overall_skill_points", 0.0)
-            overall_tier = skills_data.get("overall_tier_name", "Maestro")
-            dom_pts = skills_data.get(dominant, {}).get("points", 0.0)
-            dom_tier = skills_data.get(dominant, {}).get("tier_name", "")
-            weak_pts = skills_data.get(weakest, {}).get("points", 0.0)
-            weak_tier = skills_data.get(weakest, {}).get("tier_name", "")
-            stats = user.get("statistics", {})
-            gr = stats.get("global_rank") or "N/A"
-
             server_lang = "en"
             if interaction.guild_id:
                 try:
                     server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
                 except Exception:
                     server_lang = "en"
+
+            skills_data = OsuAnalyzer.calculate_skills(best, mode=mode, lang=server_lang)
+
+            dominant = skills_data.get("dominant_skill", "Aim")
+            weakest = skills_data.get("weakest_skill", "Stamina")
+            overall = skills_data.get("overall_skill_stars", 0.0)
+            overall_pts = skills_data.get("overall_skill_points", 0.0)
+            overall_tier = skills_data.get("overall_tier_name", "Master")
+            dom_pts = skills_data.get(dominant, {}).get("points", 0.0)
+            dom_tier = skills_data.get(dominant, {}).get("tier_name", "")
+            weak_pts = skills_data.get(weakest, {}).get("points", 0.0)
+            weak_tier = skills_data.get(weakest, {}).get("tier_name", "")
+            stats = user.get("statistics", {})
+            gr = stats.get("global_rank") or "N/A"
 
             is_es = server_lang == "es"
             if is_es:

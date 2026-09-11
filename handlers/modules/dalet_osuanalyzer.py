@@ -51,17 +51,27 @@ class OsuAnalyzer:
         return cls.MODE_SKILLS.get(m, cls.MODE_SKILLS["osu"])
 
     @staticmethod
-    def calculate_skills(best_plays: list, mode: str = "osu") -> dict:
+    def calculate_skills(best_plays: list, mode: str = "osu", lang: str = "es") -> dict:
         mode_clean = (mode or "osu").lower().strip()
         skills_def = OsuAnalyzer.get_mode_skills(mode_clean)
 
         if not best_plays:
+            def_glyph, def_tier = OsuAnalyzer.get_tier_info(0.0, lang=lang)
             return {
-                skill: {'stars': 0.0, 'top_maps': []} for skill in skills_def
+                skill: {
+                    'stars': 0.0,
+                    'points': 0.0,
+                    'tier_glyph': def_glyph,
+                    'tier_name': def_tier,
+                    'top_maps': []
+                } for skill in skills_def
             } | {
                 'dominant_skill': 'N/A',
                 'weakest_skill': 'N/A',
-                'overall_skill_stars': 0.0
+                'overall_skill_stars': 0.0,
+                'overall_skill_points': 0.0,
+                'overall_tier_glyph': def_glyph,
+                'overall_tier_name': def_tier
             }
 
         scored_plays = []
@@ -454,7 +464,7 @@ class OsuAnalyzer:
             weighted_stars = sum(sample[i]['scores'].get(skill, 0.0) * weights[i] for i in range(len(sample))) / max(0.001, sum(weights))
 
             pts = OsuAnalyzer.score_to_points(weighted_stars)
-            tier_glyph, tier_name = OsuAnalyzer.get_tier_info(pts)
+            tier_glyph, tier_name = OsuAnalyzer.get_tier_info(pts, lang=lang)
 
             skills_result[skill] = {
                 'points': pts,
@@ -489,7 +499,7 @@ class OsuAnalyzer:
             2
         )
         overall_pts = OsuAnalyzer.score_to_points(overall)
-        ov_glyph, ov_tier = OsuAnalyzer.get_tier_info(overall_pts)
+        ov_glyph, ov_tier = OsuAnalyzer.get_tier_info(overall_pts, lang=lang)
 
         skills_result['dominant_skill'] = dominant_skill
         skills_result['weakest_skill'] = weakest_skill

@@ -443,9 +443,9 @@ class OsuPresenter:
         lbl_strength = t("osu.skills_strength", lang)
         lbl_weakness = t("osu.skills_weakness", lang)
 
+        from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
         ov_pts = skills_data.get("overall_skill_points", 0.0)
-        ov_glyph = skills_data.get("overall_tier_glyph", "◆")
-        ov_tier = skills_data.get("overall_tier_name", "Maestro")
+        ov_glyph, ov_tier = OsuAnalyzer.get_tier_info(ov_pts, lang=lang)
 
         dom_info = skills_data.get(dominant, {})
         dom_pts = dom_info.get("points", 0.0)
@@ -473,15 +473,13 @@ class OsuPresenter:
             "Tech": DaletAtoms.GLYPH_TECH
         }
 
-        from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
         active_skills = OsuAnalyzer.get_mode_skills(mode)
         skill_metadata = [(sk, skill_icons.get(sk, "✦")) for sk in active_skills]
 
         for sk_name, icon in skill_metadata:
             sk_info = skills_data.get(sk_name, {})
             pts = sk_info.get("points", 0.0)
-            t_glyph = sk_info.get("tier_glyph", "▫")
-            t_name = sk_info.get("tier_name", "Aprendiz")
+            t_glyph, t_name = OsuAnalyzer.get_tier_info(pts, lang=lang)
             top_maps = sk_info.get("top_maps", [])
 
             lines = []

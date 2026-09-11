@@ -43,6 +43,11 @@ STRINGS: dict[str, dict[str, str]] = {
         "osu.skills_weakness": "Weakest Area",
         "osu.skills_verdict": "Dalet's Verdict",
         "osu.skills_no_data": "Not enough play data.",
+        "osu.tier_elite": "Elite",
+        "osu.tier_master": "Master",
+        "osu.tier_advanced": "Advanced",
+        "osu.tier_competent": "Competent",
+        "osu.tier_novice": "Novice",
 
         # --- General Commands ---
         "general.latency_title": "Latency",
@@ -155,6 +160,11 @@ STRINGS: dict[str, dict[str, str]] = {
         "osu.skills_weakness": "Área Débil",
         "osu.skills_verdict": "Veredicto de Dalet",
         "osu.skills_no_data": "Sin suficientes datos.",
+        "osu.tier_elite": "Élite",
+        "osu.tier_master": "Maestro",
+        "osu.tier_advanced": "Avanzado",
+        "osu.tier_competent": "Competente",
+        "osu.tier_novice": "Aprendiz",
 
         # --- General Commands ---
         "general.latency_title": "Latencia",
