@@ -14,6 +14,7 @@ class OsuService:
         self.token: str | None = None
         self.token_expiry: float = 0
         self.base_url = "https://osu.ppy.sh/api/v2"
+        self._attr_cache: dict = {}
 
     # ------------------------------------------------------------------
     # Auth
@@ -138,3 +139,34 @@ class OsuService:
                 for b in s.get("beatmaps", [])
             )
         ]
+
+    async def get_beatmap_attributes(self, beatmap_id: int, ruleset_id: int = 0, mods: list = None) -> dict:
+        """Obtiene atributos de dificultad de la API v2 (Lazer/Bancho): aim_difficulty, speed_difficulty, etc."""
+        cache_key = f"{beatmap_id}_{ruleset_id}_{tuple(sorted(mods or []))}"
+        if cache_key in self._attr_cache:
+            return self._attr_cache[cache_key]
+
+        endpoint = f"beatmaps/{beatmap_id}/attributes"
+        token = await self._get_token()
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        payload = {"ruleset_id": ruleset_id}
+        if mods:
+            payload["mods"] = mods
+
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    f"{self.base_url}/{endpoint}",
+                    headers=headers,
+                    json=payload,
+                    timeout=10.0
+                )
+                if resp.status_code == 200:
+                    attrs = resp.json().get("attributes", {})
+                    self._attr_cache[cache_key] = attrs
+                    return attrs
+        except Exception as e:
+            logger.debug(f"No se pudieron obtener atributos de dificultad para {beatmap_id}: {e}")
+
+        return {}
+

@@ -1,9 +1,41 @@
 import logging
+import json
+import os
 
 logger = logging.getLogger('dalet.handlers.osuanalyzer')
 
 class OsuAnalyzer:
     """Calcula el desglose de habilidades técnicas para todos los modos de osu!."""
+
+    _BENCHMARKS = None
+
+    @classmethod
+    def get_benchmarks(cls) -> dict:
+        """Carga el catálogo de referencia de mapas competitivos certificados por la comunidad."""
+        if cls._BENCHMARKS is not None:
+            return cls._BENCHMARKS
+        try:
+            data_path = os.path.join(os.path.dirname(__file__), "..", "..", "data", "community_skillsets.json")
+            data_path = os.path.abspath(data_path)
+            if os.path.exists(data_path):
+                with open(data_path, "r", encoding="utf-8") as f:
+                    cls._BENCHMARKS = json.load(f)
+                    return cls._BENCHMARKS
+        except Exception as e:
+            logger.warning(f"No se pudo cargar community_skillsets.json: {e}")
+        cls._BENCHMARKS = {"osu": [], "mania": []}
+        return cls._BENCHMARKS
+
+    @classmethod
+    def match_benchmark(cls, title: str, version: str, mode: str = "osu") -> dict | None:
+        """Busca si un mapa coincide con el catálogo verificado de la comunidad."""
+        benchmarks = cls.get_benchmarks().get(mode, [])
+        full_text = f"{title} {version}".lower()
+        for b in benchmarks:
+            pat = b.get("pattern", "").lower()
+            if pat and pat in full_text:
+                return b
+        return None
 
     MODE_SKILLS = {
         "osu": ['Aim', 'Speed', 'Accuracy', 'Stamina', 'Reading'],
@@ -449,6 +481,34 @@ class OsuAnalyzer:
 
                 raw_weights['Reading'] = min(1.30, reading_mult)
 
+            title = bset.get('title') or bm.get('title', 'Desconocido')
+            version = bm.get('version', 'Normal')
+            beatmap_id = bm.get('id') or p.get('beatmap_id', 0)
+            pp_val = float(p.get('pp') or 0.0)
+
+            # 1. Integración de Atributos Modernos de osu! Lazer / API v2 (si están disponibles)
+            attrs = bm.get('attributes') or p.get('beatmap_attributes') or {}
+            aim_diff = float(attrs.get('aim_difficulty') or 0.0)
+            speed_diff = float(attrs.get('speed_difficulty') or 0.0)
+            if aim_diff > 0 and speed_diff > 0 and mode_clean == "osu":
+                # Bancho / Lazer calculó oficialmente la dificultad de aim y speed
+                if aim_diff >= speed_diff * 1.05:
+                    raw_weights['Aim'] = max(raw_weights.get('Aim', 1.0), raw_weights.get('Speed', 0.9) * 1.15)
+                elif speed_diff >= aim_diff * 1.05:
+                    raw_weights['Speed'] = max(raw_weights.get('Speed', 1.0), raw_weights.get('Aim', 0.9) * 1.15)
+
+            # 2. Catálogo de Referencia de la Comunidad (Golden Benchmark Pool)
+            benchmark = OsuAnalyzer.match_benchmark(title, version, mode_clean)
+            if benchmark:
+                primary = benchmark.get("primary")
+                secondary = benchmark.get("secondary")
+                if primary and primary in skills_def:
+                    other_vals = [v for k, v in raw_weights.items() if k != primary]
+                    max_other = max(other_vals) if other_vals else 1.0
+                    raw_weights[primary] = max(raw_weights.get(primary, 1.0), max_other + 0.18)
+                if secondary and secondary in skills_def and raw_weights.get(secondary, 0.0) >= 0.70:
+                    raw_weights[secondary] = max(raw_weights.get(secondary, 0.9), 1.05)
+
             # --- NORMALIZACIÓN ANCLADA AL STAR RATING (OPCIÓN 1) ---
             # La habilidad dominante del mapa define la dificultad representativa (eff_sr).
             # Las demás habilidades se calculan como una fracción proporcional (<= eff_sr).
@@ -460,11 +520,6 @@ class OsuAnalyzer:
             for skill in skills_def:
                 rel_ratio = raw_weights.get(skill, 0.50) / max_raw
                 scores[skill] = round(eff_sr * rel_ratio * exec_factor, 2)
-
-            title = bset.get('title') or bm.get('title', 'Desconocido')
-            version = bm.get('version', 'Normal')
-            beatmap_id = bm.get('id') or p.get('beatmap_id', 0)
-            pp_val = float(p.get('pp') or 0.0)
 
             scored_plays.append({
                 'title': title,

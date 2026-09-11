@@ -1,0 +1,500 @@
+{
+  "version": "1.0",
+  "description": "Catálogo de referencia de la comunidad de mapas competitivos clasificados por habilidad (OWC, Corsace, Dan Courses, osu!skills)",
+  "osu": [
+    {
+      "pattern": "wizard's tower",
+      "primary": "Aim",
+      "secondary": "Reading",
+      "category": "Jump Aim"
+    },
+    {
+      "pattern": "black rover",
+      "primary": "Aim",
+      "secondary": "Speed",
+      "category": "Jump Aim"
+    },
+    {
+      "pattern": "harumachi clover",
+      "primary": "Aim",
+      "secondary": "Reading",
+      "category": "Jump Farm"
+    },
+    {
+      "pattern": "koigokoro",
+      "primary": "Aim",
+      "secondary": "Reading",
+      "category": "Jump Farm"
+    },
+    {
+      "pattern": "quaoar",
+      "primary": "Aim",
+      "secondary": "Speed",
+      "category": "High BPM Aim"
+    },
+    {
+      "pattern": "kanshou sengoku emaki",
+      "primary": "Aim",
+      "secondary": "Speed",
+      "category": "Cross-screen Aim"
+    },
+    {
+      "pattern": "guess who is back",
+      "primary": "Aim",
+      "secondary": "Reading",
+      "category": "Jump Farm"
+    },
+    {
+      "pattern": "make a move",
+      "primary": "Aim",
+      "secondary": "Reading",
+      "category": "Jump Farm"
+    },
+    {
+      "pattern": "chikatto chika chika",
+      "primary": "Aim",
+      "secondary": "Reading",
+      "category": "Jump Farm"
+    },
+    {
+      "pattern": "cbcc",
+      "primary": "Aim",
+      "secondary": "Reading",
+      "category": "Jump Farm"
+    },
+    {
+      "pattern": "hitorigoto",
+      "primary": "Aim",
+      "secondary": "Reading",
+      "category": "Jump Farm"
+    },
+    {
+      "pattern": "blade dance",
+      "primary": "Aim",
+      "secondary": "Speed",
+      "category": "Jump Aim"
+    },
+    {
+      "pattern": "kimi no bouken",
+      "primary": "Aim",
+      "secondary": "Speed",
+      "category": "Jump Aim"
+    },
+    {
+      "pattern": "dadadadadada",
+      "primary": "Aim",
+      "secondary": "Speed",
+      "category": "High BPM Jump"
+    },
+    {
+      "pattern": "kuchizuke diamond",
+      "primary": "Aim",
+      "secondary": "Reading",
+      "category": "Jump Farm"
+    },
+    {
+      "pattern": "ai no sukima",
+      "primary": "Aim",
+      "secondary": "Reading",
+      "category": "Jump Farm"
+    },
+    {
+      "pattern": "sunglow",
+      "primary": "Aim",
+      "secondary": "Speed",
+      "category": "Jump Aim"
+    },
+    {
+      "pattern": "last goodbye",
+      "primary": "Aim",
+      "secondary": "Speed",
+      "category": "Jump Aim"
+    },
+    {
+      "pattern": "kira kira days",
+      "primary": "Aim",
+      "secondary": "Speed",
+      "category": "Jump Aim"
+    },
+    {
+      "pattern": "totenblume",
+      "primary": "Speed",
+      "secondary": "Stamina",
+      "category": "Stream Speed"
+    },
+    {
+      "pattern": "rog-unlimitation",
+      "primary": "Speed",
+      "secondary": "Stamina",
+      "category": "Deathstream Speed"
+    },
+    {
+      "pattern": "xevel",
+      "primary": "Speed",
+      "secondary": "Aim",
+      "category": "Speed Bursts"
+    },
+    {
+      "pattern": "lionheart",
+      "primary": "Speed",
+      "secondary": "Aim",
+      "category": "Speed Streams"
+    },
+    {
+      "pattern": "glory days",
+      "primary": "Speed",
+      "secondary": "Aim",
+      "category": "Speed Streams"
+    },
+    {
+      "pattern": "tower of heaven",
+      "primary": "Speed",
+      "secondary": "Stamina",
+      "category": "Stream Speed"
+    },
+    {
+      "pattern": "shinbatsu",
+      "primary": "Speed",
+      "secondary": "Stamina",
+      "category": "Deathstream Speed"
+    },
+    {
+      "pattern": "image material",
+      "primary": "Speed",
+      "secondary": "Stamina",
+      "category": "High BPM Streams"
+    },
+    {
+      "pattern": "the promethean kings",
+      "primary": "Speed",
+      "secondary": "Tech",
+      "category": "High BPM Streams"
+    },
+    {
+      "pattern": "ascension to heaven",
+      "primary": "Speed",
+      "secondary": "Stamina",
+      "category": "Stream Speed"
+    },
+    {
+      "pattern": "hidamari no uta",
+      "primary": "Speed",
+      "secondary": "Accuracy",
+      "category": "Doubletap / Stream Speed"
+    },
+    {
+      "pattern": "dopamine",
+      "primary": "Speed",
+      "secondary": "Tech",
+      "category": "Finger Control Speed"
+    },
+    {
+      "pattern": "look at me tenderly",
+      "primary": "Stamina",
+      "secondary": "Speed",
+      "category": "Marathon Speed / Stamina"
+    },
+    {
+      "pattern": "above the winter",
+      "primary": "Stamina",
+      "secondary": "Speed",
+      "category": "Marathon Streams"
+    },
+    {
+      "pattern": "freedom dive",
+      "primary": "Stamina",
+      "secondary": "Speed",
+      "category": "Deathstream Marathon"
+    },
+    {
+      "pattern": "the violation",
+      "primary": "Stamina",
+      "secondary": "Speed",
+      "category": "Deathstream Marathon"
+    },
+    {
+      "pattern": "sidetracked day",
+      "primary": "Stamina",
+      "secondary": "Speed",
+      "category": "Long Stream Stamina"
+    },
+    {
+      "pattern": "the sun, the moon, the stars",
+      "primary": "Stamina",
+      "secondary": "Aim",
+      "category": "Grand Marathon"
+    },
+    {
+      "pattern": "save me",
+      "primary": "Stamina",
+      "secondary": "Aim",
+      "category": "Marathon Consistency"
+    },
+    {
+      "pattern": "painters of the tempest",
+      "primary": "Stamina",
+      "secondary": "Speed",
+      "category": "Grand Marathon"
+    },
+    {
+      "pattern": "songs compilation",
+      "primary": "Stamina",
+      "secondary": "Aim",
+      "category": "Marathon"
+    },
+    {
+      "pattern": "everything will freeze",
+      "primary": "Stamina",
+      "secondary": "Speed",
+      "category": "Speed Stamina"
+    },
+    {
+      "pattern": "uta",
+      "primary": "Stamina",
+      "secondary": "Aim",
+      "category": "Marathon Consistency"
+    },
+    {
+      "pattern": "chronostasis",
+      "primary": "Stamina",
+      "secondary": "Speed",
+      "category": "Stream Stamina"
+    },
+    {
+      "pattern": "cycle hit",
+      "primary": "Tech",
+      "secondary": "Aim",
+      "category": "Technical Alt"
+    },
+    {
+      "pattern": "deconstruction star",
+      "primary": "Tech",
+      "secondary": "Speed",
+      "category": "Finger Control"
+    },
+    {
+      "pattern": "snow drive",
+      "primary": "Tech",
+      "secondary": "Aim",
+      "category": "Finger Control / Alt"
+    },
+    {
+      "pattern": "happppy song",
+      "primary": "Tech",
+      "secondary": "Stamina",
+      "category": "Tech Stamina"
+    },
+    {
+      "pattern": "the big black",
+      "primary": "Tech",
+      "secondary": "Speed",
+      "category": "Technical Slider / Alt"
+    },
+    {
+      "pattern": "red like roses",
+      "primary": "Tech",
+      "secondary": "Aim",
+      "category": "Finger Control"
+    },
+    {
+      "pattern": "shotgun symphony",
+      "primary": "Reading",
+      "secondary": "Aim",
+      "category": "Reading / Low AR"
+    },
+    {
+      "pattern": "exit this earth's atomosphere",
+      "primary": "Tech",
+      "secondary": "Speed",
+      "category": "Technical Sliders"
+    },
+    {
+      "pattern": "aleph-0",
+      "primary": "Tech",
+      "secondary": "Reading",
+      "category": "Technical Gimmick"
+    }
+  ],
+  "mania": [
+    {
+      "pattern": "aiae",
+      "primary": "Chordjack",
+      "secondary": "Stamina",
+      "category": "Dan Chordjack"
+    },
+    {
+      "pattern": "qzkago requiem",
+      "primary": "Chordjack",
+      "secondary": "Tech",
+      "category": "Dense Chordjack"
+    },
+    {
+      "pattern": "blue army",
+      "primary": "Chordjack",
+      "secondary": "Stamina",
+      "category": "Dan Chordjack"
+    },
+    {
+      "pattern": "parousia",
+      "primary": "Chordjack",
+      "secondary": "Tech",
+      "category": "Dan Chordjack"
+    },
+    {
+      "pattern": "daisuke",
+      "primary": "Chordjack",
+      "secondary": "Speed",
+      "category": "Dan Chordjack"
+    },
+    {
+      "pattern": "garakuta doll play",
+      "primary": "Chordjack",
+      "secondary": "Tech",
+      "category": "Dan Chordjack"
+    },
+    {
+      "pattern": "xronier",
+      "primary": "Chordjack",
+      "secondary": "Speed",
+      "category": "High BPM Jack"
+    },
+    {
+      "pattern": "destr0yer",
+      "primary": "Chordjack",
+      "secondary": "Speed",
+      "category": "Dan Chordjack"
+    },
+    {
+      "pattern": "chandelier",
+      "primary": "Chordjack",
+      "secondary": "Stamina",
+      "category": "Dan Chordjack"
+    },
+    {
+      "pattern": "halcyon",
+      "primary": "Chordjack",
+      "secondary": "Tech",
+      "category": "Dan Chordjack"
+    },
+    {
+      "pattern": "eternal drain",
+      "primary": "Speed",
+      "secondary": "Stamina",
+      "category": "Dan Speed Jumpstream"
+    },
+    {
+      "pattern": "tatoris",
+      "primary": "Speed",
+      "secondary": "Stamina",
+      "category": "Dan Speed"
+    },
+    {
+      "pattern": "triumph & regret",
+      "primary": "Speed",
+      "secondary": "Stamina",
+      "category": "Dan Speed"
+    },
+    {
+      "pattern": "blastix riotz",
+      "primary": "Speed",
+      "secondary": "Tech",
+      "category": "Speed Streams"
+    },
+    {
+      "pattern": "over the full moon",
+      "primary": "Speed",
+      "secondary": "Tech",
+      "category": "Speed Jumpstream"
+    },
+    {
+      "pattern": "midnight city",
+      "primary": "Speed",
+      "secondary": "Stamina",
+      "category": "Dan Speed"
+    },
+    {
+      "pattern": "we luv lama",
+      "primary": "Speed",
+      "secondary": "Stamina",
+      "category": "Dan Speed"
+    },
+    {
+      "pattern": "c18h27no3",
+      "primary": "Speed",
+      "secondary": "Stamina",
+      "category": "High BPM Stream"
+    },
+    {
+      "pattern": "cryptarithm",
+      "primary": "LN",
+      "secondary": "Tech",
+      "category": "Dan LN"
+    },
+    {
+      "pattern": "end time",
+      "primary": "LN",
+      "secondary": "Tech",
+      "category": "Dan LN"
+    },
+    {
+      "pattern": "burning desires",
+      "primary": "LN",
+      "secondary": "Tech",
+      "category": "Dan LN"
+    },
+    {
+      "pattern": "re:end of a dream",
+      "primary": "LN",
+      "secondary": "Stamina",
+      "category": "Dan LN"
+    },
+    {
+      "pattern": "angelic jelly",
+      "primary": "LN",
+      "secondary": "Tech",
+      "category": "Dan LN"
+    },
+    {
+      "pattern": "hainuwele",
+      "primary": "LN",
+      "secondary": "Stamina",
+      "category": "Dan LN"
+    },
+    {
+      "pattern": "ankh natron collider",
+      "primary": "Tech",
+      "secondary": "Speed",
+      "category": "Dan Tech"
+    },
+    {
+      "pattern": "dyscontrolled galaxy",
+      "primary": "Tech",
+      "secondary": "Speed",
+      "category": "Technical Polyrhythm"
+    },
+    {
+      "pattern": "crystallized",
+      "primary": "Tech",
+      "secondary": "Speed",
+      "category": "Camellia Tech"
+    },
+    {
+      "pattern": "ghost",
+      "primary": "Tech",
+      "secondary": "LN",
+      "category": "Camellia Tech"
+    },
+    {
+      "pattern": "galaxy collapse",
+      "primary": "Stamina",
+      "secondary": "Speed",
+      "category": "Dan Stamina"
+    },
+    {
+      "pattern": "final boss",
+      "primary": "Stamina",
+      "secondary": "Chordjack",
+      "category": "Dan Stamina"
+    }
+  ]
+}
