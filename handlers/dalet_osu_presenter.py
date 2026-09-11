@@ -355,7 +355,7 @@ class OsuPresenter:
 
     @staticmethod
     def generate_pp_chart(username: str, scores: list, lang: str = "en") -> discord.File | None:
-        """Genera un gráfico de barras de distribución de PP con matplotlib ajustado dinámicamente con estética Dalet."""
+        """Genera un gráfico de barras de distribución de PP ajustado dinámicamente al rango real para acentuar la diferencia entre plays."""
         try:
             import io
             import matplotlib
@@ -368,45 +368,73 @@ class OsuPresenter:
             if not pp_values:
                 return None
 
-            indices = list(range(1, len(pp_values) + 1))
-            dalet_crimson = LinearSegmentedColormap.from_list(
-                'dalet_crimson', ['#e28294', '#c9576c', '#9c384a', '#601b27']
-            )
-            colors = dalet_crimson(np.linspace(0.05, 0.95, len(pp_values)))
+            indices = np.arange(1, len(pp_values) + 1)
+            min_pp = float(min(pp_values))
+            max_pp = float(max(pp_values))
+            pp_range = max_pp - min_pp
 
-            fig, ax = plt.subplots(figsize=(10, 4))
+            # Gradiente Dalet carmesí profundo a vino
+            dalet_crimson = LinearSegmentedColormap.from_list(
+                'dalet_crimson', ['#d96b82', '#b3475c', '#802637', '#4a121c']
+            )
+            colors = dalet_crimson(np.linspace(0.0, 1.0, len(pp_values)))
+
+            # Resaltar top 5 con acentos de rosa suave en sintonía con las jugadas principales
+            if len(colors) >= 5:
+                accent_shades = [
+                    [0.97, 0.72, 0.78, 1.0],
+                    [0.95, 0.65, 0.72, 1.0],
+                    [0.93, 0.58, 0.66, 1.0],
+                    [0.90, 0.52, 0.60, 1.0],
+                    [0.87, 0.46, 0.55, 1.0],
+                ]
+                colors[:5] = accent_shades
+
+            fig, ax = plt.subplots(figsize=(10, 4.2))
             fig.patch.set_facecolor("#131315")  # Dark Matte Dalet
             ax.set_facecolor("#101012")
 
-            ax.bar(indices, pp_values, color=colors, width=0.8, zorder=3)
-
-            # Línea de tendencia polinómica
-            if len(pp_values) > 3:
-                z = np.polyfit(indices, pp_values, 2)
-                p = np.poly1d(z)
-                x_smooth = np.linspace(1, len(pp_values), 200)
-                ax.plot(x_smooth, p(x_smooth), color="#f7c1cb", linewidth=1.8,
-                        linestyle="--", alpha=0.9, zorder=4)
-
-            # Ajuste dinámico de mínimo vertical para acentuar caídas individuales
-            min_pp = min(pp_values)
-            max_pp = max(pp_values)
-            if len(pp_values) >= 5 and min_pp > 20:
-                y_min = max(0, min_pp * 0.80)
-                y_max = max_pp * 1.05
-                ax.set_ylim(bottom=y_min, top=y_max)
+            # Escalado dinámico ajustado al rango real (elimina el "zoom out" plano y acentúa caídas)
+            if len(pp_values) >= 5 and pp_range >= 15:
+                y_min = max(0.0, min_pp - pp_range * 0.10)
+                y_max = max_pp + pp_range * 0.10
+            elif len(pp_values) >= 5:
+                y_min = max(0.0, min_pp - 15.0)
+                y_max = max_pp + 15.0
             else:
-                ax.set_ylim(bottom=0, top=max_pp * 1.05)
+                y_min = 0.0
+                y_max = max_pp * 1.08
+            ax.set_ylim(bottom=y_min, top=y_max)
+
+            # Barras individuales limpias
+            ax.bar(indices, pp_values, color=colors, width=0.72, zorder=3)
+
+            # Línea de contorno escalonada (ax.step) para hacer resaltar cada escalón, caída y plateau
+            ax.step(indices, pp_values, where="mid", color="#f7c1cb", linewidth=1.4, alpha=0.9, zorder=4)
+
+            # Puntos luminosos en el top 5
+            top_n = min(5, len(pp_values))
+            ax.scatter(indices[:top_n], pp_values[:top_n], color="#ffffff", s=16, zorder=5,
+                       edgecolors="#f7c1cb", linewidth=1.2)
+
+            # Badge estadístico en la esquina superior derecha
+            median_pp = float(np.median(pp_values))
+            summary_txt = t("osu.chart_summary", lang,
+                            top1=max_pp, median=median_pp, last_idx=len(pp_values),
+                            min_pp=min_pp, delta=pp_range)
+            ax.text(0.98, 0.92, summary_txt, transform=ax.transAxes,
+                    fontsize=8.5, color="#e4d8dc", horizontalalignment="right",
+                    bbox=dict(boxstyle="round,pad=0.4", facecolor="#1e171b", edgecolor="#3d2731", alpha=0.85))
 
             lbl_x = t("osu.chart_rank", lang)
             lbl_title = t("osu.chart_title", lang, username=username)
 
             ax.set_xlabel(lbl_x, color="#a89ca2", fontsize=9)
             ax.set_ylabel("PP", color="#a89ca2", fontsize=9)
-            ax.set_title(lbl_title, color="white", fontsize=12, pad=10, fontweight="bold")
+            ax.set_title(lbl_title, color="white", fontsize=12, pad=12, fontweight="bold")
             ax.tick_params(colors="#8c8087", labelsize=8)
             ax.spines[:].set_color("#2a1f24")
-            ax.grid(axis="y", color="#2a1f24", alpha=0.6, zorder=1)
+            ax.grid(axis="y", color="#2a1f24", alpha=0.5, linestyle=":", zorder=1)
 
             plt.tight_layout()
 

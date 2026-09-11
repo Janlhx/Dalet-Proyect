@@ -56,6 +56,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "osu.top_header": "Top 5 Scores",
         "osu.chart_rank": "Play rank",
         "osu.chart_title": "PP Distribution — {username}",
+        "osu.chart_summary": "Top 1: {top1:.0f}pp  │  Median: {median:.0f}pp  │  Top {last_idx}: {min_pp:.0f}pp  │  Δ: {delta:.0f}pp",
 
         # --- General Commands ---
         "general.latency_title": "Latency",
@@ -181,6 +182,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "osu.top_header": "Mejores 5 Jugadas",
         "osu.chart_rank": "Rank de la jugada",
         "osu.chart_title": "Distribución de PP — {username}",
+        "osu.chart_summary": "Top 1: {top1:.0f}pp  │  Mediana: {median:.0f}pp  │  Top {last_idx}: {min_pp:.0f}pp  │  Δ: {delta:.0f}pp",
 
         # --- General Commands ---
         "general.latency_title": "Latencia",
