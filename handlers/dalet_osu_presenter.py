@@ -443,9 +443,18 @@ class OsuPresenter:
         lbl_strength = t("osu.skills_strength", lang)
         lbl_weakness = t("osu.skills_weakness", lang)
 
+        ov_pts = skills_data.get("overall_skill_points", 0.0)
+        ov_glyph = skills_data.get("overall_tier_glyph", "◆")
+        ov_tier = skills_data.get("overall_tier_name", "Maestro")
+
+        dom_info = skills_data.get(dominant, {})
+        dom_pts = dom_info.get("points", 0.0)
+        weak_info = skills_data.get(weakest, {})
+        weak_pts = weak_info.get("points", 0.0)
+
         desc_lines = [
-            f"{DaletAtoms.GLYPH_POINTER} **{lbl_overall}**: `{overall:.2f}★` │ **PP**: `{pp:,.0f}` │ **Rank**: `{rank_str}`",
-            f"{DaletAtoms.GLYPH_POINTER} **{lbl_strength}**: `{dominant}` │ **{lbl_weakness}**: `{weakest}`"
+            f"{DaletAtoms.GLYPH_POINTER} **{lbl_overall}**: `{ov_pts:.1f} pts` {ov_glyph} `[{ov_tier}]` │ **PP**: `{pp:,.0f}` │ **Rank**: `{rank_str}`",
+            f"{DaletAtoms.GLYPH_POINTER} **{lbl_strength}**: `{dominant}` (`{dom_pts:.1f} pts`) │ **{lbl_weakness}**: `{weakest}` (`{weak_pts:.1f} pts`)"
         ]
         embed.description = "\n".join(desc_lines)
 
@@ -459,6 +468,7 @@ class OsuPresenter:
             "Agility": DaletAtoms.GLYPH_AGILITY,
             "Precision": DaletAtoms.GLYPH_PRECISION,
             "Chordjack": DaletAtoms.GLYPH_CHORDJACK,
+            "LN": DaletAtoms.GLYPH_LN,
             "Stream": DaletAtoms.GLYPH_STREAM,
             "Tech": DaletAtoms.GLYPH_TECH
         }
@@ -469,7 +479,9 @@ class OsuPresenter:
 
         for sk_name, icon in skill_metadata:
             sk_info = skills_data.get(sk_name, {})
-            stars = sk_info.get("stars", 0.0)
+            pts = sk_info.get("points", 0.0)
+            t_glyph = sk_info.get("tier_glyph", "▫")
+            t_name = sk_info.get("tier_name", "Aprendiz")
             top_maps = sk_info.get("top_maps", [])
 
             lines = []
@@ -492,7 +504,7 @@ class OsuPresenter:
             no_data_msg = t("osu.skills_no_data", lang)
             field_val = "\n".join(lines) if lines else no_data_msg
             embed.add_field(
-                name=f"{icon} {sk_name} — `{stars:.2f}★`",
+                name=f"{icon} {sk_name} — `{pts:.1f} pts` {t_glyph} `[{t_name}]`",
                 value=field_val,
                 inline=False
             )

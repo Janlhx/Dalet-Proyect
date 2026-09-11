@@ -340,6 +340,12 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             dominant = skills_data.get("dominant_skill", "Aim")
             weakest = skills_data.get("weakest_skill", "Stamina")
             overall = skills_data.get("overall_skill_stars", 0.0)
+            overall_pts = skills_data.get("overall_skill_points", 0.0)
+            overall_tier = skills_data.get("overall_tier_name", "Maestro")
+            dom_pts = skills_data.get(dominant, {}).get("points", 0.0)
+            dom_tier = skills_data.get(dominant, {}).get("tier_name", "")
+            weak_pts = skills_data.get(weakest, {}).get("points", 0.0)
+            weak_tier = skills_data.get(weakest, {}).get("tier_name", "")
             stats = user.get("statistics", {})
             gr = stats.get("global_rank") or "N/A"
 
@@ -356,11 +362,11 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                     f"ROL: Eres Dalet, una bot cínica, técnica y experta en osu! ({mode}).\n"
                     f"TAREA: Haz un roast o veredicto técnico contundente (MÁXIMO 2 ORACIONES, 25-35 palabras) sobre el perfil de {uname}:\n"
                     f"- Modo: {mode}\n"
-                    f"- Habilidad dominante: {dominant} ({skills_data.get(dominant, {}).get('stars', 0.0)}★)\n"
-                    f"- Habilidad más débil: {weakest} ({skills_data.get(weakest, {}).get('stars', 0.0)}★)\n"
-                    f"- Promedio de estrellas: {overall}★\n"
+                    f"- Habilidad dominante: {dominant} ({dom_pts} pts [{dom_tier}])\n"
+                    f"- Habilidad más débil: {weakest} ({weak_pts} pts [{weak_tier}])\n"
+                    f"- Puntuación de Maestría General: {overall_pts} pts [{overall_tier}]\n"
                     f"- Rank global: #{gr}\n"
-                    f"REGLAS: Búrlate con sarcasmo de su debilidad en {weakest} comparado con su {dominant}. Ve directo al grano sin introducciones. Máximo 1 emoji. Cero rodeos. IDIOMA: Español."
+                    f"REGLAS: Búrlate con sarcasmo de su debilidad en {weakest} comparado con su {dominant}. Ve directo al grano sin introducciones. Cero rodeos. IDIOMA: Español."
                 )
                 system_override = "Eres Dalet, una IA sarcástica y experta en osu!. Da un veredicto técnico contundente en 1 o 2 oraciones cortas. Ve directo al grano, sin explicaciones previas ni rodeos."
                 fallback_roasts = {
@@ -373,6 +379,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                     "Agility": "Muy rápido corriendo en línea recta, pero te piden un cambio brusco de dirección y el plato vuela al vacío.",
                     "Precision": "Cazas frutas gigantes como si nada, pero achican el plato medio pixel y las gotas caen como lluvia.",
                     "Chordjack": "Mucho spam de teclas sueltas, pero te tiran tres acordes densos simultáneos y se te apagan los dedos.",
+                    "LN": "Mucha pose apretando notas largas estáticas, pero te sueltan un fideo con inverse y tus dedos entran en cortocircuito.",
                     "Stream": "Muy cómodo con acordes estáticos, pero te meten una escalera fluida a 200 BPM y pareces una lavadora rota.",
                     "Tech": "Mucho spam de acordes planos, pero te meten dos bursts técnicos o un minijack veloz y se te cruzan los dedos."
                 }
@@ -381,11 +388,11 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                     f"ROLE: You are Dalet, a cynical, witty, and sharp osu! expert ({mode}).\n"
                     f"TASK: Write a biting technical roast (MAX 2 SHORT SENTENCES, 25-35 words) about {uname}'s profile in English:\n"
                     f"- Mode: {mode}\n"
-                    f"- Dominant skill: {dominant} ({skills_data.get(dominant, {}).get('stars', 0.0)}★)\n"
-                    f"- Weakest skill: {weakest} ({skills_data.get(weakest, {}).get('stars', 0.0)}★)\n"
-                    f"- Overall stars: {overall}★\n"
+                    f"- Dominant skill: {dominant} ({dom_pts} pts [{dom_tier}])\n"
+                    f"- Weakest skill: {weakest} ({weak_pts} pts [{weak_tier}])\n"
+                    f"- Overall Mastery Score: {overall_pts} pts [{overall_tier}]\n"
                     f"- Global rank: #{gr}\n"
-                    f"RULES: Mock their weak {weakest} compared to their {dominant} with dry sarcasm. Be direct with no intro. Max 1 emoji. No filler. LANGUAGE: English."
+                    f"RULES: Mock their weak {weakest} compared to their {dominant} with dry sarcasm. Be direct with no intro. No filler. LANGUAGE: English."
                 )
                 system_override = "You are Dalet, a sarcastic and witty osu! expert. Give a sharp, punchy technical verdict in 1-2 short sentences. Be direct, no fluff or preliminary reasoning."
                 fallback_roasts = {
@@ -398,8 +405,9 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                     "Agility": "Fast sprinting in a straight line, but ask for a sharp direction snap and your plate flies into the void.",
                     "Precision": "Catching giant fruits is easy, but shrink the plate half a pixel and droplets pour past you like rain.",
                     "Chordjack": "Plenty of single-key spam, but throw dense chords at you and your fingers freeze instantly.",
-                    "Stream": "Comfortable on static chords, but face a continuous 200 BPM staircase and you sound like a broken keyboard.",
-                    "Tech": "Comfortable on flat speed streams, but throw you two technical bursts or a fast minijack and your fingers cross."
+                    "LN": "Holding down static long notes is easy, but throw in inverse noodles and your release timing completely vanishes.",
+                    "Stream": "Comfortable with static chords, but throw a fluid 200 BPM stream at you and you sound like a broken washing machine.",
+                    "Tech": "Fine tapping flat patterns, but throw two technical bursts or a quick minijack and your fingers cross instantly."
                 }
 
             def _is_valid_roast(txt: str) -> bool:

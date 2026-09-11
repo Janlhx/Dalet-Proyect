@@ -9,8 +9,41 @@ class OsuAnalyzer:
         "osu": ['Aim', 'Speed', 'Accuracy', 'Stamina', 'Reading'],
         "taiko": ['Speed', 'Stamina', 'Accuracy', 'Reading', 'Patterning'],
         "fruits": ['Agility', 'Precision', 'Speed', 'Stamina', 'Reading'],
-        "mania": ['Chordjack', 'Tech', 'Speed', 'Stamina', 'Accuracy']
+        "mania": ['Chordjack', 'LN', 'Tech', 'Speed', 'Stamina', 'Accuracy']
     }
+
+    @staticmethod
+    def score_to_points(score_stars: float) -> float:
+        """Convierte dificultad de habilidad (estrellas) en Puntos de Maestría (0 a 100 pts).
+        Curva cóncava calibrada:
+        - 4.0★ -> ~59.4 pts (Competente)
+        - 5.0★ -> ~70.9 pts (Avanzado)
+        - 6.0★ -> ~80.0 pts (Maestro)
+        - 7.0★ -> ~88.0 pts (Maestro alto)
+        - 7.5★ -> ~92.0 pts (Élite)
+        - 8.5★ -> ~97.6 pts (Top Mundial)
+        - 9.5★+ -> 100.0 pts (Máximo)
+        """
+        if score_stars <= 0.0:
+            return 0.0
+        x = min(1.0, score_stars / 9.5)
+        pts = 100.0 * (1.0 - (1.0 - x) ** 1.65)
+        return round(min(100.0, max(0.0, pts)), 1)
+
+    @staticmethod
+    def get_tier_info(points: float, lang: str = "es") -> tuple:
+        """Retorna (glifo_tier, nombre_tier) sin emojis, usando glifos limpios de Dalet."""
+        is_es = (lang or "es").lower().startswith("es")
+        if points >= 90.0:
+            return ("✦", "Élite" if is_es else "Elite")
+        elif points >= 80.0:
+            return ("◆", "Maestro" if is_es else "Master")
+        elif points >= 70.0:
+            return ("▲", "Avanzado" if is_es else "Advanced")
+        elif points >= 60.0:
+            return ("▸", "Competente" if is_es else "Competent")
+        else:
+            return ("▫", "Aprendiz" if is_es else "Novice")
 
     @classmethod
     def get_mode_skills(cls, mode: str = "osu") -> list:
@@ -182,49 +215,62 @@ class OsuAnalyzer:
                 raw_weights['Reading'] = min(1.28, reading_mult)
 
             elif mode_clean == "mania":
-                # --- MANIA: Chordjack, Tech, Speed, Stamina, Accuracy ---
+                # --- MANIA: Chordjack, LN, Tech, Speed, Stamina, Accuracy ---
                 key_count = int(cs) if cs >= 4 else 4
                 ln_ratio = count_sliders / max(1, total_objects) if total_objects > 0 else 0.0
                 real_drain = drain / 1.5 if is_dt else drain
                 nps = total_objects / max(1.0, real_drain)
                 eff_bpm = bpm * (1.5 if is_dt else 1.0)
 
-                # 1. Chordjack: Acordes densos simultáneos y tensión en los dedos (7K vs 4K)
+                # 1. LN (Long Notes): Coordinación de hold notes, release timing, fideos e inverse
+                # Es el hogar de mapas con alta densidad de sliders (cryptarithm, end time, burning desires)
+                ln_mult = 0.50
+                if ln_ratio >= 0.15:
+                    ln_mult += min(0.80, (ln_ratio - 0.15) * 2.20)
+                    if ln_ratio >= 0.35:
+                        ln_mult += 0.15
+                elif ln_ratio < 0.10:
+                    ln_mult -= min(0.25, (0.10 - ln_ratio) * 2.50)
+                if key_count >= 7:
+                    ln_mult += 0.08
+                raw_weights['LN'] = min(1.35, max(0.20, ln_mult))
+
+                # 2. Chordjack: Acordes densos simultáneos y tensión en los dedos (7K vs 4K) en notas regulares (Rice).
                 # Ocurre típicamente en BPM moderado (150 - 215 BPM).
-                # A 230+ BPM es inviable hacer chordjacks puros sostenidos (son jumpstreams de Speed).
+                # A 225+ BPM es inviable hacer chordjacks puros sostenidos (son jumpstreams de Speed).
                 key_bonus = 0.12 if key_count >= 7 else (0.06 if key_count >= 5 else 0.0)
                 chord_mult = 0.95 + key_bonus
                 if 150 <= eff_bpm <= 215 and nps >= 7.0:
                     chord_mult += min(0.28, (nps - 7.0) * 0.045)
-                elif eff_bpm >= 230:
-                    chord_mult -= min(0.30, (eff_bpm - 230) * 0.006)
-                if ln_ratio >= 0.20:
-                    chord_mult -= min(0.22, (ln_ratio - 0.20) * 0.70)
+                elif eff_bpm >= 225:
+                    chord_mult -= min(0.35, (eff_bpm - 225) * 0.007)
+
+                # FILTRO ANTI-LN ESTRICTO: Si tiene más de 12% de LN (como cryptarithm o end time), NO es Chordjack puro
+                if ln_ratio >= 0.12:
+                    chord_mult -= min(0.60, (ln_ratio - 0.12) * 2.60)
+
                 if is_hr:
                     chord_mult += 0.06
-                raw_weights['Chordjack'] = max(0.55, chord_mult)
+                raw_weights['Chordjack'] = min(1.30, max(0.30, chord_mult))
 
-                # 2. Tech: Coordinación compleja de Long Notes (LN / Hold Notes), bursts rítmicos y minijacks.
-                # Como definen los jugadores de Dans: bursts rápidos, densos y cortos, o LN noodles / inverses.
-                # FILTRO ANTI-FALSO-POSITIVO (La X roja de Tatoris 1.5x):
-                # Si el mapa es rate-up speed puro (eff_bpm >= 235 con 0% LN), es Speed farm, NO Tech.
-                tech_mult = 0.85
-                if ln_ratio >= 0.08:
-                    tech_mult += min(0.38, (ln_ratio - 0.08) * 1.50)
-
-                # Bursts rítmicos densos en BPM técnico (170 - 235 BPM):
+                # 3. Tech: Coordinación compleja, bursts rítmicos densos, polirritmias y minijacks.
+                # FILTRO ANTI-SPEED (Tatoris 1.5x): Speed farm a ultra BPM sin LN es Speed puro.
+                # FILTRO ANTI-LN (End time / Burning desires): Si es dominantemente LN (>= 35%), pertenece a LN.
+                tech_mult = 0.90
                 if 170 <= eff_bpm <= 235 and nps >= 7.5:
-                    tech_mult += min(0.20, (nps - 7.5) * 0.035)
+                    tech_mult += min(0.25, (nps - 7.5) * 0.035)
 
                 if eff_bpm >= 235 and ln_ratio < 0.10:
-                    # Penalización para speed streams planos a ultra alta velocidad
-                    tech_mult -= min(0.30, (eff_bpm - 235) * 0.007)
+                    tech_mult -= min(0.40, (eff_bpm - 235) * 0.008)
+
+                if ln_ratio >= 0.35:
+                    tech_mult -= min(0.45, (ln_ratio - 0.35) * 1.80)
 
                 if is_hd or is_fl:
                     tech_mult += 0.08
-                raw_weights['Tech'] = min(1.35, max(0.50, tech_mult))
+                raw_weights['Tech'] = min(1.30, max(0.35, tech_mult))
 
-                # 3. Speed: Velocidad bruta de repetición (BPM alto y NPS alto en ráfagas de rice)
+                # 4. Speed: Velocidad bruta de repetición (BPM alto y NPS alto en ráfagas de rice)
                 speed_mult = 0.92
                 if eff_bpm >= 210:
                     speed_mult += min(0.22, (eff_bpm - 210) * 0.003)
@@ -238,23 +284,24 @@ class OsuAnalyzer:
                     speed_mult += 0.06  # Bono extra para speed streams puros sin LN
                 raw_weights['Speed'] = min(1.30, speed_mult)
 
-                # 4. Stamina: Resistencia en charts extensos de alta densidad (maratones reales >= 160s)
-                stamina_mult = 0.95
+                # 5. Stamina: Resistencia en charts extensos de alta densidad y strain sostenido (maratones reales >= 160s)
+                # Mapas densos pero cortos (~2 minutos como cryptarithm) NO deben inflar stamina.
+                stamina_mult = 0.85
                 if real_drain >= 160:
-                    stamina_mult += min(0.18, (real_drain - 160) * 0.001)
+                    stamina_mult += min(0.28, (real_drain - 160) * 0.0018)
                     if nps >= 7.5:
-                        stamina_mult += min(0.18, (nps - 7.5) * 0.03)
-                elif real_drain < 120:
-                    stamina_mult -= min(0.20, (120 - real_drain) * 0.003)
+                        stamina_mult += min(0.20, (nps - 7.5) * 0.03)
+                elif real_drain < 140:
+                    stamina_mult -= min(0.35, (140 - real_drain) * 0.005)
 
-                if total_objects >= 1700:
-                    stamina_mult += min(0.20, (total_objects - 1700) * 0.00015)
-                elif total_objects < 800:
-                    stamina_mult -= min(0.18, (800 - total_objects) * 0.0003)
+                if total_objects >= 1800:
+                    stamina_mult += min(0.20, (total_objects - 1800) * 0.00015)
+                elif total_objects < 900:
+                    stamina_mult -= min(0.25, (900 - total_objects) * 0.0003)
 
-                raw_weights['Stamina'] = min(1.28, max(0.55, stamina_mult))
+                raw_weights['Stamina'] = min(1.30, max(0.35, stamina_mult))
 
-                # 5. Accuracy: Ventana OD estricta y sincronización de pulsos
+                # 6. Accuracy: Ventana OD estricta y sincronización de pulsos
                 eff_od = min(10.5, od * (1.4 if is_hr else 1.0))
                 acc_scale = (acc / 0.985) ** 1.8
                 raw_weights['Accuracy'] = (eff_od / 9.2) * acc_scale
@@ -380,11 +427,20 @@ class OsuAnalyzer:
 
         if not scored_plays:
             return {
-                skill: {'stars': 0.0, 'top_maps': []} for skill in skills_def
+                skill: {
+                    'stars': 0.0,
+                    'points': 0.0,
+                    'tier_glyph': '▫',
+                    'tier_name': 'Aprendiz',
+                    'top_maps': []
+                } for skill in skills_def
             } | {
                 'dominant_skill': 'N/A',
                 'weakest_skill': 'N/A',
-                'overall_skill_stars': 0.0
+                'overall_skill_stars': 0.0,
+                'overall_skill_points': 0.0,
+                'overall_tier_glyph': '▫',
+                'overall_tier_name': 'Aprendiz'
             }
 
         skills_result = {}
@@ -397,8 +453,14 @@ class OsuAnalyzer:
             weights = [0.85 ** i for i in range(len(sample))]
             weighted_stars = sum(sample[i]['scores'].get(skill, 0.0) * weights[i] for i in range(len(sample))) / max(0.001, sum(weights))
 
+            pts = OsuAnalyzer.score_to_points(weighted_stars)
+            tier_glyph, tier_name = OsuAnalyzer.get_tier_info(pts)
+
             skills_result[skill] = {
+                'points': pts,
                 'stars': round(weighted_stars, 2),
+                'tier_glyph': tier_glyph,
+                'tier_name': tier_name,
                 'top_maps': [
                     {
                         'title': m['title'],
@@ -407,6 +469,7 @@ class OsuAnalyzer:
                         'mods_str': m['mods_str'],
                         'sr': m['sr'],
                         'skill_score': round(m['scores'].get(skill, 0.0), 2),
+                        'skill_points': OsuAnalyzer.score_to_points(m['scores'].get(skill, 0.0)),
                         'pp': round(m['pp'], 1),
                         'acc': m['acc']
                     }
@@ -414,21 +477,26 @@ class OsuAnalyzer:
                 ]
             }
 
-        dominant_skill = max(skills_def, key=lambda k: skills_result[k]['stars'])
-        weakest_skill = min(skills_def, key=lambda k: skills_result[k]['stars'])
+        dominant_skill = max(skills_def, key=lambda k: skills_result[k]['points'])
+        weakest_skill = min(skills_def, key=lambda k: skills_result[k]['points'])
 
         # Promedio Ponderado General: Valora el estilo de juego del usuario dando mayor relevancia a sus fortalezas
         # sin arrastrar el promedio por habilidades secundarias (como reading o acc estricto en jugadores de jumps)
         sorted_stars = sorted([skills_result[k]['stars'] for k in skills_def], reverse=True)
-        overall_weights = [0.38, 0.28, 0.18, 0.10, 0.06][:len(sorted_stars)]
+        overall_weights = [0.38, 0.28, 0.18, 0.10, 0.06, 0.04][:len(sorted_stars)]
         overall = round(
             sum(sorted_stars[i] * overall_weights[i] for i in range(len(sorted_stars))) / max(0.001, sum(overall_weights)),
             2
         )
+        overall_pts = OsuAnalyzer.score_to_points(overall)
+        ov_glyph, ov_tier = OsuAnalyzer.get_tier_info(overall_pts)
 
         skills_result['dominant_skill'] = dominant_skill
         skills_result['weakest_skill'] = weakest_skill
         skills_result['overall_skill_stars'] = overall
+        skills_result['overall_skill_points'] = overall_pts
+        skills_result['overall_tier_glyph'] = ov_glyph
+        skills_result['overall_tier_name'] = ov_tier
         return skills_result
 
 async def setup(bot):
