@@ -53,6 +53,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "osu.weighted_pp": "Weighted PP",
         "osu.raw_pp": "Raw PP",
         "osu.plays_analyzed": "Analyzed Plays",
+        "osu.top_header": "Top 5 Scores",
+        "osu.chart_rank": "Play rank",
+        "osu.chart_title": "PP Distribution — {username}",
 
         # --- General Commands ---
         "general.latency_title": "Latency",
@@ -175,6 +178,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "osu.weighted_pp": "PP Ponderado",
         "osu.raw_pp": "PP Real",
         "osu.plays_analyzed": "Jugadas Analizadas",
+        "osu.top_header": "Mejores 5 Jugadas",
+        "osu.chart_rank": "Rank de la jugada",
+        "osu.chart_title": "Distribución de PP — {username}",
 
         # --- General Commands ---
         "general.latency_title": "Latencia",

@@ -42,6 +42,47 @@ def _mode_title(mode: str) -> str:
     }
     return modes.get(mode.lower(), mode.capitalize())
 
+def _calc_effective_sr(bm: dict, mods: list, mode: str = "osu") -> float:
+    """Calcula el Star Rating efectivo considerando los mods (+DT, +HR, +EZ, +HT)."""
+    base_sr = float(bm.get("difficulty_rating", 0.0) or 0.0)
+    if not mods or base_sr <= 0:
+        return base_sr
+
+    mod_list = []
+    for m in mods:
+        if isinstance(m, str):
+            mod_list.append(m.upper())
+        elif isinstance(m, dict) and "acronym" in m:
+            mod_list.append(m["acronym"].upper())
+
+    is_dt = any(m in ("DT", "NC") for m in mod_list)
+    is_hr = "HR" in mod_list
+    is_ez = "EZ" in mod_list
+    is_ht = "HT" in mod_list
+
+    bpm = float(bm.get("bpm", 170.0) or 170.0)
+    cs = float(bm.get("cs", 4.0) or 4.0)
+    mode_clean = (mode or "osu").lower().strip()
+
+    eff_sr = base_sr
+    if is_dt:
+        dt_factor = 1.38
+        if bpm >= 200:
+            dt_factor += min(0.08, (bpm - 200) * 0.001)
+        elif bpm < 150:
+            dt_factor -= min(0.06, (150 - bpm) * 0.001)
+        eff_sr *= dt_factor
+    if is_hr:
+        if mode_clean in ("osu", "fruits"):
+            eff_sr *= (1.08 + max(0.0, (cs - 4.0) * 0.02))
+        else:
+            eff_sr *= 1.05
+    if is_ez:
+        eff_sr *= 0.88
+    if is_ht:
+        eff_sr *= 0.75
+    return round(eff_sr, 2)
+
 
 class OsuPresenter:
     """Presentador de UI para osu! con la identidad visual única de Dalet."""
@@ -264,7 +305,7 @@ class OsuPresenter:
             badge = DaletAtoms.GRADE_BADGES.get(grade, grade)
             title = bms.get("title", "Desconocido")
             ver = bm.get("version", "Normal")
-            sr = float(bm.get("difficulty_rating", 0.0) or 0.0)
+            sr = _calc_effective_sr(bm, s.get("mods", []), mode=actual_mode)
             bm_id = bm.get("id", 0)
             max_c = s.get("max_combo", 0)
             bm_max = bm.get("max_combo") or ""
@@ -286,13 +327,75 @@ class OsuPresenter:
 
         field_content = "\n".join(play_lines) if play_lines else t("osu.top_none", actual_lang)
         embed.add_field(
-            name=f"{DaletAtoms.GLYPH_STAR} Top 5 Scores",
+            name=f"{DaletAtoms.GLYPH_STAR} " + t("osu.top_header", actual_lang),
             value=field_content,
             inline=False
         )
 
         DaletMolecules.add_standard_footer(embed, context_text=f"ID: {user_id} • osu! {_mode_title(actual_mode)}")
         return embed
+
+    @staticmethod
+    def generate_pp_chart(username: str, scores: list, lang: str = "en") -> discord.File | None:
+        """Genera un gráfico de barras de distribución de PP con matplotlib ajustado dinámicamente."""
+        try:
+            import io
+            import matplotlib
+            matplotlib.use("Agg")  # Backend sin GUI
+            import matplotlib.pyplot as plt
+            import numpy as np
+
+            pp_values = [s.get("pp", 0) for s in scores if s.get("pp")]
+            if not pp_values:
+                return None
+
+            indices = list(range(1, len(pp_values) + 1))
+            colors = plt.cm.plasma(np.linspace(0.9, 0.3, len(pp_values)))
+
+            fig, ax = plt.subplots(figsize=(10, 4))
+            fig.patch.set_facecolor("#18181b")  # Zinc Dark estética Dalet
+            ax.set_facecolor("#111113")
+
+            ax.bar(indices, pp_values, color=colors, width=0.8, zorder=3)
+
+            # Línea de tendencia polinómica
+            if len(pp_values) > 3:
+                z = np.polyfit(indices, pp_values, 2)
+                p = np.poly1d(z)
+                x_smooth = np.linspace(1, len(pp_values), 200)
+                ax.plot(x_smooth, p(x_smooth), color="#ff69b4", linewidth=1.8,
+                        linestyle="--", alpha=0.85, zorder=4)
+
+            # Ajuste dinámico de mínimo vertical para acentuar caídas individuales
+            min_pp = min(pp_values)
+            max_pp = max(pp_values)
+            if len(pp_values) >= 5 and min_pp > 20:
+                y_min = max(0, min_pp * 0.80)
+                y_max = max_pp * 1.05
+                ax.set_ylim(bottom=y_min, top=y_max)
+            else:
+                ax.set_ylim(bottom=0, top=max_pp * 1.05)
+
+            lbl_x = t("osu.chart_rank", lang)
+            lbl_title = t("osu.chart_title", lang, username=username)
+
+            ax.set_xlabel(lbl_x, color="#a1a1aa", fontsize=9)
+            ax.set_ylabel("PP", color="#a1a1aa", fontsize=9)
+            ax.set_title(lbl_title, color="white", fontsize=12, pad=10, fontweight="bold")
+            ax.tick_params(colors="#71717a", labelsize=8)
+            ax.spines[:].set_color("#27272a")
+            ax.grid(axis="y", color="#27272a", alpha=0.6, zorder=1)
+
+            plt.tight_layout()
+
+            buf = io.BytesIO()
+            plt.savefig(buf, format="png", dpi=120, bbox_inches="tight")
+            plt.close(fig)
+            buf.seek(0)
+            return discord.File(buf, filename="pp_distribution.png")
+
+        except Exception as e:
+            return None
 
     @staticmethod
     def build_profile_card(user_data: dict, mode: str = "osu", lang: str = "en") -> discord.Embed:

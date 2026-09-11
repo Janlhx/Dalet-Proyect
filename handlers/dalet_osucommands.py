@@ -257,7 +257,7 @@ class OsuHandler(commands.Cog, name="osu!"):
             embed = OsuPresenter.build_top_card(user, best, mode=mode, lang=server_lang)
 
             # Gráfico de distribución de PP
-            chart_file = await self._generate_pp_chart(username, best)
+            chart_file = OsuPresenter.generate_pp_chart(username, best, lang=server_lang)
             if chart_file:
                 embed.set_image(url="attachment://pp_distribution.png")
                 await ctx.send(embed=embed, file=chart_file)
@@ -268,66 +268,9 @@ class OsuHandler(commands.Cog, name="osu!"):
             logger.error(f"Error en otop: {e}")
             await ctx.send(f"⚠️ error obteniendo top plays de '{username}'.")
 
-    async def _generate_pp_chart(self, username: str, scores: list) -> discord.File | None:
+    async def _generate_pp_chart(self, username: str, scores: list, lang: str = "en") -> discord.File | None:
         """Genera un gráfico de barras de distribución de PP con matplotlib ajustado dinámicamente."""
-        try:
-            import io
-            import matplotlib
-            matplotlib.use("Agg")  # Backend sin GUI — obligatorio en servidores
-            import matplotlib.pyplot as plt
-            import numpy as np
-
-            pp_values = [s.get("pp", 0) for s in scores if s.get("pp")]
-            if not pp_values:
-                return None
-
-            indices = list(range(1, len(pp_values) + 1))
-
-            # Colores degradados por PP
-            colors = plt.cm.plasma(np.linspace(0.9, 0.3, len(pp_values)))
-
-            fig, ax = plt.subplots(figsize=(10, 4))
-            fig.patch.set_facecolor("#18181b")  # Zinc Dark estética Dalet
-            ax.set_facecolor("#111113")
-
-            bars = ax.bar(indices, pp_values, color=colors, width=0.8, zorder=3)
-
-            # Línea de tendencia polinómica
-            if len(pp_values) > 3:
-                z = np.polyfit(indices, pp_values, 2)
-                p = np.poly1d(z)
-                x_smooth = np.linspace(1, len(pp_values), 200)
-                ax.plot(x_smooth, p(x_smooth), color="#ff69b4", linewidth=1.8,
-                        linestyle="--", alpha=0.85, zorder=4)
-
-            # Ajuste dinámico del mínimo vertical para acentuar caídas y perfil individual (feedback Delis)
-            min_pp = min(pp_values)
-            max_pp = max(pp_values)
-            if len(pp_values) >= 5 and min_pp > 20:
-                y_min = max(0, min_pp * 0.80)
-                y_max = max_pp * 1.05
-                ax.set_ylim(bottom=y_min, top=y_max)
-            else:
-                ax.set_ylim(bottom=0, top=max_pp * 1.05)
-
-            ax.set_xlabel("Rank del play", color="#a1a1aa", fontsize=9)
-            ax.set_ylabel("PP", color="#a1a1aa", fontsize=9)
-            ax.set_title(f"Distribución de PP — {username}", color="white", fontsize=12, pad=10, fontweight="bold")
-            ax.tick_params(colors="#71717a", labelsize=8)
-            ax.spines[:].set_color("#27272a")
-            ax.grid(axis="y", color="#27272a", alpha=0.6, zorder=1)
-
-            plt.tight_layout()
-
-            buf = io.BytesIO()
-            plt.savefig(buf, format="png", dpi=120, bbox_inches="tight")
-            plt.close(fig)
-            buf.seek(0)
-            return discord.File(buf, filename="pp_distribution.png")
-
-        except Exception as e:
-            logger.warning(f"No se pudo generar gráfico PP: {e}")
-            return None
+        return OsuPresenter.generate_pp_chart(username, scores, lang=lang)
 
     # ------------------------------------------------------------------
     # d.compare — Comparar dos jugadores

@@ -297,9 +297,14 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             if interaction.guild:
                 server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
             user = await self.bot.osu_service.get_user(uname, mode)
-            best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=mode, limit=5)
+            best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=mode, limit=100)
             embed = OsuPresenter.build_top_card(user.get("username", uname), mode, best, user_data=user, lang=server_lang)
-            await interaction.followup.send(embed=embed)
+            chart_file = OsuPresenter.generate_pp_chart(user.get("username", uname), best, lang=server_lang)
+            if chart_file:
+                embed.set_image(url="attachment://pp_distribution.png")
+                await interaction.followup.send(embed=embed, file=chart_file)
+            else:
+                await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /top: {e}")
             await interaction.followup.send("⚠️ error obteniendo top plays.", ephemeral=True)
