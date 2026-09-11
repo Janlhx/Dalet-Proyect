@@ -261,12 +261,16 @@ class OsuAnalyzer:
 
             else:
                 # --- OSU (STANDARD): Aim, Speed, Accuracy, Stamina, Reading ---
+                eff_bpm = bpm * (1.5 if is_dt else 1.0)
                 circle_ratio = count_circles / max(1, total_objects) if total_objects > 0 else 0.7
                 cs_bonus = max(0.0, (cs - 4.0) * 0.06)
                 aim_mult = 0.95 + 0.15 * circle_ratio + cs_bonus
+                if is_dt:
+                    aim_mult += 0.08
+                    if eff_bpm >= 210:
+                        aim_mult += min(0.12, (eff_bpm - 210) * 0.002)
                 raw_weights['Aim'] = aim_mult
 
-                eff_bpm = bpm * (1.5 if is_dt else 1.0)
                 bpm_mult = 1.0
                 if eff_bpm >= 210:
                     bpm_mult += min(0.18, (eff_bpm - 210) * 0.0028)
@@ -289,27 +293,27 @@ class OsuAnalyzer:
                 acc_mult = min(1.15, max(0.50, 0.75 + 0.35 * acc_curve)) * od_scale
                 raw_weights['Accuracy'] = acc_mult
 
-                # Resistencia (Stamina): Pondera densidad de notas por segundo (NPS) y maratones.
-                # Con DT, el mapa dura menos tiempo pero la densidad de notas por segundo es 1.5x mayor.
+                # Resistencia (Stamina): Pondera maratones continuos (drain extenso) y alta densidad sostenida.
+                # Con DT, el mapa dura menos tiempo; el drain real se reduce en 1.5x.
                 real_drain = drain / 1.5 if is_dt else drain
                 density = total_objects / max(1.0, real_drain)
-                stamina_mult = 1.0
-                if density >= 6.0:
-                    stamina_mult += min(0.22, (density - 6.0) * 0.04)
-                elif density < 3.5:
-                    stamina_mult -= min(0.15, (3.5 - density) * 0.04)
 
-                if is_dt and bpm >= 160:
-                    stamina_mult += 0.08
+                # Base de Stamina reducida: debe demostrarse resistencia en tiempo real.
+                stamina_mult = 0.85
+                if real_drain >= 150:
+                    stamina_mult += min(0.25, (real_drain - 150) * 0.0015)
+                    if density >= 5.5:
+                        stamina_mult += min(0.20, (density - 5.5) * 0.04)
+                elif real_drain < 110:
+                    # Penalización severa para mapas cortos de TV-size (< 110s drain real)
+                    stamina_mult -= min(0.35, (110 - real_drain) * 0.006)
 
                 if total_objects >= 1100:
-                    stamina_mult += min(0.15, (total_objects - 1100) * 0.00015)
-                elif total_objects < 500:
-                    stamina_mult -= min(0.15, (500 - total_objects) * 0.0003)
+                    stamina_mult += min(0.18, (total_objects - 1100) * 0.00015)
+                elif total_objects < 700:
+                    stamina_mult -= min(0.25, (700 - total_objects) * 0.0005)
 
-                if real_drain >= 180:
-                    stamina_mult += min(0.10, (real_drain - 180) * 0.0008)
-                raw_weights['Stamina'] = min(1.25, max(0.65, stamina_mult))
+                raw_weights['Stamina'] = min(1.30, max(0.40, stamina_mult))
 
                 # Lectura (Reading): Dificultad visual genuina por solapamiento de notas, densidad y memorización.
                 # Mantener una base armónica (~0.80 - 0.84) para que la métrica no colapse de forma irreal en el perfil,
@@ -388,8 +392,9 @@ class OsuAnalyzer:
             sorted_by_skill = sorted(scored_plays, key=lambda x: x['scores'].get(skill, 0.0), reverse=True)
             top_3 = sorted_by_skill[:3]
 
-            sample = sorted_by_skill[:25]
-            weights = [0.95 ** i for i in range(len(sample))]
+            # Muestrear el top 10 con decaimiento (0.85^i) enfocado en el rendimiento pico del jugador
+            sample = sorted_by_skill[:10]
+            weights = [0.85 ** i for i in range(len(sample))]
             weighted_stars = sum(sample[i]['scores'].get(skill, 0.0) * weights[i] for i in range(len(sample))) / max(0.001, sum(weights))
 
             skills_result[skill] = {
@@ -411,7 +416,15 @@ class OsuAnalyzer:
 
         dominant_skill = max(skills_def, key=lambda k: skills_result[k]['stars'])
         weakest_skill = min(skills_def, key=lambda k: skills_result[k]['stars'])
-        overall = round(sum(skills_result[k]['stars'] for k in skills_def) / len(skills_def), 2)
+
+        # Promedio Ponderado General: Valora el estilo de juego del usuario dando mayor relevancia a sus fortalezas
+        # sin arrastrar el promedio por habilidades secundarias (como reading o acc estricto en jugadores de jumps)
+        sorted_stars = sorted([skills_result[k]['stars'] for k in skills_def], reverse=True)
+        overall_weights = [0.38, 0.28, 0.18, 0.10, 0.06][:len(sorted_stars)]
+        overall = round(
+            sum(sorted_stars[i] * overall_weights[i] for i in range(len(sorted_stars))) / max(0.001, sum(overall_weights)),
+            2
+        )
 
         skills_result['dominant_skill'] = dominant_skill
         skills_result['weakest_skill'] = weakest_skill
