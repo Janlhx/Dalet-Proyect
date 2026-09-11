@@ -33,7 +33,7 @@ class DashboardService:
             "online": bool(bot and bot.is_ready()),
             "latency_ms": round(bot.latency * 1000) if (bot and bot.latency) else 0,
             "guilds": len(bot.guilds) if bot else 0,
-            "users": sum(g.member_count for g in bot.guilds) if bot else 0,
+            "users": sum((g.member_count or 0) for g in bot.guilds) if bot else 0,
             "uptime_formatted": cls._format_uptime(uptime_seconds),
             "uptime_seconds": uptime_seconds,
             "shard_id": getattr(bot, "shard_id", 0) or 0
