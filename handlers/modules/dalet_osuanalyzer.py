@@ -134,26 +134,33 @@ class OsuAnalyzer:
 
             raw_weights = {}
 
+            # Métricas universales de física y subdivisión rítmica
+            eff_bpm = bpm * (1.5 if is_dt else (0.75 if is_ht else 1.0))
+            real_drain = drain / 1.5 if is_dt else (drain / 0.75 if is_ht else drain)
+            real_drain = max(1.0, real_drain)
+            nps = total_objects / real_drain
+            beats_per_sec = max(0.1, eff_bpm / 60.0)
+            opb = nps / beats_per_sec  # Objects per Beat (Subdivisión rítmica promedio)
+
             if mode_clean == "taiko":
                 # --- TAIKO: Speed, Stamina, Accuracy, Reading, Patterning ---
-                eff_bpm = bpm * (1.5 if is_dt else 1.0)
-                bpm_mult = 1.0
-                if eff_bpm >= 220:
-                    bpm_mult += min(0.20, (eff_bpm - 220) * 0.003)
+                bpm_mult = 0.90
+                if eff_bpm >= 200:
+                    bpm_mult += min(0.28, (eff_bpm - 200) * 0.003)
                 elif eff_bpm < 160:
-                    bpm_mult -= min(0.18, (160 - eff_bpm) * 0.003)
+                    bpm_mult -= min(0.20, (160 - eff_bpm) * 0.003)
                 if is_dt:
                     bpm_mult += 0.08
-                raw_weights['Speed'] = bpm_mult
+                raw_weights['Speed'] = min(1.30, max(0.40, bpm_mult))
 
-                stamina_mult = 1.0
-                if total_objects >= 1600:
-                    stamina_mult += min(0.20, (total_objects - 1600) * 0.00015)
-                elif total_objects < 700:
-                    stamina_mult -= min(0.18, (700 - total_objects) * 0.0003)
-                if drain >= 200:
-                    stamina_mult += min(0.12, (drain - 200) * 0.0008)
-                raw_weights['Stamina'] = min(1.22, max(0.65, stamina_mult))
+                stamina_mult = 0.85
+                if real_drain >= 160:
+                    stamina_mult += min(0.25, (real_drain - 160) * 0.0016)
+                    if total_objects >= 1500:
+                        stamina_mult += min(0.20, (total_objects - 1500) * 0.00015)
+                elif real_drain < 120:
+                    stamina_mult -= min(0.35, (120 - real_drain) * 0.005)
+                raw_weights['Stamina'] = min(1.30, max(0.35, stamina_mult))
 
                 eff_od = min(10.5, od * (1.4 if is_hr else (0.5 if is_ez else 1.0)))
                 acc_scale = (acc / 0.985) ** 1.6
@@ -189,24 +196,23 @@ class OsuAnalyzer:
                     agility_mult += 0.08
                 raw_weights['Agility'] = agility_mult
 
-                eff_bpm = bpm * (1.5 if is_dt else 1.0)
-                bpm_mult = 1.0
-                if eff_bpm >= 200:
-                    bpm_mult += min(0.18, (eff_bpm - 200) * 0.0025)
+                bpm_mult = 0.90
+                if eff_bpm >= 190:
+                    bpm_mult += min(0.25, (eff_bpm - 190) * 0.0028)
                 elif eff_bpm < 150:
-                    bpm_mult -= min(0.15, (150 - eff_bpm) * 0.0025)
+                    bpm_mult -= min(0.18, (150 - eff_bpm) * 0.0025)
                 if is_dt:
                     bpm_mult += 0.10
-                raw_weights['Speed'] = bpm_mult
+                raw_weights['Speed'] = min(1.25, bpm_mult)
 
-                stamina_mult = 1.0
-                if total_objects >= 1400:
-                    stamina_mult += min(0.18, (total_objects - 1400) * 0.00015)
-                elif total_objects < 600:
-                    stamina_mult -= min(0.15, (600 - total_objects) * 0.0003)
-                if drain >= 180:
-                    stamina_mult += min(0.10, (drain - 180) * 0.0008)
-                raw_weights['Stamina'] = min(1.20, max(0.70, stamina_mult))
+                stamina_mult = 0.85
+                if real_drain >= 160:
+                    stamina_mult += min(0.22, (real_drain - 160) * 0.0015)
+                    if total_objects >= 1400:
+                        stamina_mult += min(0.18, (total_objects - 1400) * 0.00015)
+                elif real_drain < 120:
+                    stamina_mult -= min(0.30, (120 - real_drain) * 0.004)
+                raw_weights['Stamina'] = min(1.25, max(0.40, stamina_mult))
 
                 eff_ar = min(10.0, ar * 1.4) if is_hr else (ar * 0.5 if is_ez else ar)
                 if is_dt:
@@ -228,88 +234,99 @@ class OsuAnalyzer:
                 # --- MANIA: Chordjack, LN, Tech, Speed, Stamina, Accuracy ---
                 key_count = int(cs) if cs >= 4 else 4
                 ln_ratio = count_sliders / max(1, total_objects) if total_objects > 0 else 0.0
-                real_drain = drain / 1.5 if is_dt else drain
-                nps = total_objects / max(1.0, real_drain)
-                eff_bpm = bpm * (1.5 if is_dt else 1.0)
 
                 # 1. LN (Long Notes): Coordinación de hold notes, release timing, fideos e inverse
-                # Es el hogar de mapas con alta densidad de sliders (cryptarithm, end time, burning desires)
                 ln_mult = 0.50
                 if ln_ratio >= 0.15:
-                    ln_mult += min(0.80, (ln_ratio - 0.15) * 2.20)
+                    ln_mult += min(0.85, (ln_ratio - 0.15) * 2.30)
                     if ln_ratio >= 0.35:
-                        ln_mult += 0.15
+                        ln_mult += 0.15  # Dominio absoluto de LN / Inverse
                 elif ln_ratio < 0.10:
                     ln_mult -= min(0.25, (0.10 - ln_ratio) * 2.50)
                 if key_count >= 7:
-                    ln_mult += 0.08
+                    ln_mult += 0.06
                 raw_weights['LN'] = min(1.35, max(0.20, ln_mult))
 
-                # 2. Chordjack: Acordes densos simultáneos y tensión en los dedos (7K vs 4K) en notas regulares (Rice).
-                # Ocurre típicamente en BPM moderado (150 - 215 BPM).
-                # A 225+ BPM es inviable hacer chordjacks puros sostenidos (son jumpstreams de Speed).
-                key_bonus = 0.12 if key_count >= 7 else (0.06 if key_count >= 5 else 0.0)
-                chord_mult = 0.95 + key_bonus
-                if 150 <= eff_bpm <= 215 and nps >= 7.0:
-                    chord_mult += min(0.28, (nps - 7.0) * 0.045)
-                elif eff_bpm >= 225:
-                    chord_mult -= min(0.35, (eff_bpm - 225) * 0.007)
+                # 2. Chordjack: Acordes densos simultáneos (densidad de notas por pulso muy alta en Rice)
+                # En 4K: 1 nota en cada 1/4 = 4.0 OPB. Acordes continuos (dobles/triples jacks) = OPB >= 4.0.
+                # Ocurre a BPM moderado (130 - 205 BPM). A 215+ BPM se convierte físicamente en jumpstream/speed.
+                chord_mult = 0.82
+                min_opb = 4.0 if key_count == 4 else 5.0
+                if opb >= min_opb and 130 <= eff_bpm <= 205:
+                    chord_mult += min(0.48, (opb - min_opb) * 0.15 + 0.24)
+                elif opb < 3.6:
+                    chord_mult -= min(0.40, (3.6 - opb) * 0.20)
 
-                # FILTRO ANTI-LN ESTRICTO: Si tiene más de 12% de LN (como cryptarithm o end time), NO es Chordjack puro
-                if ln_ratio >= 0.12:
-                    chord_mult -= min(0.60, (ln_ratio - 0.12) * 2.60)
+                # Penalización si el BPM excede el umbral humano de jacks de acordes densos
+                if eff_bpm > 215:
+                    chord_mult -= min(0.45, (eff_bpm - 215) * 0.008)
 
-                if is_hr:
-                    chord_mult += 0.06
-                raw_weights['Chordjack'] = min(1.30, max(0.30, chord_mult))
+                # Si es dominantemente LN (>= 15%), pertenece a LN
+                if ln_ratio >= 0.15:
+                    chord_mult -= min(0.60, (ln_ratio - 0.15) * 2.50)
 
-                # 3. Tech: Coordinación compleja, bursts rítmicos densos, polirritmias y minijacks.
-                # FILTRO ANTI-SPEED (Tatoris 1.5x): Speed farm a ultra BPM sin LN es Speed puro.
-                # FILTRO ANTI-LN (End time / Burning desires): Si es dominantemente LN (>= 35%), pertenece a LN.
-                tech_mult = 0.90
-                if 170 <= eff_bpm <= 235 and nps >= 7.5:
+                if key_count >= 7:
+                    chord_mult += 0.08
+                raw_weights['Chordjack'] = min(1.35, max(0.25, chord_mult))
+
+                # 3. Speed: Velocidad bruta de repetición (BPM alto >= 200 con patrones de roll/jumpstream ligeros y bajo LN)
+                speed_mult = 0.85
+                if eff_bpm >= 200:
+                    speed_mult += min(0.35, (eff_bpm - 200) * 0.004)
+                elif eff_bpm < 160:
+                    speed_mult -= min(0.30, (160 - eff_bpm) * 0.004)
+
+                if nps >= 8.5:
+                    speed_mult += min(0.18, (nps - 8.5) * 0.025)
+
+                # Si la densidad de notas por pulso corresponde a jumpstream/rolls (3.0 a 4.6 OPB a alto BPM) en arroz (rice)
+                if 3.0 <= opb <= 4.6 and eff_bpm >= 200 and ln_ratio < 0.15:
+                    speed_mult += 0.12
+
+                # Penalización si el mapa tiene LN significativa (la retención de teclas bloquea el streaming puro de speed)
+                if ln_ratio >= 0.15:
+                    speed_mult -= min(0.45, (ln_ratio - 0.15) * 2.20)
+
+                raw_weights['Speed'] = min(1.35, max(0.30, speed_mult))
+
+                # 4. Tech: Coordinación compleja, polirritmias, SVs y patrones híbridos (LN + Rice)
+                tech_mult = 0.88
+                if 170 <= eff_bpm <= 230 and nps >= 7.5:
                     tech_mult += min(0.25, (nps - 7.5) * 0.035)
 
-                if eff_bpm >= 235 and ln_ratio < 0.10:
-                    tech_mult -= min(0.40, (eff_bpm - 235) * 0.008)
+                # Bono característico de Tech: coordinación híbrida de LN con notas arroz (12% a 28% LN)
+                if 0.12 <= ln_ratio <= 0.28:
+                    tech_mult += 0.16
 
-                if ln_ratio >= 0.35:
-                    tech_mult -= min(0.45, (ln_ratio - 0.35) * 1.80)
+                # Acordes pesados de rice puro (OPB >= 4.0 a BPM moderado) pertenecen a Chordjack, no a Tech
+                if opb >= 4.0 and ln_ratio < 0.10 and eff_bpm <= 205:
+                    tech_mult -= min(0.30, (opb - 4.0) * 0.15 + 0.12)
+
+                if eff_bpm >= 235 and ln_ratio < 0.10:
+                    tech_mult -= min(0.35, (eff_bpm - 235) * 0.008)
+
+                # Si tiene 30% o más de LN, es predominantemente un mapa de LN
+                if ln_ratio >= 0.30:
+                    tech_mult -= min(0.55, (ln_ratio - 0.30) * 2.50)
 
                 if is_hd or is_fl:
                     tech_mult += 0.08
                 raw_weights['Tech'] = min(1.30, max(0.35, tech_mult))
 
-                # 4. Speed: Velocidad bruta de repetición (BPM alto y NPS alto en ráfagas de rice)
-                speed_mult = 0.92
-                if eff_bpm >= 210:
-                    speed_mult += min(0.22, (eff_bpm - 210) * 0.003)
-                elif eff_bpm < 150:
-                    speed_mult -= min(0.18, (150 - eff_bpm) * 0.003)
-                if nps >= 8.5:
-                    speed_mult += min(0.15, (nps - 8.5) * 0.025)
-                if is_dt:
-                    speed_mult += 0.08
-                if ln_ratio < 0.10 and eff_bpm >= 220:
-                    speed_mult += 0.06  # Bono extra para speed streams puros sin LN
-                raw_weights['Speed'] = min(1.30, speed_mult)
-
-                # 5. Stamina: Resistencia en charts extensos de alta densidad y strain sostenido (maratones reales >= 160s)
-                # Mapas densos pero cortos (~2 minutos como cryptarithm) NO deben inflar stamina.
-                stamina_mult = 0.85
+                # 5. Stamina: Resistencia en charts extensos (real_drain >= 160s) y alto strain sostenido
+                # Mapas densos pero cortos (< 140s) sufren penalización
+                stamina_mult = 0.80
                 if real_drain >= 160:
-                    stamina_mult += min(0.28, (real_drain - 160) * 0.0018)
-                    if nps >= 7.5:
-                        stamina_mult += min(0.20, (nps - 7.5) * 0.03)
+                    stamina_mult += min(0.35, (real_drain - 160) * 0.002)
+                    if total_objects >= 1700:
+                        stamina_mult += min(0.20, (total_objects - 1700) * 0.00015)
                 elif real_drain < 140:
-                    stamina_mult -= min(0.35, (140 - real_drain) * 0.005)
+                    stamina_mult -= min(0.40, (140 - real_drain) * 0.005)
 
-                if total_objects >= 1800:
-                    stamina_mult += min(0.20, (total_objects - 1800) * 0.00015)
-                elif total_objects < 900:
+                if total_objects < 900:
                     stamina_mult -= min(0.25, (900 - total_objects) * 0.0003)
 
-                raw_weights['Stamina'] = min(1.30, max(0.35, stamina_mult))
+                raw_weights['Stamina'] = min(1.35, max(0.30, stamina_mult))
 
                 # 6. Accuracy: Ventana OD estricta y sincronización de pulsos
                 eff_od = min(10.5, od * (1.4 if is_hr else 1.0))
@@ -318,31 +335,64 @@ class OsuAnalyzer:
 
             else:
                 # --- OSU (STANDARD): Aim, Speed, Accuracy, Stamina, Reading ---
-                eff_bpm = bpm * (1.5 if is_dt else 1.0)
                 circle_ratio = count_circles / max(1, total_objects) if total_objects > 0 else 0.7
-                cs_bonus = max(0.0, (cs - 4.0) * 0.06)
-                aim_mult = 0.95 + 0.15 * circle_ratio + cs_bonus
+                slider_ratio = count_sliders / max(1, total_objects) if total_objects > 0 else 0.3
+                cs_bonus = max(0.0, (cs - 4.0) * 0.08)
+
+                # 1. Aim: Puntería, spacing y movimiento de cursor.
+                # Si OPB <= 1.9 (ej. Wizard's Tower con 1.44 OPB, Harumachi con 1.60 OPB), el mapa es de saltos 1-2 puros.
+                # El BPM alto en saltos mide la velocidad de movimiento del cursor (Aim flicking).
+                aim_mult = 0.94 + 0.18 * circle_ratio + cs_bonus
+                if opb <= 2.0:
+                    aim_mult += 0.16
+                    if eff_bpm >= 200:
+                        aim_mult += min(0.25, (eff_bpm - 200) * 0.003)
+                elif opb <= 2.8:
+                    aim_mult += 0.10
+                    if eff_bpm >= 220:
+                        aim_mult += min(0.15, (eff_bpm - 220) * 0.002)
+                elif opb >= 3.4:
+                    aim_mult -= min(0.20, (opb - 3.4) * 0.20)
+
+                # Si es un maratón de alta densidad (ej. Freedom Dive >= 160s y >= 8.0 NPS), domina Stamina/Speed
+                if real_drain >= 160 and nps >= 8.0:
+                    aim_mult -= 0.15
+
                 if is_dt:
                     aim_mult += 0.08
-                    if eff_bpm >= 210:
-                        aim_mult += min(0.12, (eff_bpm - 210) * 0.002)
-                raw_weights['Aim'] = aim_mult
+                if is_hr:
+                    aim_mult += 0.08
+                raw_weights['Aim'] = min(1.35, max(0.40, aim_mult))
 
-                bpm_mult = 1.0
-                if eff_bpm >= 210:
-                    bpm_mult += min(0.18, (eff_bpm - 210) * 0.0028)
-                elif eff_bpm < 160:
-                    bpm_mult -= min(0.20, (160 - eff_bpm) * 0.003)
-                if is_dt:
-                    bpm_mult += 0.06
-                # El tiempo de reacción en alta AR (>= 10.0) pertenece a Speed (mecánica y reflejos de lectura rápida)
+                # 2. Speed: Digitación a alta velocidad en el teclado (streams de 1/4 y ráfagas rápidas).
+                # Requiere presencia de ráfagas/streams (OPB >= 2.2) y BPM elevado (>= 185).
+                # Si OPB <= 1.9 (como Wizard's Tower con 1.44 OPB), SPEED SE PENALIZA por carecer de streams de digitación.
+                speed_mult = 0.85
+                if opb >= 2.2 and eff_bpm >= 185:
+                    speed_mult += min(0.32, (eff_bpm - 185) * 0.0035)
+                    speed_mult += min(0.18, (opb - 2.2) * 0.12)
+                    if nps >= 8.0 and eff_bpm >= 200:
+                        speed_mult += min(0.15, (nps - 8.0) * 0.05)
+                elif opb <= 1.9:
+                    speed_mult -= min(0.42, (1.9 - opb) * 0.60)
+                    if eff_bpm < 200:
+                        speed_mult -= 0.10
+
+                if eff_bpm >= 250 and opb >= 2.1:
+                    speed_mult += 0.08
+                if is_dt and opb >= 2.2:
+                    speed_mult += 0.08
+
+                # Reacción en AR extrema (>= 10.3)
                 eff_ar = min(10.0, ar * 1.4) if is_hr else (ar * 0.5 if is_ez else ar)
                 if is_dt:
                     eff_ar = min(11.1, (eff_ar * 2 + 13) / 3)
-                if eff_ar >= 10.0:
-                    bpm_mult += min(0.12, (eff_ar - 10.0) * 0.08)
-                raw_weights['Speed'] = bpm_mult
+                if eff_ar >= 10.3:
+                    speed_mult += min(0.10, (eff_ar - 10.3) * 0.08)
 
+                raw_weights['Speed'] = min(1.35, max(0.30, speed_mult))
+
+                # 3. Accuracy: Ventana OD y consistencia rítmica
                 eff_od = min(11.0, od * (1.4 if is_hr else (0.5 if is_ez else 1.0)))
                 od_scale = eff_od / 9.8
                 acc_normalized = max(0.0, (acc - 0.90) / 0.10)
@@ -350,31 +400,24 @@ class OsuAnalyzer:
                 acc_mult = min(1.15, max(0.50, 0.75 + 0.35 * acc_curve)) * od_scale
                 raw_weights['Accuracy'] = acc_mult
 
-                # Resistencia (Stamina): Pondera maratones continuos (drain extenso) y alta densidad sostenida.
-                # Con DT, el mapa dura menos tiempo; el drain real se reduce en 1.5x.
-                real_drain = drain / 1.5 if is_dt else drain
-                density = total_objects / max(1.0, real_drain)
+                # 4. Stamina: Resistencia física prolongada (real_drain >= 160s y alto conteo de objetos)
+                # Mapas cortos / TV-size (< 120s) sufren penalización proporcional
+                stamina_mult = 0.82
+                if real_drain >= 160:
+                    stamina_mult += min(0.35, (real_drain - 160) * 0.0022)
+                    if nps >= 6.5:
+                        stamina_mult += min(0.25, (nps - 6.5) * 0.045)
+                elif real_drain < 120:
+                    stamina_mult -= min(0.40, (120 - real_drain) * 0.006)
 
-                # Base de Stamina reducida: debe demostrarse resistencia en tiempo real.
-                stamina_mult = 0.85
-                if real_drain >= 150:
-                    stamina_mult += min(0.25, (real_drain - 150) * 0.0015)
-                    if density >= 5.5:
-                        stamina_mult += min(0.20, (density - 5.5) * 0.04)
-                elif real_drain < 110:
-                    # Penalización severa para mapas cortos de TV-size (< 110s drain real)
-                    stamina_mult -= min(0.35, (110 - real_drain) * 0.006)
-
-                if total_objects >= 1100:
-                    stamina_mult += min(0.18, (total_objects - 1100) * 0.00015)
+                if total_objects >= 1200:
+                    stamina_mult += min(0.22, (total_objects - 1200) * 0.00015)
                 elif total_objects < 700:
-                    stamina_mult -= min(0.25, (700 - total_objects) * 0.0005)
+                    stamina_mult -= min(0.25, (700 - total_objects) * 0.0004)
 
-                raw_weights['Stamina'] = min(1.30, max(0.40, stamina_mult))
+                raw_weights['Stamina'] = min(1.35, max(0.30, stamina_mult))
 
-                # Lectura (Reading): Dificultad visual genuina por solapamiento de notas, densidad y memorización.
-                # Mantener una base armónica (~0.80 - 0.84) para que la métrica no colapse de forma irreal en el perfil,
-                # pero sin otorgar ventajas a mapas de AR alta donde el desafío es puramente reacción/velocidad.
+                # 5. Reading: Complejidad visual, solapamiento de notas (baja AR), HD, FL, EZ
                 if eff_ar >= 10.0:
                     reading_mult = 0.80
                 elif eff_ar >= 9.6:
@@ -382,7 +425,6 @@ class OsuAnalyzer:
                 else:
                     reading_mult = 0.85
 
-                # Bonificaciones genuinas de lectura:
                 if eff_ar <= 8.5:
                     reading_mult += min(0.30, (8.5 - eff_ar) * 0.10)
                     if eff_ar <= 7.0:
@@ -390,18 +432,17 @@ class OsuAnalyzer:
 
                 if is_hd:
                     if eff_ar <= 8.5:
-                        reading_mult += 0.22  # HD en baja AR es lectura extrema
+                        reading_mult += 0.22
                     elif eff_ar <= 9.6:
-                        reading_mult += 0.10  # HD estándar
+                        reading_mult += 0.10
                     else:
-                        reading_mult += 0.04  # HD en AR 10+ es casi puro músculo/reacción
+                        reading_mult += 0.04
 
                 if is_fl:
                     reading_mult += 0.40
                 if is_ez:
                     reading_mult += 0.30
 
-                slider_ratio = count_sliders / max(1, total_objects) if total_objects > 0 else 0.3
                 if slider_ratio >= 0.35:
                     reading_mult += min(0.18, (slider_ratio - 0.35) * 0.30)
 
