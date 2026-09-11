@@ -373,7 +373,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                     "Agility": "Muy rápido corriendo en línea recta, pero te piden un cambio brusco de dirección y el plato vuela al vacío.",
                     "Precision": "Cazas frutas gigantes como si nada, pero achican el plato medio pixel y las gotas caen como lluvia.",
                     "Chordjack": "Mucho spam de teclas sueltas, pero te tiran tres acordes densos simultáneos y se te apagan los dedos.",
-                    "Stream": "Muy cómodo con acordes estáticos, pero te meten una escalera fluida a 200 BPM y pareces una lavadora rota."
+                    "Stream": "Muy cómodo con acordes estáticos, pero te meten una escalera fluida a 200 BPM y pareces una lavadora rota.",
+                    "Tech": "Mucho spam de acordes planos, pero te meten dos bursts técnicos o un minijack veloz y se te cruzan los dedos."
                 }
             else:
                 micro_prompt = (
@@ -397,7 +398,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                     "Agility": "Fast sprinting in a straight line, but ask for a sharp direction snap and your plate flies into the void.",
                     "Precision": "Catching giant fruits is easy, but shrink the plate half a pixel and droplets pour past you like rain.",
                     "Chordjack": "Plenty of single-key spam, but throw dense chords at you and your fingers freeze instantly.",
-                    "Stream": "Comfortable on static chords, but face a continuous 200 BPM staircase and you sound like a broken keyboard."
+                    "Stream": "Comfortable on static chords, but face a continuous 200 BPM staircase and you sound like a broken keyboard.",
+                    "Tech": "Comfortable on flat speed streams, but throw you two technical bursts or a fast minijack and your fingers cross."
                 }
 
             def _is_valid_roast(txt: str) -> bool:

@@ -9,7 +9,7 @@ class OsuAnalyzer:
         "osu": ['Aim', 'Speed', 'Accuracy', 'Stamina', 'Reading'],
         "taiko": ['Speed', 'Stamina', 'Accuracy', 'Reading', 'Patterning'],
         "fruits": ['Agility', 'Precision', 'Speed', 'Stamina', 'Reading'],
-        "mania": ['Chordjack', 'Stream', 'Speed', 'Stamina', 'Accuracy']
+        "mania": ['Chordjack', 'Tech', 'Speed', 'Stamina', 'Accuracy']
     }
 
     @classmethod
@@ -179,41 +179,79 @@ class OsuAnalyzer:
                 scores['Reading'] = eff_sr * min(1.28, reading_mult) * exec_factor
 
             elif mode_clean == "mania":
-                # --- MANIA: Chordjack, Stream, Speed, Stamina, Accuracy ---
+                # --- MANIA: Chordjack, Tech, Speed, Stamina, Accuracy ---
                 key_count = int(cs) if cs >= 4 else 4
-                key_bonus = 0.10 if key_count >= 7 else (0.05 if key_count >= 5 else 0.0)
-                chord_mult = 0.90 + key_bonus
-                if is_hr:
-                    chord_mult += 0.08
-                scores['Chordjack'] = eff_sr * chord_mult * exec_factor
-
-                density = total_objects / max(1.0, drain)
-                stream_mult = 0.90
-                if density >= 8.0:
-                    stream_mult += min(0.20, (density - 8.0) * 0.025)
-                elif density < 4.0:
-                    stream_mult -= min(0.15, (4.0 - density) * 0.03)
-                scores['Stream'] = eff_sr * min(1.22, max(0.70, stream_mult)) * exec_factor
-
+                ln_ratio = count_sliders / max(1, total_objects) if total_objects > 0 else 0.0
+                real_drain = drain / 1.5 if is_dt else drain
+                nps = total_objects / max(1.0, real_drain)
                 eff_bpm = bpm * (1.5 if is_dt else 1.0)
-                bpm_mult = 1.0
+
+                # 1. Chordjack: Acordes densos simultáneos y tensión en los dedos (7K vs 4K)
+                # Ocurre típicamente en BPM moderado (150 - 215 BPM).
+                # A 230+ BPM es inviable hacer chordjacks puros sostenidos (son jumpstreams de Speed).
+                key_bonus = 0.12 if key_count >= 7 else (0.06 if key_count >= 5 else 0.0)
+                chord_mult = 0.95 + key_bonus
+                if 150 <= eff_bpm <= 215 and nps >= 7.0:
+                    chord_mult += min(0.28, (nps - 7.0) * 0.045)
+                elif eff_bpm >= 230:
+                    chord_mult -= min(0.30, (eff_bpm - 230) * 0.006)
+                if ln_ratio >= 0.20:
+                    chord_mult -= min(0.22, (ln_ratio - 0.20) * 0.70)
+                if is_hr:
+                    chord_mult += 0.06
+                scores['Chordjack'] = eff_sr * max(0.55, chord_mult) * exec_factor
+
+                # 2. Tech: Coordinación compleja de Long Notes (LN / Hold Notes), bursts rítmicos y minijacks.
+                # Como definen los jugadores de Dans: bursts rápidos, densos y cortos, o LN noodles / inverses.
+                # FILTRO ANTI-FALSO-POSITIVO (La X roja de Tatoris 1.5x):
+                # Si el mapa es rate-up speed puro (eff_bpm >= 235 con 0% LN), es Speed farm, NO Tech.
+                tech_mult = 0.85
+                if ln_ratio >= 0.08:
+                    tech_mult += min(0.38, (ln_ratio - 0.08) * 1.50)
+
+                # Bursts rítmicos densos en BPM técnico (170 - 235 BPM):
+                if 170 <= eff_bpm <= 235 and nps >= 7.5:
+                    tech_mult += min(0.20, (nps - 7.5) * 0.035)
+
+                if eff_bpm >= 235 and ln_ratio < 0.10:
+                    # Penalización para speed streams planos a ultra alta velocidad
+                    tech_mult -= min(0.30, (eff_bpm - 235) * 0.007)
+
+                if is_hd or is_fl:
+                    tech_mult += 0.08
+                scores['Tech'] = eff_sr * min(1.35, max(0.50, tech_mult)) * exec_factor
+
+                # 3. Speed: Velocidad bruta de repetición (BPM alto y NPS alto en ráfagas de rice)
+                speed_mult = 0.92
                 if eff_bpm >= 210:
-                    bpm_mult += min(0.18, (eff_bpm - 210) * 0.0025)
+                    speed_mult += min(0.22, (eff_bpm - 210) * 0.003)
                 elif eff_bpm < 150:
-                    bpm_mult -= min(0.15, (150 - eff_bpm) * 0.0025)
+                    speed_mult -= min(0.18, (150 - eff_bpm) * 0.003)
+                if nps >= 8.5:
+                    speed_mult += min(0.15, (nps - 8.5) * 0.025)
                 if is_dt:
-                    bpm_mult += 0.08
-                scores['Speed'] = eff_sr * bpm_mult * exec_factor
+                    speed_mult += 0.08
+                if ln_ratio < 0.10 and eff_bpm >= 220:
+                    speed_mult += 0.06  # Bono extra para speed streams puros sin LN
+                scores['Speed'] = eff_sr * min(1.30, speed_mult) * exec_factor
 
-                stamina_mult = 1.0
-                if total_objects >= 1800:
-                    stamina_mult += min(0.20, (total_objects - 1800) * 0.00012)
+                # 4. Stamina: Resistencia en charts extensos de alta densidad (maratones reales >= 160s)
+                stamina_mult = 0.95
+                if real_drain >= 160:
+                    stamina_mult += min(0.18, (real_drain - 160) * 0.001)
+                    if nps >= 7.5:
+                        stamina_mult += min(0.18, (nps - 7.5) * 0.03)
+                elif real_drain < 120:
+                    stamina_mult -= min(0.20, (120 - real_drain) * 0.003)
+
+                if total_objects >= 1700:
+                    stamina_mult += min(0.20, (total_objects - 1700) * 0.00015)
                 elif total_objects < 800:
-                    stamina_mult -= min(0.18, (800 - total_objects) * 0.00025)
-                if drain >= 180:
-                    stamina_mult += min(0.10, (drain - 180) * 0.0008)
-                scores['Stamina'] = eff_sr * min(1.20, max(0.68, stamina_mult)) * exec_factor
+                    stamina_mult -= min(0.18, (800 - total_objects) * 0.0003)
 
+                scores['Stamina'] = eff_sr * min(1.28, max(0.55, stamina_mult)) * exec_factor
+
+                # 5. Accuracy: Ventana OD estricta y sincronización de pulsos
                 eff_od = min(10.5, od * (1.4 if is_hr else 1.0))
                 acc_scale = (acc / 0.985) ** 1.8
                 scores['Accuracy'] = eff_sr * (eff_od / 9.2) * acc_scale * exec_factor

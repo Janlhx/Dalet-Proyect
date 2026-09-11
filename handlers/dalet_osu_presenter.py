@@ -459,7 +459,8 @@ class OsuPresenter:
             "Agility": DaletAtoms.GLYPH_AGILITY,
             "Precision": DaletAtoms.GLYPH_PRECISION,
             "Chordjack": DaletAtoms.GLYPH_CHORDJACK,
-            "Stream": DaletAtoms.GLYPH_STREAM
+            "Stream": DaletAtoms.GLYPH_STREAM,
+            "Tech": DaletAtoms.GLYPH_TECH
         }
 
         from handlers.modules.dalet_osuanalyzer import OsuAnalyzer

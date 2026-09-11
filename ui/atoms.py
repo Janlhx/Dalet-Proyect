@@ -59,6 +59,7 @@ class DaletAtoms:
     GLYPH_PRECISION = "⊹"
     GLYPH_CHORDJACK = "▮"
     GLYPH_STREAM = "≋"
+    GLYPH_TECH = "⬡"
     GLYPH_VERDICT = "✦"
 
     # --- Emojis Funcionales y Limpios ---
