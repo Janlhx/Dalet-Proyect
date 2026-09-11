@@ -68,7 +68,10 @@ class OsuAnalyzer:
                     dt_factor -= min(0.06, (150 - bpm) * 0.001)
                 eff_sr *= dt_factor
             if is_hr:
-                eff_sr *= (1.08 + max(0.0, (cs - 4.0) * 0.02))
+                if mode_clean in ("osu", "fruits"):
+                    eff_sr *= (1.08 + max(0.0, (cs - 4.0) * 0.02))
+                else:
+                    eff_sr *= 1.05
             if is_ez:
                 eff_sr *= 0.88
             if is_ht:
@@ -82,11 +85,11 @@ class OsuAnalyzer:
             combo_ratio = min(1.0, max(0.15, max_combo / max(1, bm_max)))
 
             acc_penalty = (acc / 0.985) ** 1.35 if acc > 0 else 0.5
-            miss_penalty = max(0.68, 1.0 - (misses * 0.035))
+            miss_penalty = max(0.65, 1.0 - (misses * 0.035))
             combo_factor = combo_ratio ** 0.12
-            exec_factor = min(1.05, max(0.50, acc_penalty * miss_penalty * combo_factor))
+            exec_factor = min(1.00, max(0.40, acc_penalty * miss_penalty * combo_factor))
 
-            scores = {}
+            raw_weights = {}
 
             if mode_clean == "taiko":
                 # --- TAIKO: Speed, Stamina, Accuracy, Reading, Patterning ---
@@ -98,7 +101,7 @@ class OsuAnalyzer:
                     bpm_mult -= min(0.18, (160 - eff_bpm) * 0.003)
                 if is_dt:
                     bpm_mult += 0.08
-                scores['Speed'] = eff_sr * bpm_mult * exec_factor
+                raw_weights['Speed'] = bpm_mult
 
                 stamina_mult = 1.0
                 if total_objects >= 1600:
@@ -107,11 +110,11 @@ class OsuAnalyzer:
                     stamina_mult -= min(0.18, (700 - total_objects) * 0.0003)
                 if drain >= 200:
                     stamina_mult += min(0.12, (drain - 200) * 0.0008)
-                scores['Stamina'] = eff_sr * min(1.22, max(0.65, stamina_mult)) * exec_factor
+                raw_weights['Stamina'] = min(1.22, max(0.65, stamina_mult))
 
                 eff_od = min(10.5, od * (1.4 if is_hr else (0.5 if is_ez else 1.0)))
                 acc_scale = (acc / 0.985) ** 1.6
-                scores['Accuracy'] = eff_sr * (eff_od / 9.2) * acc_scale * exec_factor
+                raw_weights['Accuracy'] = (eff_od / 9.2) * acc_scale
 
                 reading_mult = 0.75
                 if is_hd:
@@ -122,26 +125,26 @@ class OsuAnalyzer:
                     reading_mult += 0.22
                 if is_dt:
                     reading_mult += 0.08
-                scores['Reading'] = eff_sr * min(1.25, reading_mult) * exec_factor
+                raw_weights['Reading'] = min(1.25, reading_mult)
 
                 circle_ratio = count_circles / max(1, total_objects) if total_objects > 0 else 0.8
                 pattern_mult = 0.90 + 0.15 * circle_ratio
                 if is_hr:
                     pattern_mult += 0.08
-                scores['Patterning'] = eff_sr * pattern_mult * exec_factor
+                raw_weights['Patterning'] = pattern_mult
 
             elif mode_clean == "fruits":
                 # --- CATCH (FRUITS): Agility, Precision, Speed, Stamina, Reading ---
                 eff_cs = cs * (1.3 if is_hr else (0.5 if is_ez else 1.0))
                 cs_mult = 0.85 + max(-0.15, (eff_cs - 4.0) * 0.10)
-                scores['Precision'] = eff_sr * min(1.25, cs_mult) * exec_factor
+                raw_weights['Precision'] = min(1.25, cs_mult)
 
                 agility_mult = 0.92
                 if is_hr:
                     agility_mult += 0.12
                 if is_dt:
                     agility_mult += 0.08
-                scores['Agility'] = eff_sr * agility_mult * exec_factor
+                raw_weights['Agility'] = agility_mult
 
                 eff_bpm = bpm * (1.5 if is_dt else 1.0)
                 bpm_mult = 1.0
@@ -151,7 +154,7 @@ class OsuAnalyzer:
                     bpm_mult -= min(0.15, (150 - eff_bpm) * 0.0025)
                 if is_dt:
                     bpm_mult += 0.10
-                scores['Speed'] = eff_sr * bpm_mult * exec_factor
+                raw_weights['Speed'] = bpm_mult
 
                 stamina_mult = 1.0
                 if total_objects >= 1400:
@@ -160,7 +163,7 @@ class OsuAnalyzer:
                     stamina_mult -= min(0.15, (600 - total_objects) * 0.0003)
                 if drain >= 180:
                     stamina_mult += min(0.10, (drain - 180) * 0.0008)
-                scores['Stamina'] = eff_sr * min(1.20, max(0.70, stamina_mult)) * exec_factor
+                raw_weights['Stamina'] = min(1.20, max(0.70, stamina_mult))
 
                 eff_ar = min(10.0, ar * 1.4) if is_hr else (ar * 0.5 if is_ez else ar)
                 if is_dt:
@@ -176,7 +179,7 @@ class OsuAnalyzer:
                     reading_mult += 0.35
                 if is_ez:
                     reading_mult += 0.18
-                scores['Reading'] = eff_sr * min(1.28, reading_mult) * exec_factor
+                raw_weights['Reading'] = min(1.28, reading_mult)
 
             elif mode_clean == "mania":
                 # --- MANIA: Chordjack, Tech, Speed, Stamina, Accuracy ---
@@ -199,7 +202,7 @@ class OsuAnalyzer:
                     chord_mult -= min(0.22, (ln_ratio - 0.20) * 0.70)
                 if is_hr:
                     chord_mult += 0.06
-                scores['Chordjack'] = eff_sr * max(0.55, chord_mult) * exec_factor
+                raw_weights['Chordjack'] = max(0.55, chord_mult)
 
                 # 2. Tech: Coordinación compleja de Long Notes (LN / Hold Notes), bursts rítmicos y minijacks.
                 # Como definen los jugadores de Dans: bursts rápidos, densos y cortos, o LN noodles / inverses.
@@ -219,7 +222,7 @@ class OsuAnalyzer:
 
                 if is_hd or is_fl:
                     tech_mult += 0.08
-                scores['Tech'] = eff_sr * min(1.35, max(0.50, tech_mult)) * exec_factor
+                raw_weights['Tech'] = min(1.35, max(0.50, tech_mult))
 
                 # 3. Speed: Velocidad bruta de repetición (BPM alto y NPS alto en ráfagas de rice)
                 speed_mult = 0.92
@@ -233,7 +236,7 @@ class OsuAnalyzer:
                     speed_mult += 0.08
                 if ln_ratio < 0.10 and eff_bpm >= 220:
                     speed_mult += 0.06  # Bono extra para speed streams puros sin LN
-                scores['Speed'] = eff_sr * min(1.30, speed_mult) * exec_factor
+                raw_weights['Speed'] = min(1.30, speed_mult)
 
                 # 4. Stamina: Resistencia en charts extensos de alta densidad (maratones reales >= 160s)
                 stamina_mult = 0.95
@@ -249,19 +252,19 @@ class OsuAnalyzer:
                 elif total_objects < 800:
                     stamina_mult -= min(0.18, (800 - total_objects) * 0.0003)
 
-                scores['Stamina'] = eff_sr * min(1.28, max(0.55, stamina_mult)) * exec_factor
+                raw_weights['Stamina'] = min(1.28, max(0.55, stamina_mult))
 
                 # 5. Accuracy: Ventana OD estricta y sincronización de pulsos
                 eff_od = min(10.5, od * (1.4 if is_hr else 1.0))
                 acc_scale = (acc / 0.985) ** 1.8
-                scores['Accuracy'] = eff_sr * (eff_od / 9.2) * acc_scale * exec_factor
+                raw_weights['Accuracy'] = (eff_od / 9.2) * acc_scale
 
             else:
                 # --- OSU (STANDARD): Aim, Speed, Accuracy, Stamina, Reading ---
                 circle_ratio = count_circles / max(1, total_objects) if total_objects > 0 else 0.7
                 cs_bonus = max(0.0, (cs - 4.0) * 0.06)
                 aim_mult = 0.95 + 0.15 * circle_ratio + cs_bonus
-                scores['Aim'] = eff_sr * aim_mult * exec_factor
+                raw_weights['Aim'] = aim_mult
 
                 eff_bpm = bpm * (1.5 if is_dt else 1.0)
                 bpm_mult = 1.0
@@ -277,14 +280,14 @@ class OsuAnalyzer:
                     eff_ar = min(11.1, (eff_ar * 2 + 13) / 3)
                 if eff_ar >= 10.0:
                     bpm_mult += min(0.12, (eff_ar - 10.0) * 0.08)
-                scores['Speed'] = eff_sr * bpm_mult * exec_factor
+                raw_weights['Speed'] = bpm_mult
 
                 eff_od = min(11.0, od * (1.4 if is_hr else (0.5 if is_ez else 1.0)))
                 od_scale = eff_od / 9.8
                 acc_normalized = max(0.0, (acc - 0.90) / 0.10)
                 acc_curve = acc_normalized ** 1.6
                 acc_mult = min(1.15, max(0.50, 0.75 + 0.35 * acc_curve)) * od_scale
-                scores['Accuracy'] = eff_sr * acc_mult * exec_factor
+                raw_weights['Accuracy'] = acc_mult
 
                 # Resistencia (Stamina): Pondera densidad de notas por segundo (NPS) y maratones.
                 # Con DT, el mapa dura menos tiempo pero la densidad de notas por segundo es 1.5x mayor.
@@ -306,7 +309,7 @@ class OsuAnalyzer:
 
                 if real_drain >= 180:
                     stamina_mult += min(0.10, (real_drain - 180) * 0.0008)
-                scores['Stamina'] = eff_sr * min(1.25, max(0.65, stamina_mult)) * exec_factor
+                raw_weights['Stamina'] = min(1.25, max(0.65, stamina_mult))
 
                 # Lectura (Reading): Dificultad visual genuina por solapamiento de notas, densidad y memorización.
                 # Mantener una base armónica (~0.80 - 0.84) para que la métrica no colapse de forma irreal en el perfil,
@@ -341,7 +344,19 @@ class OsuAnalyzer:
                 if slider_ratio >= 0.35:
                     reading_mult += min(0.18, (slider_ratio - 0.35) * 0.30)
 
-                scores['Reading'] = eff_sr * min(1.30, reading_mult) * exec_factor
+                raw_weights['Reading'] = min(1.30, reading_mult)
+
+            # --- NORMALIZACIÓN ANCLADA AL STAR RATING (OPCIÓN 1) ---
+            # La habilidad dominante del mapa define la dificultad representativa (eff_sr).
+            # Las demás habilidades se calculan como una fracción proporcional (<= eff_sr).
+            # exec_factor (<= 1.00) modula según el desempeño real (acc, misses, combo).
+            max_raw = max(raw_weights.values()) if raw_weights else 1.0
+            max_raw = max(0.001, max_raw)
+
+            scores = {}
+            for skill in skills_def:
+                rel_ratio = raw_weights.get(skill, 0.50) / max_raw
+                scores[skill] = round(eff_sr * rel_ratio * exec_factor, 2)
 
             title = bset.get('title') or bm.get('title', 'Desconocido')
             version = bm.get('version', 'Normal')
