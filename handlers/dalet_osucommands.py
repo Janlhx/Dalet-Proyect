@@ -247,42 +247,14 @@ class OsuHandler(commands.Cog, name="osu!"):
             if not best:
                 return await ctx.send(f"**{username}** no tiene plays en {mode}.")
 
-            # Top 5 para mostrar en texto
-            top5 = best[:5]
-            lines = []
-            for i, s in enumerate(top5, 1):
-                bmap  = s.get("beatmap", {})
-                bset  = s.get("beatmapset", {})
-                pp    = s.get("pp", 0)
-                acc   = _acc_str(s.get("accuracy", 0))
-                mods  = _mods_str(s.get("mods", []))
-                grade = GRADE_EMOJIS.get(s.get("rank", "?"), "❓")
-                title = bset.get("title", "??")[:30]
-                stars = bmap.get("difficulty_rating", 0)
-                lines.append(
-                    f"`{i}.` {grade} **{pp:.0f}pp** • {acc} • {mods}\n"
-                    f"   [{title} {s.get('beatmap', {}).get('version', '')}] {stars:.1f}★"
-                )
+            server_lang = "en"
+            if ctx.guild:
+                try:
+                    server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
+                except Exception:
+                    server_lang = "en"
 
-            # Weighted PP total estimado
-            weighted_pp = sum(s.get("pp", 0) * (0.95 ** i) for i, s in enumerate(best))
-
-            embed = discord.Embed(
-                title=f"🏆 Top Plays — {username}",
-                url=f"https://osu.ppy.sh/users/{user['id']}/{mode}",
-                description="\n".join(lines),
-                color=_rank_color(user.get("statistics", {}).get("global_rank"))
-            )
-            embed.set_thumbnail(url=user.get("avatar_url", ""))
-            embed.add_field(
-                name="📊 Stats generales",
-                value=(
-                    f"PP real: **{user['statistics'].get('pp', 0):,.0f}pp**\n"
-                    f"PP ponderado top 100: **{weighted_pp:,.0f}pp**\n"
-                    f"Plays analizados: **{len(best)}**"
-                ),
-                inline=False
-            )
+            embed = OsuPresenter.build_top_card(user, best, mode=mode, lang=server_lang)
 
             # Gráfico de distribución de PP
             chart_file = await self._generate_pp_chart(username, best)
@@ -297,8 +269,9 @@ class OsuHandler(commands.Cog, name="osu!"):
             await ctx.send(f"⚠️ error obteniendo top plays de '{username}'.")
 
     async def _generate_pp_chart(self, username: str, scores: list) -> discord.File | None:
-        """Genera un gráfico de barras de distribución de PP con matplotlib."""
+        """Genera un gráfico de barras de distribución de PP con matplotlib ajustado dinámicamente."""
         try:
+            import io
             import matplotlib
             matplotlib.use("Agg")  # Backend sin GUI — obligatorio en servidores
             import matplotlib.pyplot as plt
@@ -314,25 +287,35 @@ class OsuHandler(commands.Cog, name="osu!"):
             colors = plt.cm.plasma(np.linspace(0.9, 0.3, len(pp_values)))
 
             fig, ax = plt.subplots(figsize=(10, 4))
-            fig.patch.set_facecolor("#1a1a2e")
-            ax.set_facecolor("#16213e")
+            fig.patch.set_facecolor("#18181b")  # Zinc Dark estética Dalet
+            ax.set_facecolor("#111113")
 
             bars = ax.bar(indices, pp_values, color=colors, width=0.8, zorder=3)
 
-            # Línea de tendencia
+            # Línea de tendencia polinómica
             if len(pp_values) > 3:
                 z = np.polyfit(indices, pp_values, 2)
                 p = np.poly1d(z)
                 x_smooth = np.linspace(1, len(pp_values), 200)
-                ax.plot(x_smooth, p(x_smooth), color="#e94560", linewidth=1.5,
-                        linestyle="--", alpha=0.7, zorder=4)
+                ax.plot(x_smooth, p(x_smooth), color="#ff69b4", linewidth=1.8,
+                        linestyle="--", alpha=0.85, zorder=4)
 
-            ax.set_xlabel("Rank del play", color="#ccc", fontsize=9)
-            ax.set_ylabel("PP", color="#ccc", fontsize=9)
-            ax.set_title(f"Distribución de PP — {username}", color="white", fontsize=12, pad=10)
-            ax.tick_params(colors="#999", labelsize=8)
-            ax.spines[:].set_color("#333")
-            ax.grid(axis="y", color="#333", alpha=0.5, zorder=1)
+            # Ajuste dinámico del mínimo vertical para acentuar caídas y perfil individual (feedback Delis)
+            min_pp = min(pp_values)
+            max_pp = max(pp_values)
+            if len(pp_values) >= 5 and min_pp > 20:
+                y_min = max(0, min_pp * 0.80)
+                y_max = max_pp * 1.05
+                ax.set_ylim(bottom=y_min, top=y_max)
+            else:
+                ax.set_ylim(bottom=0, top=max_pp * 1.05)
+
+            ax.set_xlabel("Rank del play", color="#a1a1aa", fontsize=9)
+            ax.set_ylabel("PP", color="#a1a1aa", fontsize=9)
+            ax.set_title(f"Distribución de PP — {username}", color="white", fontsize=12, pad=10, fontweight="bold")
+            ax.tick_params(colors="#71717a", labelsize=8)
+            ax.spines[:].set_color("#27272a")
+            ax.grid(axis="y", color="#27272a", alpha=0.6, zorder=1)
 
             plt.tight_layout()
 
@@ -659,7 +642,7 @@ def _create_progress_chart_sync(username: str, history: list) -> discord.File | 
         try:
             async with ctx.typing():
                 user = await self.osu.get_user(username, mode)
-                best = await self.osu.get_user_best_scores(user["id"], mode, limit=50)
+                best = await self.osu.get_user_best_scores(user["id"], mode, limit=100)
 
             if not best:
                 return await ctx.send(f"**{username}** no tiene mejores jugadas registradas en {mode}.")

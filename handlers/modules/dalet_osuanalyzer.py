@@ -1,6 +1,7 @@
 import logging
 import json
 import os
+from ui.locales import t
 
 logger = logging.getLogger('dalet.handlers.osuanalyzer')
 
@@ -509,10 +510,7 @@ class OsuAnalyzer:
                 if secondary and secondary in skills_def and raw_weights.get(secondary, 0.0) >= 0.70:
                     raw_weights[secondary] = max(raw_weights.get(secondary, 0.9), 1.05)
 
-            # --- NORMALIZACIÓN ANCLADA AL STAR RATING (OPCIÓN 1) ---
-            # La habilidad dominante del mapa define la dificultad representativa (eff_sr).
-            # Las demás habilidades se calculan como una fracción proporcional (<= eff_sr).
-            # exec_factor (<= 1.00) modula según el desempeño real (acc, misses, combo).
+            # --- NORMALIZACIÓN ANCLADA AL STAR RATING ---
             max_raw = max(raw_weights.values()) if raw_weights else 1.0
             max_raw = max(0.001, max_raw)
 
@@ -520,6 +518,96 @@ class OsuAnalyzer:
             for skill in skills_def:
                 rel_ratio = raw_weights.get(skill, 0.50) / max_raw
                 scores[skill] = round(eff_sr * rel_ratio * exec_factor, 2)
+
+            # --- COMPUERTA DE ELEGIBILIDAD POR HABILIDAD (COMPETENCY ELIGIBILITY GATE) ---
+            # Un mapa solo puede ser elegido para evaluar y representar una habilidad si físicamente
+            # la pone a prueba de manera sustancial (evita que un mapa de saltos cortos evalúe Stamina o Speed).
+            eligible_skills = set()
+
+            # 1. Validación de Catálogo Canónico / Benchmarks de la Comunidad
+            if benchmark:
+                if benchmark.get("primary"):
+                    eligible_skills.add(benchmark["primary"])
+                if benchmark.get("secondary") and raw_weights.get(benchmark["secondary"], 0.0) >= 0.70:
+                    eligible_skills.add(benchmark["secondary"])
+
+            # 2. Criterios de física y subdivisión rítmica por modo
+            if mode_clean == "osu":
+                # Aim: Componente de saltos y espaciado
+                if raw_weights.get('Aim', 0) >= 0.85 and (opb <= 2.6 or raw_weights.get('Aim', 0) >= raw_weights.get('Speed', 0)):
+                    eligible_skills.add('Aim')
+
+                # Speed: Exige ráfagas o streams de digitación (OPB >= 2.0 o DT a alto BPM)
+                # Mapas de saltos 1/2 sin ráfagas quedan 100% descalificados para Speed
+                has_speed_density = opb >= 2.0 or (is_dt and eff_bpm >= 230)
+                if has_speed_density and raw_weights.get('Speed', 0) >= 0.85:
+                    eligible_skills.add('Speed')
+
+                # Stamina: Resistencia prolongada en duración continua (drain >= 110s) y notas (>= 650)
+                # Mapas TV-size y cortos (< 110s) quedan 100% descalificados para juzgar Stamina
+                if real_drain >= 110.0 and total_objects >= 650 and raw_weights.get('Stamina', 0) >= 0.80:
+                    eligible_skills.add('Stamina')
+
+                # Accuracy: Ventana OD exigente (OD >= 9.0) y rendimiento de acc sólido (>= 92%)
+                eff_od_val = od * (1.4 if is_hr else (0.5 if is_ez else 1.0))
+                if eff_od_val >= 9.0 and acc >= 0.92:
+                    eligible_skills.add('Accuracy')
+
+                # Reading: Modificadores visuales o densidad visual compleja
+                slider_ratio = count_sliders / max(1, total_objects) if total_objects > 0 else 0
+                if is_hd or is_fl or is_ez or eff_ar <= 8.5 or eff_ar >= 10.3 or slider_ratio >= 0.35:
+                    eligible_skills.add('Reading')
+
+            elif mode_clean == "mania":
+                ln_ratio = count_sliders / max(1, total_objects) if total_objects > 0 else 0.0
+
+                # LN: Requiere ratio sustancial de Long Notes (>= 12%)
+                if ln_ratio >= 0.12 and raw_weights.get('LN', 0) >= 0.80:
+                    eligible_skills.add('LN')
+
+                # Chordjack: Acordes densos simultáneos a BPM moderado en rice
+                if opb >= 3.6 and eff_bpm <= 215 and ln_ratio < 0.15:
+                    eligible_skills.add('Chordjack')
+
+                # Speed: Jumpstream y rolls a alto BPM
+                if eff_bpm >= 190 and ln_ratio < 0.15 and raw_weights.get('Speed', 0) >= 0.85:
+                    eligible_skills.add('Speed')
+
+                # Tech: Patrones híbridos LN+Rice o cambios de velocidad
+                if (0.10 <= ln_ratio <= 0.35) or raw_weights.get('Tech', 0) >= 0.90:
+                    eligible_skills.add('Tech')
+
+                # Stamina: Charts prolongados y continuos
+                if real_drain >= 120.0 and total_objects >= 1100:
+                    eligible_skills.add('Stamina')
+
+                # Accuracy:
+                if acc >= 0.94 and od >= 8.0:
+                    eligible_skills.add('Accuracy')
+
+            elif mode_clean == "taiko":
+                if raw_weights.get('Speed', 0) >= 0.88 and eff_bpm >= 190:
+                    eligible_skills.add('Speed')
+                if real_drain >= 120.0 and total_objects >= 800:
+                    eligible_skills.add('Stamina')
+                if acc >= 0.94:
+                    eligible_skills.add('Accuracy')
+                if is_hd or is_fl or is_ez or is_dt:
+                    eligible_skills.add('Reading')
+                if raw_weights.get('Patterning', 0) >= 0.90:
+                    eligible_skills.add('Patterning')
+
+            elif mode_clean == "fruits":
+                if raw_weights.get('Precision', 0) >= 0.88:
+                    eligible_skills.add('Precision')
+                if raw_weights.get('Agility', 0) >= 0.88:
+                    eligible_skills.add('Agility')
+                if raw_weights.get('Speed', 0) >= 0.88 and eff_bpm >= 180:
+                    eligible_skills.add('Speed')
+                if real_drain >= 120.0 and total_objects >= 800:
+                    eligible_skills.add('Stamina')
+                if is_hd or is_fl or is_ez:
+                    eligible_skills.add('Reading')
 
             scored_plays.append({
                 'title': title,
@@ -529,17 +617,20 @@ class OsuAnalyzer:
                 'sr': eff_sr,
                 'pp': pp_val,
                 'acc': round(acc * 100.0, 2),
-                'scores': scores
+                'scores': scores,
+                'eligible_skills': eligible_skills
             })
 
         if not scored_plays:
+            tier_uncalibrated = t("osu.tier_unranked", lang)
             return {
                 skill: {
                     'stars': 0.0,
                     'points': 0.0,
                     'tier_glyph': '▫',
-                    'tier_name': 'Aprendiz',
-                    'top_maps': []
+                    'tier_name': tier_uncalibrated,
+                    'top_maps': [],
+                    'has_data': False
                 } for skill in skills_def
             } | {
                 'dominant_skill': 'N/A',
@@ -547,16 +638,33 @@ class OsuAnalyzer:
                 'overall_skill_stars': 0.0,
                 'overall_skill_points': 0.0,
                 'overall_tier_glyph': '▫',
-                'overall_tier_name': 'Aprendiz'
+                'overall_tier_name': tier_uncalibrated
             }
 
         skills_result = {}
         for skill in skills_def:
-            sorted_by_skill = sorted(scored_plays, key=lambda x: x['scores'].get(skill, 0.0), reverse=True)
+            # Filtrar EXCLUSIVAMENTE jugadas cualificadas para esta habilidad
+            qualifying_plays = [p for p in scored_plays if skill in p.get('eligible_skills', set())]
+
+            if not qualifying_plays:
+                # El jugador no tiene suficientes jugadas registradas en su top que pongan a prueba esta disciplina
+                tier_uncalibrated = t("osu.tier_unranked", lang)
+                skills_result[skill] = {
+                    'points': 0.0,
+                    'stars': 0.0,
+                    'tier_glyph': '▫',
+                    'tier_name': tier_uncalibrated,
+                    'top_maps': [],
+                    'has_data': False
+                }
+                continue
+
+            sorted_by_skill = sorted(qualifying_plays, key=lambda x: x['scores'].get(skill, 0.0), reverse=True)
             top_3 = sorted_by_skill[:3]
 
-            # Muestrear el top 10 con decaimiento (0.85^i) enfocado en el rendimiento pico del jugador
-            sample = sorted_by_skill[:10]
+            # Muestrear hasta las 10 mejores jugadas CUALIFICADAS con decaimiento (0.85^i)
+            # sin rellenar artificialmente con mapas descalificados
+            sample = sorted_by_skill[:min(10, len(sorted_by_skill))]
             weights = [0.85 ** i for i in range(len(sample))]
             weighted_stars = sum(sample[i]['scores'].get(skill, 0.0) * weights[i] for i in range(len(sample))) / max(0.001, sum(weights))
 
@@ -568,6 +676,7 @@ class OsuAnalyzer:
                 'stars': round(weighted_stars, 2),
                 'tier_glyph': tier_glyph,
                 'tier_name': tier_name,
+                'has_data': True,
                 'top_maps': [
                     {
                         'title': m['title'],
@@ -584,19 +693,26 @@ class OsuAnalyzer:
                 ]
             }
 
-        dominant_skill = max(skills_def, key=lambda k: skills_result[k]['points'])
-        weakest_skill = min(skills_def, key=lambda k: skills_result[k]['points'])
+        # Filtrar solo las habilidades con datos calificados para determinar fortalezas y debilidades
+        calibrated_skills = [k for k in skills_def if skills_result[k].get('has_data', False)]
 
-        # Promedio Ponderado General: Valora el estilo de juego del usuario dando mayor relevancia a sus fortalezas
-        # sin arrastrar el promedio por habilidades secundarias (como reading o acc estricto en jugadores de jumps)
-        sorted_stars = sorted([skills_result[k]['stars'] for k in skills_def], reverse=True)
+        if calibrated_skills:
+            dominant_skill = max(calibrated_skills, key=lambda k: skills_result[k]['points'])
+            weakest_skill = min(calibrated_skills, key=lambda k: skills_result[k]['points'])
+            sorted_stars = sorted([skills_result[k]['stars'] for k in calibrated_skills], reverse=True)
+        else:
+            dominant_skill = skills_def[0] if skills_def else "N/A"
+            weakest_skill = skills_def[-1] if skills_def else "N/A"
+            sorted_stars = [0.0]
+
+        # Promedio Ponderado General de habilidades calibradas
         overall_weights = [0.38, 0.28, 0.18, 0.10, 0.06, 0.04][:len(sorted_stars)]
         overall = round(
             sum(sorted_stars[i] * overall_weights[i] for i in range(len(sorted_stars))) / max(0.001, sum(overall_weights)),
             2
         )
-        overall_pts = OsuAnalyzer.score_to_points(overall)
-        ov_glyph, ov_tier = OsuAnalyzer.get_tier_info(overall_pts, lang=lang)
+        overall_pts = OsuAnalyzer.score_to_points(overall) if calibrated_skills else 0.0
+        ov_glyph, ov_tier = OsuAnalyzer.get_tier_info(overall_pts, lang=lang) if calibrated_skills else ('▫', t('osu.tier_unranked', lang))
 
         skills_result['dominant_skill'] = dominant_skill
         skills_result['weakest_skill'] = weakest_skill

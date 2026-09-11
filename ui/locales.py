@@ -43,11 +43,16 @@ STRINGS: dict[str, dict[str, str]] = {
         "osu.skills_weakness": "Weakest Area",
         "osu.skills_verdict": "Dalet's Verdict",
         "osu.skills_no_data": "Not enough play data.",
+        "osu.skills_no_qualifying": "No qualified maps found in top plays.",
+        "osu.tier_unranked": "Unranked",
         "osu.tier_elite": "Elite",
         "osu.tier_master": "Master",
         "osu.tier_advanced": "Advanced",
         "osu.tier_competent": "Competent",
         "osu.tier_novice": "Novice",
+        "osu.weighted_pp": "Weighted PP",
+        "osu.raw_pp": "Raw PP",
+        "osu.plays_analyzed": "Analyzed Plays",
 
         # --- General Commands ---
         "general.latency_title": "Latency",
@@ -160,11 +165,16 @@ STRINGS: dict[str, dict[str, str]] = {
         "osu.skills_weakness": "Área Débil",
         "osu.skills_verdict": "Veredicto de Dalet",
         "osu.skills_no_data": "Sin suficientes datos.",
+        "osu.skills_no_qualifying": "Sin mapas representativos en el top.",
+        "osu.tier_unranked": "Sin calibrar",
         "osu.tier_elite": "Élite",
         "osu.tier_master": "Maestro",
         "osu.tier_advanced": "Avanzado",
         "osu.tier_competent": "Competente",
         "osu.tier_novice": "Aprendiz",
+        "osu.weighted_pp": "PP Ponderado",
+        "osu.raw_pp": "PP Real",
+        "osu.plays_analyzed": "Jugadas Analizadas",
 
         # --- General Commands ---
         "general.latency_title": "Latencia",

@@ -331,7 +331,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 )
 
             user = await self.bot.osu_service.get_user(uname, mode)
-            best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=mode, limit=50)
+            best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=mode, limit=100)
             if not best:
                 return await interaction.followup.send(f"**{uname}** no tiene mejores jugadas registradas en {mode}.")
 

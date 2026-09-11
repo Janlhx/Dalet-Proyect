@@ -499,7 +499,7 @@ class OsuPresenter:
                 pp_str = f" ({pp_val:.0f}pp)" if pp_val > 0 else ""
                 lines.append(f"{DaletAtoms.GLYPH_SUB} `{mods}` {name_part} • `{sr:.2f}★`{pp_str}")
 
-            no_data_msg = t("osu.skills_no_data", lang)
+            no_data_msg = t("osu.skills_no_qualifying", lang)
             field_val = "\n".join(lines) if lines else no_data_msg
             embed.add_field(
                 name=f"{icon} {sk_name} — `{pts:.1f} pts` {t_glyph} `[{t_name}]`",
@@ -515,6 +515,86 @@ class OsuPresenter:
                 value=f"> *\"{clean_roast}\"*",
                 inline=False
             )
+
+        DaletMolecules.add_standard_footer(embed, context_text=f"ID: {user_id} • osu! {_mode_title(mode)}")
+        return embed
+
+    @staticmethod
+    def build_top_card(user_data: dict, scores: list, mode: str = "osu", lang: str = "en") -> discord.Embed:
+        """Construye una tarjeta visual y elegante para el top de mejores jugadas sin emojis vulgares."""
+        username = user_data.get("username", "Jugador")
+        user_id = user_data.get("id", 0)
+        stats = user_data.get("statistics", {})
+
+        pp_real = stats.get("pp", 0) or 0
+        rank = stats.get("global_rank", 0) or 0
+        unranked_txt = t("osu.unranked", lang)
+        rank_str = f"#{rank:,}" if rank else unranked_txt
+        country = user_data.get("country_code", "")
+        flag = _get_country_flag(country)
+        avatar_url = user_data.get("avatar_url", "")
+        acc_global = stats.get("hit_accuracy", 0.0) or 0.0
+
+        # Weighted PP estimado con decaimiento oficial del 0.95
+        weighted_pp = sum(s.get("pp", 0) * (0.95 ** i) for i, s in enumerate(scores))
+
+        embed = discord.Embed(
+            title=f"✦ Top Plays ({_mode_title(mode)}) — {username} {flag}",
+            url=f"https://osu.ppy.sh/users/{user_id}/{mode}",
+            color=DaletAtoms.COLOR_PRIMARY
+        )
+        if avatar_url:
+            embed.set_thumbnail(url=avatar_url)
+
+        lbl_raw_pp = t("osu.raw_pp", lang)
+        lbl_weighted_pp = t("osu.weighted_pp", lang)
+        lbl_analyzed = t("osu.plays_analyzed", lang)
+        lbl_acc = t("osu.accuracy", lang)
+
+        desc_lines = [
+            f"{DaletAtoms.GLYPH_POINTER} **{lbl_raw_pp}**: `{pp_real:,.0f}pp` │ **{lbl_weighted_pp}**: `{weighted_pp:,.0f}pp` │ **Rank**: `{rank_str}`",
+            f"{DaletAtoms.GLYPH_POINTER} **{lbl_analyzed}**: `{len(scores)}` │ **{lbl_acc}**: `{acc_global:.2f}%`"
+        ]
+        embed.description = "\n".join(desc_lines)
+
+        top_plays = scores[:5]
+        play_lines = []
+        for i, s in enumerate(top_plays, 1):
+            bmap = s.get("beatmap", {})
+            bset = s.get("beatmapset", {})
+            pp = s.get("pp", 0.0) or 0.0
+            acc = _format_acc(s.get("accuracy", 0.0))
+            mods_str = _format_mods(s.get("mods", []))
+            grade = s.get("rank", "?").upper()
+            badge = DaletAtoms.GRADE_BADGES.get(grade, grade)
+            title = bset.get("title", "Desconocido")
+            ver = bmap.get("version", "Normal")
+            sr = float(bmap.get("difficulty_rating", 0.0) or 0.0)
+            b_id = bmap.get("id", 0)
+            max_c = s.get("max_combo", 0)
+            bm_max = bmap.get("max_combo") or ""
+            combo_str = f"{max_c}x/{bm_max}x" if bm_max else f"{max_c}x"
+            misses = s.get("statistics", {}).get("count_miss", 0) or 0
+            miss_str = f"{misses}m" if misses > 0 else "FC"
+
+            if len(title) > 28:
+                title = title[:26] + ".."
+            if len(ver) > 16:
+                ver = ver[:14] + ".."
+
+            link_part = f"[{title} [{ver}]](https://osu.ppy.sh/b/{b_id})" if b_id else f"{title} [{ver}]"
+
+            play_lines.append(
+                f"{DaletAtoms.GLYPH_SUB} `#{i:02d}` `[{badge}]` `{mods_str}` **{link_part}** • `{sr:.2f}★`\n"
+                f"   {DaletAtoms.GLYPH_CORNER} `{pp:.0f}pp` {DaletAtoms.GLYPH_PIPE} `{acc}` {DaletAtoms.GLYPH_PIPE} `{combo_str}` {DaletAtoms.GLYPH_PIPE} `{miss_str}`"
+            )
+
+        field_content = "\n".join(play_lines) if play_lines else t("osu.top_none", lang)
+        embed.add_field(
+            name=f"{DaletAtoms.GLYPH_STAR} Top 5 Scores",
+            value=field_content,
+            inline=False
+        )
 
         DaletMolecules.add_standard_footer(embed, context_text=f"ID: {user_id} • osu! {_mode_title(mode)}")
         return embed
