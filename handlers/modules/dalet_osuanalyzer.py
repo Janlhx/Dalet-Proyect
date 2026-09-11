@@ -364,23 +364,24 @@ class OsuAnalyzer:
                     aim_mult += 0.08
                 raw_weights['Aim'] = min(1.35, max(0.40, aim_mult))
 
-                # 2. Speed: Digitación a alta velocidad en el teclado (streams de 1/4 y ráfagas rápidas).
-                # Requiere presencia de ráfagas/streams (OPB >= 2.2) y BPM elevado (>= 185).
-                # Si OPB <= 1.9 (como Wizard's Tower con 1.44 OPB), SPEED SE PENALIZA por carecer de streams de digitación.
+                # 2. Speed: Digitación a alta velocidad en el teclado (streams de 1/4, ráfagas rápidas y DT de alto BPM).
+                # Si es NoMod y OPB <= 1.9 (como Wizard's Tower con 1.44 OPB), SPEED SE PENALIZA por carecer de streams de digitación.
+                # Con DT a alto BPM (>= 240 BPM), la digitación rápida a 1.5x velocidad SÍ es Speed genuino.
                 speed_mult = 0.85
                 if opb >= 2.2 and eff_bpm >= 185:
                     speed_mult += min(0.32, (eff_bpm - 185) * 0.0035)
                     speed_mult += min(0.18, (opb - 2.2) * 0.12)
                     if nps >= 8.0 and eff_bpm >= 200:
                         speed_mult += min(0.15, (nps - 8.0) * 0.05)
-                elif opb <= 1.9:
+                elif opb <= 1.9 and not is_dt:
                     speed_mult -= min(0.42, (1.9 - opb) * 0.60)
                     if eff_bpm < 200:
                         speed_mult -= 0.10
 
-                if eff_bpm >= 250 and opb >= 2.1:
-                    speed_mult += 0.08
-                if is_dt and opb >= 2.2:
+                # Bono para DT / High BPM Speed
+                if is_dt and eff_bpm >= 230:
+                    speed_mult += min(0.20, (eff_bpm - 230) * 0.004)
+                elif eff_bpm >= 260 and opb >= 2.0:
                     speed_mult += 0.08
 
                 # Reacción en AR extrema (>= 10.3)
