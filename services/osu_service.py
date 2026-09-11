@@ -1,6 +1,7 @@
 import httpx
 import time
 import logging
+import asyncio
 
 logger = logging.getLogger("dalet.services.osu")
 
@@ -169,4 +170,34 @@ class OsuService:
             logger.debug(f"No se pudieron obtener atributos de dificultad para {beatmap_id}: {e}")
 
         return {}
+
+    async def enrich_scores_with_attributes(self, scores: list, mode: str = "osu") -> list:
+        """Enriquece una lista de jugadas con atributos oficiales de dificultad de Bancho (Star Rating oficial con mods)."""
+        if not scores:
+            return scores
+
+        mode_int = {"osu": 0, "taiko": 1, "fruits": 2, "mania": 3}.get((mode or "osu").lower(), 0)
+        tasks = []
+        indices_to_fetch = []
+
+        for idx, p in enumerate(scores):
+            bm = p.get("beatmap", {})
+            b_id = bm.get("id")
+            mods = p.get("mods", [])
+            if b_id and mods:
+                tasks.append(self.get_beatmap_attributes(b_id, ruleset_id=mode_int, mods=mods))
+                indices_to_fetch.append(idx)
+            else:
+                base_sr = float(bm.get("difficulty_rating", 0.0) or 0.0)
+                if base_sr > 0:
+                    p["official_sr"] = base_sr
+
+        if tasks:
+            results = await asyncio.gather(*tasks)
+            for idx, attrs in zip(indices_to_fetch, results):
+                if attrs and attrs.get("star_rating"):
+                    scores[idx]["official_sr"] = attrs["star_rating"]
+                    scores[idx]["beatmap_attributes"] = attrs
+
+        return scores
 

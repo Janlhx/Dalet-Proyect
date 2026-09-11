@@ -135,23 +135,25 @@ class OsuAnalyzer:
             is_fl = 'FL' in mods
             is_hd = 'HD' in mods
 
-            eff_sr = base_sr
-            if is_dt:
-                dt_factor = 1.38
-                if bpm >= 200:
-                    dt_factor += min(0.08, (bpm - 200) * 0.001)
-                elif bpm < 150:
-                    dt_factor -= min(0.06, (150 - bpm) * 0.001)
-                eff_sr *= dt_factor
-            if is_hr:
-                if mode_clean in ("osu", "fruits"):
-                    eff_sr *= (1.08 + max(0.0, (cs - 4.0) * 0.02))
-                else:
-                    eff_sr *= 1.05
-            if is_ez:
-                eff_sr *= 0.88
-            if is_ht:
-                eff_sr *= 0.75
+            eff_sr = p.get('official_sr') or p.get('beatmap_attributes', {}).get('star_rating')
+            if not eff_sr:
+                eff_sr = base_sr
+                if is_dt:
+                    dt_factor = 1.44
+                    if bpm >= 200:
+                        dt_factor += min(0.12, (bpm - 200) * 0.0018)
+                    elif bpm < 150:
+                        dt_factor -= min(0.06, (150 - bpm) * 0.001)
+                    eff_sr *= dt_factor
+                if is_hr:
+                    if mode_clean in ("osu", "fruits"):
+                        eff_sr *= (1.08 + max(0.0, (cs - 4.0) * 0.02))
+                    else:
+                        eff_sr *= 1.05
+                if is_ez:
+                    eff_sr *= 0.88
+                if is_ht:
+                    eff_sr *= 0.75
             eff_sr = round(eff_sr, 2)
 
             # Factor de Rendimiento de Ejecución (Pondera según acc real, misses y combo alcanzado)

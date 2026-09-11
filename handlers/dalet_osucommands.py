@@ -215,6 +215,8 @@ class OsuHandler(commands.Cog, name="osu!"):
             if not recent:
                 return await ctx.send(f"**{username}** no tiene jugadas recientes en {mode}.")
 
+            await self.osu.enrich_scores_with_attributes(recent, mode=mode)
+
             server_lang = "en"
             if ctx.guild:
                 server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
@@ -246,6 +248,8 @@ class OsuHandler(commands.Cog, name="osu!"):
 
             if not best:
                 return await ctx.send(f"**{username}** no tiene plays en {mode}.")
+
+            await self.osu.enrich_scores_with_attributes(best[:5], mode=mode)
 
             server_lang = "en"
             if ctx.guild:
@@ -549,6 +553,8 @@ def _create_progress_chart_sync(username: str, history: list) -> discord.File | 
             if not firsts:
                 return await ctx.send(f"**{username}** no tiene #1 globales en {mode}.")
 
+            await self.osu.enrich_scores_with_attributes(firsts[:10], mode=mode)
+
             lines = []
             for s in firsts[:10]:
                 bmap  = s.get("beatmap", {})
@@ -556,7 +562,7 @@ def _create_progress_chart_sync(username: str, history: list) -> discord.File | 
                 pp    = s.get("pp", 0)
                 mods  = _mods_str(s.get("mods", []))
                 title = bset.get("title", "??")[:35]
-                stars = bmap.get("difficulty_rating", 0)
+                stars = s.get("official_sr") or s.get("beatmap_attributes", {}).get("star_rating") or bmap.get("difficulty_rating", 0)
                 lines.append(f"{DaletAtoms.EMOJI_DALET} **{title}** {stars:.1f}★ {mods} — **{pp:.0f}pp**")
 
             embed = discord.Embed(

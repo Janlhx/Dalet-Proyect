@@ -265,6 +265,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                     f"**{uname}** no tiene jugadas recientes."
                 )
 
+            await self.bot.osu_service.enrich_scores_with_attributes(recent, mode=mode)
             embed = OsuPresenter.build_recent_card(user.get("username", uname), mode, recent[0], user_data=user, lang=server_lang)
             await interaction.followup.send(embed=embed)
 
@@ -298,6 +299,11 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
             user = await self.bot.osu_service.get_user(uname, mode)
             best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=mode, limit=100)
+            if not best:
+                return await interaction.followup.send(
+                    f"**{uname}** no tiene top plays en {mode}."
+                )
+            await self.bot.osu_service.enrich_scores_with_attributes(best[:5], mode=mode)
             embed = OsuPresenter.build_top_card(user.get("username", uname), mode, best, user_data=user, lang=server_lang)
             chart_file = OsuPresenter.generate_pp_chart(user.get("username", uname), best, lang=server_lang)
             if chart_file:

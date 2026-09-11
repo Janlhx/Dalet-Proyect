@@ -43,7 +43,7 @@ def _mode_title(mode: str) -> str:
     return modes.get(mode.lower(), mode.capitalize())
 
 def _calc_effective_sr(bm: dict, mods: list, mode: str = "osu") -> float:
-    """Calcula el Star Rating efectivo considerando los mods (+DT, +HR, +EZ, +HT)."""
+    """Calcula el Star Rating efectivo considerando los mods (+DT, +HR, +EZ, +HT) calibrado con el rework moderno."""
     base_sr = float(bm.get("difficulty_rating", 0.0) or 0.0)
     if not mods or base_sr <= 0:
         return base_sr
@@ -66,11 +66,14 @@ def _calc_effective_sr(bm: dict, mods: list, mode: str = "osu") -> float:
 
     eff_sr = base_sr
     if is_dt:
-        dt_factor = 1.38
-        if bpm >= 200:
-            dt_factor += min(0.08, (bpm - 200) * 0.001)
-        elif bpm < 150:
-            dt_factor -= min(0.06, (150 - bpm) * 0.001)
+        eff_bpm = bpm * 1.5
+        # En el rework de dificultad de Bancho, DT en mapas rápidos escala fuertemente
+        if eff_bpm >= 260:
+            dt_factor = 1.50 + min(0.06, (eff_bpm - 260) * 0.002)
+        elif eff_bpm >= 210:
+            dt_factor = 1.44 + (eff_bpm - 210) * 0.0012
+        else:
+            dt_factor = 1.38 + max(0.0, (eff_bpm - 150) * 0.001)
         eff_sr *= dt_factor
     if is_hr:
         if mode_clean in ("osu", "fruits"):
@@ -139,7 +142,8 @@ class OsuPresenter:
         beatmap_id = beatmap.get("id", 0)
         map_url = f"https://osu.ppy.sh/b/{beatmap_id}" if beatmap_id else "https://osu.ppy.sh"
 
-        stars = beatmap.get("difficulty_rating", 0.0)
+        b_attrs = play.get("beatmap_attributes") or {}
+        stars = play.get("official_sr") or b_attrs.get("star_rating") or _calc_effective_sr(beatmap, play.get("mods", []), mode=mode)
         mods = _format_mods(play.get("mods", []))
         rank = play.get("rank", "F").upper()
         acc = _format_acc(play.get("accuracy", 0.0))
@@ -160,12 +164,26 @@ class OsuPresenter:
         hits_str = f"[{c300}/{c100}/{c50}/{miss}]"
 
         # Atributos del beatmap
-        ar = beatmap.get("ar", 0.0)
-        od = beatmap.get("accuracy", 0.0)
+        mods_list = play.get("mods", [])
+        mods_upper = [m.upper() if isinstance(m, str) else m.get("acronym", "").upper() for m in mods_list]
+        is_dt = any(m in ("DT", "NC") for m in mods_upper)
+        is_ht = any(m in ("HT", "DC") for m in mods_upper)
+
+        ar = b_attrs.get("approach_rate") or beatmap.get("ar", 0.0)
+        od = b_attrs.get("overall_difficulty") or beatmap.get("accuracy", 0.0)
         hp = beatmap.get("drain", 0.0)
         cs = beatmap.get("cs", 0.0)
         bpm = beatmap.get("bpm", 0)
+        if bpm and is_dt:
+            bpm = bpm * 1.5
+        elif bpm and is_ht:
+            bpm = bpm * 0.75
+
         length_sec = beatmap.get("total_length") or beatmap.get("hit_length") or 0
+        if length_sec and is_dt:
+            length_sec = int(length_sec / 1.5)
+        elif length_sec and is_ht:
+            length_sec = int(length_sec / 0.75)
         length_str = DaletAtoms.format_duration(length_sec)
 
         rel_time = DaletAtoms.parse_timestamp_relative(play.get("created_at", ""))
@@ -305,7 +323,7 @@ class OsuPresenter:
             badge = DaletAtoms.GRADE_BADGES.get(grade, grade)
             title = bms.get("title", "Desconocido")
             ver = bm.get("version", "Normal")
-            sr = _calc_effective_sr(bm, s.get("mods", []), mode=actual_mode)
+            sr = s.get("official_sr") or s.get("beatmap_attributes", {}).get("star_rating") or _calc_effective_sr(bm, s.get("mods", []), mode=actual_mode)
             bm_id = bm.get("id", 0)
             max_c = s.get("max_combo", 0)
             bm_max = bm.get("max_combo") or ""
@@ -315,46 +333,50 @@ class OsuPresenter:
 
             if len(title) > 28:
                 title = title[:26] + ".."
-            if len(ver) > 16:
-                ver = ver[:14] + ".."
+            if len(ver) > 18:
+                ver = ver[:16] + ".."
 
-            link_part = f"[{title} [{ver}]](https://osu.ppy.sh/b/{bm_id})" if bm_id else f"{title} [{ver}]"
+            map_link = f"https://osu.ppy.sh/b/{bm_id}" if bm_id else "https://osu.ppy.sh"
 
-            play_lines.append(
-                f"{DaletAtoms.GLYPH_SUB} `#{i:02d}` `[{badge}]` `{mods_str}` **{link_part}** • `{sr:.2f}★`\n"
-                f"   {DaletAtoms.GLYPH_CORNER} `{pp:.0f}pp` {DaletAtoms.GLYPH_PIPE} `{acc}` {DaletAtoms.GLYPH_PIPE} `{combo_str}` {DaletAtoms.GLYPH_PIPE} `{miss_str}`"
+            header = f"`#{i}` {badge} **[{title} [{ver}]]({map_link})**"
+            stats_line = f"└─ **{pp:.1f}pp** │ `{acc}` │ `{combo_str}` │ `{miss_str}` │ **{mods_str}** │ `{sr:.2f}★`"
+            play_lines.append(f"{header}\n{stats_line}")
+
+        if play_lines:
+            header_label = t("osu.top_header", actual_lang, count=len(top_plays))
+            embed.add_field(
+                name=f"{DaletAtoms.GLYPH_STAR} {header_label}",
+                value="\n".join(play_lines),
+                inline=False
             )
 
-        field_content = "\n".join(play_lines) if play_lines else t("osu.top_none", actual_lang)
-        embed.add_field(
-            name=f"{DaletAtoms.GLYPH_STAR} " + t("osu.top_header", actual_lang),
-            value=field_content,
-            inline=False
-        )
-
-        DaletMolecules.add_standard_footer(embed, context_text=f"ID: {user_id} • osu! {_mode_title(actual_mode)}")
+        DaletMolecules.add_standard_footer(embed, context_text="Bancho Server")
         return embed
 
     @staticmethod
     def generate_pp_chart(username: str, scores: list, lang: str = "en") -> discord.File | None:
-        """Genera un gráfico de barras de distribución de PP con matplotlib ajustado dinámicamente."""
+        """Genera un gráfico de barras de distribución de PP con matplotlib ajustado dinámicamente con estética Dalet."""
         try:
             import io
             import matplotlib
             matplotlib.use("Agg")  # Backend sin GUI
             import matplotlib.pyplot as plt
             import numpy as np
+            from matplotlib.colors import LinearSegmentedColormap
 
             pp_values = [s.get("pp", 0) for s in scores if s.get("pp")]
             if not pp_values:
                 return None
 
             indices = list(range(1, len(pp_values) + 1))
-            colors = plt.cm.plasma(np.linspace(0.9, 0.3, len(pp_values)))
+            dalet_crimson = LinearSegmentedColormap.from_list(
+                'dalet_crimson', ['#e28294', '#c9576c', '#9c384a', '#601b27']
+            )
+            colors = dalet_crimson(np.linspace(0.05, 0.95, len(pp_values)))
 
             fig, ax = plt.subplots(figsize=(10, 4))
-            fig.patch.set_facecolor("#18181b")  # Zinc Dark estética Dalet
-            ax.set_facecolor("#111113")
+            fig.patch.set_facecolor("#131315")  # Dark Matte Dalet
+            ax.set_facecolor("#101012")
 
             ax.bar(indices, pp_values, color=colors, width=0.8, zorder=3)
 
@@ -363,8 +385,8 @@ class OsuPresenter:
                 z = np.polyfit(indices, pp_values, 2)
                 p = np.poly1d(z)
                 x_smooth = np.linspace(1, len(pp_values), 200)
-                ax.plot(x_smooth, p(x_smooth), color="#ff69b4", linewidth=1.8,
-                        linestyle="--", alpha=0.85, zorder=4)
+                ax.plot(x_smooth, p(x_smooth), color="#f7c1cb", linewidth=1.8,
+                        linestyle="--", alpha=0.9, zorder=4)
 
             # Ajuste dinámico de mínimo vertical para acentuar caídas individuales
             min_pp = min(pp_values)
@@ -379,12 +401,12 @@ class OsuPresenter:
             lbl_x = t("osu.chart_rank", lang)
             lbl_title = t("osu.chart_title", lang, username=username)
 
-            ax.set_xlabel(lbl_x, color="#a1a1aa", fontsize=9)
-            ax.set_ylabel("PP", color="#a1a1aa", fontsize=9)
+            ax.set_xlabel(lbl_x, color="#a89ca2", fontsize=9)
+            ax.set_ylabel("PP", color="#a89ca2", fontsize=9)
             ax.set_title(lbl_title, color="white", fontsize=12, pad=10, fontweight="bold")
-            ax.tick_params(colors="#71717a", labelsize=8)
-            ax.spines[:].set_color("#27272a")
-            ax.grid(axis="y", color="#27272a", alpha=0.6, zorder=1)
+            ax.tick_params(colors="#8c8087", labelsize=8)
+            ax.spines[:].set_color("#2a1f24")
+            ax.grid(axis="y", color="#2a1f24", alpha=0.6, zorder=1)
 
             plt.tight_layout()
 
