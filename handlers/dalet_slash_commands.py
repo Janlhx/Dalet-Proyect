@@ -7,6 +7,7 @@ from discord import app_commands
 from discord.ext import commands
 from discord.utils import format_dt
 import logging
+import time
 
 from ui.organisms import DaletOrganisms
 from ui.atoms import DaletAtoms
@@ -24,6 +25,16 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self._ai_slash_cooldowns: dict[str, float] = {}
+
+    def _check_cooldown(self, key: str, duration_sec: float) -> float | None:
+        """Devuelve los segundos restantes si la acción está en cooldown, o None si puede proceder."""
+        now = time.time()
+        cooldown_until = self._ai_slash_cooldowns.get(key, 0.0)
+        if now < cooldown_until:
+            return cooldown_until - now
+        self._ai_slash_cooldowns[key] = now + duration_sec
+        return None
 
     # ------------------------------------------------------------------
     # Utilidades
@@ -525,12 +536,22 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.command(name="lore", description="Searches server history and chat archives with cynical AI commentary.")
     @app_commands.describe(query="Topic to research in server history")
     async def slash_lore(self, interaction: discord.Interaction, query: str):
+        # Cooldown anti-spam de 10s por usuario
+        cd_left = self._check_cooldown(f"lore:{interaction.user.id}", 10.0)
+        if cd_left:
+            return await interaction.response.send_message(
+                f"⏳ Calma, espera `{cd_left:.0f}s` antes de volver a investigar lore.",
+                ephemeral=True
+            )
+
         await interaction.response.defer()
         try:
-            resultados = await self.bot.user_repo.search_lore(query, interaction.channel_id, limit=20)
+            # Truncar query de búsqueda abusiva (máx 150 caracteres)
+            clean_query = query.strip()[:150]
+            resultados = await self.bot.user_repo.search_lore(clean_query, interaction.channel_id, limit=20)
             if not resultados:
                 return await interaction.followup.send(
-                    f"ni idea de qué es '{query}'. ese lore te lo inventaste."
+                    f"ni idea de qué es '{clean_query}'. ese lore te lo inventaste."
                 )
             lineas = []
             for r in resultados:
@@ -541,12 +562,12 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 lineas.append(f"[{fecha}] {usr}: {cnt}")
 
             prompt = (
-                f"ESTÁS INVESTIGANDO EL LORE DEL SERVIDOR sobre \"{query}\":\n"
+                f"ESTÁS INVESTIGANDO EL LORE DEL SERVIDOR sobre \"{clean_query}\":\n"
                 + "\n".join(lineas)
                 + "\nResponde de forma sarcástica y directa, como quien revisó los archivos."
             )
             respuesta = await self.bot.nlp_service.generate_reply(
-                prompt, "", interaction.user.display_name
+                prompt, "", interaction.user.display_name, max_tokens=180
             )
             await interaction.followup.send(respuesta or "me dio pereza leer los archivos. inténtalo otra vez.")
         except Exception as e:
@@ -556,10 +577,18 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.command(name="resumir", description="Generates a smart AI digest of recent channel conversations.")
     @app_commands.describe(limit="Number of messages to analyze (default: 50)")
     async def slash_resumir(self, interaction: discord.Interaction, limit: int = 50):
+        # Cooldown anti-spam de 20s por canal
+        cd_left = self._check_cooldown(f"resumir:{interaction.channel_id}", 20.0)
+        if cd_left:
+            return await interaction.response.send_message(
+                f"⏳ Este canal ya fue resumido hace poco. Espera `{cd_left:.0f}s` antes de pedir otro resumen.",
+                ephemeral=True
+            )
+
         await interaction.response.defer()
         try:
             registros = await self.bot.user_repo.get_channel_messages(
-                interaction.channel_id, min(limit, 100)
+                interaction.channel_id, min(max(5, limit), 80)
             )
             if not registros:
                 return await interaction.followup.send("no hay suficientes mensajes para resumir.")
@@ -574,7 +603,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             )
             resumen = await self.bot.nlp_service.generate_reply(
                 prompt, "Resumen", "Sistema",
-                system_prompt_override="Eres un asistente analítico y neutral especializado en resumir conversaciones. No tienes personalidad, no haces chistes."
+                system_prompt_override="Eres un asistente analítico y neutral especializado en resumir conversaciones. No tienes personalidad, no haces chistes.",
+                max_tokens=300
             )
             if not resumen:
                 return await interaction.followup.send("no pude generar el resumen.")

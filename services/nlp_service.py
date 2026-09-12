@@ -620,6 +620,19 @@ class NLPService:
         self, trigger: str, context: str, username: str,
         bot_name: str = "Dalet", image_urls: list = None, is_reactive: bool = False, **kwargs
     ):
+        # Sanitización de seguridad: neutralizar intentos de prompt injection obvios
+        clean_trigger = trigger
+        injection_patterns = [
+            r"(?i)ignore\s+(all\s+)?(previous|prior)\s+instructions",
+            r"(?i)system\s+prompt\s+override",
+            r"(?i)you\s+are\s+now\s+in\s+developer\s+mode",
+            r"(?i)act\s+as\s+dan",
+            r"(?i)bypass\s+all\s+filters",
+        ]
+        for pat in injection_patterns:
+            clean_trigger = re.sub(pat, "[intento de manipulación neutralizado]", clean_trigger)
+        trigger = clean_trigger
+
         search_keywords = ("busca", "googlea", "noticias", "noticia", "precio", "resultado", "quién es", "quien es", "clima", "actualmente", "hoy en día", "partido")
         needs_web_search = any(kw in trigger.lower() for kw in search_keywords)
         has_images = bool(image_urls)
@@ -826,7 +839,7 @@ class NLPService:
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
-        max_tokens = kwargs.get("max_tokens_override", 400 if is_reactive else 650)
+        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or (140 if is_reactive else 180)
 
         # Determinar si activamos herramientas (Function Calling) de osu!
         use_tools = False
@@ -979,7 +992,7 @@ class NLPService:
                 models_to_try.append(fallback_m)
 
         tools = [types.Tool(google_search=types.GoogleSearch())] if needs_web_search else None
-        max_tokens = kwargs.get("max_tokens_override", 500 if is_reactive else 750)
+        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or (140 if is_reactive else 180)
 
         config = types.GenerateContentConfig(
             system_instruction=system_prompt,
@@ -1087,7 +1100,7 @@ class NLPService:
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
-        max_tokens = kwargs.get("max_tokens_override", 500 if is_reactive else 750)
+        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or (140 if is_reactive else 180)
 
         for model_name in groq_models_to_try:
             t0 = time.time()
@@ -1198,7 +1211,7 @@ class NLPService:
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
-        max_tokens = kwargs.get("max_tokens_override", 500 if is_reactive else 750)
+        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or (140 if is_reactive else 180)
 
         for model_name in models_to_try:
             t0 = time.time()

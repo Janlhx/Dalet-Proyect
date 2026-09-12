@@ -16,9 +16,8 @@ MIN_MESSAGES_BETWEEN_REPLIES = 10  # Mensajes mínimos antes de considerar respo
 MAX_MESSAGES_WINDOW = 30  # Ventana de reset si no respondió (más grande para dar espacio a la probabilidad)
 
 # --- Configuración de Sesiones Reactive ---
-# Sesión fluida sin corte arbitrario a los 5 mensajes
-REACTIVE_SESSION_MAX = 50      # Cap amplio para evitar loops infinitos
-REACTIVE_SESSION_COOLDOWN = 1  # 1 minuto sólo en caso extremo de saturación
+REACTIVE_SESSION_MAX = 12      # Máx 12 respuestas consecutivas antes de pausa de descanso
+REACTIVE_SESSION_COOLDOWN = 2  # 2 minutos de enfriamiento si un solo usuario satura
 
 from discord.ext import tasks
 
@@ -41,6 +40,9 @@ class DaletNLPChat(commands.Cog):
 
         # --- Sesiones Reactive (por usuario/servidor) ---
         self.reactive_sessions = {}
+
+        # --- Anti-Spam Debounce (último mensaje por usuario) ---
+        self.recent_user_messages = {}
 
         # Iniciar tarea de limpieza de memoria en RAM (TTL)
         self.cleanup_task.start()
@@ -67,6 +69,11 @@ class DaletNLPChat(commands.Cog):
             if now - last > ttl:
                 self.user_ratelimits.pop(u_id, None)
 
+        # Limpiar debounce anti-spam
+        for u_id, (_, last) in list(self.recent_user_messages.items()):
+            if now - last > 300:
+                self.recent_user_messages.pop(u_id, None)
+
         # Limpiar sesiones reactivas expiradas
         for key, data in list(self.reactive_sessions.items()):
             cooldown_until = data.get("cooldown_until", 0)
@@ -76,10 +83,10 @@ class DaletNLPChat(commands.Cog):
     def _check_rate_limit(self, guild_id: int, channel_id: int, user_id: int, priority: str = "mention") -> bool:
         """
         Aplica un rate limiter usando Token Bucket en 3 niveles (Guild -> Canal -> Usuario).
-        Límites calibrados para permitir chat natural multi-servidor con DeepSeek:
+        Límites calibrados para proteger contra abusos y ráfagas de spam:
         - Level 1 Guild: máx 25 tokens, 1 token / 2.0s (~30 por min).
         - Level 2 Canal: máx 15 tokens, 1 token / 3.0s (~20 por min).
-        - Level 3 Usuario: máx 8 tokens, 1 token / 4.0s.
+        - Level 3 Usuario: máx 3 tokens de ráfaga, 1 token / 5.0s (~12 por min).
         """
         now = time.time()
 
@@ -109,10 +116,10 @@ class DaletNLPChat(commands.Cog):
             )
             return False
 
-        # 3. Límite de Usuario
-        u_tokens, u_last = self.user_ratelimits.get(user_id, (8.0, now))
+        # 3. Límite de Usuario (máx 3 tokens de ráfaga, recarga 1 token / 5s)
+        u_tokens, u_last = self.user_ratelimits.get(user_id, (3.0, now))
         u_elapsed = now - u_last
-        u_tokens = min(8.0, u_tokens + u_elapsed * (1.0 / 4.0))
+        u_tokens = min(3.0, u_tokens + u_elapsed * (1.0 / 5.0))
         self.user_ratelimits[user_id] = (u_tokens, now)
 
         if u_tokens < 1.0:
@@ -285,6 +292,24 @@ class DaletNLPChat(commands.Cog):
                 if not self._check_rate_limit(message.guild.id, message.channel.id, message.author.id, priority="mention"):
                     return
 
+                # Anti-Spam Debounce: Evitar llamadas idénticas consecutivas del mismo usuario en <10s
+                now = time.time()
+                last_msg, last_time = self.recent_user_messages.get(message.author.id, ("", 0.0))
+                clean_probe = content_lower.strip()
+                if last_msg and clean_probe == last_msg and (now - last_time) < 10.0:
+                    try:
+                        canned = random.choice([
+                            "ya te leí, no hace falta que me repitas lo mismo.",
+                            "no soy sorda, con una vez que lo digas es suficiente.",
+                            "¿crees que por repetirlo te voy a contestar más rápido? paciencia.",
+                        ])
+                        await message.channel.send(canned)
+                    except Exception:
+                        pass
+                    return
+
+                self.recent_user_messages[message.author.id] = (clean_probe, now)
+
                 trigger_type = (
                     "mention" if self.bot.user.mentioned_in(message) else "name_trigger"
                 )
@@ -401,6 +426,9 @@ class DaletNLPChat(commands.Cog):
                     "", clean_content
                 )
             clean_content = clean_content.strip() or message.content
+            # Truncado de seguridad para evitar muros de texto abusivos (máx 400 caracteres)
+            if len(clean_content) > 400:
+                clean_content = clean_content[:400] + "..."
 
             # Obtener contexto de conversación del canal
             context = await self.bot.memory_service.get_relevant_context(
