@@ -52,6 +52,24 @@ def _mode_title(mode: str) -> str:
     }
     return modes.get(mode.lower(), mode.capitalize())
 
+def _get_skill_glyph(skill_name: str) -> str:
+    """Retorna el glifo tipográfico correspondiente a cada habilidad de osu! sin emojis."""
+    mapping = {
+        "aim": DaletAtoms.GLYPH_AIM,
+        "speed": DaletAtoms.GLYPH_SPEED,
+        "accuracy": DaletAtoms.GLYPH_ACCURACY,
+        "stamina": DaletAtoms.GLYPH_STAMINA,
+        "reading": DaletAtoms.GLYPH_READING,
+        "patterning": DaletAtoms.GLYPH_PATTERNING,
+        "agility": DaletAtoms.GLYPH_AGILITY,
+        "precision": DaletAtoms.GLYPH_PRECISION,
+        "chordjack": DaletAtoms.GLYPH_CHORDJACK,
+        "ln": DaletAtoms.GLYPH_LN,
+        "stream": DaletAtoms.GLYPH_STREAM,
+        "tech": DaletAtoms.GLYPH_TECH,
+    }
+    return mapping.get((skill_name or "").lower().strip(), DaletAtoms.GLYPH_STAR)
+
 def _calc_effective_sr(bm: dict, mods: list, mode: str = "osu") -> float:
     """Calcula el Star Rating efectivo considerando los mods (+DT, +HR, +EZ, +HT) calibrado con el rework moderno."""
     base_sr = float(bm.get("difficulty_rating", 0.0) or 0.0)
@@ -602,60 +620,207 @@ class OsuPresenter:
         return embed
 
     @staticmethod
-    def build_compare_card(user1_data: dict, user2_data: dict, mode: str = "osu", lang: str = "en") -> discord.Embed:
-        """Construye una tarjeta comparativa limpia entre dos jugadores."""
+    def build_compare_card(
+        user1_data: dict,
+        user2_data: dict,
+        skills1: dict = None,
+        skills2: dict = None,
+        mode: str = "osu",
+        lang: str = "en"
+    ) -> discord.Embed:
+        """Construye una tarjeta comparativa profesional y profunda entre dos jugadores sin emojis."""
         u1_name = user1_data.get("username", "Jugador 1")
         u2_name = user2_data.get("username", "Jugador 2")
 
-        u1_stats = user1_data.get("statistics", {})
-        u2_stats = user2_data.get("statistics", {})
+        s1 = user1_data.get("statistics", {}) or {}
+        s2 = user2_data.get("statistics", {}) or {}
 
-        u1_pp = u1_stats.get("pp", 0.0) or 0.0
-        u2_pp = u2_stats.get("pp", 0.0) or 0.0
+        pp1 = float(s1.get("pp", 0.0) or 0.0)
+        pp2 = float(s2.get("pp", 0.0) or 0.0)
 
-        u1_rank = u1_stats.get("global_rank", 0) or 0
-        u2_rank = u2_stats.get("global_rank", 0) or 0
+        gr1 = int(s1.get("global_rank", 0) or 0)
+        gr2 = int(s2.get("global_rank", 0) or 0)
 
-        u1_acc = u1_stats.get("hit_accuracy", 0.0) or 0.0
-        u2_acc = u2_stats.get("hit_accuracy", 0.0) or 0.0
+        cr1 = int(s1.get("country_rank", 0) or 0)
+        cr2 = int(s2.get("country_rank", 0) or 0)
 
-        winner = u1_name if u1_pp >= u2_pp else u2_name
-        diff_pp = abs(u1_pp - u2_pp)
+        c1 = user1_data.get("country_code") or user1_data.get("country", {}).get("code", "")
+        c2 = user2_data.get("country_code") or user2_data.get("country", {}).get("code", "")
 
-        title_txt = t("osu.comparison_title", lang, mode=_mode_title(mode))
-        lead_txt = t("osu.leads_pp", lang, winner=winner, diff_pp=diff_pp)
+        acc1 = float(s1.get("hit_accuracy", 0.0) or 0.0)
+        acc2 = float(s2.get("hit_accuracy", 0.0) or 0.0)
+
+        pc1 = int(s1.get("play_count", 0) or 0)
+        pc2 = int(s2.get("play_count", 0) or 0)
+
+        h1 = int((s1.get("play_time", 0) or 0) // 3600)
+        h2 = int((s2.get("play_time", 0) or 0) // 3600)
+
+        mc1 = int(s1.get("maximum_combo", 0) or 0)
+        mc2 = int(s2.get("maximum_combo", 0) or 0)
+
+        grades1 = s1.get("grade_counts", {}) or {}
+        grades2 = s2.get("grade_counts", {}) or {}
+        ss1 = int(grades1.get("ss", 0) or 0) + int(grades1.get("ssh", 0) or 0)
+        ss2 = int(grades2.get("ss", 0) or 0) + int(grades2.get("ssh", 0) or 0)
+        s_count1 = int(grades1.get("s", 0) or 0) + int(grades1.get("sh", 0) or 0)
+        s_count2 = int(grades2.get("s", 0) or 0) + int(grades2.get("sh", 0) or 0)
+
+        has_skills = bool(skills1 and skills2)
+        ov_stars1 = float(skills1.get("overall_skill_stars", 0.0) or 0.0) if has_skills else 0.0
+        ov_stars2 = float(skills2.get("overall_skill_stars", 0.0) or 0.0) if has_skills else 0.0
+        dom1 = skills1.get("dominant_skill", "N/A") if has_skills else "N/A"
+        dom2 = skills2.get("dominant_skill", "N/A") if has_skills else "N/A"
+        tier1 = skills1.get("overall_tier_name", "") if has_skills else ""
+        tier2 = skills2.get("overall_tier_name", "") if has_skills else ""
+
+        # Head-to-Head Scoring
+        wins1, wins2 = 0, 0
+        if pp1 > pp2: wins1 += 1
+        elif pp2 > pp1: wins2 += 1
+
+        if gr1 and gr2:
+            if gr1 < gr2: wins1 += 1
+            elif gr2 < gr1: wins2 += 1
+        elif gr1 and not gr2:
+            wins1 += 1
+        elif gr2 and not gr1:
+            wins2 += 1
+
+        if acc1 > acc2: wins1 += 1
+        elif acc2 > acc1: wins2 += 1
+
+        if has_skills and (ov_stars1 or ov_stars2):
+            if ov_stars1 > ov_stars2: wins1 += 1
+            elif ov_stars2 > ov_stars1: wins2 += 1
+
+        mode_clean = (mode or "osu").lower().strip()
+        mode_skills = OsuAnalyzer.get_mode_skills(mode_clean) if has_skills else []
+        for sk in mode_skills:
+            st1 = float(skills1.get(sk, {}).get("stars", 0.0) or 0.0)
+            st2 = float(skills2.get(sk, {}).get("stars", 0.0) or 0.0)
+            if st1 > st2: wins1 += 1
+            elif st2 > st1: wins2 += 1
+
+        if mc1 > mc2: wins1 += 1
+        elif mc2 > mc1: wins2 += 1
+
+        if h1 > h2: wins1 += 1
+        elif h2 > h1: wins2 += 1
+
+        if (ss1 + s_count1) > (ss2 + s_count2): wins1 += 1
+        elif (ss2 + s_count2) > (ss1 + s_count1): wins2 += 1
+
+        diff_pp = abs(pp1 - pp2)
+        pp_winner = u1_name if pp1 >= pp2 else u2_name
+        lead_txt = t("osu.leads_pp", lang, winner=pp_winner, diff_pp=diff_pp)
+
+        mode_name = _mode_title(mode_clean)
+        if wins1 > wins2:
+            h2h_summary = t("osu.compare_score_lead", lang, winner=u1_name, wins1=wins1, wins2=wins2, mode=mode_name)
+        elif wins2 > wins1:
+            h2h_summary = t("osu.compare_score_lead", lang, winner=u2_name, wins1=wins2, wins2=wins1, mode=mode_name)
+        else:
+            h2h_summary = t("osu.compare_score_tie", lang, wins1=wins1, wins2=wins2, mode=mode_name)
+
         embed = discord.Embed(
-            title=title_txt,
-            description=f"**{u1_name}** vs **{u2_name}**\n{DaletAtoms.GLYPH_POINTER} {lead_txt}",
+            title=f"✦ Head-to-Head {DaletAtoms.GLYPH_PIPE} {u1_name} vs {u2_name}",
+            description=f"{h2h_summary}\n{DaletAtoms.GLYPH_POINTER} {lead_txt}",
             color=DaletAtoms.COLOR_PRIMARY
         )
 
         unranked_txt = t("osu.unranked", lang)
-        u1_gr_str = f"#{u1_rank:,}" if u1_rank else unranked_txt
-        u2_gr_str = f"#{u2_rank:,}" if u2_rank else unranked_txt
+        u1_gr_str = f"#{gr1:,}" if gr1 else unranked_txt
+        u2_gr_str = f"#{gr2:,}" if gr2 else unranked_txt
+
+        u1_cr_str = f" (#{cr1:,} {c1})" if (cr1 and c1) else ""
+        u2_cr_str = f" (#{cr2:,} {c2})" if (cr2 and c2) else ""
+
+        u1_skill_line = f"\n{DaletAtoms.GLYPH_POINTER} **Skill**: `{ov_stars1:.2f}★` ({tier1})" if (has_skills and ov_stars1 > 0) else ""
+        u2_skill_line = f"\n{DaletAtoms.GLYPH_POINTER} **Skill**: `{ov_stars2:.2f}★` ({tier2})" if (has_skills and ov_stars2 > 0) else ""
+
+        str_lbl = t("osu.skills_strength", lang)
+        u1_spec_line = f"\n{DaletAtoms.GLYPH_POINTER} **{str_lbl}**: `{dom1}`" if (has_skills and dom1 != 'N/A') else ""
+        u2_spec_line = f"\n{DaletAtoms.GLYPH_POINTER} **{str_lbl}**: `{dom2}`" if (has_skills and dom2 != 'N/A') else ""
 
         embed.add_field(
-            name=u1_name,
+            name=f"{DaletAtoms.GLYPH_STAR} {u1_name}",
             value=(
-                f"{DaletAtoms.GLYPH_POINTER} **PP**: `{u1_pp:,.2f}pp`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.global_rank', lang)}**: `{u1_gr_str}`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.accuracy', lang)}**: `{u1_acc:.2f}%`"
+                f"{DaletAtoms.GLYPH_POINTER} **PP**: `{pp1:,.2f}pp`\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.global_rank', lang)}**: `{u1_gr_str}`{u1_cr_str}\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.accuracy', lang)}**: `{acc1:.2f}%`"
+                f"{u1_skill_line}"
+                f"{u1_spec_line}"
             ),
             inline=True
         )
 
         embed.add_field(
-            name=u2_name,
+            name=f"{DaletAtoms.GLYPH_STAR} {u2_name}",
             value=(
-                f"{DaletAtoms.GLYPH_POINTER} **PP**: `{u2_pp:,.2f}pp`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.global_rank', lang)}**: `{u2_gr_str}`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.accuracy', lang)}**: `{u2_acc:.2f}%`"
+                f"{DaletAtoms.GLYPH_POINTER} **PP**: `{pp2:,.2f}pp`\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.global_rank', lang)}**: `{u2_gr_str}`{u2_cr_str}\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.accuracy', lang)}**: `{acc2:.2f}%`"
+                f"{u2_skill_line}"
+                f"{u2_spec_line}"
             ),
             inline=True
         )
 
-        DaletMolecules.add_standard_footer(embed)
+        if has_skills and mode_skills:
+            skill_lines = []
+            is_es = lang.lower().startswith("es")
+            for sk in mode_skills:
+                glyph = _get_skill_glyph(sk)
+                st1 = float(skills1.get(sk, {}).get("stars", 0.0) or 0.0)
+                st2 = float(skills2.get(sk, {}).get("stars", 0.0) or 0.0)
+                diff = abs(st1 - st2)
+                if st1 > st2:
+                    lead_badge = f"+{diff:.2f}★ {u1_name[:10]}"
+                    arrow = "»"
+                elif st2 > st1:
+                    lead_badge = f"+{diff:.2f}★ {u2_name[:10]}"
+                    arrow = "«"
+                else:
+                    lead_badge = "Empate" if is_es else "Tie"
+                    arrow = "="
+
+                skill_lines.append(
+                    f"{glyph} **{sk}**: `{st1:.2f}★` {arrow} `{st2:.2f}★` {DaletAtoms.GLYPH_SUB} *{lead_badge}*"
+                )
+
+            embed.add_field(
+                name=f"{DaletAtoms.GLYPH_POINTER} {t('osu.compare_skills_title', lang)}",
+                value="\n".join(skill_lines),
+                inline=False
+            )
+
+        combo_winner = u1_name[:10] if mc1 > mc2 else (u2_name[:10] if mc2 > mc1 else "=")
+        play_winner = u1_name[:10] if pc1 > pc2 else (u2_name[:10] if pc2 > pc1 else "=")
+        hours_winner = u1_name[:10] if h1 > h2 else (u2_name[:10] if h2 > h1 else "=")
+        tot_grades1 = ss1 + s_count1
+        tot_grades2 = ss2 + s_count2
+        grades_winner = u1_name[:10] if tot_grades1 > tot_grades2 else (u2_name[:10] if tot_grades2 > tot_grades1 else "=")
+
+        consistency_lines = [
+            f"{DaletAtoms.GLYPH_SUB} **Max Combo**: `{mc1:,}x` vs `{mc2:,}x` ({combo_winner})",
+            f"{DaletAtoms.GLYPH_SUB} **{t('osu.plays', lang)}**: `{pc1:,}` vs `{pc2:,}` ({play_winner})",
+            f"{DaletAtoms.GLYPH_SUB} **{t('osu.play_time', lang)}**: `{h1:,}h` vs `{h2:,}h` ({hours_winner})",
+            f"{DaletAtoms.GLYPH_SUB} **SS / S**: `{ss1} / {s_count1}` vs `{ss2} / {s_count2}` ({grades_winner})",
+        ]
+        embed.add_field(
+            name=f"{DaletAtoms.GLYPH_POINTER} {t('osu.compare_consistency_title', lang)}",
+            value="\n".join(consistency_lines),
+            inline=False
+        )
+
+        fav_avatar = user1_data.get("avatar_url") if wins1 >= wins2 else user2_data.get("avatar_url")
+        if fav_avatar:
+            embed.set_thumbnail(url=fav_avatar)
+
+        DaletMolecules.add_standard_footer(embed, context_text=f"Modo: {mode_name} {DaletAtoms.GLYPH_PIPE} Dalet Compare")
         return embed
+
 
     @staticmethod
     def build_skills_card(user_data: dict, skills_data: dict, roast_text: str = None, mode: str = "osu", lang: str = "en") -> discord.Embed:

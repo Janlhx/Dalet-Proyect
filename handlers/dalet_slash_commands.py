@@ -526,28 +526,75 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             logger.error(f"Error en /rank: {e}")
             await interaction.followup.send(t("rank.error", server_lang), ephemeral=True)
 
-    @app_commands.command(name="compare", description="Compares your osu! profile head-to-head against another player.")
-    @app_commands.describe(username="Player to compare against")
-    async def slash_compare(self, interaction: discord.Interaction, username: str):
+    @app_commands.command(name="compare", description="Compares osu! profiles head-to-head with in-depth stats and skill breakdown.")
+    @app_commands.describe(
+        player1="First player (or leave player2 empty to compare against your linked account)",
+        player2="Second player (optional, compares against yourself if omitted)",
+        mode="Game mode (default: osu!)"
+    )
+    @app_commands.choices(mode=[
+        app_commands.Choice(name="osu! (Standard)", value="osu"),
+        app_commands.Choice(name="osu!taiko", value="taiko"),
+        app_commands.Choice(name="osu!catch", value="fruits"),
+        app_commands.Choice(name="osu!mania", value="mania"),
+    ])
+    async def slash_compare(
+        self,
+        interaction: discord.Interaction,
+        player1: str,
+        player2: str = None,
+        mode: app_commands.Choice[str] = None
+    ):
+        server_lang = "en"
+        if interaction.guild:
+            try:
+                server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
+            except Exception:
+                server_lang = "en"
+
+        mode_str = mode.value if mode else "osu"
+        p1 = player1.strip()
+        p2 = player2.strip() if player2 else None
+
+        if p2:
+            u1_name = p1
+            u2_name = p2
+        else:
+            linked_name = await self.bot.osu_repo.get_linked_username(interaction.user.id)
+            if not linked_name:
+                return await interaction.response.send_message(
+                    f"❌ {t('osu.compare_need_link', server_lang)}",
+                    ephemeral=True
+                )
+            u1_name = linked_name
+            u2_name = p1
+
         await interaction.response.defer()
-        user1_name = await self.bot.osu_repo.get_linked_username(interaction.user.id)
-        if not user1_name:
-            return await interaction.followup.send(
-                "❌ necesitas vincular tu cuenta primero.", ephemeral=True
-            )
         try:
             u1, u2 = await asyncio.gather(
-                self.bot.osu_service.get_user(user1_name),
-                self.bot.osu_service.get_user(username),
+                self.bot.osu_service.get_user(u1_name, mode_str),
+                self.bot.osu_service.get_user(u2_name, mode_str),
             )
-            server_lang = "en"
-            if interaction.guild:
-                server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
-            embed = OsuPresenter.build_compare_card(u1, u2, lang=server_lang)
+
+            b1, b2 = await asyncio.gather(
+                self.bot.osu_service.get_user_best_scores(u1["id"], mode=mode_str, limit=50),
+                self.bot.osu_service.get_user_best_scores(u2["id"], mode=mode_str, limit=50),
+                return_exceptions=True
+            )
+            b1_list = b1 if isinstance(b1, list) else []
+            b2_list = b2 if isinstance(b2, list) else []
+
+            skills1 = OsuAnalyzer.calculate_skills(b1_list, mode=mode_str, lang=server_lang)
+            skills2 = OsuAnalyzer.calculate_skills(b2_list, mode=mode_str, lang=server_lang)
+
+            embed = OsuPresenter.build_compare_card(
+                u1, u2, skills1=skills1, skills2=skills2, mode=mode_str, lang=server_lang
+            )
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /compare: {e}")
-            await interaction.followup.send("⚠️ error comparando.", ephemeral=True)
+            await interaction.followup.send("⚠️ error comparando perfiles.", ephemeral=True)
+
 
     # ------------------------------------------------------------------
     # Conversaciones / Memoria

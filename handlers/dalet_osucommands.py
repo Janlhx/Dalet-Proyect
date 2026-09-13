@@ -6,6 +6,7 @@ import discord
 from discord.ext import commands
 
 from ui.atoms import DaletAtoms
+from ui.locales import t
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
 from handlers.dalet_osu_presenter import OsuPresenter
 
@@ -13,9 +14,6 @@ logger = logging.getLogger("dalet.handlers.osu")
 
 # Modos de juego válidos
 VALID_MODES = {"osu", "taiko", "fruits", "mania"}
-
-# Emojis de modos
-MODE_EMOJIS = {"osu": "🎵", "taiko": "🥁", "fruits": "🍎", "mania": "🎹"}
 
 
 class OsuHandler(commands.Cog, name="osu!"):
@@ -247,71 +245,60 @@ class OsuHandler(commands.Cog, name="osu!"):
     # ------------------------------------------------------------------
 
     @commands.command(name="compare", aliases=["vs"])
-    async def osu_compare(self, ctx, user2: str, *, args: str = None):
-        """Compara tu perfil de osu! contra otro jugador. Uso: d.compare usuario [-modo]"""
+    async def osu_compare(self, ctx, *args):
+        """Compara perfiles de osu! frente a frente. Uso: d.compare [user1] <user2> [-modo]"""
         mode = "osu"
-        if args:
-            for part in args.split():
-                if part.startswith("-") and part[1:].lower() in VALID_MODES:
-                    mode = part[1:].lower()
+        players = []
+        for part in args:
+            if part.startswith("-") and part[1:].lower() in VALID_MODES:
+                mode = part[1:].lower()
+            else:
+                players.append(part)
 
-        # Usuario 1 = el autor del comando
-        user1_name = await self.repo.get_linked_username(ctx.author.id)
-        if not user1_name:
-            return await ctx.send(
-                "❌ vincula tu cuenta primero con `d.link <usuario>`."
-            )
+        server_lang = "es"
+        if ctx.guild:
+            try:
+                server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
+            except Exception:
+                server_lang = "es"
+
+        if len(players) >= 2:
+            u1_name = players[0]
+            u2_name = players[1]
+        elif len(players) == 1:
+            linked_name = await self.repo.get_linked_username(ctx.author.id)
+            if not linked_name:
+                return await ctx.send(f"❌ {t('osu.compare_need_link', server_lang)}")
+            u1_name = linked_name
+            u2_name = players[0]
+        else:
+            return await ctx.send("❌ Uso: `d.compare [usuario1] <usuario2> [-modo]`")
 
         try:
             async with ctx.typing():
                 u1_data, u2_data = await asyncio.gather(
-                    self.osu.get_user(user1_name, mode),
-                    self.osu.get_user(user2, mode),
+                    self.osu.get_user(u1_name, mode),
+                    self.osu.get_user(u2_name, mode),
                 )
 
-            s1 = u1_data.get("statistics", {})
-            s2 = u2_data.get("statistics", {})
+                b1, b2 = await asyncio.gather(
+                    self.osu.get_user_best_scores(u1_data["id"], mode=mode, limit=50),
+                    self.osu.get_user_best_scores(u2_data["id"], mode=mode, limit=50),
+                    return_exceptions=True
+                )
+                b1_list = b1 if isinstance(b1, list) else []
+                b2_list = b2 if isinstance(b2, list) else []
 
-            def delta(v1, v2, higher_better=True):
-                """Devuelve flecha indicando quién gana."""
-                if v1 == v2: return "🟰"
-                return ("⬆️" if (v1 > v2) == higher_better else "⬇️")
+                skills1 = OsuAnalyzer.calculate_skills(b1_list, mode=mode, lang=server_lang)
+                skills2 = OsuAnalyzer.calculate_skills(b2_list, mode=mode, lang=server_lang)
 
-            pp1, pp2   = s1.get("pp", 0), s2.get("pp", 0)
-            rk1, rk2   = s1.get("global_rank", 0) or 0, s2.get("global_rank", 0) or 0
-            acc1, acc2 = s1.get("hit_accuracy", 0), s2.get("hit_accuracy", 0)
-            pc1, pc2   = s1.get("play_count", 0), s2.get("play_count", 0)
-            h1, h2     = (s1.get("play_time", 0) or 0) // 3600, (s2.get("play_time", 0) or 0) // 3600
-
-            n1, n2 = u1_data.get("username", user1_name), u2_data.get("username", user2)
-
-            embed = discord.Embed(
-                title=f"⚔️ {n1}  vs  {n2}",
-                description=f"Modo: **{MODE_EMOJIS.get(mode, '')} {mode.upper()}**",
-                color=0xE94560
-            )
-            embed.set_thumbnail(url=u1_data.get("avatar_url", ""))
-
-            rows = [
-                ("💎 PP",        f"{pp1:,.0f}", f"{pp2:,.0f}", delta(pp1, pp2)),
-                ("🌍 Rank Global", f"#{rk1:,}" if rk1 else "?", f"#{rk2:,}" if rk2 else "?",
-                 delta(rk1, rk2, higher_better=False)),
-                ("🎯 Precisión",  f"{acc1:.2f}%", f"{acc2:.2f}%", delta(acc1, acc2)),
-                ("🎵 Plays",      f"{pc1:,}", f"{pc2:,}", delta(pc1, pc2)),
-                ("⏰ Horas",      f"{h1:,}h", f"{h2:,}h", delta(h1, h2)),
-            ]
-
-            table = f"{'Stat':<14} {n1[:10]:<12} {'vs':^5} {n2[:10]:<12}\n" + "─" * 46 + "\n"
-            for stat, v1, v2, arrow in rows:
-                table += f"{stat:<14} {v1:<12} {arrow:^5} {v2:<12}\n"
-
-            embed.add_field(name="📊 Comparativa", value=f"```\n{table}```", inline=False)
-            embed.set_footer(text=f"generado con ✨ por Dalet")
+                embed = OsuPresenter.build_compare_card(
+                    u1_data, u2_data, skills1=skills1, skills2=skills2, mode=mode, lang=server_lang
+                )
             await ctx.send(embed=embed)
-
         except Exception as e:
             logger.error(f"Error en compare: {e}")
-            await ctx.send(f"⚠️ error comparando perfiles.")
+            await ctx.send("⚠️ error comparando perfiles.")
 
     # ------------------------------------------------------------------
     # d.rank — Ranking del servidor
