@@ -146,11 +146,13 @@ class SQLiteManager:
                 CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """,
-            # Índices de rendimiento
+            # Índices de rendimiento para consultas concurrentes de contexto y telemetría
             "CREATE INDEX IF NOT EXISTS idx_msg_channel ON Messages(ChannelID)",
             "CREATE INDEX IF NOT EXISTS idx_msg_timestamp ON Messages(Timestamp DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_msg_channel_time ON Messages(ChannelID, Timestamp DESC)",
             "CREATE INDEX IF NOT EXISTS idx_cmd_time ON CommandUsage(ExecutedAt DESC)",
             "CREATE INDEX IF NOT EXISTS idx_ai_time ON AIInteractions(InteractedAt DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_ai_prov_time ON AIInteractions(Provider, InteractedAt DESC)",
             "CREATE INDEX IF NOT EXISTS idx_err_time ON BotErrors(OccurredAt DESC)",
             "CREATE INDEX IF NOT EXISTS idx_feedback_time ON Feedbacks(CreatedAt DESC)",
         ]

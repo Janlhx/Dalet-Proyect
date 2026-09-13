@@ -16,7 +16,7 @@ class ReminderRepository(BaseRepository):
         created_by: int, pings: str = None
     ) -> int | None:
         """
-        Guarda un nuevo recordatorio en la base de datos remota PostgreSQL (Neon) 
+        Guarda un nuevo recordatorio en la base de datos remota Turso (LibSQL)
         o hace un fallback a SQLite local si no está disponible.
         Retorna el ID del recordatorio creado.
         """

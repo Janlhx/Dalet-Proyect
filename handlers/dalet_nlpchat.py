@@ -1,84 +1,42 @@
+import logging
+import random
+import re
+import time
+import traceback
+import asyncio
+from cachetools import TTLCache
+
 import discord
 from discord.ext import commands
-import asyncio
-import time
-import random
-import logging
-import traceback
-import re
 
 logger = logging.getLogger("dalet.handlers.nlp")
 
-# --- Configuración de Comportamiento Proactivo ---
-BASE_RESPONSE_RATE = 0.25  # 25% de probabilidad de responder
-COOLDOWN_TIME = 45  # Segundos mínimos entre respuestas proactivas
-MIN_MESSAGES_BETWEEN_REPLIES = 10  # Mensajes mínimos antes de considerar responder
-MAX_MESSAGES_WINDOW = 30  # Ventana de reset si no respondió (más grande para dar espacio a la probabilidad)
-
-# --- Configuración de Sesiones Reactive ---
-REACTIVE_SESSION_MAX = 12      # Máx 12 respuestas consecutivas antes de pausa de descanso
-REACTIVE_SESSION_COOLDOWN = 2  # 2 minutos de enfriamiento si un solo usuario satura
-
-from discord.ext import tasks
+# Configuración de comportamiento proactivo y reactivo
+BASE_RESPONSE_RATE = 0.25  # 25% de probabilidad de responder proactivamente
+COOLDOWN_TIME = 45         # Segundos mínimos entre respuestas proactivas
+MIN_MESSAGES_BETWEEN_REPLIES = 10
+MAX_MESSAGES_WINDOW = 30
+REACTIVE_SESSION_MAX = 12
+REACTIVE_SESSION_COOLDOWN = 2
 
 
 class DaletNLPChat(commands.Cog):
-    """Maneja el listener 'on_message' para las respuestas de IA."""
+    """Maneja el procesamiento de lenguaje natural y respuestas conversacionales en Discord."""
 
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.last_reply_time = 0
+        self.last_reply_time = 0.0
         self.message_counter = 0
-        self.active_user_responses = set()
-        self.error_cooldown = 0
+        self.active_user_responses: set[int] = set()
+        self.error_cooldown = 0.0
         self.consecutive_429s = 0
 
-        # --- Rate Limiter (Token Bucket) ---
-        self.guild_ratelimits = {}
-        self.channel_ratelimits = {}
-        self.user_ratelimits = {}
-
-        # --- Sesiones Reactive (por usuario/servidor) ---
-        self.reactive_sessions = {}
-
-        # --- Anti-Spam Debounce (último mensaje por usuario) ---
-        self.recent_user_messages = {}
-
-        # Iniciar tarea de limpieza de memoria en RAM (TTL)
-        self.cleanup_task.start()
-
-    def cog_unload(self):
-        self.cleanup_task.cancel()
-
-    @tasks.loop(hours=1)
-    async def cleanup_task(self):
-        """Limpia periódicamente dicts en RAM con más de 2 horas de inactividad."""
-        now = time.time()
-        ttl = 7200  # 2 horas
-
-        # Limpiar ratelimits
-        for g_id, (_, last) in list(self.guild_ratelimits.items()):
-            if now - last > ttl:
-                self.guild_ratelimits.pop(g_id, None)
-
-        for c_id, (_, last) in list(self.channel_ratelimits.items()):
-            if now - last > ttl:
-                self.channel_ratelimits.pop(c_id, None)
-
-        for u_id, (_, last) in list(self.user_ratelimits.items()):
-            if now - last > ttl:
-                self.user_ratelimits.pop(u_id, None)
-
-        # Limpiar debounce anti-spam
-        for u_id, (_, last) in list(self.recent_user_messages.items()):
-            if now - last > 300:
-                self.recent_user_messages.pop(u_id, None)
-
-        # Limpiar sesiones reactivas expiradas
-        for key, data in list(self.reactive_sessions.items()):
-            cooldown_until = data.get("cooldown_until", 0)
-            if cooldown_until > 0 and now > cooldown_until + ttl:
-                self.reactive_sessions.pop(key, None)
+        # Rate Limiting & Sesiones gestionadas con TTLCache (O(1), thread-safe, auto-expiración)
+        self.guild_ratelimits: TTLCache = TTLCache(maxsize=1000, ttl=7200)
+        self.channel_ratelimits: TTLCache = TTLCache(maxsize=2000, ttl=7200)
+        self.user_ratelimits: TTLCache = TTLCache(maxsize=5000, ttl=7200)
+        self.reactive_sessions: TTLCache = TTLCache(maxsize=2000, ttl=7200)
+        self.recent_user_messages: TTLCache = TTLCache(maxsize=5000, ttl=300)
 
     def _check_rate_limit(self, guild_id: int, channel_id: int, user_id: int, priority: str = "mention") -> bool:
         """
@@ -219,7 +177,7 @@ class DaletNLPChat(commands.Cog):
 
         content_lower = message.content.lower().strip()
 
-        # --- Respuesta prioritaria a "dalet on" / "dalet, on" ---
+        # Respuesta prioritaria de estado de conexión
         if content_lower in ("dalet on", "dalet, on", "dale on"):
             logger.info(f"Trigger 'dalet on' en #{message.channel.name}")
             try:
@@ -238,8 +196,9 @@ class DaletNLPChat(commands.Cog):
         if time.time() < self.error_cooldown:
             return
 
-        # --- Guardado de Memoria Explícita ---
-        if "recuerda que" in content_lower or "mi nombre es" in content_lower:
+        # Guardado de memoria explícita (soporte multilenguaje ES y EN)
+        memory_triggers = ("recuerda que", "remember that", "mi nombre es", "my name is")
+        if any(trig in content_lower for trig in memory_triggers):
             try:
                 await self.bot.memory_service.add_memory(
                     message.author.id, str(message.author.display_name), message.content
