@@ -3,7 +3,7 @@ aiohttp==3.13.1
 aiosignal==1.4.0
 annotated-types==0.7.0
 attrs==25.4.0
-audioop-lts==0.2.2
+audioop-lts==0.2.2; python_version >= '3.13'
 blinker==1.9.0
 cachetools==6.2.1
 certifi==2025.10.5
