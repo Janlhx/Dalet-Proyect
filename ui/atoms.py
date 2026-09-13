@@ -65,6 +65,10 @@ class DaletAtoms:
 
     # --- Emojis Funcionales y Limpios ---
     EMOJI_DALET = "✦"
+    EMOJI_SUCCESS = "✅"
+    EMOJI_WARNING = "⚠️"
+    EMOJI_ERROR = "❌"
+    EMOJI_INFO = "ℹ️"
 
     # --- Estilos de Texto ---
     @staticmethod
