@@ -385,8 +385,14 @@ class DaletNLPChat(commands.Cog):
 
             # También revisar imagen y contenido del mensaje al que se responde (reply)
             ref_summary = ""
-            if message.reference and message.reference.resolved:
+            if message.reference:
                 ref = message.reference.resolved
+                if not isinstance(ref, discord.Message) and message.reference.message_id:
+                    try:
+                        ref = await message.channel.fetch_message(message.reference.message_id)
+                    except Exception as e:
+                        logger.debug(f"No se pudo resolver mensaje de referencia: {e}")
+
                 if isinstance(ref, discord.Message):
                     if not image_urls:
                         for att in ref.attachments:
@@ -411,8 +417,37 @@ class DaletNLPChat(commands.Cog):
                         elif ref.content:
                             ref_summary = f"[El usuario te está respondiendo directamente a tu mensaje anterior: \"{ref.content}\"]"
                     else:
-                        if ref.content:
+                        if ref.embeds:
+                            emb = ref.embeds[0]
+                            parts = []
+                            if emb.title: parts.append(f"Título: {emb.title}")
+                            if emb.description: parts.append(f"Descripción: {emb.description}")
+                            for f in emb.fields[:3]: parts.append(f"{f.name}: {f.value}")
+                            ref_summary = f"[El usuario te responde en referencia a este Embed de {ref.author.display_name}: {' | '.join(parts)}]"
+                        elif ref.content:
                             ref_summary = f"[El usuario está respondiendo al mensaje de {ref.author.display_name}: \"{ref.content}\"]"
+
+            # Si el usuario no usó Reply explícito pero pregunta por 'mi top', 'este top', 'mis skills', 'eso', etc.,
+            # recuperar el Embed más reciente enviado por Dalet en el canal
+            if not ref_summary:
+                trigger_probes = (
+                    "opina", "opinas", "qué tal", "que tal", "mi top", "este top",
+                    "mi play", "mi jugada", "mis skills", "mi perfil", "eso", "esto",
+                    "mira mi", "cómo ves", "como ves", "qué te parece", "que te parece"
+                )
+                if any(p in message.content.lower() for p in trigger_probes):
+                    try:
+                        async for prev_msg in message.channel.history(limit=6, before=message):
+                            if prev_msg.author == self.bot.user and prev_msg.embeds:
+                                emb = prev_msg.embeds[0]
+                                parts = []
+                                if emb.title: parts.append(f"Título: {emb.title}")
+                                if emb.description: parts.append(f"Descripción: {emb.description}")
+                                for f in emb.fields[:5]: parts.append(f"{f.name}: {f.value}")
+                                ref_summary = f"[Contexto visual reciente en este canal: Hace un momento enviaste tú ({bot_name}) este Embed: {' | '.join(parts)}]"
+                                break
+                    except Exception as e:
+                        logger.debug(f"Error consultando historial reciente de embeds: {e}")
 
             image_urls = list(dict.fromkeys(image_urls))[:1]  # Solo 1 imagen
 

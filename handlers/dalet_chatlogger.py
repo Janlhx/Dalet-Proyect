@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 import logging
+import re
 
 logger = logging.getLogger("dalet.handlers.chatlogger")
 
@@ -28,7 +29,19 @@ class ChatLogger(commands.Cog, name="Memoria Global"):
         if not content:
             if message.author == self.bot.user and message.embeds:
                 emb = message.embeds[0]
-                content = f"[Tarjeta: {emb.title or 'Embed'}]"
+                details = []
+                if emb.title:
+                    details.append(emb.title)
+                if emb.description:
+                    clean_desc = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', emb.description)
+                    details.append(clean_desc.replace('\n', ' │ '))
+                for f in emb.fields[:3]:
+                    clean_val = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', f.value)
+                    details.append(f"{f.name}: {clean_val.replace('\n', ' │ ')}")
+                raw_embed_str = " │ ".join(details)
+                if len(raw_embed_str) > 350:
+                    raw_embed_str = raw_embed_str[:347] + "..."
+                content = f"[Tarjeta: {raw_embed_str or 'Embed'}]"
             else:
                 return
 

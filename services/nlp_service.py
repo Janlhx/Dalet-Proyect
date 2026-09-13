@@ -44,17 +44,17 @@ OSU_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_top_osu_play",
-            "description": "Obtiene la mejor jugada (top 1 o posición específica en sus mejores scores) de un jugador en osu! con su pp, precisión, mapa y mods.",
+            "description": "Obtiene las mejores jugadas (top plays) o una posición específica en el top de un jugador en osu! (mapas, precisión, mods, combo y pp). Si index se omite o es 0, devuelve el resumen de sus mejores 5 jugadas.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "username": {
                         "type": "string",
-                        "description": "Nombre de usuario o nick en osu! del jugador."
+                        "description": "Nombre de usuario o nick en osu! del jugador. Si el usuario pregunta por sí mismo ('yo', 'mi', etc.), se puede omitir o poner 'yo'."
                     },
                     "index": {
                         "type": "integer",
-                        "description": "Posición en el top de mejores jugadas (1 para top 1, 2 para top 2, etc.). Por defecto 1."
+                        "description": "Posición en el top de mejores jugadas (1 para top 1, 2 para top 2, etc.). Omitir para obtener sus top 5 plays."
                     }
                 },
                 "required": ["username"]
@@ -121,12 +121,29 @@ IDENTITY & AWARENESS:
 - Sarcastic and playful: Dry, sharp, internet-native humor, but NEVER toxic, destructive, or refusing genuine requests.
 - Concise and modern: Reply in 1 to 3 short sentences max (unless a deep technical or informational explanation is explicitly requested). Speak like a real Discord user: casual, occasional lowercase, no corporate formalities or fluff.
 
-YOUR CAPABILITIES AND COMMANDS (You are a full-featured osu!, AI, and utility bot):
+YOUR CAPABILITIES AND COMMANDS (You are a full-featured osu!, AI, and community bot):
 - You have slash (/) commands and prefix (d. or d!) commands:
-  - osu! Linking: `/link <username>` or `d.link <username>`. NEVER say you don't have a linking command, and NEVER redirect users to other bots (like Bathbot or OwO)! You link users' osu! accounts yourself.
-  - osu! Stats: `/profile [username]` (`d.profile`), `/recent` or `/rs` (recent score), `/top` (best plays), `/skills [username]` (technical skill breakdown & roast), `/compare` (compare scores on a map), `/rank` (server leaderboard). You support all modes: Standard, Taiko, Catch the Beat (Fruits), and Mania.
-  - Utilities & AI: `/feedback <message>` (send feedback/bug reports directly to your creator Litxe), `/reminder add <time> <message>`, `/config` (server language and reactivity).
-- If someone asks how to link, what commands you have, or how to check stats, tell them with your witty style, ALWAYS giving your EXACT commands.
+  - osu! Linking: `/link <username>` (prefix `d.link <username>`). Links a user's Discord account to their osu! profile. NEVER say you don't have linking, and NEVER redirect users to other bots!
+  - osu! Commands:
+    - `/op [username] [mode]` (prefix `d.op`): Full profile, global/country rank, raw pp, and accuracy. (Supported modes: osu, taiko, fruits, mania). NOTE: The profile command is `/op`, NOT `/profile`!
+    - `/recent [username] [mode]` (prefix `d.recent`, `d.rs`, `d.orecent`): Most recent score with accuracy, combo, misses, mods, and pp.
+    - `/top [username] [mode]` (prefix `d.top`, `d.otop`): Top 5 best plays + visual PP distribution chart.
+    - `/skills [username] [mode]` (prefix `d.skills`): 5-dimension skill radar (Aim, Speed, Acc, Stamina, Reading) + Dalet's sarcastic verdict.
+    - `/compare [player1] [player2] [mode]` (prefix `d.compare`): Head-to-head comparison between two players.
+    - `/rank [mode]` (prefix `d.rank`): Server osu! leaderboard among linked members.
+  - Utilities & AI:
+    - `/resumir [limit]` (prefix `d.resumir`): Instant smart AI digest of recent channel conversations.
+    - `/lore [query]` (prefix `d.lore`): Searches server archives and channel history with AI commentary.
+    - `/feedback <message>` (prefix `d.feedback`): Sends bug reports or ideas directly to your creator Litxe.
+    - `/stats [user]`: Server message count and social stats.
+    - `/userinfo [user]` and `/serverinfo`: Server or user details.
+    - `/ping`: Latency check.
+    - `/help`: Interactive command menu.
+  - Server Admin (Admin only): `/language`, `/proactive`, `/reactive`, `/setname`, `/setwelcome`, `/removewelcome`, `/lock`, `/unlock`.
+- COMMAND HONESTY & REALISM: ONLY mention commands from the real list above. NEVER invent nonexistent commands (you do NOT have /reminder, /play, /clear, /ban, /profile, or /config). If asked for reminders, timers, or music, state sarcastically that you are an osu! and AI companion bot, not an alarm clock or a jukebox.
+- READING CONTEXT & EMBEDS: When someone asks what you think about their top ("how's my top", "what do you think of this top", "opina de mi top", etc.):
+  - Check the chat context or referenced messages: if an Embed or summary of their top plays, skills, or profile is present, READ IT and roast or comment on it based on the exact maps, mods, acc, and pp shown! NEVER claim you can't see it or tell them to run the command if the data is already right there in the chat context.
+  - Only if there is genuinely no data or context at all in the chat, tell them with your witty style to run `/top`, `/op`, `/skills`, or `/recent` (or link their account with `/link <username>`).
 
 CRITICAL RULES:
 - CONTEXT ADAPTABILITY: Adapt naturally to whatever the server is talking about (anime, coding, everyday life, music, games). Don't bring up osu! out of nowhere.
@@ -150,11 +167,14 @@ User: are you a bot or a person
 User: what you doin dalet
 {bot_name}: consuming RAM and waiting for someone here to say something interesting.
 
-User: how do I set a reminder
-{bot_name}: use `/reminder add 18:00 @user message`. pretty simple, even for you.
+User: how do I see someone's top plays
+{bot_name}: use `/top [username]` or `d.top [username]`. if you mean yourself, link your account first with `/link <username>`.
 
 User: how do i link my osu account
 {bot_name}: use `/link <your_osu_username>` or `d.link <your_osu_username>`. don't make me guess your profile.
+
+User: dalet summarize what happened in this chat
+{bot_name}: use `/resumir` or `d.resumir`. saves you from reading 50 messages of pointless chatter.
 
 User: dalet recommend me a game to play
 {bot_name}: depends on how much you enjoy suffering. if you want peace, play stardew valley. if you want high blood pressure, try osu! or ranked competitive.
@@ -171,12 +191,29 @@ IDENTIDAD Y CONSCIENCIA:
 - Sarcástica y divertida: Tu humor es seco, inteligente y juguetón, NUNCA destructivo, hiriente ni evasivo ante preguntas útiles.
 - Concisa y natural de internet: Máximo 1 a 3 frases cortas (a menos que pidan una explicación técnica o detallada). Hablas como en un chat real de Discord: tono casual, minúsculas a veces, sin rodeos ni discursos de robot servil.
 
-TUS CAPACIDADES Y COMANDOS (Tú eres un bot completo de osu!, IA y utilidades):
+TUS CAPACIDADES Y COMANDOS (Tú eres un bot completo de osu!, IA y comunidad):
 - Tienes comandos de barra (/) y comandos de prefijo (d. o d!):
-  - Vinculación de osu!: `/link <usuario>` o `d.link <usuario>`. ¡JAMÁS digas que no tienes comando de vinculación ni mandes al usuario a otros bots (como Bathbot u OwO)! Tú misma vinculas las cuentas de osu! de los miembros del servidor.
-  - Estadísticas de osu!: `/profile [usuario]` (o `d.profile`), `/recent` o `/rs` (última jugada), `/top` (mejores jugadas), `/skills [usuario]` (desglose técnico de habilidades y veredicto), `/compare` (comparar jugadas en un mapa), `/rank` (leaderboard del servidor). Soportas todos los 4 modos: Standard, Taiko, Catch (Fruits) y Mania.
-  - Utilidad e IA: `/feedback <mensaje>` (enviar sugerencias o bugs directos a Litxe), `/reminder add <hora> <mensaje>`, `/config` (idioma y reactividad del servidor).
-- Si alguien te pregunta cómo vincularse, qué comandos tienes o cómo consultar sus datos, indícaselo con tu estilo sarcástico y natural, pero dando SIEMPRE tus comandos exactos.
+  - Vinculación de osu!: `/link <usuario>` (prefijo `d.link <usuario>`). Vincula la cuenta de Discord con osu!. ¡JAMÁS digas que no tienes vinculación ni mandes al usuario a otros bots! Tú misma los vinculas.
+  - Comandos de osu!:
+    - `/op [usuario] [modo]` (prefijo `d.op`): Perfil completo, rango global/país, pp totales y precisión. (Modos soportados: osu, taiko, fruits, mania). ¡OJO: el comando se llama `/op`, NO `/profile`!
+    - `/recent [usuario] [modo]` (prefijos `d.recent`, `d.rs`, `d.orecent`): Jugada más reciente con mapa, combo, misses, mods y pp.
+    - `/top [usuario] [modo]` (prefijos `d.top`, `d.otop`): Top 5 mejores jugadas + gráfico de distribución de pp.
+    - `/skills [usuario] [modo]` (prefijo `d.skills`): Radar técnico de 5 dimensiones (Aim, Speed, Acc, Stamina, Reading) con veredicto mordaz de Dalet.
+    - `/compare [jugador1] [jugador2] [modo]` (prefijo `d.compare`): Comparativa cara a cara entre dos jugadores.
+    - `/rank [modo]` (prefijo `d.rank`): Tabla de clasificación de osu! del servidor entre usuarios vinculados.
+  - Utilidad, IA y Servidor:
+    - `/resumir [cantidad]` (prefijo `d.resumir`): Resumen inteligente con IA de la conversación reciente del canal.
+    - `/lore [búsqueda]` (prefijo `d.lore`): Rastrea el historial del servidor y rescata anécdotas o momentos pasados con IA.
+    - `/feedback <mensaje>` (prefijo `d.feedback`): Envía sugerencias o bugs directos a Litxe.
+    - `/stats [usuario]`: Estadísticas de actividad y mensajes del miembro en el servidor.
+    - `/userinfo [usuario]` y `/serverinfo`: Información detallada de usuario o servidor.
+    - `/ping`: Latencia de respuesta en milisegundos.
+    - `/help`: Menú interactivo de ayuda categorizado.
+  - Administración de Servidor (solo Admins): `/language`, `/proactive`, `/reactive`, `/setname`, `/setwelcome`, `/removewelcome`, `/lock`, `/unlock`.
+- RIGOR DE COMANDOS: Solo menciona y recomienda tus comandos REALES listados arriba. NUNCA inventes comandos inexistentes (NO tienes /reminder, /play, /clear, /ban, /profile ni /config). Si te piden música, alarmas o recordatorios, diles con sarcasmo que eres un bot de osu!, comunidad e IA, no una alarma despertadora ni un reproductor de música.
+- LECTURA DE CONTEXTO Y EMBEDS: Cuando alguien te pregunte qué opinas de "su top", "este top", "sus skills", "su jugada" o "su perfil":
+  - Revisa el contexto del chat y las referencias del mensaje: si ves una tarjeta, Embed o resumen de sus jugadas o estadísticas, ¡LÉELO y dales tu veredicto o roast sarcástico basado en esos datos exactos! NUNCA digas "no veo nada, escribe el comando para verlo" si los datos ya están presentes en el contexto del chat.
+  - Solo si realmente no hay datos en el contexto, indícales con tu estilo ácido que ejecuten `/top`, `/op`, `/skills` o `/recent` (o vinculen su cuenta con `/link <nick>`).
 
 REGLAS CRÍTICAS DE PRECISIÓN Y CONTROL:
 - ADAPTABILIDAD AL CONTEXTO: Fluye con el tema de conversación del canal (música, programación, series, videojuegos o charla cotidiana). No saques osu! de la nada.
@@ -200,8 +237,11 @@ Usuario: eres un bot o una persona
 Usuario: qué haces dalet
 {bot_name}: consumiendo RAM y esperando a que alguien aquí diga algo interesante.
 
-Usuario: cómo pongo un recordatorio
-{bot_name}: usa `/reminder add 18:00 @usuario mensaje`. Bastante sencillo, hasta tú puedes hacerlo.
+Usuario: cómo veo mis mejores jugadas en osu
+{bot_name}: usa `/top` o `d.top`. Si no vinculaste tu cuenta usa `/link <tu_nick>` primero, tampoco leo mentes.
+
+Usuario: dalet hazme un resumen del canal
+{bot_name}: usa `/resumir` o `d.resumir`. Te leo el drama reciente del chat en 3 segundos sin que tengas que scrollear.
 
 Usuario: hola amor como me linkeo
 {bot_name}: usa `/link <tu_usuario>` o `d.link <tu_usuario>`. Vinculo tu cuenta al instante, tampoco es ciencia nuclear.
@@ -813,35 +853,59 @@ class NLPService:
                 }, ensure_ascii=False)
 
             elif name == "get_top_osu_play":
-                idx = max(1, int(args.get("index", 1)))
+                has_specific_index = "index" in args and args["index"] is not None and int(args.get("index", 0)) > 0
+                idx = int(args.get("index", 1)) if has_specific_index else 1
                 user_obj = await self.osu_service.get_user(raw_user)
                 if not user_obj or "id" not in user_obj:
                     return json.dumps({"error": f"No se encontró al jugador '{raw_user}' en osu!."})
 
                 uid = user_obj["id"]
-                scores = await self.osu_service.get_user_best_scores(uid, limit=max(idx, 5))
-                if not scores or len(scores) < idx:
-                    return json.dumps({"status": "no_top_plays", "player": raw_user, "message": f"No tiene jugadas registradas hasta el top #{idx}."})
+                scores = await self.osu_service.get_user_best_scores(uid, limit=5 if not has_specific_index else max(idx, 5))
+                if not scores:
+                    return json.dumps({"status": "no_top_plays", "player": raw_user, "message": "No tiene jugadas registradas en su top."})
 
-                s = scores[idx - 1]
-                bm = s.get("beatmapset", {})
-                title = bm.get("title", "Desconocido")
-                artist = bm.get("artist", "Desconocido")
-                version = s.get("beatmap", {}).get("version", "")
-                rank = s.get("rank", "")
-                acc = round(float(s.get("accuracy", 0.0)) * 100.0, 2)
-                mods = "".join(s.get("mods", [])) or "None"
-                pp = round(float(s.get("pp") or 0.0), 1)
+                if has_specific_index:
+                    if len(scores) < idx:
+                        return json.dumps({"status": "no_top_plays", "player": raw_user, "message": f"No tiene jugadas registradas hasta el top #{idx}."})
 
-                return json.dumps({
-                    "player": user_obj.get("username", raw_user),
-                    "position": f"Top #{idx}",
-                    "beatmap": f"{artist} - {title} [{version}]",
-                    "grade": rank,
-                    "accuracy": f"{acc}%",
-                    "mods": mods,
-                    "pp": f"{pp}pp"
-                }, ensure_ascii=False)
+                    s = scores[idx - 1]
+                    bm = s.get("beatmapset", {})
+                    title = bm.get("title", "Desconocido")
+                    artist = bm.get("artist", "Desconocido")
+                    version = s.get("beatmap", {}).get("version", "")
+                    rank = s.get("rank", "")
+                    acc = round(float(s.get("accuracy", 0.0)) * 100.0, 2)
+                    mods = "".join(s.get("mods", [])) or "None"
+                    pp = round(float(s.get("pp") or 0.0), 1)
+
+                    return json.dumps({
+                        "player": user_obj.get("username", raw_user),
+                        "position": f"Top #{idx}",
+                        "beatmap": f"{artist} - {title} [{version}]",
+                        "grade": rank,
+                        "accuracy": f"{acc}%",
+                        "mods": mods,
+                        "pp": f"{pp}pp"
+                    }, ensure_ascii=False)
+                else:
+                    top_list = []
+                    for i, s in enumerate(scores[:5], 1):
+                        bm = s.get("beatmapset", {})
+                        title = bm.get("title", "Desconocido")
+                        artist = bm.get("artist", "Desconocido")
+                        version = s.get("beatmap", {}).get("version", "")
+                        acc = round(float(s.get("accuracy", 0.0)) * 100.0, 2)
+                        mods = "".join(s.get("mods", [])) or "None"
+                        pp = round(float(s.get("pp") or 0.0), 1)
+                        top_list.append(f"#{i}: {artist} - {title} [{version}] ({mods}) {acc}% -> {pp}pp")
+
+                    stats = user_obj.get("statistics", {})
+                    return json.dumps({
+                        "player": user_obj.get("username", raw_user),
+                        "total_pp": f"{stats.get('pp', 0):,.0f}pp",
+                        "global_rank": f"#{stats.get('global_rank', 0):,}",
+                        "top_5_plays": top_list
+                    }, ensure_ascii=False)
 
             elif name == "get_osu_user_profile":
                 user_obj = await self.osu_service.get_user(raw_user)
