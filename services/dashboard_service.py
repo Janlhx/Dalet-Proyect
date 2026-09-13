@@ -1541,9 +1541,38 @@ class DashboardService:
             });
         }
 
+        function getAuthHeaders() {
+            const urlKey = new URLSearchParams(window.location.search).get('key');
+            if (urlKey) {
+                localStorage.setItem('dalet_dashboard_key', urlKey.trim());
+            }
+            const key = (urlKey || localStorage.getItem('dalet_dashboard_key') || '').trim();
+            const headers = {};
+            if (key) {
+                headers['X-Dashboard-Secret'] = key;
+            }
+            return headers;
+        }
+
+        function promptDashboardKey() {
+            if (window._promptingKey) return;
+            window._promptingKey = true;
+            const input = prompt("🔒 Acceso Restringido al Dashboard\nIngresa tu DASHBOARD_SECRET para desbloquear métricas y feedbacks:");
+            window._promptingKey = false;
+            if (input && input.trim()) {
+                localStorage.setItem('dalet_dashboard_key', input.trim());
+                fetchTelemetry();
+                fetchFeedbacks();
+            }
+        }
+
         async function fetchTelemetry() {
             try {
-                const res = await fetch('/api/telemetry');
+                const res = await fetch('/api/telemetry', { headers: getAuthHeaders() });
+                if (res.status === 401) {
+                    promptDashboardKey();
+                    return;
+                }
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
                 renderTelemetry(data);
@@ -1559,7 +1588,8 @@ class DashboardService:
 
         async function fetchFeedbacks() {
             try {
-                const res = await fetch('/api/feedbacks');
+                const res = await fetch('/api/feedbacks', { headers: getAuthHeaders() });
+                if (res.status === 401) return;
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
                 const feedbacks = data.feedbacks || [];

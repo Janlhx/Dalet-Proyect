@@ -3,7 +3,8 @@ from discord.ext import commands
 import os
 import discord
 from dotenv import load_dotenv
-from flask import Flask, jsonify, Response
+from flask import Flask, jsonify, Response, request
+from functools import wraps
 from threading import Thread
 import sys
 import logging
@@ -28,6 +29,55 @@ load_dotenv()
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+DASHBOARD_SECRET = (os.getenv("DASHBOARD_SECRET") or "").strip()
+
+
+def validate_environment() -> None:
+    """Valida la presencia de credenciales críticas en el inicio (fail-fast)."""
+    missing = []
+    if not os.getenv("DISCORD_TOKEN"):
+        missing.append("DISCORD_TOKEN")
+    if not os.getenv("GEMINI_API_KEY") and not os.getenv("OPENROUTER_API_KEY"):
+        missing.append("GEMINI_API_KEY o OPENROUTER_API_KEY")
+
+    if missing:
+        logger.critical(f"[FAIL-FAST] No se puede iniciar Dalet. Variables críticas ausentes: {', '.join(missing)}")
+        sys.exit(1)
+
+
+def require_dashboard_auth(f):
+    """
+    Protege endpoints sensibles de telemetría y feedbacks.
+    Permite acceso si:
+    - DASHBOARD_SECRET no está configurado (modo desarrollo local).
+    - Se envía cabecera 'Authorization: Bearer <secret>' o 'X-Dashboard-Secret: <secret>'.
+    - Se envía query param '?key=<secret>'.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not DASHBOARD_SECRET:
+            return f(*args, **kwargs)
+
+        auth_header = request.headers.get("Authorization", "").strip()
+        if auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1].strip()
+            if token == DASHBOARD_SECRET:
+                return f(*args, **kwargs)
+
+        custom_header = request.headers.get("X-Dashboard-Secret", "").strip()
+        if custom_header == DASHBOARD_SECRET:
+            return f(*args, **kwargs)
+
+        query_key = request.args.get("key", "").strip()
+        if query_key == DASHBOARD_SECRET:
+            return f(*args, **kwargs)
+
+        return jsonify({
+            "error": "Unauthorized",
+            "message": "Acceso restringido. Proporciona una clave válida vía header o parámetro '?key='."
+        }), 401
+    return decorated_function
+
 
 # --- Servidor Web (Dashboard & Health Check) ---
 app = Flask(__name__)
@@ -39,11 +89,13 @@ def home():
     return Response(DashboardService.get_dashboard_html(), mimetype='text/html')
 
 @app.route('/api/telemetry')
+@require_dashboard_auth
 def api_telemetry():
     """Devuelve métricas en tiempo real en formato JSON."""
     return jsonify(DashboardService.get_full_telemetry())
 
 @app.route('/api/feedbacks')
+@require_dashboard_auth
 def api_feedbacks():
     """Devuelve los feedbacks enviados por usuarios en formato JSON (thread-safe WAL)."""
     try:
@@ -154,6 +206,9 @@ async def load_extensions(bot):
 
 # --- Punto de Entrada Principal ---
 async def main():
+    # Validación fail-fast temprana antes de levantar servicios
+    validate_environment()
+
     # Abrir Flask primero (Render necesita ver el puerto)
     keep_alive()
     logger.info("Health Check iniciado en puerto 8080.")
@@ -172,9 +227,17 @@ async def main():
             from services.memory_service import MemoryService
             from services.osu_service import OsuService
 
+            # Gateway Intents optimizados: activamos solo lo necesario y omitimos 'presences'
+            # para reducir drásticamente el consumo de RAM y tráfico de WebSocket innecesario
+            intents = discord.Intents.default()
+            intents.messages = True
+            intents.message_content = True
+            intents.guilds = True
+            intents.members = True
+
             bot = commands.Bot(
                 command_prefix=["D.", "d."],
-                intents=discord.Intents.all(),
+                intents=intents,
                 case_insensitive=True
             )
 
