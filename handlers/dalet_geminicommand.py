@@ -1,7 +1,13 @@
 import time
+import logging
 import discord
 from discord.ext import commands
-import logging
+
+from ui.atoms import DaletAtoms
+from handlers.dalet_nlpchat import (
+    BASE_RESPONSE_RATE, COOLDOWN_TIME,
+    MIN_MESSAGES_BETWEEN_REPLIES, MAX_MESSAGES_WINDOW
+)
 
 logger = logging.getLogger("dalet.handlers.aiconfig")
 
@@ -88,14 +94,8 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
 
     @proactive.command(name="debug")
     async def proactive_debug(self, ctx):
-        """🔍 Muestra el estado interno del sistema proactivo para debugging."""
+        """Muestra el estado interno del sistema proactivo para depuración."""
         try:
-            from ui.atoms import DaletAtoms
-            from handlers.dalet_nlpchat import (
-                BASE_RESPONSE_RATE, COOLDOWN_TIME,
-                MIN_MESSAGES_BETWEEN_REPLIES, MAX_MESSAGES_WINDOW
-            )
-
             # Obtener el cog de NLP para acceder a sus variables internas
             nlp_cog = self.bot.get_cog("DaletNLPChat")
             if not nlp_cog:

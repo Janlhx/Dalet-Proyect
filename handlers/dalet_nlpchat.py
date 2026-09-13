@@ -2,7 +2,6 @@ import logging
 import random
 import re
 import time
-import traceback
 import asyncio
 from cachetools import TTLCache
 
@@ -536,8 +535,7 @@ class DaletNLPChat(commands.Cog):
                 self.message_counter = 0
 
         except Exception as e:
-            logger.error(f"Error generando respuesta: {e}")
-            traceback.print_exc()
+            logger.error(f"Error generando respuesta: {e}", exc_info=True)
         finally:
             self.active_user_responses.discard(user_id)
 

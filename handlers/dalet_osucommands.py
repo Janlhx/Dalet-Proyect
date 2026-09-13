@@ -1,7 +1,6 @@
 import time
 import logging
 import asyncio
-import traceback
 
 import discord
 from discord.ext import commands
@@ -604,8 +603,7 @@ class OsuHandler(commands.Cog, name="osu!"):
             await self._maybe_snapshot(ctx.author.id, username, user)
 
         except Exception as e:
-            logger.error(f"Error en d.skills para {username}: {e}")
-            traceback.print_exc()
+            logger.error(f"Error en d.skills para {username}: {e}", exc_info=True)
             await ctx.send("⚠️ error calculando el desglose de habilidades.")
 
 

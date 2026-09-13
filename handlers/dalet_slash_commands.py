@@ -16,6 +16,7 @@ from ui.locales import t
 from services.feedback_service import FeedbackService
 from handlers.dalet_osu_presenter import OsuPresenter
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
+from handlers.dalet_helpcommands_handlers import build_help_pages, HelpPaginator
 
 logger = logging.getLogger("dalet.handlers.slash")
 
@@ -133,7 +134,6 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
 
     @app_commands.command(name="help", description="Displays an interactive categorized command guide.")
     async def slash_help(self, interaction: discord.Interaction):
-        from handlers.dalet_helpcommands_handlers import build_help_pages, HelpPaginator
         server_lang = "en"
         if interaction.guild_id:
             server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)

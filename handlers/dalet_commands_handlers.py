@@ -7,6 +7,7 @@ from ui.organisms import DaletOrganisms
 from ui.atoms import DaletAtoms
 from ui.molecules import DaletMolecules
 from ui.locales import t
+from services.feedback_service import FeedbackService
 
 logger = logging.getLogger("dalet.handlers.general")
 
@@ -83,9 +84,8 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
         await ctx.send(embed=embed)
 
     @commands.command(name="feedback", aliases=["sugerencia", "suggest"])
-    async def feedback(self, ctx, *, mensaje: str):
-        """📬 Envía comentarios o sugerencias directamente al desarrollador."""
-        from services.feedback_service import FeedbackService
+    async def feedback(self, ctx: commands.Context, *, mensaje: str):
+        """Envía comentarios o sugerencias directamente al desarrollador."""
         server_lang = "en"
         if ctx.guild:
             server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
@@ -115,14 +115,14 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
             await ctx.send(t("feedback.error", server_lang))
 
     @commands.command()
-    async def say(self, ctx, *, mensaje):
-        """💬 Hace que Dalet repita tu mensaje."""
+    async def say(self, ctx: commands.Context, *, mensaje: str):
+        """Hace que Dalet repita el mensaje indicado."""
         await ctx.send(mensaje)
 
     @commands.command(name="lore")
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def lore(self, ctx, *, busqueda: str):
-        """📜 Investiga el pasado del servidor sobre un tema específico."""
+    async def lore(self, ctx: commands.Context, *, busqueda: str):
+        """Investiga el pasado del servidor sobre un tema específico."""
         try:
             async with ctx.typing():
                 # 1. Buscar en SQLite

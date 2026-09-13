@@ -1,11 +1,11 @@
-import discord
-import os
-import sys
 import asyncio
-from discord.ext import commands
 import logging
-import traceback
+import discord
+from discord.ext import commands
+
 from ui.atoms import DaletAtoms
+from ui.molecules import DaletMolecules
+from database.sqlite_manager import SQLiteManager
 
 logger = logging.getLogger("dalet.handlers.admin")
 
@@ -217,8 +217,6 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
     @commands.has_permissions(administrator=True)
     async def db_stats(self, ctx):
         """[ADMIN] Muestra un resumen de analíticas de SQLite: comandos, IA y errores."""
-        from database.sqlite_manager import SQLiteManager
-
         try:
             # Top 5 comandos más usados (SQLite)
             top_cmds = await SQLiteManager.fetch_all("""
@@ -305,7 +303,6 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
           d.status osu! • jugando │ d.help
           d.status default  -> Restablece al ciclo rotativo automático
         """
-        from ui.molecules import DaletMolecules
         if not text or text.lower() in ("default", "reset", "auto"):
             self.bot.custom_status = None
             events_cog = self.bot.get_cog("EventsHandler")

@@ -2,10 +2,13 @@
 Handler de Eventos Globales de Discord.
 Maneja: on_ready, on_command_error, on_guild_join.
 """
-from discord.ext import commands, tasks
-import discord
 import logging
-import traceback
+import discord
+from discord.ext import commands, tasks
+
+from ui.atoms import DaletAtoms
+from ui.molecules import DaletMolecules
+from handlers.dalet_helpcommands_handlers import build_help_pages, HelpPaginator
 
 logger = logging.getLogger("dalet.handlers.events")
 
@@ -93,12 +96,10 @@ class EventsHandler(commands.Cog):
                     f"Rate limit 429 en comando '{ctx.command}'. Throttle activo."
                 )
                 return
-            logger.error(f"Error en comando '{ctx.command}': {error}")
-            traceback.print_exc()
+            logger.error(f"Error en comando '{ctx.command}': {error}", exc_info=True)
 
         else:
-            logger.error(f"Error inesperado en comando: {error}")
-            traceback.print_exc()
+            logger.error(f"Error inesperado en comando: {error}", exc_info=True)
 
     # -------------------------------------------------------------------------
     # on_guild_join
@@ -107,9 +108,6 @@ class EventsHandler(commands.Cog):
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
         """Envía una presentación y guía interactiva cuando el bot entra a un servidor nuevo."""
-        from ui.atoms import DaletAtoms
-        from ui.molecules import DaletMolecules
-
         # Asegurar registro del servidor en la BD con reactividad activa por defecto
         try:
             await self.bot.user_repo.set_server_reactive(guild.id, guild.name, True)
@@ -235,7 +233,6 @@ class GuildJoinView(discord.ui.View):
 
     @discord.ui.button(label="📖 Command Guide / Guía", style=discord.ButtonStyle.primary, custom_id="guild_join_help")
     async def help_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        from handlers.dalet_helpcommands_handlers import build_help_pages, HelpPaginator
         server_lang = "en"
         if interaction.guild_id and hasattr(self.bot, "admin_repo"):
             server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)

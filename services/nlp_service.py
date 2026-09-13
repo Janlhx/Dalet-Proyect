@@ -13,6 +13,7 @@ import asyncio
 import hashlib
 import json
 import time
+from dotenv import load_dotenv
 from database.repositories.user_repository import UserRepository
 from database.sqlite_manager import SQLiteManager
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
@@ -270,7 +271,6 @@ class NLPService:
     """
 
     def __init__(self, gemini_api_key: str, user_repo=None, osu_service=None, osu_repo=None):
-        from dotenv import load_dotenv
         load_dotenv(override=True)
 
         self.gemini_api_key = (gemini_api_key or "").strip()

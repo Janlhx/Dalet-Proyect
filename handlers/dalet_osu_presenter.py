@@ -11,6 +11,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from ui.atoms import DaletAtoms
 from ui.molecules import DaletMolecules
 from ui.locales import t
+from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
 
 def _format_mods(mods: list) -> str:
     """Formatea la lista de mods en un string compacto tipo +HDDT o +NM."""
@@ -687,7 +688,6 @@ class OsuPresenter:
         lbl_strength = t("osu.skills_strength", lang)
         lbl_weakness = t("osu.skills_weakness", lang)
 
-        from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
         ov_pts = skills_data.get("overall_skill_points", 0.0)
         ov_glyph, ov_tier = OsuAnalyzer.get_tier_info(ov_pts, lang=lang)
 
