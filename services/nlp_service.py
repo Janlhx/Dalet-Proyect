@@ -507,6 +507,23 @@ class NLPService:
         # 1. Eliminar bloques <think>...</think> (cerrados o no cerrados)
         cleaned = re.sub(r"(?is)<think>.*?(?:</think>|$)", "", cleaned).strip()
 
+        # 1b. Neutralizar fugas de monólogo interno / reasoning (ej. 'We need to respond as...', 'Thinking Process:')
+        leak_prefixes = (
+            "we need to respond",
+            "the user says",
+            "the context:",
+            "let's think",
+            "thinking process",
+            "as dalet, i should",
+            "respond as dalet",
+        )
+        if any(cleaned.lower().startswith(p) for p in leak_prefixes):
+            logger.warning(f"Fuga de razonamiento de LLM detectada: '{cleaned[:50]}...'. Descartando respuesta corrupta.")
+            return ""
+
+        # Eliminar cualquier bloque de pensamiento multilínea al inicio
+        cleaned = re.sub(r"(?is)^(?:\s*(?:We need to|The context:|Thinking Process:|Thinking:).*?\n\n+)", "", cleaned).strip()
+
         # 2. Eliminar prefijos de nombre al inicio
         bot_prefixes = [bot_name, "Dalet", "SkinnyGPT", "Assistant", "Bot"]
         for prefix in bot_prefixes:
@@ -526,6 +543,15 @@ class NLPService:
         backtick_count = cleaned.count("`")
         if backtick_count % 2 != 0:
             cleaned += "`"
+
+        # 4b. Limpiar comillas huérfanas colgantes al final si el mensaje terminó bruscamente
+        if cleaned.endswith((' "', " '", ' “')):
+            cleaned = cleaned[:-2].strip()
+        elif cleaned.endswith(('"', "'", '“')):
+            if cleaned.count('"') % 2 != 0:
+                cleaned = cleaned.rstrip('"').strip()
+            if cleaned.count("'") % 2 != 0:
+                cleaned = cleaned.rstrip("'").strip()
 
         # 5. Limitar emojis (máximo 1 para evitar spam y alucinaciones)
         emoji_pattern = re.compile(
@@ -839,7 +865,7 @@ class NLPService:
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
-        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or (140 if is_reactive else 180)
+        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or (350 if is_reactive else 450)
 
         # Determinar si activamos herramientas (Function Calling) de osu!
         use_tools = False
@@ -992,7 +1018,7 @@ class NLPService:
                 models_to_try.append(fallback_m)
 
         tools = [types.Tool(google_search=types.GoogleSearch())] if needs_web_search else None
-        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or (140 if is_reactive else 180)
+        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or (350 if is_reactive else 450)
 
         config = types.GenerateContentConfig(
             system_instruction=system_prompt,
@@ -1100,7 +1126,7 @@ class NLPService:
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
-        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or (140 if is_reactive else 180)
+        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or (350 if is_reactive else 450)
 
         for model_name in groq_models_to_try:
             t0 = time.time()
@@ -1184,15 +1210,14 @@ class NLPService:
 
         active_room_users = kwargs.get("active_room_users", "")
 
-        primary_model = (os.getenv("OPENROUTER_MODEL") or "openrouter/free").strip()
+        primary_model = (os.getenv("OPENROUTER_MODEL") or "deepseek/deepseek-chat").strip()
         models_to_try = [primary_model]
         candidates = (
-            "openrouter/free",
-            "google/gemini-2.0-flash-exp:free",
-            "meta-llama/llama-3.3-70b-instruct:free",
-            "deepseek/deepseek-r1:free",
-            "qwen/qwen-2.5-72b-instruct:free",
-            "mistralai/mistral-small-24b-instruct-2501:free"
+            "deepseek/deepseek-chat",
+            "google/gemini-2.0-flash-001",
+            "meta-llama/llama-3.3-70b-instruct",
+            "qwen/qwen-2.5-72b-instruct",
+            "mistralai/mistral-small-24b-instruct-2501"
         )
         for cand in candidates:
             if cand not in models_to_try:
@@ -1211,7 +1236,7 @@ class NLPService:
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
-        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or (140 if is_reactive else 180)
+        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or (350 if is_reactive else 450)
 
         for model_name in models_to_try:
             t0 = time.time()
