@@ -65,6 +65,15 @@ class TestWebSecurityAndEndpoints(unittest.TestCase):
         finally:
             dalet_main.DASHBOARD_SECRET = original_secret
 
+    def test_dashboard_html_serves_clean_template(self):
+        """Verifica que el dashboard web cargue correctamente el template desacoplado."""
+        res = self.app.get('/')
+        self.assertEqual(res.status_code, 200)
+        html = res.data.decode('utf-8')
+        self.assertIn("<!DOCTYPE html>", html)
+        self.assertIn("Dalet • System Telemetry", html)
+
+
 
 if __name__ == '__main__':
     unittest.main()

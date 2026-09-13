@@ -1,20 +1,11 @@
-import io
 import time
-import re
 import logging
 import asyncio
 import traceback
-from datetime import datetime, timezone
 
 import discord
 from discord.ext import commands
-import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 
-from ui.organisms import DaletOrganisms
 from ui.atoms import DaletAtoms
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
 from handlers.dalet_osu_presenter import OsuPresenter
@@ -24,34 +15,8 @@ logger = logging.getLogger("dalet.handlers.osu")
 # Modos de juego válidos
 VALID_MODES = {"osu", "taiko", "fruits", "mania"}
 
-# Emojis de grado para embeds
-GRADE_EMOJIS = {
-    "XH": "🌟", "X": "⭐", "SH": "🥈", "S": "🏅", "A": "🎯",
-    "B": "🔵", "C": "🟡", "D": "🔴", "F": "💀"
-}
-
 # Emojis de modos
 MODE_EMOJIS = {"osu": "🎵", "taiko": "🥁", "fruits": "🍎", "mania": "🎹"}
-
-
-def _mods_str(mods: list) -> str:
-    """Convierte lista de mods a string legible (ej. +HDDT)."""
-    if not mods:
-        return "+NM"
-    return "+" + "".join(mods)
-
-
-def _acc_str(accuracy: float) -> str:
-    return f"{accuracy * 100:.2f}%"
-
-
-def _rank_color(rank: int | None) -> int:
-    if not rank:
-        return 0x7289DA
-    if rank <= 1000:    return 0xFFD700
-    if rank <= 10000:   return 0xC0C0C0
-    if rank <= 100000:  return 0xCD7F32
-    return 0x7289DA
 
 
 class OsuHandler(commands.Cog, name="osu!"):
@@ -278,10 +243,6 @@ class OsuHandler(commands.Cog, name="osu!"):
             logger.error(f"Error en otop: {e}")
             await ctx.send(f"⚠️ error obteniendo top plays de '{username}'.")
 
-    async def _generate_pp_chart(self, username: str, scores: list, lang: str = "en") -> discord.File | None:
-        """Genera un gráfico de barras de distribución de PP con matplotlib ajustado dinámicamente."""
-        return OsuPresenter.generate_pp_chart(username, scores, lang=lang)
-
     # ------------------------------------------------------------------
     # d.compare — Comparar dos jugadores
     # ------------------------------------------------------------------
@@ -428,7 +389,7 @@ class OsuHandler(commands.Cog, name="osu!"):
 
             loop = asyncio.get_running_loop()
             chart_file = await loop.run_in_executor(
-                None, _create_progress_chart_sync, member.display_name, history
+                None, OsuPresenter.generate_progress_chart, member.display_name, history
             )
 
             username = await self.repo.get_linked_username(member.id)
@@ -465,74 +426,6 @@ class OsuHandler(commands.Cog, name="osu!"):
             logger.error(f"Error en progress: {e}")
             await ctx.send("⚠️ error generando el gráfico de progreso.")
 
-
-def _create_progress_chart_sync(username: str, history: list) -> discord.File | None:
-    """Gráfico de línea de PP a lo largo del tiempo (ejecución síncrona fuera del loop)."""
-    try:
-        # History viene de más reciente a más antiguo — invertimos
-        history_chron = list(reversed(history))
-
-        dates, pp_vals = [], []
-        for h in history_chron:
-            ts = h.get("recorded_at", "")
-            pp = h.get("pp", 0)
-            if ts:
-                try:
-                    if hasattr(ts, "year"):
-                        dates.append(ts)
-                    else:
-                        dates.append(datetime.fromisoformat(str(ts)[:19]))
-                    pp_vals.append(pp)
-                except Exception:
-                    continue
-
-        if len(dates) < 2:
-            return None
-
-        fig, ax = plt.subplots(figsize=(10, 4))
-        fig.patch.set_facecolor("#1a1a2e")
-        ax.set_facecolor("#16213e")
-
-        # Área bajo la curva
-        ax.fill_between(dates, pp_vals, alpha=0.2, color="#7f5af0")
-        ax.plot(dates, pp_vals, color="#7f5af0", linewidth=2.5, zorder=5)
-        ax.scatter(dates, pp_vals, color="#e94560", s=30, zorder=6)
-
-        # Línea de tendencia
-        if len(dates) >= 3:
-            x_num = mdates.date2num(dates)
-            z = np.polyfit(x_num, pp_vals, 1)
-            p = np.poly1d(z)
-            x_smooth = np.linspace(x_num[0], x_num[-1], 200)
-            ax.plot(
-                mdates.num2date(x_smooth), p(x_smooth),
-                color="#2cb67d", linewidth=1.2, linestyle="--", alpha=0.6
-            )
-
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
-        ax.xaxis.set_major_locator(mdates.AutoDateLocator())
-        plt.xticks(rotation=30, fontsize=8)
-
-        ax.set_ylabel("PP", color="#ccc", fontsize=9)
-        ax.set_title(f"Progreso PP — {username}", color="white", fontsize=12, pad=10)
-        ax.tick_params(colors="#999", labelsize=8)
-        ax.spines[:].set_color("#333")
-        ax.grid(color="#333", alpha=0.4, zorder=1)
-
-        plt.tight_layout()
-        buf = io.BytesIO()
-        plt.savefig(buf, format="png", dpi=120, bbox_inches="tight")
-        plt.close(fig)
-        buf.seek(0)
-        return discord.File(buf, filename="progress.png")
-
-    except Exception as e:
-        logger.warning(f"No se pudo generar gráfico progress: {e}")
-        return None
-
-
-
-
     # ------------------------------------------------------------------
     # d.op1s — #1s del usuario (bonus)
     # ------------------------------------------------------------------
@@ -559,7 +452,7 @@ def _create_progress_chart_sync(username: str, history: list) -> discord.File | 
                 bmap  = s.get("beatmap", {})
                 bset  = s.get("beatmapset", {})
                 pp    = s.get("pp", 0)
-                mods  = _mods_str(s.get("mods", []))
+                mods  = OsuPresenter.format_mods(s.get("mods", []))
                 title = bset.get("title", "??")[:35]
                 stars = s.get("official_sr") or s.get("beatmap_attributes", {}).get("star_rating") or bmap.get("difficulty_rating", 0)
                 lines.append(f"{DaletAtoms.EMOJI_DALET} **{title}** {stars:.1f}★ {mods} — **{pp:.0f}pp**")

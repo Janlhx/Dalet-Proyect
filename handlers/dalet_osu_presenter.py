@@ -1,9 +1,11 @@
 import io
+from datetime import datetime
 import discord
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")  # Backend no interactivo sin GUI
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from matplotlib.colors import LinearSegmentedColormap
 
 from ui.atoms import DaletAtoms
@@ -96,6 +98,9 @@ def _calc_effective_sr(bm: dict, mods: list, mode: str = "osu") -> float:
 
 class OsuPresenter:
     """Presentador de UI para osu! con la identidad visual única de Dalet."""
+
+    format_mods = staticmethod(_format_mods)
+    format_acc = staticmethod(_format_acc)
 
     @staticmethod
     def _extract_score(play: dict) -> str:
@@ -445,6 +450,65 @@ class OsuPresenter:
             return discord.File(buf, filename="pp_distribution.png")
 
         except Exception as e:
+            return None
+
+    @staticmethod
+    def generate_progress_chart(username: str, history: list) -> discord.File | None:
+        """Genera un gráfico de progreso de PP a lo largo del tiempo."""
+        try:
+            history_chron = list(reversed(history))
+            dates, pp_vals = [], []
+            for h in history_chron:
+                ts = h.get("recorded_at", "")
+                pp = h.get("pp", 0)
+                if ts:
+                    try:
+                        if hasattr(ts, "year"):
+                            dates.append(ts)
+                        else:
+                            dates.append(datetime.fromisoformat(str(ts)[:19]))
+                        pp_vals.append(pp)
+                    except Exception:
+                        continue
+
+            if len(dates) < 2:
+                return None
+
+            fig, ax = plt.subplots(figsize=(10, 4))
+            fig.patch.set_facecolor("#131315")
+            ax.set_facecolor("#101012")
+
+            ax.fill_between(dates, pp_vals, alpha=0.2, color="#d96b82")
+            ax.plot(dates, pp_vals, color="#d96b82", linewidth=2.5, zorder=5)
+            ax.scatter(dates, pp_vals, color="#f7c1cb", s=30, zorder=6)
+
+            if len(dates) >= 3:
+                x_num = mdates.date2num(dates)
+                z = np.polyfit(x_num, pp_vals, 1)
+                p = np.poly1d(z)
+                x_smooth = np.linspace(x_num[0], x_num[-1], 200)
+                ax.plot(
+                    mdates.num2date(x_smooth), p(x_smooth),
+                    color="#2cb67d", linewidth=1.2, linestyle="--", alpha=0.6
+                )
+
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
+            ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+            plt.xticks(rotation=30, fontsize=8)
+
+            ax.set_ylabel("PP", color="#a89ca2", fontsize=9)
+            ax.set_title(f"Progreso PP — {username}", color="white", fontsize=12, pad=10, fontweight="bold")
+            ax.tick_params(colors="#8c8087", labelsize=8)
+            ax.spines[:].set_color("#2a1f24")
+            ax.grid(color="#2a1f24", alpha=0.4, zorder=1)
+
+            plt.tight_layout()
+            buf = io.BytesIO()
+            plt.savefig(buf, format="png", dpi=120, bbox_inches="tight")
+            plt.close(fig)
+            buf.seek(0)
+            return discord.File(buf, filename="progress.png")
+        except Exception:
             return None
 
     @staticmethod
