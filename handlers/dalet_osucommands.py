@@ -328,16 +328,31 @@ class OsuHandler(commands.Cog, name="osu!"):
 
         try:
             async with ctx.typing():
-                # Obtener todos los IDs de Discord de los miembros del servidor
-                guild_member_ids = [str(m.id) for m in ctx.guild.members if not m.bot]
+                guild_member_ids = {str(m.id) for m in ctx.guild.members if not m.bot}
+                all_rows = await self.repo.get_ranking(limit=200)
 
-                # Obtener ranking solo de los miembros del servidor
-                # Filtramos en Python desde el ranking global (evita query compleja)
-                all_rows = await self.repo.get_ranking(limit=200)  # Traer más para filtrar
-                server_rows = [
-                    row for row in all_rows
-                    if str(row.get("UserID") or row.get("userid") or "") in guild_member_ids
-                ][:15]  # Limitar a top 15 del servidor
+                def _get_val(r, *keys, default=""):
+                    if isinstance(r, dict):
+                        for k in keys:
+                            if k in r and r[k] is not None:
+                                return r[k]
+                        return default
+                    for k in keys:
+                        try:
+                            v = r[k]
+                            if v is not None:
+                                return v
+                        except Exception:
+                            pass
+                    return default
+
+                server_rows = []
+                for row in all_rows:
+                    uid = str(_get_val(row, "UserID", "userid", 0, default=""))
+                    if uid and uid in guild_member_ids:
+                        server_rows.append(row)
+                        if len(server_rows) >= 15:
+                            break
 
             if not server_rows:
                 return await ctx.send(
@@ -354,9 +369,9 @@ class OsuHandler(commands.Cog, name="osu!"):
             medals = ["✦", "◈", "◇"]
             for i, row in enumerate(server_rows):
                 medal = medals[i] if i < 3 else f"`{i+1}.`"
-                name  = row.get("UserName") or row.get("username") or row.get("osuusername") or "??"
-                pp    = float(row.get("PP") or row.get("pp") or 0)
-                acc   = float(row.get("Accuracy") or row.get("accuracy") or 0)
+                name  = _get_val(row, "UserName", "username", "osuusername", 1, default="??")
+                pp    = float(_get_val(row, "PP", "pp", 2, default=0) or 0)
+                acc   = float(_get_val(row, "Accuracy", "accuracy", 3, default=0) or 0)
                 lines.append(f"{medal} **{name}** — {pp:,.0f}pp • {acc:.2f}%")
 
             embed.description = "\n".join(lines)

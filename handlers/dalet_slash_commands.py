@@ -2,12 +2,13 @@
 Slash Commands (Application Commands) de Dalet.
 Unifica y expone los comandos principales como comandos de barra / para Discord.
 """
+import asyncio
+import logging
+import time
 import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.utils import format_dt
-import logging
-import time
 
 from ui.organisms import DaletOrganisms
 from ui.atoms import DaletAtoms
@@ -479,12 +480,31 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         if interaction.guild_id:
             server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
         try:
-            guild_member_ids = [str(m.id) for m in interaction.guild.members if not m.bot]
+            guild_member_ids = {str(m.id) for m in interaction.guild.members if not m.bot}
             all_rows = await self.bot.osu_repo.get_ranking(limit=200)
-            server_rows = [
-                row for row in all_rows
-                if str(row.get("UserID") or row.get("userid") or "") in guild_member_ids
-            ][:10]
+
+            def _get_val(r, *keys, default=""):
+                if isinstance(r, dict):
+                    for k in keys:
+                        if k in r and r[k] is not None:
+                            return r[k]
+                    return default
+                for k in keys:
+                    try:
+                        v = r[k]
+                        if v is not None:
+                            return v
+                    except Exception:
+                        pass
+                return default
+
+            server_rows = []
+            for row in all_rows:
+                uid = str(_get_val(row, "UserID", "userid", 0, default=""))
+                if uid and uid in guild_member_ids:
+                    server_rows.append(row)
+                    if len(server_rows) >= 10:
+                        break
 
             if not server_rows:
                 return await interaction.followup.send(t("rank.empty", server_lang))
@@ -492,9 +512,9 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             lines = []
             for i, row in enumerate(server_rows):
                 medal = medals[i] if i < 3 else f"`{i+1}.`"
-                name = row.get("UserName") or row.get("username") or row.get("osuusername") or "??"
-                pp = float(row.get("PP") or row.get("pp") or 0)
-                acc = float(row.get("Accuracy") or row.get("accuracy") or 0)
+                name = _get_val(row, "UserName", "username", "osuusername", 1, default="??")
+                pp = float(_get_val(row, "PP", "pp", 2, default=0) or 0)
+                acc = float(_get_val(row, "Accuracy", "accuracy", 3, default=0) or 0)
                 lines.append(f"{medal} **{name}** — {pp:,.0f}pp • {acc:.2f}%")
             embed = discord.Embed(
                 title=f"{DaletAtoms.EMOJI_DALET} {t('rank.title', server_lang)}",

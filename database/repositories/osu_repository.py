@@ -30,7 +30,7 @@ class OsuRepository(BaseRepository):
         query = "DELETE FROM OsuAccounts WHERE UserID = ?"
         return await self.execute(query, user_id)
 
-    async def get_ranking(self, limit: int = 10):
+    async def get_ranking(self, limit: int = 10) -> list[dict]:
         query = """
             SELECT 
                 u.UserID,
@@ -43,7 +43,28 @@ class OsuRepository(BaseRepository):
             WHERE oa.PP > 0
             LIMIT ?
         """
-        return await self.fetch_all(query, limit)
+        raw_rows = await self.fetch_all(query, limit)
+        results = []
+        for r in raw_rows:
+            if isinstance(r, dict):
+                results.append(r)
+            elif hasattr(r, "asdict") and callable(r.asdict):
+                results.append(r.asdict())
+            elif hasattr(r, "_asdict") and callable(r._asdict):
+                results.append(r._asdict())
+            elif hasattr(r, "keys"):
+                results.append({k: r[k] for k in r.keys()})
+            else:
+                try:
+                    results.append(dict(r))
+                except Exception:
+                    results.append({
+                        "UserID": r[0] if len(r) > 0 else None,
+                        "UserName": r[1] if len(r) > 1 else None,
+                        "PP": r[2] if len(r) > 2 else 0,
+                        "Accuracy": r[3] if len(r) > 3 else 0,
+                    })
+        return results
 
 
     async def get_recommended_maps(self, min_stars: float, max_stars: float, focus: str, limit: int = 5) -> list:
