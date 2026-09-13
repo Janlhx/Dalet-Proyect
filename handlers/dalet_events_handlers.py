@@ -16,6 +16,7 @@ class EventsHandler(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self._presence_index = 0
+        self._synced = False
         self._activities = [
             discord.Activity(type=discord.ActivityType.playing, name="osu! • /skills │ /help"),
             discord.Activity(type=discord.ActivityType.watching, name="replays • /recent"),
@@ -54,7 +55,14 @@ class EventsHandler(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         """Se ejecuta cuando el bot está listo y conectado."""
-        await self.bot.tree.sync()
+        if not self._synced:
+            try:
+                synced = await self.bot.tree.sync()
+                self._synced = True
+                logger.info(f"Slash commands sincronizados ({len(synced)} comandos registrados).")
+            except Exception as e:
+                logger.error(f"Error sincronizando slash commands en on_ready: {e}")
+
         logger.info(f"Bot conectado como {self.bot.user} (ID: {self.bot.user.id})")
 
     # -------------------------------------------------------------------------

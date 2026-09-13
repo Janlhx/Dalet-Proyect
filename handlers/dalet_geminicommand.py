@@ -1,3 +1,4 @@
+import time
 import discord
 from discord.ext import commands
 import logging
@@ -5,7 +6,7 @@ import logging
 logger = logging.getLogger("dalet.handlers.aiconfig")
 
 class AIConfigCommands(commands.Cog, name="Configuración de IA"):
-    """Comandos para configurar cómo y dónde Dalet interactúa automáticamente."""
+    """Comandos de administración para la configuración de respuestas de IA en el servidor."""
 
     def __init__(self, bot):
         self.bot = bot
@@ -14,14 +15,15 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
     @commands.group(name="proactive", invoke_without_command=True)
     @commands.has_permissions(administrator=True)
     async def proactive(self, ctx):
-        """🤖 [ADMIN] Configura en qué canales Dalet puede participar automáticamente en conversaciones."""
+        """Configura en qué canales Dalet puede participar de forma autónoma."""
         await ctx.send("Usa `d.proactive add/remove/list/clear/debug`.")
 
     @proactive.command(name="add")
     @commands.has_permissions(administrator=True)
     async def proactive_add(self, ctx, *channels: discord.TextChannel):
-        """➕ Añade canales donde Dalet participará automáticamente. Uso: `d.proactive add #canal1 #canal2`"""
-        if not channels: return await ctx.send("Menciona al menos un canal.")
+        """Añade canales a la lista de participación proactiva. Uso: `d.proactive add #canal1 #canal2`"""
+        if not channels:
+            return await ctx.send("Menciona al menos un canal.")
 
         added = []
         try:
@@ -99,7 +101,6 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
             if not nlp_cog:
                 return await ctx.send("❌ No se pudo encontrar el módulo de NLP.")
 
-            import time
             now = time.time()
             time_since_last = now - nlp_cog.last_reply_time
 

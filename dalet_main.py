@@ -9,8 +9,9 @@ from threading import Thread
 import sys
 import logging
 import signal
+import sqlite3
 from database.turso_client import TursoClient
-from database.sqlite_manager import SQLiteManager
+from database.sqlite_manager import SQLiteManager, DB_PATH
 from services.dashboard_service import DashboardService
 
 # --- Configuración de Logging ---
@@ -99,13 +100,9 @@ def api_telemetry():
 def api_feedbacks():
     """Devuelve los feedbacks enviados por usuarios en formato JSON (thread-safe WAL)."""
     try:
-        import sqlite3
-        db_path = os.path.join(os.path.dirname(__file__), "dalet_local.db")
-        if not os.path.exists(db_path):
-            db_path = os.path.join(os.path.dirname(__file__), "data", "dalet_local.db")
-        if not os.path.exists(db_path):
+        if not os.path.exists(DB_PATH):
             return jsonify({"feedbacks": [], "total": 0})
-        conn = sqlite3.connect(db_path, timeout=3.0)
+        conn = sqlite3.connect(DB_PATH, timeout=3.0)
         cursor = conn.cursor()
         cursor.execute("""
             SELECT FeedbackID, UserID, UserName, UserAvatar, ServerID, ServerName, ChannelID, ChannelName, Content, CreatedAt

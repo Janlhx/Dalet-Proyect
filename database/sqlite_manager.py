@@ -3,9 +3,9 @@ import os
 import logging
 import asyncio
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, "dalet_local.db")
 logger = logging.getLogger("dalet.database.sqlite")
-
-DB_PATH = "dalet_local.db"
 
 
 class SQLiteManager:

@@ -1,18 +1,18 @@
+import logging
 import discord
 from discord.ext import commands
-import logging
 from discord.utils import format_dt
-
-logger = logging.getLogger("dalet.handlers.general")
 
 from ui.organisms import DaletOrganisms
 from ui.atoms import DaletAtoms
 from ui.molecules import DaletMolecules
 from ui.locales import t
 
+logger = logging.getLogger("dalet.handlers.general")
+
 
 class CommandsHandler(commands.Cog, name="Comandos Generales"):
-    """Comandos básicos de Dalet (utilidades, info y herramientas generales)."""
+    """Comandos generales de utilidad, métricas e información de Dalet."""
 
     def __init__(self, bot):
         self.bot = bot
@@ -20,7 +20,7 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
 
     @commands.command()
     async def ms(self, ctx):
-        """🏓 Muestra la latencia del bot en milisegundos."""
+        """Muestra la latencia de respuesta del bot en milisegundos."""
         server_lang = "en"
         if ctx.guild:
             server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
@@ -33,7 +33,7 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
 
     @commands.command()
     async def stats(self, ctx, member: discord.Member = None):
-        """📊 Muestra tus estadísticas sociales o las de otro usuario."""
+        """Muestra estadísticas sociales y métricas de actividad de un usuario."""
         server_lang = "en"
         if ctx.guild:
             server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)

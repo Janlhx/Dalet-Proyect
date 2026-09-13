@@ -1,4 +1,11 @@
+import io
 import discord
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")  # Backend no interactivo sin GUI
+import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+
 from ui.atoms import DaletAtoms
 from ui.molecules import DaletMolecules
 from ui.locales import t
@@ -357,13 +364,6 @@ class OsuPresenter:
     def generate_pp_chart(username: str, scores: list, lang: str = "en") -> discord.File | None:
         """Genera un gráfico de barras de distribución de PP ajustado dinámicamente al rango real para acentuar la diferencia entre plays."""
         try:
-            import io
-            import matplotlib
-            matplotlib.use("Agg")  # Backend sin GUI
-            import matplotlib.pyplot as plt
-            import numpy as np
-            from matplotlib.colors import LinearSegmentedColormap
-
             pp_values = [s.get("pp", 0) for s in scores if s.get("pp")]
             if not pp_values:
                 return None

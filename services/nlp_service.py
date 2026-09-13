@@ -17,9 +17,9 @@ from database.repositories.user_repository import UserRepository
 from database.sqlite_manager import SQLiteManager
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TELEMETRY_BACKUP_PATH = os.path.join(BASE_DIR, "data", "ai_telemetry.json")
 logger = logging.getLogger("dalet.services.nlp")
-
-TELEMETRY_BACKUP_PATH = os.path.join("data", "ai_telemetry.json")
 
 # Herramientas osu! expuestas a DeepSeek V3 vía Function Calling
 OSU_TOOLS = [

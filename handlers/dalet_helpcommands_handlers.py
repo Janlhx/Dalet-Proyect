@@ -4,6 +4,7 @@ Handler (Cog) para el Comando de Ayuda Personalizado de Dalet.
 Sistema interactivo y paginado con botones, categorías de slash commands,
 comandos de prefijo y un banner visual en la portada.
 """
+import os
 import discord
 from discord.ext import commands
 from discord.ui import View, Button, Modal, TextInput, Select
@@ -362,7 +363,6 @@ class CustomHelpCommand(commands.HelpCommand):
         pages, category_names = build_help_pages(ctx.bot, ctx.author, server_lang=server_lang)
         view = HelpPaginator(pages, category_names, lang=server_lang)
 
-        import os
         if BANNER_URL:
             await ctx.send(embed=pages[0], view=view)
         elif os.path.exists(BANNER_FILE_PATH):

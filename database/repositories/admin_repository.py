@@ -1,20 +1,31 @@
 from database.repositories.base_repository import BaseRepository
 
+
 class AdminRepository(BaseRepository):
-    async def is_channel_locked(self, channel_id: int):
+    """Repositorio para configuración administrativa de servidores, canales e idiomas."""
+
+    _lang_cache: dict[int, str] = {}
+    _name_cache: dict[int, str] = {}
+
+    async def is_channel_locked(self, channel_id: int) -> bool:
         """Verifica si los comandos están bloqueados en un canal."""
         query = "SELECT CommandsLocked FROM Channels WHERE ChannelID = ?"
         result = await self.fetch_one(query, channel_id)
         return bool(result[0]) if result and result[0] is not None else False
 
-    async def set_channel_lock(self, channel_id: int, channel_name: str, server_id: int, server_name: str, is_locked: bool):
+    async def set_channel_lock(
+        self,
+        channel_id: int,
+        channel_name: str,
+        server_id: int,
+        server_name: str,
+        is_locked: bool
+    ):
         """Activa o desactiva el bloqueo de comandos en un canal."""
-        # Asegurar servidor
         await self.execute(
             "INSERT INTO Servers (ServerID, ServerName, IsReactive) VALUES (?, ?, 1) ON CONFLICT(ServerID) DO UPDATE SET ServerName = excluded.ServerName",
             server_id, server_name
         )
-        # Actualizar canal
         query = """
             INSERT INTO Channels (ChannelID, ChannelName, ServerID, CommandsLocked)
             VALUES (?, ?, ?, ?)
@@ -24,22 +35,29 @@ class AdminRepository(BaseRepository):
         """
         return await self.execute(query, channel_id, channel_name, server_id, 1 if is_locked else 0)
 
-    async def get_server_custom_name(self, server_id: int):
-        """Obtiene el nombre personalizado del bot para un servidor."""
+    async def get_server_custom_name(self, server_id: int) -> str:
+        """Obtiene el nombre personalizado del bot para un servidor con caché en memoria."""
+        if server_id in self._name_cache:
+            return self._name_cache[server_id]
+
         query = "SELECT CustomName FROM Servers WHERE ServerID = ?"
         result = await self.fetch_one(query, server_id)
-        return result[0] if result and result[0] else "Dalet"
+        name = result[0] if result and result[0] else "Dalet"
+        self._name_cache[server_id] = name
+        return name
 
     async def set_server_custom_name(self, server_id: int, custom_name: str):
-        """Establece un nombre personalizado para el bot en un servidor."""
+        """Establece un nombre personalizado para el bot en un servidor y actualiza la caché."""
         query = """
             INSERT INTO Servers (ServerID, ServerName, CustomName, IsReactive)
             VALUES (?, 'Unknown', ?, 1)
             ON CONFLICT(ServerID) DO UPDATE SET CustomName = excluded.CustomName
         """
-        return await self.execute(query, server_id, custom_name)
+        res = await self.execute(query, server_id, custom_name)
+        self._name_cache[server_id] = custom_name
+        return res
 
-    async def get_welcome_channel(self, server_id: int):
+    async def get_welcome_channel(self, server_id: int) -> int | None:
         """Obtiene el ID del canal de bienvenida de un servidor."""
         query = "SELECT WelcomeChannelID FROM Servers WHERE ServerID = ?"
         result = await self.fetch_one(query, server_id)
@@ -53,10 +71,6 @@ class AdminRepository(BaseRepository):
             ON CONFLICT(ServerID) DO UPDATE SET WelcomeChannelID = excluded.WelcomeChannelID
         """
         return await self.execute(query, server_id, channel_id)
-
-    # --- Configuración de Idioma (Default: 'en') ---
-
-    _lang_cache: dict = {}
 
     async def get_server_language(self, server_id: int) -> str:
         """Obtiene el idioma ('en' o 'es') configurado para un servidor."""

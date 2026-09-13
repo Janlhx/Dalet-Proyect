@@ -1,14 +1,13 @@
 import os
+import time
 import logging
 import asyncio
 from dotenv import load_dotenv
 import libsql_client
 
 load_dotenv()
-TURSO_URL = os.getenv("TURSO_URL")
-TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN")
 
-logger = logging.getLogger("dalet.database")
+logger = logging.getLogger("dalet.database.turso")
 
 class TursoClient:
     _client = None
@@ -21,8 +20,6 @@ class TursoClient:
         Devuelve el cliente de Turso. Si la BD no está disponible, devuelve None.
         NUNCA lanza excepciones — el bot sigue funcionando sin BD.
         """
-        import time
-        
         # Si el cliente ya existe y está disponible, devolverlo
         if cls._client is not None and cls._db_available:
             return cls._client

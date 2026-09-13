@@ -1,4 +1,5 @@
 import logging
+import datetime
 from database.sqlite_manager import SQLiteManager
 
 logger = logging.getLogger("dalet.repository.analytics")
@@ -6,8 +7,7 @@ logger = logging.getLogger("dalet.repository.analytics")
 class AnalyticsRepository:
     """
     Repositorio para escritura de datos analíticos:
-    CommandUsage, AIInteractions, BotErrors y OsuHistory.
-    Ahora utiliza SQLite local para minimizar costos en Neon.
+    CommandUsage, AIInteractions, BotErrors y OsuHistory en SQLite local.
     """
 
     # ------------------------------------------------------------------
@@ -86,7 +86,6 @@ class AnalyticsRepository:
         play_mode: str
     ):
         """Guarda un snapshot del perfil osu! del jugador en SQLite."""
-        import datetime
         today = datetime.date.today().isoformat()
         
         query = """

@@ -1,18 +1,25 @@
-import discord
-from discord.ext import commands
-import asyncio
-import logging
-import traceback
-import re
 import io
+import time
+import re
+import logging
+import asyncio
+import traceback
 from datetime import datetime, timezone
 
-logger = logging.getLogger("dalet.handlers.osu")
+import discord
+from discord.ext import commands
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 
 from ui.organisms import DaletOrganisms
 from ui.atoms import DaletAtoms
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
 from handlers.dalet_osu_presenter import OsuPresenter
+
+logger = logging.getLogger("dalet.handlers.osu")
 
 # Modos de juego válidos
 VALID_MODES = {"osu", "taiko", "fruits", "mania"}
@@ -82,7 +89,6 @@ class OsuHandler(commands.Cog, name="osu!"):
 
     async def _maybe_snapshot(self, discord_id: int, queried_username: str, user_data: dict):
         """Actualiza estadísticas y snapshot diario si el usuario consultó su propia cuenta."""
-        import time
         try:
             linked = await self.repo.get_linked_username(discord_id)
             if not linked or linked.lower() != queried_username.lower():
@@ -463,13 +469,6 @@ class OsuHandler(commands.Cog, name="osu!"):
 def _create_progress_chart_sync(username: str, history: list) -> discord.File | None:
     """Gráfico de línea de PP a lo largo del tiempo (ejecución síncrona fuera del loop)."""
     try:
-        import matplotlib
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-        import matplotlib.dates as mdates
-        import numpy as np
-        from datetime import datetime
-
         # History viene de más reciente a más antiguo — invertimos
         history_chron = list(reversed(history))
 

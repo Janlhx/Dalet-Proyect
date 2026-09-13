@@ -1,4 +1,6 @@
 import logging
+import asyncio
+import time
 from database.repositories.base_repository import BaseRepository
 from database.sqlite_manager import SQLiteManager
 
@@ -21,7 +23,6 @@ class UserRepository(BaseRepository):
             self._flush_task = loop.create_task(self._periodic_flush())
 
     async def _periodic_flush(self):
-        import asyncio
         while True:
             await asyncio.sleep(self._flush_interval)
             await self.flush_logs()
@@ -50,7 +51,6 @@ class UserRepository(BaseRepository):
         self._flushing_logs.clear()
 
     async def _get_cached(self, key, fetch_func, *args):
-        import time
         now = time.time()
         if key in self._cache:
             val, expiry = self._cache[key]
@@ -167,7 +167,6 @@ class UserRepository(BaseRepository):
     async def log_message(self, user_id, user_name, server_id, server_name, channel_id, channel_name, content):
         self._log_buffer.append((user_id, user_name, server_id, server_name, channel_id, channel_name, content))
         if len(self._log_buffer) >= self._max_buffer_size:
-            import asyncio
             asyncio.create_task(self.flush_logs())
         return True
 

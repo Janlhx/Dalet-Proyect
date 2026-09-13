@@ -47,32 +47,32 @@ class OsuRepository(BaseRepository):
 
 
     async def get_recommended_maps(self, min_stars: float, max_stars: float, focus: str, limit: int = 5) -> list:
-        # Intentamos obtener mapas que coincidan con la debilidad y el rango de estrellas
+        """Obtiene mapas recomendados según rango de estrellas y habilidad técnica."""
         query = """
             SELECT beatmapid, beatmapsetid, title, artist, version, stars
             FROM osurecommendedmaps
-            WHERE stars BETWEEN $1 AND $2
-              AND $3 = ANY(skills)
+            WHERE stars BETWEEN ? AND ?
+              AND (skills LIKE '%' || ? || '%' OR skills = ?)
             ORDER BY RANDOM()
-            LIMIT $4
+            LIMIT ?
         """
-        results = await self.fetch_all(query, min_stars, max_stars, focus, limit)
+        results = await self.fetch_all(query, min_stars, max_stars, focus, focus, limit)
         if results:
             return [dict(r) for r in results]
-            
-        # Fallback 1: Si no hay mapas con esa debilidad específica, buscar con "consistencia general"
+
+        # Fallback 1: Si no hay mapas con esa debilidad específica, buscar con 'consistencia general'
         if focus != "consistencia general":
-            results = await self.fetch_all(query, min_stars, max_stars, "consistencia general", limit)
+            results = await self.fetch_all(query, min_stars, max_stars, "consistencia general", "consistencia general", limit)
             if results:
                 return [dict(r) for r in results]
-                
+
         # Fallback 2: Buscar cualquier mapa en ese rango de estrellas
         query_any = """
             SELECT beatmapid, beatmapsetid, title, artist, version, stars
             FROM osurecommendedmaps
-            WHERE stars BETWEEN $1 AND $2
+            WHERE stars BETWEEN ? AND ?
             ORDER BY RANDOM()
-            LIMIT $3
+            LIMIT ?
         """
         results = await self.fetch_all(query_any, min_stars, max_stars, limit)
         return [dict(r) for r in results]
