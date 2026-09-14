@@ -644,7 +644,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 + "\nResponde de forma sarcástica y directa, como quien revisó los archivos."
             )
             respuesta = await self.bot.nlp_service.generate_reply(
-                prompt, "", interaction.user.display_name, bot_name=bot_name, max_tokens=180
+                prompt, "", interaction.user.display_name, bot_name=bot_name, max_tokens=450
             )
             await interaction.followup.send(respuesta or "me dio pereza leer los archivos. inténtalo otra vez.")
         except Exception as e:
@@ -681,7 +681,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             resumen = await self.bot.nlp_service.generate_reply(
                 prompt, "Resumen", "Sistema",
                 system_prompt_override="Eres un asistente analítico y neutral especializado en resumir conversaciones. No tienes personalidad, no haces chistes.",
-                max_tokens=300
+                max_tokens=600
             )
             if not resumen:
                 return await interaction.followup.send("no pude generar el resumen.")

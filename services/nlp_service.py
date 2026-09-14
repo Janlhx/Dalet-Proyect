@@ -1046,7 +1046,7 @@ class NLPService:
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
-        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or (350 if is_reactive else 450)
+        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or 750
 
         # Determinar si activamos herramientas (Function Calling) de osu!
         use_tools = False
@@ -1199,7 +1199,7 @@ class NLPService:
                 models_to_try.append(fallback_m)
 
         tools = [types.Tool(google_search=types.GoogleSearch())] if needs_web_search else None
-        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or (350 if is_reactive else 450)
+        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or 750
 
         config = types.GenerateContentConfig(
             system_instruction=system_prompt,
@@ -1307,7 +1307,7 @@ class NLPService:
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
-        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or (350 if is_reactive else 450)
+        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or 750
 
         for model_name in groq_models_to_try:
             t0 = time.time()
@@ -1417,7 +1417,7 @@ class NLPService:
 
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
-        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or (350 if is_reactive else 450)
+        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or 750
 
         for model_name in models_to_try:
             t0 = time.time()
