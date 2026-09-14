@@ -620,12 +620,22 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 return await interaction.followup.send(
                     f"ni idea de qué es '{clean_query}'. ese lore te lo inventaste."
                 )
+
+            bot_name = "Dalet"
+            if interaction.guild_id:
+                try:
+                    bot_name = await self.bot.admin_repo.get_server_custom_name(interaction.guild_id)
+                except Exception:
+                    pass
+
             lineas = []
             for r in resultados:
                 ts = r['Timestamp'] if isinstance(r, dict) else r[2]
                 fecha = str(ts)[:10] if ts else "??/??/????"
                 usr = r['UserName'] if isinstance(r, dict) else r[0]
                 cnt = r['Content'] if isinstance(r, dict) else r[1]
+                if usr and usr.lower() in ("dalet", (bot_name or "").lower()):
+                    usr = f"Tú ({bot_name})"
                 lineas.append(f"[{fecha}] {usr}: {cnt}")
 
             prompt = (
@@ -634,7 +644,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 + "\nResponde de forma sarcástica y directa, como quien revisó los archivos."
             )
             respuesta = await self.bot.nlp_service.generate_reply(
-                prompt, "", interaction.user.display_name, max_tokens=180
+                prompt, "", interaction.user.display_name, bot_name=bot_name, max_tokens=180
             )
             await interaction.followup.send(respuesta or "me dio pereza leer los archivos. inténtalo otra vez.")
         except Exception as e:

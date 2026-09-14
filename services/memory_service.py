@@ -13,7 +13,15 @@ class MemoryService:
         self.repo = user_repo
         self.max_db_history = 6  # Ventana optimizada de 6 mensajes (ahorro masivo de tokens)
 
-    async def get_relevant_context(self, channel_id: int, user_id: int, current_message: str, check_user_memory: bool = True):
+    async def get_relevant_context(
+        self,
+        channel_id: int,
+        user_id: int,
+        current_message: str,
+        check_user_memory: bool = True,
+        bot_id: int = None,
+        bot_name: str = "Dalet"
+    ):
         """
         Construye el contexto de conversación optimizado combinando:
         1. Historial reciente del canal (BD + local RAM, ventana adaptativa)
@@ -30,10 +38,21 @@ class MemoryService:
             db_history = await self.repo.get_channel_messages(channel_id, history_limit)
             if db_history:
                 for record in reversed(db_history):
+                    rec_uid = record.get('user_id') or record.get('UserID')
                     usr = record.get('username') or record.get('UserName') or 'Desconocido'
                     cnt = record.get('content') or record.get('Content') or ''
-                    if cnt.strip():
-                        history_section.append(f"{usr}: {cnt}")
+                    if not cnt.strip():
+                        continue
+
+                    # Normalizar autoría del bot para evitar disociación de identidad
+                    is_bot = False
+                    if bot_id and rec_uid == bot_id:
+                        is_bot = True
+                    elif usr.lower() in ("dalet", (bot_name or "").lower()):
+                        is_bot = True
+
+                    author_tag = f"Tú ({bot_name})" if is_bot else usr
+                    history_section.append(f"{author_tag}: {cnt}")
         except Exception as e:
             logger.error(f"Error obteniendo historial: {e}")
 

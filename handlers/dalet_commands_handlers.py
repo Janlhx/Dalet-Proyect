@@ -135,6 +135,13 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
                     )
                     return
 
+                bot_name = "Dalet"
+                if ctx.guild:
+                    try:
+                        bot_name = await self.bot.admin_repo.get_server_custom_name(ctx.guild.id)
+                    except Exception:
+                        pass
+
                 # 2. Formatear — SQLite devuelve timestamps como string, no datetime
                 lineas = []
                 for r in resultados:
@@ -147,6 +154,8 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
                         fecha = str(ts)[:10] if ts else "??/??/????"
                     username = r['UserName'] if isinstance(r, dict) else r[0]
                     content = r['Content'] if isinstance(r, dict) else r[1]
+                    if username and username.lower() in ("dalet", (bot_name or "").lower()):
+                        username = f"Tú ({bot_name})"
                     lineas.append(f"[{fecha}] {username}: {content}")
 
                 contexto_lore = "\n".join(lineas)
@@ -160,7 +169,7 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
                     f"Sé sarcástica, directa y cotilla — como alguien que revisó los archivos del servidor."
                 )
                 respuesta = await self.bot.nlp_service.generate_reply(
-                    prompt_especial, "", ctx.author.display_name
+                    prompt_especial, "", ctx.author.display_name, bot_name=bot_name
                 )
 
                 if respuesta:

@@ -139,11 +139,11 @@ class UserRepository(BaseRepository):
         all_local = []
         for log in reversed(self._log_buffer):
             if log[4] == channel_id:
-                all_local.append({'username': log[1], 'content': log[6]})
+                all_local.append({'user_id': log[0], 'username': log[1], 'content': log[6]})
         
         for log in reversed(self._flushing_logs):
             if log[4] == channel_id:
-                all_local.append({'username': log[1], 'content': log[6]})
+                all_local.append({'user_id': log[0], 'username': log[1], 'content': log[6]})
         
         buffered_results = all_local[:limit]
 
@@ -151,7 +151,7 @@ class UserRepository(BaseRepository):
         remaining_limit = limit - len(buffered_results)
         if remaining_limit > 0:
             query = """
-                SELECT UserName as username, Content as content
+                SELECT UserID as user_id, UserName as username, Content as content
                 FROM Messages
                 WHERE ChannelID = ?
                 ORDER BY Timestamp DESC

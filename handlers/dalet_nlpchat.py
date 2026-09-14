@@ -221,6 +221,9 @@ class DaletNLPChat(commands.Cog):
             except Exception:
                 pass
 
+            if custom_name == "Dalet" and message.guild and message.guild.me and message.guild.me.nick:
+                custom_name = message.guild.me.nick
+
             # ¿Mencionaron al bot o dijeron su nombre?
             name_mentioned = (
                 self.bot.user.mentioned_in(message)
@@ -423,10 +426,15 @@ class DaletNLPChat(commands.Cog):
             if len(clean_content) > 400:
                 clean_content = clean_content[:400] + "..."
 
-            # Obtener contexto de conversación del canal
+            # Obtener contexto de conversación del canal (con autoría de bot normalizada)
             context = await self.bot.memory_service.get_relevant_context(
-                message.channel.id, message.author.id, clean_content
+                message.channel.id,
+                message.author.id,
+                clean_content,
+                bot_id=self.bot.user.id if self.bot.user else None,
+                bot_name=bot_name,
             )
+
             if ref_summary:
                 context = f"{ref_summary}\n\n{context}" if context else ref_summary
 
