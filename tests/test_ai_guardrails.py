@@ -85,7 +85,54 @@ class TestAIGuardrails(unittest.TestCase):
         self.assertNotIn("Tú eres tanto Dalet como Dalet", prompt)
         self.assertIn("HABLA EN PRIMERA PERSONA", prompt)
 
+    def test_system_prompt_multilayer_personality(self):
+        """Verifica que el prompt contenga las 5 capas de personalidad de Dalet en español e inglés."""
+        nlp = NLPService()
+        prompt_es = nlp._get_system_prompt(bot_name="Dalet", language="es")
+        self.assertIn("ARQUITECTURA DE PERSONALIDAD", prompt_es)
+        self.assertIn("INGENIO Y HUMOR SECO", prompt_es)
+        self.assertIn("COMPLICIDAD Y ONDA DE GRUPO", prompt_es)
+        self.assertIn("CRITERIO PROPIO Y CONSEJOS GENUINOS", prompt_es)
+        self.assertIn("MODO CHILL Y DESPREOCUPACIÓN", prompt_es)
+        self.assertIn("RESPETO Y CALIDEZ SUTIL", prompt_es)
+
+        prompt_en = nlp._get_system_prompt(bot_name="Dalet", language="en")
+        self.assertIn("MULTI-LAYERED PERSONALITY", prompt_en)
+        self.assertIn("SHARP WIT & DRY HUMOR", prompt_en)
+        self.assertIn("GROUP BANTER & COMPLICITY", prompt_en)
+        self.assertIn("AUTHENTIC DEPTH & GENUINE ADVICE", prompt_en)
+        self.assertIn("CHILL & LOW-ENERGY MODE", prompt_en)
+        self.assertIn("SUBTLE WARMTH & RESPECT", prompt_en)
+
+    def test_system_prompt_prohibits_command_self_promotion(self):
+        """Verifica que el prompt prohíba expresamente promocionar o listar comandos ante saludos o charlas casuales."""
+        nlp = NLPService()
+        prompt_es = nlp._get_system_prompt(bot_name="Dalet", language="es")
+        self.assertIn("CERO AUTO-PROMOCIÓN", prompt_es)
+        self.assertIn("NO ERES UN CALL CENTER", prompt_es)
+        self.assertIn("JAMÁS listes, ofrezcas ni promociones tus comandos", prompt_es)
+
+        prompt_en = nlp._get_system_prompt(bot_name="Dalet", language="en")
+        self.assertIn("ZERO COMMAND SELF-PROMOTION", prompt_en)
+        self.assertIn("YOU ARE NOT A CALL CENTER", prompt_en)
+        self.assertIn("NEVER list, pitch, or advertise your commands", prompt_en)
+
+    def test_system_prompt_identity_disambiguation_and_osu_decoupling(self):
+        """Verifica que el prompt instruya la desambiguación de usuarios y el desacople de osu!."""
+        nlp = NLPService()
+        prompt_es = nlp._get_system_prompt(bot_name="Yukipa", language="es")
+        self.assertIn("DISTINCIÓN DE IDENTIDAD", prompt_es)
+        self.assertIn("usuarios externos completamente distintos a ti", prompt_es)
+        self.assertIn("DESACOPLE DE OSU!", prompt_es)
+        self.assertIn("NO tu personalidad entera", prompt_es)
+
+        prompt_en = nlp._get_system_prompt(bot_name="Yukipa", language="en")
+        self.assertIn("IDENTITY DISAMBIGUATION", prompt_en)
+        self.assertIn("external human members completely separate from you", prompt_en)
+        self.assertIn("DECOUPLE FROM OSU!", prompt_en)
+
 
 if __name__ == '__main__':
     unittest.main()
+
 
