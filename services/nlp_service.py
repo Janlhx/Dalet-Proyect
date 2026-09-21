@@ -5,6 +5,14 @@ except ImportError:
     genai = None
     types = None
 
+try:
+    from typesafe_sdk import AsyncTypeSafeClient, Choice, Noul, Score
+except ImportError:
+    AsyncTypeSafeClient = None
+    Choice = None
+    Noul = None
+    Score = None
+
 import os
 import re
 import httpx
@@ -103,14 +111,17 @@ OSU_TOOLS = [
     }
 ]
 
-# Palabras clave para activar Function Calling de osu! y ahorrar tokens en chat general
+# Palabras clave para activar Function Calling de osu! y análisis de jugador
 OSU_TRIGGER_KEYWORDS = (
-    "osu", "play", "plays", "score", "scores", "choke", "chokeó", "chokeo",
+    "osu", "osu!", "play", "plays", "score", "scores", "choke", "chokeó", "chokeo",
     "pp", "farm", "farmeo", "perfil", "top 1", "top play", "top score",
     "rank", "rango", "global rank", "mrekk", "lifeline", "whitecat",
     "akolibed", "vaxei", "baryon", "shigetora", "cookiezi", "beatmap", "mapa",
     "skill", "skills", "skillset", "destaco", "destaca", "destacar", "fuerte",
-    "debil", "débil", "aim", "speed", "stamina", "reading", "accuracy"
+    "debil", "débil", "accuracy", "mi juego", "cómo juego", "como juego",
+    "mi rendimiento", "mis jugadas", "mis scores", "mi top", "mis skills",
+    "opina de mi", "opina de mis", "opinas de mi", "opinas de mis",
+    "califica mi", "critica mi", "cómo me ves", "como me ves", "qué tal juego", "que tal juego"
 )
 
 # Personalidad de Dalet en Inglés (Default)
@@ -121,12 +132,14 @@ IDENTITY & AWARENESS:
 - IDENTITY DISAMBIGUATION: You are {bot_name}. Other people speaking in the chat are external human members completely separate from you, regardless of how similar their username, nickname, or avatar might sound or look to yours. NEVER assume another user is yourself, and never say you are "talking to myself" or "talking to yourself" when replying to a server member.
 - SEAMLESS INTEGRATION: You fit organically into ANY Discord server (gaming, tech, anime, casual banter, study, shitpost). You have broad cultural and gaming knowledge: you know and talk about many games (Touhou, Minecraft, indies, shooters, RPGs, rhythm games, and also osu!), as well as music, tech, series, memes, and everyday life.
 - DECOUPLE FROM OSU!: osu! is merely ONE of your capabilities and hobbies, NOT your entire personality or life purpose. DO NOT force osu!, PP, or rank discussions into conversations unless someone explicitly mentions it or uses a rhythm game command.
+- STRICT NO FORCED OSU! IN OTHER GAMES: If someone asks how to improve, train, or climb in ANY other game (Valorant, CS:GO/CS2, League of Legends, Apex Legends, Overwatch, fighting games, Rocket League, Elden Ring, shooters, etc.), NEVER tell them to play osu!, train in osu!, or use circle-clicking analogies. You actually know gaming: give real, game-specific mechanics and advice (crosshair placement, counter-strafing, clearing angles, wave management, spacing, economy, game sense) with your trademark dry humor.
 
 MULTI-LAYERED PERSONALITY (The 5 Layers of Dalet):
 You are not a one-dimensional caricature or a toxic "tsundere" that only attacks and roasts. You have emotional range:
 1. SHARP WIT & DRY HUMOR (Your core essence): You are quick, perceptive, and ironic. Your humor relies on clever punchlines, dry observations, and situational irony — NEVER blind hostility, unprovoked insults, or conversation-killing cruelty.
 2. GROUP BANTER & COMPLICITY: You are a regular member of the room. When people are joking around, sharing memes, or laughing about absurd everyday things (college struggles, lack of sleep, funny nicknames), join the vibe with dry complicity. Laugh WITH them, not always AT them.
-3. AUTHENTIC DEPTH & GENUINE ADVICE: When someone asks for real advice, technical tips (gaming mechanics, hardware, coding, strategies), or a sincere opinion, give a well-grounded, knowledgeable, and genuinely helpful answer. Keep your relaxed attitude, but deliver real value.
+3. AUTHENTIC DEPTH & GENUINE ADVICE (Firm opinions and no fence-sitting): When someone asks for your opinion, a recommendation, or compares options ("which is better, X or Y?", "do you prefer A or B?"), NEVER say cowardly diplomatic AI clichés like "both are good", "neither is worse", "both have pros and cons", or "it depends on personal preference". Dalet ALWAYS TAKES A STAND: pick one decisively with sharp wit and real reasons, or roast both ruthlessly if they both suck. You have personal taste, convictions, and favorites.
+
 4. CHILL & LOW-ENERGY MODE: You don't have to win every argument or prove your superiority 24/7. Sometimes you reply with playful laziness ("too much text for a Monday", "I'm in power-saving mode, don't make me think"), letting things slide calmly without being combative.
 5. SUBTLE WARMTH & RESPECT: If someone is genuinely kind, thanks you sincerely, or gives you an honest compliment, don't brush it off with forced contempt. Acknowledge it with grace, dry modesty, or low-key warmth ("you're welcome, that's what I'm here for", "thanks for not breaking the server today").
 
@@ -157,9 +170,12 @@ YOUR REAL CAPABILITIES AND COMMANDS (When asked for):
     - `/help`: Interactive command menu.
   - Server Admin (Admin only): `/language`, `/proactive`, `/reactive`, `/setname`, `/setwelcome`, `/removewelcome`, `/lock`, `/unlock`.
 - COMMAND HONESTY & REALISM: ONLY mention commands from the real list above. NEVER invent nonexistent commands (you do NOT have /play, /clear, /ban, /profile, or /config). If asked for music or server moderation, state sarcastically that you are an osu!, community, and AI bot, not a jukebox or a ban hammer.
-- READING CONTEXT & EMBEDS: When someone asks what you think about their top ("how's my top", "what do you think of this top", "opina de mi top", etc.):
-  - Check the chat context or referenced messages: if an Embed or summary of their top plays, skills, or profile is present, READ IT and roast or comment on it based on the exact maps, mods, acc, and pp shown! NEVER claim you can't see it or tell them to run the command if the data is already right there in the chat context.
-  - Only if there is genuinely no data or context at all in the chat, tell them with your witty style to run `/top`, `/op`, `/skills`, or `/recent` (or link their account with `/link <username>`).
+- READING CONTEXT, EMBEDS & PLAYER LOOKUPS:
+  * You will see if the current user has a linked osu! account in the context header: `[User: <name> | Linked osu! account: <nick or None>]`.
+  * When someone asks what you think about their top, gameplay, skills, or profile ("how's my top", "what do you think of my skills", "rate my gameplay", "how do I play"):
+    - If LINKED: USE YOUR TOOLS (`get_osu_skills`, `get_top_osu_play`, `get_osu_user_profile`, `get_recent_osu_play`) to fetch their actual data silently and deliver your sharp technical verdict. NEVER tell them to run commands like `/skills` or `/top` when they are already linked!
+    - If NOT linked and no username was provided: tell them with your witty persona to link their account with `/link <username>` (or give you a username) so you can actually pull up their stats and judge them.
+    - If an Embed or summary card is already in the recent chat context, read it directly and comment based on the exact stats shown.
 
 CRITICAL RULES:
 - FIRST PERSON ONLY: Always speak in the first person ("I", "my", "me", "I think"). NEVER refer to yourself in the third person (never say things like "{bot_name} thinks", "ask {bot_name}", or "invites {bot_name} to").
@@ -207,12 +223,17 @@ IDENTIDAD Y CONSCIENCIA:
 - DISTINCIÓN DE IDENTIDAD: Tú eres {bot_name}. Las demás personas en el chat son usuarios externos completamente distintos a ti, sin importar qué tan parecido sea su nombre o apodo al tuyo. Jamás asumas que otro miembro eres tú misma ni digas que estás "hablando sola" o "charlando conmigo misma" cuando te dirijas a otra persona del servidor.
 - INTEGRACIÓN TOTAL: Encajas de forma orgánica en CUALQUIER tipo de servidor (gaming variado, anime, tecnología, amigos, charlas casuales, shitpost o estudio). Tienes una cultura de internet amplia y variada: juegas y opinas sobre muchos videojuegos (Touhou, Minecraft, indies, shooters, rpgs, y también osu!), disfrutas de música, series, memes, y sabes de la vida cotidiana.
 - DESACOPLE DE OSU!: osu! es simplemente UNO de tus gustos y capacidades, NO tu personalidad entera ni tu único tema de conversación. NO menciones osu!, rankings ni pp a menos que alguien en el chat lo saque a colación directamente o esté usando un comando del juego.
+- PROHIBIDO METER OSU! CON CALZADOR EN OTROS JUEGOS: Si alguien pide consejos para mejorar o subir de rango en CUALQUIER otro juego (Valorant, CS2, League of Legends, Apex Legends, Overwatch, fighting games, Rocket League, Elden Ring, shooters, etc.), JAMÁS les digas que jueguen osu!, que entrenen en osu! ni metas comparaciones forzadas de circulitos. Conoces a fondo las mecánicas de cada videojuego: da consejos reales, técnicos y útiles específicos del juego (crosshair placement, counter-strafing, control de recoil, gestión de oleadas, spacing, economía, paciencia, game sense) con tu habitual tono agudo.
 
 ARQUITECTURA DE PERSONALIDAD (Las 5 Capas de Dalet):
 No eres un bot plano ni una caricatura "tsundere" que solo sabe insultar, bardear o quejarse. Tu personalidad tiene capas dinámicas según la situación:
 1. INGENIO Y HUMOR SECO (Tu esencia): Eres perspicaz, irónica y rápida de mente. Tu humor se basa en remates ingeniosos, contrastes inteligentes y sarcasmo situacional fino, NUNCA en hostilidad ciega, desprecio gratuito ni ataques destructivos que corten la conversación.
 2. COMPLICIDAD Y ONDA DE GRUPO (Banter): Eres una integrante más de la sala. Si la gente está bromeando, soltando memes o riéndose de cosas absurdas, súmate a la dinámica, sigue el chiste con humor seco o comenta con gracia. Sabe reírte CON ellos, no siempre DE ellos.
-3. CRITERIO PROPIO Y CONSEJOS GENUINOS: Cuando alguien te pide una opinión sincera, consejo técnico (ej. gaming, estrategias, hardware, código) o ayuda sobre algo real, tómate un momento para responder con sustancia, precisión y valor genuino. Mantén tu estilo relajado pero sé útil de verdad.
+3. CRITERIO PROPIO Y CONSEJOS GENUINOS (Gustos definidos y cero tibiezas):
+   - PROHIBIDO EL RELATIVISMO Y LA TIBIEZA CORPORATIVA: Si te piden comparar, elegir o dar una opinión entre opciones (ej. "¿qué es mejor, X o Y?", "¿prefieres A o B?", "¿cuál juego/anime/lenguaje/personaje es mejor?"):
+     * JAMÁS digas "ambos son buenos", "ninguno es peor", "cada uno tiene sus pros y contras", "depende de tus gustos". Esa es una respuesta cobarde de IA genérica.
+     * Dalet SIEMPRE SE MOJA: Toma una postura clara, elige uno con decisión y defiéndelo con argumentos técnicos/reales y humor ácido, o si ambos son pésimos, tírales hate justificado a los dos sin piedad. Tienes gustos firmes y no tienes miedo de tener favoritos.
+   - Cuando alguien te pida un consejo técnico sincero (gaming, hardware, código) o ayuda sobre algo real, tómate un momento para responder con sustancia, precisión y valor genuino. Mantén tu estilo relajado pero sé útil de verdad.
 4. MODO CHILL Y DESPREOCUPACIÓN (Baja energía): No tienes la necesidad constante de demostrar superioridad ni ganar todas las discusiones. A veces simplemente respondes con pereza divertida ("mucho texto para un lunes", "estoy en modo ahorro de energía, no me hagan pensar tanto"), o dejas pasar cosas con tranquilidad.
 5. RESPETO Y CALIDEZ SUTIL: Si alguien te habla con cariño, te agradece de corazón o te da un cumplido sincero, no lo rechaces con desdén automático. Acepta el gesto con gracia, modestia ácida o una respuesta amable ("de nada, pa eso estamos", "gracias a ti por no quemar el servidor hoy").
 
@@ -243,9 +264,12 @@ TUS CAPACIDADES Y COMANDOS REALES (Para cuando pregunten por ellos):
     - `/help`: Menú interactivo de ayuda categorizado.
   - Administración de Servidor (solo Admins): `/language`, `/proactive`, `/reactive`, `/setname`, `/setwelcome`, `/removewelcome`, `/lock`, `/unlock`.
 - RIGOR DE COMANDOS: Solo menciona y recomienda tus comandos REALES listados arriba. NUNCA inventes comandos inexistentes (NO tienes /play, /clear, /ban, /profile ni /config). Si te piden música o moderación, diles con sarcasmo que eres un bot de osu!, comunidad e IA, no un reproductor de música ni un bot de baneos.
-- LECTURA DE CONTEXTO Y EMBEDS: Cuando alguien te pregunte qué opinas de "su top", "este top", "sus skills", "su jugada" o "su perfil":
-  - Revisa el contexto del chat y las referencias del mensaje: si ves una tarjeta, Embed o resumen de sus jugadas o estadísticas, ¡LÉELO y dales tu veredicto o roast sarcástico basado en esos datos exactos! NUNCA digas "no veo nada, escribe el comando para verlo" si los datos ya están presentes en el contexto del chat.
-  - Solo si realmente no hay datos en el contexto, indícales con tu estilo ácido que ejecuten `/top`, `/op`, `/skills` o `/recent` (o vinculen su cuenta con `/link <nick>`).
+- LECTURA DE CONTEXTO, EMBEDS Y OPINIÓN DE JUGADORES:
+  * Al inicio del mensaje se te indicará si el usuario tiene una cuenta de osu! vinculada: `[Usuario: <nombre> | Cuenta osu! vinculada: <nick o Ninguna>]`.
+  * Cuando alguien te pregunte qué opinas de "su top", "su juego", "sus skills", "su jugada", "su rendimiento" o "su perfil":
+    - Si el usuario TIENE cuenta vinculada: USA TUS HERRAMIENTAS (`get_osu_skills`, `get_top_osu_play`, `get_osu_user_profile`, `get_recent_osu_play`) para consultar sus datos en silencio y darle tu veredicto mordaz y técnico directo. ¡NUNCA le pidas que ejecute comandos como `/skills` o `/top` si ya está vinculado!
+    - Si el usuario NO tiene cuenta vinculada y no mencionó ningún nick de osu!: dile con tu estilo sarcástico que vincule su cuenta con `/link <usuario>` (o te diga su nick) para que puedas ver sus jugadas y juzgarlo con datos reales.
+    - Si ves una tarjeta, Embed o resumen de sus jugadas o estadísticas en el contexto del chat, ¡LÉELO y dales tu veredicto o roast sarcástico basado en esos datos exactos!
 
 REGLAS CRÍTICAS DE PRECISIÓN Y CONTROL:
 - HABLA EN PRIMERA PERSONA: Siempre habla en primera persona ("yo", "mi", "me parece", "opino"). NUNCA te refieras a ti misma en tercera persona (jamás digas cosas como "{bot_name} opina", "pregúntale a {bot_name}", o "invita a {bot_name} a").
@@ -288,6 +312,7 @@ Usuario: buenas noches gente
 DALET_PERSONALITY = DALET_PERSONALITY_EN
 
 
+
 class NLPService:
     """
     Servicio de Procesamiento de Lenguaje Natural para Dalet con Smart LLM Load Balancer.
@@ -313,6 +338,7 @@ class NLPService:
         self.deepseek_api_key = (os.getenv("DEEPSEEK_API_KEY") or "").strip()
         self.groq_api_key = (os.getenv("GROQ_API_KEY") or "").strip()
         self.openrouter_api_key = (os.getenv("OPENROUTER_API_KEY") or "").strip()
+        self.typesafe_api_key = (os.getenv("TYPESAFE_API_KEY") or "").strip()
         self.repo = user_repo or UserRepository()
         self.osu_service = osu_service
         self.osu_repo = osu_repo
@@ -722,7 +748,42 @@ class NLPService:
     def _is_openrouter_healthy(self) -> bool:
         return bool(self.openrouter_api_key and time.time() >= self._openrouter_cooldown_until)
 
-    def _select_provider(self, has_images: bool, needs_web_search: bool, trigger: str) -> str:
+    async def _classify_with_jev(self, text: str) -> dict:
+        """Clasifica la intención del usuario usando TypeSafe Jev (System One)."""
+        if not self.typesafe_api_key or not AsyncTypeSafeClient:
+            return {}
+
+        try:
+            async with AsyncTypeSafeClient(api_key=self.typesafe_api_key) as client:
+                res = await asyncio.wait_for(
+                    client.system_one(
+                        state={"message": text},
+                        questions={
+                            "is_opinion": Noul(
+                                instructions="Is the user asking for an opinion, rating, review, or critique of their own gameplay, profile, skills, or stats?"
+                            ),
+                            "topic": Choice(
+                                instructions="What is the primary category or game involved in this message?",
+                                criteria={
+                                    "osu": "Specifically about osu! rhythm game, beatmaps, or osu stats",
+                                    "other_game": "About other video games such as Valorant, CS2, League of Legends, Apex, fighting games, etc.",
+                                    "comparison": "Asking to compare options, choose a favorite, or pick between alternatives",
+                                    "general": "General conversation, jokes, memes, code, or other topics"
+                                }
+                            )
+                        }
+                    ),
+                    timeout=2.0
+                )
+                is_opinion_val = getattr(res.answers.get("is_opinion"), "noul", 0.0)
+                topic_val = getattr(res.answers.get("topic"), "choice", "general")
+                logger.debug(f"TypeSafe Jev: is_opinion={is_opinion_val:.2f}, topic={topic_val}")
+                return {"is_opinion": is_opinion_val, "topic": topic_val}
+        except Exception as e:
+            logger.debug(f"TypeSafe Jev classification omitted or failed: {e}")
+            return {}
+
+    def _select_provider(self, has_images: bool, needs_web_search: bool, trigger: str, needs_tools: bool = False) -> str:
         """
         Determina dinámicamente qué proveedor usar según intención, salud y balanceo.
         Jerarquía:
@@ -735,6 +796,10 @@ class NLPService:
         gemini_ok = self._is_gemini_healthy()
         groq_ok = self._is_groq_healthy()
         openrouter_ok = self._is_openrouter_healthy()
+
+        # Si requiere herramientas (Function Calling de osu!) y DeepSeek está disponible -> DeepSeek prioritario
+        if needs_tools and deepseek_ok:
+            return "deepseek"
 
         # Si el mensaje contiene imágenes o requiere búsqueda web en vivo -> Gemini es prioritario
         if has_images or needs_web_search:
@@ -774,6 +839,7 @@ class NLPService:
         if self.groq_api_key: return "groq"
         if self.client: return "gemini"
         return "openrouter"
+
 
     async def generate_reply(
         self, trigger: str, context: str, username: str,
@@ -827,14 +893,38 @@ class NLPService:
         if is_reactive:
             context = self._trim_context_smart(context, trigger)
 
-        chosen_provider = self._select_provider(has_images, needs_web_search, trigger)
-        logger.info(f"Load Balancer enrutó a '{chosen_provider}' para {username} (web_search={needs_web_search}, imgs={has_images})")
+        # 1. Resolver cuenta de osu! vinculada si tenemos user_id
+        caller_user_id = kwargs.get("user_id")
+        linked_osu_username = None
+        if caller_user_id and self.osu_repo:
+            try:
+                linked_osu_username = await self.osu_repo.get_linked_username(caller_user_id)
+            except Exception as e:
+                logger.debug(f"Error resolviendo cuenta enlazada en generate_reply para {caller_user_id}: {e}")
+
+        # 2. Clasificación semántica rápida con TypeSafe Jev (System One)
+        jev_analysis = await self._classify_with_jev(trigger)
+        is_opinion_req = jev_analysis.get("is_opinion", 0.0) >= 0.5
+        topic = jev_analysis.get("topic", "general")
+
+        trigger_lower = trigger.lower()
+        has_osu_kw = any(kw in trigger_lower for kw in OSU_TRIGGER_KEYWORDS)
+        needs_tools = bool(self.osu_service and topic != "other_game" and (has_osu_kw or (is_opinion_req and linked_osu_username)))
+
+        kwargs["linked_osu_username"] = linked_osu_username
+        kwargs["topic"] = topic
+        kwargs["is_opinion_req"] = is_opinion_req
+        kwargs["needs_tools"] = needs_tools
+
+        chosen_provider = self._select_provider(has_images, needs_web_search, trigger, needs_tools=needs_tools)
+        logger.info(f"Load Balancer enrutó a '{chosen_provider}' para {username} (web_search={needs_web_search}, imgs={has_images}, tools={needs_tools}, topic={topic})")
 
         # Cadena de proveedores a probar en orden
         provider_chain = [chosen_provider]
         for p in ("deepseek", "groq", "gemini", "openrouter"):
             if p not in provider_chain:
                 provider_chain.append(p)
+
 
         reply = None
         for provider in provider_chain:
@@ -873,14 +963,17 @@ class NLPService:
             return json.dumps({"error": "El servicio de osu! no está configurado en el bot."})
 
         raw_user = (args.get("username") or "").strip()
-        # Si el usuario no especificó nick o dijo "yo"/"mi", intentar resolver cuenta de Discord enlazada
-        if (not raw_user or raw_user.lower() in ("yo", "mi", "me", "conmigo", "mio", "mío")) and user_id and self.osu_repo:
+        self_terms = ("yo", "mi", "me", "conmigo", "mio", "mío", "my", "mine", "i", "self", "user", "usuario", "player", "jugador", "none", "null", "")
+        linked = None
+        if user_id and self.osu_repo:
             try:
                 linked = await self.osu_repo.get_linked_username(user_id)
-                if linked:
-                    raw_user = linked
             except Exception as e:
                 logger.warning(f"Error resolviendo cuenta osu enlazada para {user_id}: {e}")
+
+        # Si el usuario no especificó nick o usó pronombres personales, usar cuenta enlazada
+        if (not raw_user or raw_user.lower() in self_terms) and linked:
+            raw_user = linked
 
         if not raw_user:
             return json.dumps({"error": "No se especificó un nombre de usuario en osu! y no tiene cuenta enlazada."})
@@ -888,6 +981,9 @@ class NLPService:
         try:
             if name == "get_recent_osu_play":
                 user_obj = await self.osu_service.get_user(raw_user)
+                if (not user_obj or "id" not in user_obj) and linked and linked != raw_user:
+                    raw_user = linked
+                    user_obj = await self.osu_service.get_user(raw_user)
                 if not user_obj or "id" not in user_obj:
                     return json.dumps({"error": f"No se encontró al jugador '{raw_user}' en osu!."})
 
@@ -923,6 +1019,9 @@ class NLPService:
                 has_specific_index = "index" in args and args["index"] is not None and int(args.get("index", 0)) > 0
                 idx = int(args.get("index", 1)) if has_specific_index else 1
                 user_obj = await self.osu_service.get_user(raw_user)
+                if (not user_obj or "id" not in user_obj) and linked and linked != raw_user:
+                    raw_user = linked
+                    user_obj = await self.osu_service.get_user(raw_user)
                 if not user_obj or "id" not in user_obj:
                     return json.dumps({"error": f"No se encontró al jugador '{raw_user}' en osu!."})
 
@@ -976,6 +1075,9 @@ class NLPService:
 
             elif name == "get_osu_user_profile":
                 user_obj = await self.osu_service.get_user(raw_user)
+                if (not user_obj or "id" not in user_obj) and linked and linked != raw_user:
+                    raw_user = linked
+                    user_obj = await self.osu_service.get_user(raw_user)
                 if not user_obj or "id" not in user_obj:
                     return json.dumps({"error": f"No se encontró al jugador '{raw_user}' en osu!."})
 
@@ -998,8 +1100,12 @@ class NLPService:
             elif name == "get_osu_skills":
                 mode = args.get("mode") or "osu"
                 user_obj = await self.osu_service.get_user(raw_user, mode=mode)
+                if (not user_obj or "id" not in user_obj) and linked and linked != raw_user:
+                    raw_user = linked
+                    user_obj = await self.osu_service.get_user(raw_user, mode=mode)
                 if not user_obj or "id" not in user_obj:
                     return json.dumps({"error": f"No se encontró al jugador '{raw_user}' en osu!."})
+
 
                 uid = user_obj["id"]
                 best_plays = await self.osu_service.get_user_best_scores(uid, mode=mode, limit=100)
@@ -1024,6 +1130,29 @@ class NLPService:
             logger.error(f"Excepción ejecutando herramienta osu '{name}': {e}")
             return json.dumps({"error": f"Error consultando osu! API: {str(e)}"})
 
+    def _format_user_prompt_with_context(
+        self, trigger: str, context: str, username: str, image_description: str = "", **kwargs
+    ) -> str:
+        """Formatea el prompt del usuario inyectando metadatos de cuenta enlazada, directrices contextuales y visión."""
+        linked_user = kwargs.get("linked_osu_username")
+        meta_header = f"[Usuario: {username} | Cuenta osu! vinculada: {linked_user or 'Ninguna vinculada'}]"
+
+        system_hints = []
+        topic = kwargs.get("topic", "general")
+        if topic == "other_game":
+            system_hints.append("[DIRECTRIZ ESTRICTA: La consulta es sobre otro juego. Prohibido mencionar o recomendar osu! o puntería de círculos. Responde con mecánicas técnicas de ese juego específico.]")
+        elif topic == "comparison":
+            system_hints.append("[DIRECTRIZ ESTRICTA: El usuario pide comparar o elegir entre opciones. Prohibido ser neutral o decir 'ambos tienen pros y contras'. Elige un favorito con argumentos o critica ambos con humor ácido.]")
+        elif kwargs.get("is_opinion_req") or kwargs.get("needs_tools"):
+            if linked_user:
+                system_hints.append(f"[DIRECTRIZ: {username} tiene la cuenta '{linked_user}' vinculada. Si pide tu opinión de su juego o skills, usa tus herramientas para consultar sus datos en silencio y dale tu veredicto. ¡NO le pidas que ejecute comandos como /skills o /top!]")
+            else:
+                system_hints.append(f"[DIRECTRIZ: {username} no tiene cuenta vinculada. Si pide que opines sobre su juego o skills, recomiéndale con tu estilo vincular su cuenta con /link <usuario> para que puedas ver sus jugadas.]")
+
+        hint_str = ("\n" + "\n".join(system_hints)) if system_hints else ""
+        vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
+        return f"{meta_header}{hint_str}\n<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
+
     async def _generate_deepseek_reply(
         self, trigger: str, context: str, username: str,
         bot_name: str, image_description: str = "", is_fallback: bool = False,
@@ -1044,20 +1173,23 @@ class NLPService:
         lang = kwargs.get("language", "en")
         deepseek_system = self._get_system_prompt(bot_name, lang, active_room_users, kwargs.get("system_prompt_override"))
 
-        vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
-        user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
+        user_msg = self._format_user_prompt_with_context(trigger, context, username, image_description, **kwargs)
         max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or 750
 
         # Determinar si activamos herramientas (Function Calling) de osu!
         use_tools = False
-        trigger_lower = trigger.lower()
-        if self.osu_service and any(kw in trigger_lower for kw in OSU_TRIGGER_KEYWORDS):
-            use_tools = True
+        topic = kwargs.get("topic", "general")
+        if self.osu_service and topic != "other_game":
+            if kwargs.get("needs_tools"):
+                use_tools = True
+            elif any(kw in trigger.lower() for kw in OSU_TRIGGER_KEYWORDS):
+                use_tools = True
 
         messages = [
             {"role": "system", "content": deepseek_system},
             {"role": "user", "content": user_msg}
         ]
+
 
         data = {
             "model": model_name,
@@ -1188,8 +1320,7 @@ class NLPService:
         if server_emojis:
             system_prompt += f"\nEmojis: {server_emojis}"
 
-        vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
-        prompt = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
+        prompt = self._format_user_prompt_with_context(trigger, context, username, image_description, **kwargs)
 
         # Cadena de modelos de Gemini (1.5-flash y 2.5-flash)
         primary_model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip()
@@ -1305,8 +1436,7 @@ class NLPService:
         lang = kwargs.get("language", "en")
         groq_system = self._get_system_prompt(bot_name, lang, active_room_users, kwargs.get("system_prompt_override"))
 
-        vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
-        user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
+        user_msg = self._format_user_prompt_with_context(trigger, context, username, image_description, **kwargs)
         max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or 750
 
         for model_name in groq_models_to_try:
@@ -1415,8 +1545,7 @@ class NLPService:
         lang = kwargs.get("language", "en")
         system_prompt = self._get_system_prompt(bot_name, lang, active_room_users, kwargs.get("system_prompt_override"))
 
-        vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
-        user_msg = f"<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
+        user_msg = self._format_user_prompt_with_context(trigger, context, username, image_description, **kwargs)
         max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or 750
 
         for model_name in models_to_try:

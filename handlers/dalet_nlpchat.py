@@ -394,9 +394,12 @@ class DaletNLPChat(commands.Cog):
                 trigger_probes = (
                     "opina", "opinas", "qué tal", "que tal", "mi top", "este top",
                     "mi play", "mi jugada", "mis skills", "mi perfil", "eso", "esto",
-                    "mira mi", "cómo ves", "como ves", "qué te parece", "que te parece"
+                    "mira mi", "cómo ves", "como ves", "qué te parece", "que te parece",
+                    "cómo juego", "como juego", "mi rendimiento", "califica mi", "critica mi",
+                    "qué opinas de mi", "que opinas de mi", "cómo me ves", "como me ves"
                 )
                 if any(p in message.content.lower() for p in trigger_probes):
+
                     try:
                         async for prev_msg in message.channel.history(limit=6, before=message):
                             if prev_msg.author == self.bot.user and prev_msg.embeds:
