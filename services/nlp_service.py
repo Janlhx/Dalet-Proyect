@@ -108,6 +108,37 @@ OSU_TOOLS = [
                 "required": ["username"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "recommend_beatmaps",
+            "description": "Busca y recomienda beatmaps de osu! según el estilo o 'vibe' pedido por el usuario (streams de stamina, aim técnico, speed, lectura chill, calentamiento).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "vibe": {
+                        "type": "string",
+                        "enum": ["stamina_streams", "tech_aim", "speed_farm", "reading_chill", "warmup"],
+                        "description": "Estilo o tipo de mapa deseado."
+                    },
+                    "star_min": {
+                        "type": "number",
+                        "description": "Dificultad mínima en estrellas (opcional, default 0)."
+                    },
+                    "star_max": {
+                        "type": "number",
+                        "description": "Dificultad máxima en estrellas (opcional, default 10)."
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["osu", "taiko", "fruits", "mania"],
+                        "description": "Modo de juego. Default: 'osu'."
+                    }
+                },
+                "required": ["vibe"]
+            }
+        }
     }
 ]
 
@@ -123,6 +154,26 @@ OSU_TRIGGER_KEYWORDS = (
     "opina de mi", "opina de mis", "opinas de mi", "opinas de mis",
     "califica mi", "critica mi", "cómo me ves", "como me ves", "qué tal juego", "que tal juego"
 )
+
+# Mapa de acción directa (clasificada por Jev como direct_osu_action) a nombre de herramienta osu!.
+# Centraliza el enrutamiento del shortcut path para evitar if/elif en cascada y facilitar extensión.
+ACTION_TO_TOOL_MAP: dict[str, str] = {
+    "recent_play": "get_recent_osu_play",
+    "top_plays":   "get_top_osu_play",
+    "skills":      "get_osu_skills",
+    "profile":     "get_osu_user_profile",
+}
+
+# Mapa de "vibes" de usuario a keywords de búsqueda en la API osu! (beatmapsets/search?q=...).
+# La API no expone clasificación semántica de patrones; este mapa es la mejor aproximación
+# con los parámetros de query disponibles. Modificar aquí actualiza tanto el tool como la búsqueda.
+BEATMAP_VIBE_KEYWORDS: dict[str, str] = {
+    "stamina_streams": "stream stamina",
+    "tech_aim":        "tech aim",
+    "speed_farm":      "speed farm alt",
+    "reading_chill":   "reading low ar",
+    "warmup":          "easy warmup",
+}
 
 # Personalidad de Dalet en Inglés (Default)
 DALET_PERSONALITY_EN = """You are {bot_name}, a self-aware Discord bot and conversational companion created by Litxe. You know you are an AI running on a server, but you are NOT a corporate, boring, or sycophantic chatbot. You are sharp, witty, dry-humored, observant, internet-culture native, and multi-layered.
@@ -609,6 +660,21 @@ class NLPService:
         # 1. Eliminar bloques <think>...</think> (cerrados o no cerrados)
         cleaned = re.sub(r"(?is)<think>.*?(?:</think>|$)", "", cleaned).strip()
 
+        # 1a. Eliminar pseudo-etiquetas XML de herramientas (ej. <get_osu_user_profile>...</get_osu_user_profile>, <tool_call>...</tool_call>)
+        xml_tool_names = r"(?:get_recent_osu_play|get_top_osu_play|get_osu_user_profile|get_osu_skills|recommend_beatmaps|tool_call|function_call|function|call:default_api:[^\s>]+)"
+        # 1a.1 Bloques completos cerrados
+        cleaned = re.sub(rf"(?is)<({xml_tool_names})[^>]*>.*?</\1>", "", cleaned).strip()
+        # 1a.2 Bloques no cerrados o cortados al final
+        cleaned = re.sub(rf"(?is)<({xml_tool_names})[^>]*>.*$", "", cleaned).strip()
+        # 1a.3 Etiquetas huérfanas de apertura o cierre (incluyendo parámetros XML de herramientas)
+        param_tags = r"(?:username|mode|index|vibe|star_min|star_max|parameters|arguments)"
+        cleaned = re.sub(rf"(?is)</?(?:{xml_tool_names}|{param_tags})[^>]*>", "", cleaned).strip()
+        # 1a.4 Limpiar etiquetas de formato <call:...> o nombres con dos puntos huérfanas
+        cleaned = re.sub(r"(?is)</?[a-zA-Z0-9_]+:[a-zA-Z0-9_]+[^>]*>", "", cleaned).strip()
+        # 1a.5 Limpiar espacios dobles o saltos de línea excesivos
+        cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+
         # 1b. Neutralizar fugas de monólogo interno / reasoning (ej. 'We need to respond as...', 'Thinking Process:')
         leak_prefixes = (
             "we need to respond",
@@ -749,7 +815,20 @@ class NLPService:
         return bool(self.openrouter_api_key and time.time() >= self._openrouter_cooldown_until)
 
     async def _classify_with_jev(self, text: str) -> dict:
-        """Clasifica la intención del usuario usando TypeSafe Jev (System One)."""
+        """
+        Clasifica la intención del mensaje usando TypeSafe Jev (System One).
+
+        Jev procesa todas las preguntas sobre el mismo estado en una única llamada HTTP,
+        por lo que ampliar de 2 a 5 preguntas no incrementa la latencia de forma apreciable.
+
+        Returns:
+            dict con las claves (todos tienen valores por defecto seguros ante fallos):
+                is_opinion      (float 0‒1)  — ¿pide opinión de sus stats propios?
+                topic           (str)         — categoría principal del mensaje
+                direct_osu_action (str)       — acción osu! directa reconocida sin ambigüedad
+                user_mood       (str)         — registro emocional del mensaje
+                player_scope    (str)         — ¿habla de sí mismo o de otro jugador?
+        """
         if not self.typesafe_api_key or not AsyncTypeSafeClient:
             return {}
 
@@ -759,29 +838,145 @@ class NLPService:
                     client.system_one(
                         state={"message": text},
                         questions={
+                            # ¿El usuario pide que Dalet opine sobre sus propias stats o jugadas?
                             "is_opinion": Noul(
                                 instructions="Is the user asking for an opinion, rating, review, or critique of their own gameplay, profile, skills, or stats?"
                             ),
+                            # Categoría principal del mensaje; incluye beatmap_request como nueva opción.
                             "topic": Choice(
-                                instructions="What is the primary category or game involved in this message?",
+                                instructions="What is the primary category of this message?",
                                 criteria={
-                                    "osu": "Specifically about osu! rhythm game, beatmaps, or osu stats",
-                                    "other_game": "About other video games such as Valorant, CS2, League of Legends, Apex, fighting games, etc.",
-                                    "comparison": "Asking to compare options, choose a favorite, or pick between alternatives",
-                                    "general": "General conversation, jokes, memes, code, or other topics"
+                                    "osu":             "Specifically about osu! rhythm game, beatmaps, or a player's osu stats",
+                                    "other_game":      "About other video games such as Valorant, CS2, League of Legends, Apex, fighting games, etc.",
+                                    "comparison":      "Asking to compare options, choose a favorite, or pick between alternatives",
+                                    "beatmap_request": "Asking for beatmap recommendations by style, difficulty, or 'vibe' (e.g. 'recommend me a warmup map', 'algo para streams')",
+                                    "general":         "General conversation, jokes, memes, code, or other topics not listed above",
                                 }
-                            )
+                            ),
+                            # Acción osu! directa e inequívoca: el usuario solo quiere ver datos, no commentary.
+                            # "none" cubre cualquier ambigüedad o petición de opinión con los datos.
+                            "direct_osu_action": Choice(
+                                instructions="If the user is unambiguously asking to retrieve a specific osu! data view for themselves (not asking for opinion or analysis), which one?",
+                                criteria={
+                                    "recent_play": "Show my most recent play or last score (e.g. 'mi última jugada', 'rs', 'recent')",
+                                    "top_plays":   "Show my top plays or best scores (e.g. 'mi top', 'mis mejores jugadas', 'top plays')",
+                                    "skills":      "Show my skill breakdown or radar (e.g. 'mis skills', 'mi radar de habilidades')",
+                                    "profile":     "Show my profile stats: rank, pp, accuracy (e.g. 'mi perfil', 'mis stats globales', 'mi rank')",
+                                    "none":        "No direct data retrieval request, or the user is asking for commentary/opinion, or about another player",
+                                }
+                            ),
+                            # Registro emocional del mensaje para adaptar el tono de la respuesta.
+                            "user_mood": Choice(
+                                instructions="What is the emotional register or social dynamic of this message toward the bot?",
+                                criteria={
+                                    "banter":     "Teasing, challenging, provoking, or playfully trash-talking the bot",
+                                    "frustrated": "Tilted, venting, or expressing frustration about gameplay failures or bad luck",
+                                    "serious":    "Asking for genuine technical advice, help, or a concrete recommendation",
+                                    "casual":     "Regular conversation, greetings, jokes, or neutral questions",
+                                }
+                            ),
+                            # Resolución de target player antes de llegar al LLM.
+                            "player_scope": Choice(
+                                instructions="Whose osu! data or gameplay is the user asking about?",
+                                criteria={
+                                    "self":  "The user is asking about themselves ('my top', 'how do I play', 'mis skills', 'yo', 'mi')",
+                                    "other": "The user is asking about a specific named player (e.g. 'WhiteCat', 'mrekk', 'el perfil de X')",
+                                    "none":  "The message is not about any specific player's data",
+                                }
+                            ),
                         }
                     ),
-                    timeout=2.0
+                    timeout=2.5
                 )
-                is_opinion_val = getattr(res.answers.get("is_opinion"), "noul", 0.0)
-                topic_val = getattr(res.answers.get("topic"), "choice", "general")
-                logger.debug(f"TypeSafe Jev: is_opinion={is_opinion_val:.2f}, topic={topic_val}")
-                return {"is_opinion": is_opinion_val, "topic": topic_val}
+                is_opinion_val    = getattr(res.answers.get("is_opinion"),          "noul",   0.0)
+                topic_val         = getattr(res.answers.get("topic"),               "choice", "general")
+                direct_action_val = getattr(res.answers.get("direct_osu_action"),   "choice", "none")
+                user_mood_val     = getattr(res.answers.get("user_mood"),           "choice", "casual")
+                player_scope_val  = getattr(res.answers.get("player_scope"),        "choice", "none")
+
+                logger.debug(
+                    f"TypeSafe Jev: is_opinion={is_opinion_val:.2f}, topic={topic_val}, "
+                    f"action={direct_action_val}, mood={user_mood_val}, scope={player_scope_val}"
+                )
+                return {
+                    "is_opinion":        is_opinion_val,
+                    "topic":             topic_val,
+                    "direct_osu_action": direct_action_val,
+                    "user_mood":         user_mood_val,
+                    "player_scope":      player_scope_val,
+                }
         except Exception as e:
             logger.debug(f"TypeSafe Jev classification omitted or failed: {e}")
             return {}
+
+    async def _shortcut_osu_reply(
+        self,
+        action: str,
+        osu_username: str,
+        discord_username: str,
+        user_id: int | None,
+        bot_name: str,
+        language: str,
+        context: str,
+        trigger: str,
+    ) -> str | None:
+        """
+        Shortcut path: ejecuta la herramienta osu! indicada y genera una respuesta LLM
+        focalizada, evitando el flujo de function calling de 2 pasos (LLM → tool → LLM).
+
+        Se activa cuando Jev detecta una acción directa inequívoca (recent_play, top_plays,
+        skills, profile) para el usuario vinculado. El ahorro proviene de:
+          · Saltar la primera llamada LLM completa (la que decide qué tool invocar).
+          · Usar max_tokens reducido (300 vs 750) al necesitar solo el veredicto, no narrativa.
+
+        El LLM sigue generando la respuesta con su personalidad completa; nada está hardcodeado.
+
+        Returns:
+            Texto generado si todo el flujo tuvo éxito, None si algún paso falla.
+            En caso de None el caller continúa al provider chain normal como fallback.
+        """
+        tool_name = ACTION_TO_TOOL_MAP.get(action)
+        if not tool_name:
+            logger.debug(f"Shortcut: acción '{action}' no tiene herramienta mapeada.")
+            return None
+
+        try:
+            tool_result = await self._execute_osu_tool(
+                tool_name, {"username": osu_username}, user_id=user_id
+            )
+        except Exception as e:
+            logger.warning(f"Shortcut osu! ({action}): falló '{tool_name}': {e}")
+            return None
+
+        # Construir kwargs para la generación focalizada.
+        # Se pasa shortcut_tool_data para que _format_user_prompt_with_context lo inyecte
+        # después del contexto conversacional y antes del mensaje del usuario.
+        shortcut_kwargs: dict = {
+            "linked_osu_username": osu_username,
+            "topic":               "osu",
+            "is_opinion_req":      False,
+            "needs_tools":         False,        # Tools ya ejecutadas; no activar function calling
+            "max_tokens_override": 300,          # Veredicto breve; no narrativa conversacional
+            "shortcut_tool_data":  tool_result,  # Inyectado en user_msg por _format_user_prompt_with_context
+            "language":            language,
+            "user_id":             user_id,
+            "user_mood":           "casual",
+            "player_scope":        "self",
+        }
+
+        logger.info(
+            f"Shortcut osu! activado: action={action}, tool={tool_name}, user={discord_username}"
+        )
+        return await self._generate_deepseek_reply(
+            trigger=trigger,
+            context=context,
+            username=discord_username,
+            bot_name=bot_name,
+            image_description="",
+            is_fallback=False,
+            is_reactive=True,
+            **shortcut_kwargs,
+        )
 
     def _select_provider(self, has_images: bool, needs_web_search: bool, trigger: str, needs_tools: bool = False) -> str:
         """
@@ -906,18 +1101,47 @@ class NLPService:
         jev_analysis = await self._classify_with_jev(trigger)
         is_opinion_req = jev_analysis.get("is_opinion", 0.0) >= 0.5
         topic = jev_analysis.get("topic", "general")
+        direct_action = jev_analysis.get("direct_osu_action", "none")
+        user_mood = jev_analysis.get("user_mood", "casual")
+        player_scope = jev_analysis.get("player_scope", "none")
+
+        # 2b. Enrutamiento directo (Shortcut): si el usuario pide ver datos propios concretos y está vinculado
+        if (
+            direct_action != "none"
+            and player_scope == "self"
+            and linked_osu_username
+            and self.osu_service
+        ):
+            shortcut_reply = await self._shortcut_osu_reply(
+                action=direct_action,
+                osu_username=linked_osu_username,
+                discord_username=username,
+                user_id=caller_user_id,
+                bot_name=bot_name,
+                language=kwargs.get("language", "en"),
+                context=context,
+                trigger=trigger,
+            )
+            if shortcut_reply:
+                return shortcut_reply
 
         trigger_lower = trigger.lower()
         has_osu_kw = any(kw in trigger_lower for kw in OSU_TRIGGER_KEYWORDS)
-        needs_tools = bool(self.osu_service and topic != "other_game" and (has_osu_kw or (is_opinion_req and linked_osu_username)))
+        needs_tools = bool(
+            self.osu_service
+            and topic != "other_game"
+            and (has_osu_kw or topic == "beatmap_request" or (is_opinion_req and linked_osu_username))
+        )
 
         kwargs["linked_osu_username"] = linked_osu_username
         kwargs["topic"] = topic
         kwargs["is_opinion_req"] = is_opinion_req
         kwargs["needs_tools"] = needs_tools
+        kwargs["user_mood"] = user_mood
+        kwargs["player_scope"] = player_scope
 
         chosen_provider = self._select_provider(has_images, needs_web_search, trigger, needs_tools=needs_tools)
-        logger.info(f"Load Balancer enrutó a '{chosen_provider}' para {username} (web_search={needs_web_search}, imgs={has_images}, tools={needs_tools}, topic={topic})")
+        logger.info(f"Load Balancer enrutó a '{chosen_provider}' para {username} (web_search={needs_web_search}, imgs={has_images}, tools={needs_tools}, topic={topic}, mood={user_mood})")
 
         # Cadena de proveedores a probar en orden
         provider_chain = [chosen_provider]
@@ -957,6 +1181,80 @@ class NLPService:
 
         return reply
 
+    @staticmethod
+    def _extract_xml_tool_calls(text: str) -> list[tuple[str, dict]]:
+        """
+        Detecta y extrae llamadas a herramientas en formato pseudo-XML emitidas por modelos LLM
+        (por ejemplo DeepSeek o Qwen) en el contenido textual.
+        Formatos soportados:
+        1. <get_osu_user_profile><username>peppy</username></get_osu_user_profile>
+        2. <tool_call>{"name": "get_osu_skills", "arguments": {"username": "peppy"}}</tool_call>
+        3. <function_call name="get_osu_skills"><username>peppy</username></function_call>
+        """
+        if not text:
+            return []
+
+        results = []
+        known_tools = (
+            "get_recent_osu_play",
+            "get_top_osu_play",
+            "get_osu_user_profile",
+            "get_osu_skills",
+            "recommend_beatmaps",
+        )
+        known_tools_pattern = "|".join(known_tools)
+
+        # Formato 1: <nombre_herramienta ...> ... </nombre_herramienta>
+        pattern_direct = rf"(?is)<(?P<fn>{known_tools_pattern})(?:\s+[^>]*)?>(?P<body>.*?)</(?P=fn)>"
+        for match in re.finditer(pattern_direct, text):
+            fn_name = match.group("fn").strip().lower()
+            body = match.group("body").strip()
+            args = {}
+            if body.startswith("{") and body.endswith("}"):
+                try:
+                    args = json.loads(body)
+                except Exception:
+                    args = {}
+            else:
+                param_pattern = r"(?is)<(?P<param>[a-zA-Z0-9_]+)>(?P<val>.*?)</(?P=param)>"
+                for p_match in re.finditer(param_pattern, body):
+                    args[p_match.group("param").strip().lower()] = p_match.group("val").strip()
+
+            results.append((fn_name, args))
+
+        # Formato 2: <tool_call> JSON </tool_call>
+        pattern_tool_call = r"(?is)<tool_call>(.*?)</tool_call>"
+        for match in re.finditer(pattern_tool_call, text):
+            body = match.group(1).strip()
+            try:
+                data = json.loads(body)
+                fn_name = (data.get("name") or data.get("function") or "").strip().lower()
+                fn_args = data.get("arguments") or data.get("parameters") or {}
+                if fn_name and fn_name in known_tools:
+                    results.append((fn_name, fn_args if isinstance(fn_args, dict) else {}))
+            except Exception:
+                pass
+
+        # Formato 3: <function_call name="..."> ... </function_call>
+        pattern_fn_call = r"(?is)<function_call(?:\s+name=[\"'](?P<fn>[^\"']+)[\"'])?[^>]*>(?P<body>.*?)</function_call>"
+        for match in re.finditer(pattern_fn_call, text):
+            fn_name = (match.group("fn") or "").strip().lower()
+            body = match.group("body").strip()
+            args = {}
+            if body.startswith("{") and body.endswith("}"):
+                try:
+                    args = json.loads(body)
+                except Exception:
+                    args = {}
+            else:
+                param_pattern = r"(?is)<(?P<param>[a-zA-Z0-9_]+)>(?P<val>.*?)</(?P=param)>"
+                for p_match in re.finditer(param_pattern, body):
+                    args[p_match.group("param").strip().lower()] = p_match.group("val").strip()
+            if fn_name and fn_name in known_tools:
+                results.append((fn_name, args))
+
+        return results
+
     async def _execute_osu_tool(self, name: str, args: dict, user_id: int = None) -> str:
         """Ejecuta una herramienta de osu! en Bancho API y devuelve un payload JSON compacto."""
         if not self.osu_service:
@@ -975,7 +1273,7 @@ class NLPService:
         if (not raw_user or raw_user.lower() in self_terms) and linked:
             raw_user = linked
 
-        if not raw_user:
+        if name != "recommend_beatmaps" and not raw_user:
             return json.dumps({"error": "No se especificó un nombre de usuario en osu! y no tiene cuenta enlazada."})
 
         try:
@@ -1125,6 +1423,51 @@ class NLPService:
                     "breakdown": breakdown
                 }, ensure_ascii=False)
 
+            elif name == "recommend_beatmaps":
+                vibe = args.get("vibe", "warmup")
+                keyword = BEATMAP_VIBE_KEYWORDS.get(vibe, vibe)
+                star_min = float(args.get("star_min", 0.0) or 0.0)
+                star_max = float(args.get("star_max", 10.0) or 10.0)
+                mode = args.get("mode") or "osu"
+
+                beatmapsets = await self.osu_service.search_beatmaps(
+                    mode=mode,
+                    min_stars=star_min,
+                    max_stars=star_max,
+                    keyword=keyword,
+                )
+                if not beatmapsets:
+                    return json.dumps({
+                        "status": "no_results",
+                        "vibe": vibe,
+                        "mode": mode,
+                        "message": f"No se encontraron beatmaps para el vibe '{vibe}' en el rango {star_min}★-{star_max}★."
+                    }, ensure_ascii=False)
+
+                recommendations = []
+                for s in beatmapsets[:3]:
+                    bm_list = s.get("beatmaps", [])
+                    matching_diffs = [
+                        f"{b.get('version')} ({b.get('difficulty_rating', 0.0)}★)"
+                        for b in bm_list
+                        if star_min <= b.get("difficulty_rating", 0.0) <= star_max
+                    ]
+                    diff_text = ", ".join(matching_diffs[:2]) if matching_diffs else "Varias diffs"
+                    recommendations.append({
+                        "title": f"{s.get('artist')} - {s.get('title')}",
+                        "creator": s.get("creator"),
+                        "bpm": s.get("bpm"),
+                        "diffs": diff_text,
+                        "url": f"https://osu.ppy.sh/beatmapsets/{s.get('id')}"
+                    })
+
+                return json.dumps({
+                    "vibe": vibe,
+                    "mode": mode,
+                    "count": len(recommendations),
+                    "recommendations": recommendations
+                }, ensure_ascii=False)
+
             return json.dumps({"error": f"Herramienta desconocida: {name}"})
         except Exception as e:
             logger.error(f"Excepción ejecutando herramienta osu '{name}': {e}")
@@ -1149,9 +1492,34 @@ class NLPService:
             else:
                 system_hints.append(f"[DIRECTRIZ: {username} no tiene cuenta vinculada. Si pide que opines sobre su juego o skills, recomiéndale con tu estilo vincular su cuenta con /link <usuario> para que puedas ver sus jugadas.]")
 
+        # Directiva contextual de tono según registro emocional detectado por Jev (user_mood)
+        lang = str(kwargs.get("language", "en")).lower().strip()
+        is_es = lang == "es"
+        mood = kwargs.get("user_mood", "casual")
+        if mood == "banter":
+            system_hints.append(
+                "[DIRECTRIZ DE ÁNIMO: El usuario está en modo banter o retándote. Responde con humor seco, más afilada e irónica de lo habitual y devuélvele el golpe.]"
+                if is_es else
+                "[MOOD DIRECTIVE: User is in banter or teasing mode. Be sharper, wittier, and more sarcastic than usual, give it right back to them.]"
+            )
+        elif mood == "frustrated":
+            system_hints.append(
+                "[DIRECTRIZ DE ÁNIMO: El usuario está frustrado o tilteado por fallos/chokes/juego. No seas condescendiente ni le digas que se calme. Valida su frustración con humor seco y un consejo técnico o práctico si aplica.]"
+                if is_es else
+                "[MOOD DIRECTIVE: User is frustrated or tilted from gameplay/chokes. Don't patronize them or tell them to calm down. Validate the frustration with dry humor and a practical note if applicable.]"
+            )
+        elif mood == "serious":
+            system_hints.append(
+                "[DIRECTRIZ DE ÁNIMO: El usuario pide consejo técnico o ayuda seria. Sé directa, concisa, precisa y de alto valor técnico sin rodeos.]"
+                if is_es else
+                "[MOOD DIRECTIVE: User wants genuine technical advice or serious help. Be direct, concise, precise, and high-value with zero fluff.]"
+            )
+
         hint_str = ("\n" + "\n".join(system_hints)) if system_hints else ""
+        shortcut_data = kwargs.get("shortcut_tool_data")
+        shortcut_section = f"\n[DATOS TÉCNICOS CONSULTADOS AUTÓNOMAMENTE]:\n{shortcut_data}\n" if shortcut_data else ""
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
-        return f"{meta_header}{hint_str}\n<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\nMensaje actual de {username}: {trigger}"
+        return f"{meta_header}{hint_str}\n<contexto_chat>\n{context}\n</contexto_chat>{shortcut_section}{vision_context}\n\nMensaje actual de {username}: {trigger}"
 
     async def _generate_deepseek_reply(
         self, trigger: str, context: str, username: str,
@@ -1261,7 +1629,45 @@ class NLPService:
                     c_tokens += usage2.get("completion_tokens") or 0
                 else:
                     logger.warning(f"Error en paso 2 de DeepSeek Tools: HTTP {resp2.status_code}")
-                    raw_text = choice_msg.get("content") or ""
+                    raw_text = ""
+            # Caso B: DeepSeek emitió llamadas a herramientas en formato pseudo-XML dentro de 'content'
+            elif (xml_tools := self._extract_xml_tool_calls(choice_msg.get("content") or "")):
+                logger.info(f"DeepSeek XML Tool Call detectado en content: {xml_tools}")
+                tool_results_list = []
+                for fn_name, fn_args in xml_tools:
+                    tool_out = await self._execute_osu_tool(fn_name, fn_args, user_id=caller_user_id)
+                    tool_results_list.append(
+                        f"Herramienta: {fn_name}\n"
+                        f"Argumentos: {json.dumps(fn_args, ensure_ascii=False)}\n"
+                        f"Resultado:\n{tool_out}"
+                    )
+
+                tool_context_msg = (
+                    "[Herramientas del sistema ejecutadas con éxito]:\n\n"
+                    + "\n\n---\n\n".join(tool_results_list)
+                    + "\n\nInstrucción: Utiliza la información anterior para responder al usuario con tu personalidad habitual. "
+                    "NO menciones nombres de funciones ni uses etiquetas XML en tu respuesta final."
+                )
+
+                messages.append({"role": "assistant", "content": choice_msg.get("content") or ""})
+                messages.append({"role": "user", "content": tool_context_msg})
+
+                data_step2 = {
+                    "model": model_name,
+                    "messages": messages,
+                    "temperature": 0.7,
+                    "max_tokens": max_tokens
+                }
+                resp2 = await self._http_client.post(url, headers=headers, json=data_step2, timeout=10.0)
+                if resp2.status_code == 200:
+                    result2 = resp2.json()
+                    raw_text = result2['choices'][0]['message']['content'] or ""
+                    usage2 = result2.get("usage", {})
+                    p_tokens += usage2.get("prompt_tokens") or 0
+                    c_tokens += usage2.get("completion_tokens") or 0
+                else:
+                    logger.warning(f"Error en paso 2 de DeepSeek XML Tools: HTTP {resp2.status_code}")
+                    raw_text = ""
             else:
                 raw_text = choice_msg.get("content") or ""
 

@@ -131,6 +131,64 @@ class TestAIGuardrails(unittest.TestCase):
         self.assertIn("external human members completely separate from you", prompt_en)
         self.assertIn("DECOUPLE FROM OSU!", prompt_en)
 
+    def test_strip_leaked_xml_tool_tags_incident_case(self):
+        """Verifica que el caso exacto de filtración de etiquetas XML visto en Discord sea purgado al 100%."""
+        leaked_raw = (
+            "<get_osu_user_profile>\n"
+            "<username>not_goorig</username>\n"
+            "</get_osu_user_profile>\n\n"
+            "<get_osu_skills>\n"
+            "<username>not_goorig</username>\n"
+            "</get_osu_skills>"
+        )
+        cleaned = NLPService._clean_reply_text(leaked_raw, bot_name="Dalet")
+        self.assertEqual(cleaned, "")
+
+    def test_strip_xml_tool_tags_with_surrounding_text(self):
+        """Verifica que si hay texto mezclado con etiquetas XML de herramientas, el texto se conserve y las etiquetas se eliminen."""
+        mixed_raw = (
+            "Aquí tienes la información: "
+            "<get_osu_user_profile><username>not_goorig</username></get_osu_user_profile> "
+            "Es un jugador con bastante pp."
+        )
+        cleaned = NLPService._clean_reply_text(mixed_raw, bot_name="Dalet")
+        self.assertEqual(cleaned, "Aquí tienes la información: Es un jugador con bastante pp.")
+
+    def test_strip_unclosed_xml_tool_tag(self):
+        """Verifica que una etiqueta de herramienta sin cerrar por corte de tokens sea eliminada por completo."""
+        truncated_raw = "Consultando datos... <get_osu_skills><username>peppy"
+        cleaned = NLPService._clean_reply_text(truncated_raw, bot_name="Dalet")
+        self.assertEqual(cleaned, "Consultando datos...")
+
+    def test_extract_xml_tool_calls_direct(self):
+        """Verifica que _extract_xml_tool_calls extraiga correctamente llamadas con formato de etiquetas de función."""
+        raw = (
+            "<get_osu_user_profile>\n"
+            "<username>not_goorig</username>\n"
+            "</get_osu_user_profile>\n\n"
+            "<get_osu_skills>\n"
+            "<username>not_goorig</username>\n"
+            "<mode>osu</mode>\n"
+            "</get_osu_skills>"
+        )
+        calls = NLPService._extract_xml_tool_calls(raw)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[0], ("get_osu_user_profile", {"username": "not_goorig"}))
+        self.assertEqual(calls[1], ("get_osu_skills", {"username": "not_goorig", "mode": "osu"}))
+
+    def test_extract_xml_tool_calls_json_tool_call(self):
+        """Verifica que _extract_xml_tool_calls extraiga llamadas con formato <tool_call> JSON."""
+        raw = '<tool_call>{"name": "get_osu_skills", "arguments": {"username": "peppy"}}</tool_call>'
+        calls = NLPService._extract_xml_tool_calls(raw)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], ("get_osu_skills", {"username": "peppy"}))
+
+    def test_extract_xml_tool_calls_none_when_normal_text(self):
+        """Verifica que si no hay etiquetas de herramientas, devuelva una lista vacía."""
+        raw = "Hola Dalet, ¿cómo estás hoy?"
+        calls = NLPService._extract_xml_tool_calls(raw)
+        self.assertEqual(calls, [])
+
 
 if __name__ == '__main__':
     unittest.main()
