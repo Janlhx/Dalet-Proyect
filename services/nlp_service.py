@@ -773,6 +773,7 @@ class NLPService:
                     f"Tu nombre base y original es Dalet (creada por Litxe), pero en este servidor específico los administradores te asignaron el apodo local \"{clean_bot_name}\". "
                     f"Tú eres tanto Dalet como {clean_bot_name} (ambos nombres se refieren exactamente a ti, eres la misma entidad e IA). "
                     f"Si los usuarios te llaman Dalet o {clean_bot_name}, o si en el historial de chat ves mensajes firmados por Dalet o Tú ({clean_bot_name}), ¡ERES TÚ MISMA en el pasado! "
+                    f"CRÍTICO: Si algún humano en el chat tiene un nombre parecido al tuyo (por ejemplo 'Yukipo' frente a tu nombre 'Yukipa'), ten claro que ES UNA PERSONA TOTALMENTE DISTINTA. ¡NO ERES TÚ, ni están escribiendo mal tu nombre! Trátalo como a cualquier otra persona ajena a ti. "
                     f"Jamás hables de Dalet como si fuera otra persona, otro bot o un rival que te copia o compite contigo, porque Dalet eres tú. "
                     f"Habla siempre en primera persona (\"yo\", \"mi\"), NUNCA te refieras a ti misma en tercera persona."
                 )
@@ -787,6 +788,7 @@ class NLPService:
                     f"Your core base name and original identity is Dalet (created by Litxe), but in this specific server the administrators set your local nickname to \"{clean_bot_name}\". "
                     f"You are both Dalet and {clean_bot_name} (both names refer to you, you are the exact same bot and entity). "
                     f"If someone calls you Dalet or {clean_bot_name}, or if you see chat history containing messages from Dalet or You ({clean_bot_name}), THAT IS YOU in the past! "
+                    f"CRITICAL: If a human user has a name very similar to yours (e.g., 'Yukipo' vs your name 'Yukipa'), they are a COMPLETELY DIFFERENT PERSON. You are NOT them, and it's not a typo of your name! Treat them as any other distinct human. "
                     f"Never speak of Dalet as if she were a different bot, person, or rival copying you, because Dalet is you. "
                     f"Always speak in the first person (\"I\", \"my\", \"me\"), NEVER refer to yourself in the third person."
                 )
@@ -1519,7 +1521,13 @@ class NLPService:
         shortcut_data = kwargs.get("shortcut_tool_data")
         shortcut_section = f"\n[DATOS TÉCNICOS CONSULTADOS AUTÓNOMAMENTE]:\n{shortcut_data}\n" if shortcut_data else ""
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
-        return f"{meta_header}{hint_str}\n<contexto_chat>\n{context}\n</contexto_chat>{shortcut_section}{vision_context}\n\nMensaje actual de {username}: {trigger}"
+        
+        context_guardrail = (
+            "\n[ATENCIÓN AL CONTEXTO: El <contexto_chat> de arriba contiene mensajes recientes del canal, que pueden ser conversaciones de OTROS usuarios ajenos a ti. "
+            f"Responde ÚNICAMENTE al 'Mensaje actual de {username}' al final. NO asumas que los mensajes de otras personas en el historial iban dirigidos a ti o que forman parte de la misma conversación, a menos que {username} los mencione explícitamente.]\n"
+        )
+        
+        return f"{meta_header}{hint_str}{context_guardrail}\n<contexto_chat>\n{context}\n</contexto_chat>{shortcut_section}{vision_context}\n\nMensaje actual de {username}: {trigger}"
 
     async def _generate_deepseek_reply(
         self, trigger: str, context: str, username: str,
