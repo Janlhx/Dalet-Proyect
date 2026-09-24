@@ -415,15 +415,12 @@ class DaletNLPChat(commands.Cog):
 
             image_urls = list(dict.fromkeys(image_urls))[:1]  # Solo 1 imagen
 
-            # Limpiar menciones y nombre del bot del contenido
-            clean_content = re.sub(r"<@!?\d+>", "", message.content)
-            clean_content = re.compile(re.escape("dalet"), re.IGNORECASE).sub(
-                "", clean_content
-            )
-            if custom_name := bot_name if bot_name.lower() != "dalet" else None:
-                clean_content = re.compile(re.escape(custom_name), re.IGNORECASE).sub(
-                    "", clean_content
-                )
+            # Normalizar menciones numéricas de Discord a formato legible para que la IA entienda a quién se refieren
+            clean_content = message.content
+            if self.bot.user:
+                clean_content = re.sub(rf"<@!?{self.bot.user.id}>", f"@{bot_name}", clean_content)
+            # Reemplazar menciones a otros usuarios por '@usuario' para no exponer IDs crudos
+            clean_content = re.sub(r"<@!?\d+>", "@usuario", clean_content)
             clean_content = clean_content.strip() or message.content
             # Truncado de seguridad para evitar muros de texto abusivos (máx 400 caracteres)
             if len(clean_content) > 400:

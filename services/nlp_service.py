@@ -1565,11 +1565,14 @@ class NLPService:
         vision_context = f"\n[IMAGEN: {image_description}]\n" if image_description else ""
         
         context_guardrail = (
-            "\n[ATENCIÓN AL CONTEXTO: El <contexto_chat> de arriba contiene mensajes recientes del canal, que pueden ser conversaciones de OTROS usuarios ajenos a ti. "
-            f"Responde ÚNICAMENTE al 'Mensaje actual de {username}' al final. NO asumas que los mensajes de otras personas en el historial iban dirigidos a ti o que forman parte de la misma conversación, a menos que {username} los mencione explícitamente.]\n"
+            "\n[PRIORIDAD AL PRESENTE Y REGLAS DE CONTEXTO]:\n"
+            f"1. Lo prioritario y principal es el 'Mensaje actual de {username}' que está al final. Responde a lo que te dicen AHORA.\n"
+            "2. El <contexto_chat> es solo contexto de fondo. NO intentes meter a la fuerza temas viejos del historial si el usuario está diciendo algo nuevo, saludando o cambiando de tema.\n"
+            "3. Si el usuario te responde con una sola palabra o frase corta (ej. 'so', 'XD', 'qué', 'hola'), reacciona de forma natural e ingeniosa al presente, sin sobreanalizar ni inventar conexiones forzadas con mensajes pasados.\n"
+            f"4. NO asumas que los mensajes de otras personas en el historial iban dirigidos a ti a menos que {username} los mencione directamente."
         )
         
-        return f"{meta_header}{hint_str}{context_guardrail}\n<contexto_chat>\n{context}\n</contexto_chat>{shortcut_section}{vision_context}\n\nMensaje actual de {username}: {trigger}"
+        return f"{meta_header}{hint_str}{context_guardrail}\n\n<contexto_chat>\n{context}\n</contexto_chat>{shortcut_section}{vision_context}\n\nMensaje actual de {username}: {trigger}"
 
     async def _generate_deepseek_reply(
         self, trigger: str, context: str, username: str,
