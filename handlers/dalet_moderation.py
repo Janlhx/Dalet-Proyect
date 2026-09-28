@@ -63,7 +63,9 @@ class ModerationCog(commands.Cog, name="Moderación"):
                 return
 
         # 2. Escaneo de contenido (regex en texto y Gemini Vision en imágenes)
-        image_urls = ModerationService.extract_image_urls(message)
+        # En canales marcados en Discord como NSFW (18+), omitimos escaneo visual para ahorrar costos de API
+        is_nsfw_channel = getattr(message.channel, "is_nsfw", lambda: False)()
+        image_urls = [] if is_nsfw_channel else ModerationService.extract_image_urls(message)
         result = await self._mod_service.scan_message(message.content or "", image_urls)
 
         if not result.flagged:
