@@ -19,20 +19,23 @@ _ILLEGAL_PATTERNS = [
     r"pedofil(ia|e|o|os)?", r"pedo\s*porn", r"jailbait",
 ]
 
-# 2. Contenido adulto / NSFW dirigido a SPAM, enlaces y solicitudes explícitas.
-# NOTA: No bloqueamos palabras aisladas como "porno" o "xxx" para no penalizar conversaciones casuales.
+# 2. Contenido adulto / NSFW enfocado en LINKS, SPAM DE INVITACIONES y VENTA DE CONTENIDO
+# NOTA: No bloqueamos bromas de texto como "send porn" o "manden porno" ni charlas casuales.
 _ADULT_PATTERNS = [
-    # Enlaces directos a sitios web para adultos
-    r"https?://\S*(pornhub|xvideos|xnxx|redtube|onlyfans|fansly|rule34|chaturbate|cam4|brazzers|youporn)\.\S+",
-    # URLs genéricas con indicios porno
-    r"https?://\S*(nude|porn|hentai|nsfw|xxx)\S*",
-    # Solicitud y tráfico de packs / nudes / porno
-    r"\b(link|canal|server|grupo|fotos?|videos?|enlace)\s+(de\s+)?(porno?|nudes?|onlyfans|xxx|packs?)\b",
-    r"\b(send|pasen|pasame|pasa|manda|mandame|compartan|compartir)\s+(nudes?|pack|porno?|xxx)\b",
-    r"\b(pack|packs)\s+(de\s+)?(mujeres|chicas|morras|nudes?)\b",
-    r"\b(free|gratis)\s+(onlyfans|nudes?|porno?|pack)\b",
-    r"\bonlyfans\s+(leaks?|gratis|free|link|pack)\b",
-    r"\b(vendo|compro|vendo\s+contenido|contenido\s+exclusivo\s+xxx)\b",
+    # Enlaces directos a dominios de pornografía o contenido adulto
+    r"https?://\S*(?:pornhub|xvideos|xnxx|redtube|onlyfans|fansly|rule34|chaturbate|cam4|brazzers|youporn|spankbang|eporner|beeg|hqporner|nhentai|tsumino|hitomi\.la|hanime\.tv)\.\S+",
+
+    # Enlaces con rutas o palabras clave explícitas
+    r"https?://\S+/(?:porn|hentai|nsfw|nudes?|xxx|leaks?|packs?)/\S*",
+
+    # Enlaces de Telegram, Discord o Mega acompañados de palabras clave de packs/nudes/porno (Spam de bots de raid)
+    r"https?://(?:t\.me|telegram\.me|discord\.(?:gg|com/invite)|mega\.nz)/\S+[\s\S]{0,80}\b(?:nudes?|packs?|onlyfans|leaks?|porno?|xxx|contenido\s+exclusivo)\b",
+    r"\b(?:nudes?|packs?|onlyfans|leaks?|porno?|xxx|contenido\s+exclusivo)\b[\s\S]{0,80}https?://(?:t\.me|telegram\.me|discord\.(?:gg|com/invite)|mega\.nz)/\S+",
+
+    # Venta / Promoción comercial de contenido sexual o packs
+    r"\b(?:vendo|venta\s+de)\s+(?:contenido\s+(?:hot|exclusivo|xxx)|packs?|nudes?|onlyfans)\b",
+    r"\b(?:pack|packs)\s+de\s+(?:morras|chicas|mujeres|colegialas|familias)\s+(?:al\s+dm|por\s+telegram|disponibles?)\b",
+    r"\bonlyfans\s+(?:gratis|free|leaks?|filtrado)\s+https?://\S+",
 ]
 
 _ILLEGAL_RE = re.compile("|".join(_ILLEGAL_PATTERNS), re.IGNORECASE)
