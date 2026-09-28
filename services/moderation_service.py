@@ -75,13 +75,43 @@ class ModerationService:
     """
 
     SPAM_WINDOW_SEC = 60
-    SPAM_CHANNEL_THRESHOLD = 2
+    FLOOD_BURST_MAX_MSGS = 5
+    FLOOD_BURST_WINDOW_SEC = 4.0
+    FLOOD_DUP_MAX_COUNT = 3
+    FLOOD_DUP_WINDOW_SEC = 10.0
 
     def __init__(self, nlp_service):
         self._nlp = nlp_service
         self._vision_cache: dict[str, ModerationResult] = {}
         # {user_id: [(timestamp, channel_id), ...]}
         self._flag_tracker: dict[int, list[tuple[float, int]]] = defaultdict(list)
+        # {user_id: [(timestamp, channel_id, content_hash), ...]}
+        self._message_history: dict[int, list[tuple[float, int, str]]] = defaultdict(list)
+
+    def check_flood(self, user_id: int, channel_id: int, content: str) -> tuple[bool, str]:
+        """Detecta ráfagas rápidas de mensajes (>=5 msgs en 4s) o mensajes repetidos (>=3 iguales en 10s)."""
+        now = time.monotonic()
+        history = self._message_history[user_id]
+        history = [(ts, ch, h) for ts, ch, h in history if now - ts < self.FLOOD_DUP_WINDOW_SEC]
+
+        norm_content = re.sub(r"\s+", " ", (content or "").strip().lower())
+        content_hash = hashlib.md5(norm_content.encode("utf-8")).hexdigest() if norm_content else ""
+
+        history.append((now, channel_id, content_hash))
+        self._message_history[user_id] = history
+
+        # 1. Ráfaga rápida
+        recent_burst = [ts for ts, _, _ in history if now - ts <= self.FLOOD_BURST_WINDOW_SEC]
+        if len(recent_burst) >= self.FLOOD_BURST_MAX_MSGS:
+            return True, f"burst_flood:{len(recent_burst)}_msgs_in_{self.FLOOD_BURST_WINDOW_SEC}s"
+
+        # 2. Mensajes duplicados repetidos
+        if content_hash:
+            same_msgs = [ts for ts, _, h in history if h == content_hash and now - ts <= self.FLOOD_DUP_WINDOW_SEC]
+            if len(same_msgs) >= self.FLOOD_DUP_MAX_COUNT:
+                return True, f"duplicate_flood:{len(same_msgs)}_same_msgs"
+
+        return False, ""
 
     async def scan_message(self, content: str, image_urls: list[str]) -> ModerationResult:
         text_result = self._scan_text(content)

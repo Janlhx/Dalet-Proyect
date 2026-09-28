@@ -13,8 +13,16 @@ from ui.molecules import DaletMolecules
 
 logger = logging.getLogger("dalet.handlers.moderation")
 
-_SEVERITY_LABELS = {"adult": "Contenido adulto/NSFW", "illegal": "Contenido ilegal (CP/CSAM)"}
-_SEVERITY_COLORS = {"adult": DaletAtoms.COLOR_WARNING, "illegal": DaletAtoms.COLOR_ERROR}
+_SEVERITY_LABELS = {
+    "adult": "Contenido adulto/NSFW",
+    "illegal": "Contenido ilegal (CP/CSAM)",
+    "flood": "Spam / Flood de mensajes",
+}
+_SEVERITY_COLORS = {
+    "adult": DaletAtoms.COLOR_WARNING,
+    "illegal": DaletAtoms.COLOR_ERROR,
+    "flood": DaletAtoms.COLOR_PURPLE,
+}
 _ACTION_LABELS   = {"notify": "Notificar", "timeout": "Timeout", "ban": "Ban"}
 
 
@@ -38,6 +46,23 @@ class ModerationCog(commands.Cog, name="Moderación"):
         if not config or not config["enabled"]:
             return
 
+        # 1. Chequeo de Anti-Flood en memoria (Ráfagas rápidas y mensajes duplicados)
+        if self._mod_service:
+            is_flood, flood_reason = self._mod_service.check_flood(
+                message.author.id, message.channel.id, message.content or ""
+            )
+            if is_flood:
+                flood_result = ModerationResult(
+                    flagged=True,
+                    severity="flood",
+                    confidence=1.0,
+                    reason=flood_reason,
+                    method="anti_flood",
+                )
+                await self._handle_violation(message, flood_result, config, is_cross_channel_spam=False)
+                return
+
+        # 2. Escaneo de contenido (regex en texto y Gemini Vision en imágenes)
         image_urls = ModerationService.extract_image_urls(message)
         result = await self._mod_service.scan_message(message.content or "", image_urls)
 
@@ -67,6 +92,8 @@ class ModerationCog(commands.Cog, name="Moderación"):
         action = "notify"
         if result.severity == "illegal" and config.get("auto_ban_on_illegal", False):
             action = "ban"
+        elif result.severity == "flood":
+            action = "timeout"
         elif is_cross_channel_spam and config.get("action") == "notify":
             action = "timeout"
         elif config.get("action") in ("timeout", "ban"):
@@ -156,6 +183,8 @@ class ModerationCog(commands.Cog, name="Moderación"):
         mention_prefix = ""
         if result.severity == "illegal":
             mention_prefix = "🚨 **ALERTA CRÍTICA (@here)** — Se detectó y eliminó posible contenido ilegal. Revisión urgente requerida:"
+        elif result.severity == "flood":
+            mention_prefix = "⚠️ **ALERTA DE FLOOD (@here)** — Ráfaga rápida o spam de mensajes repetidos detectado:"
         elif is_spam:
             mention_prefix = "⚠️ **ALERTA DE SPAM (@here)** — Usuario detectado enviando spam en múltiples canales:"
 
