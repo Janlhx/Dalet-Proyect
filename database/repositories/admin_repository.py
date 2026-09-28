@@ -106,18 +106,33 @@ class AdminRepository(BaseRepository):
         if server_id in self._mod_cache:
             return self._mod_cache[server_id]
 
-        query = "SELECT Enabled, LogChannelID, Action, AutoBanOnIllegal, TimeoutMinutes FROM ModerationConfig WHERE ServerID = ?"
+        query = """
+            SELECT Enabled, LogChannelID, Action, AutoBanOnIllegal, TimeoutMinutes,
+                   ScanImages, AntiFlood, FilterLinks, FilterScams
+            FROM ModerationConfig WHERE ServerID = ?
+        """
         row = await self.fetch_one(query, server_id)
         if not row:
             self._mod_cache[server_id] = None
             return None
 
+        def _get_val(idx, default=None):
+            try:
+                val = row[idx]
+                return default if val is None else val
+            except (IndexError, KeyError):
+                return default
+
         cfg = {
-            "enabled": bool(row[0]),
-            "log_channel_id": row[1],
-            "action": row[2] or "notify",
-            "auto_ban_on_illegal": bool(row[3]),
-            "timeout_minutes": row[4] or 10,
+            "enabled": bool(_get_val(0, 0)),
+            "log_channel_id": _get_val(1, None),
+            "action": _get_val(2, "notify"),
+            "auto_ban_on_illegal": bool(_get_val(3, 0)),
+            "timeout_minutes": int(_get_val(4, 10)),
+            "scan_images": bool(_get_val(5, 1)),
+            "anti_flood": bool(_get_val(6, 1)),
+            "filter_links": bool(_get_val(7, 1)),
+            "filter_scams": bool(_get_val(8, 1)),
         }
         self._mod_cache[server_id] = cfg
         return cfg
@@ -130,27 +145,85 @@ class AdminRepository(BaseRepository):
         action: str = "notify",
         auto_ban_on_illegal: bool = False,
         timeout_minutes: int = 10,
+        scan_images: bool = True,
+        anti_flood: bool = True,
+        filter_links: bool = True,
+        filter_scams: bool = True,
     ):
         query = """
-            INSERT INTO ModerationConfig (ServerID, Enabled, LogChannelID, Action, AutoBanOnIllegal, TimeoutMinutes, UpdatedAt)
-            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            INSERT INTO ModerationConfig (
+                ServerID, Enabled, LogChannelID, Action, AutoBanOnIllegal, TimeoutMinutes,
+                ScanImages, AntiFlood, FilterLinks, FilterScams, UpdatedAt
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(ServerID) DO UPDATE SET
                 Enabled = excluded.Enabled,
                 LogChannelID = excluded.LogChannelID,
                 Action = excluded.Action,
                 AutoBanOnIllegal = excluded.AutoBanOnIllegal,
                 TimeoutMinutes = excluded.TimeoutMinutes,
+                ScanImages = excluded.ScanImages,
+                AntiFlood = excluded.AntiFlood,
+                FilterLinks = excluded.FilterLinks,
+                FilterScams = excluded.FilterScams,
                 UpdatedAt = CURRENT_TIMESTAMP
         """
-        res = await self.execute(query, server_id, 1 if enabled else 0, log_channel_id, action, 1 if auto_ban_on_illegal else 0, timeout_minutes)
+        res = await self.execute(
+            query,
+            server_id,
+            1 if enabled else 0,
+            log_channel_id,
+            action,
+            1 if auto_ban_on_illegal else 0,
+            timeout_minutes,
+            1 if scan_images else 0,
+            1 if anti_flood else 0,
+            1 if filter_links else 0,
+            1 if filter_scams else 0,
+        )
         self._mod_cache[server_id] = {
             "enabled": enabled,
             "log_channel_id": log_channel_id,
             "action": action,
             "auto_ban_on_illegal": auto_ban_on_illegal,
             "timeout_minutes": timeout_minutes,
+            "scan_images": scan_images,
+            "anti_flood": anti_flood,
+            "filter_links": filter_links,
+            "filter_scams": filter_scams,
         }
         return res
+
+    async def update_moderation_config(self, server_id: int, **kwargs) -> dict:
+        """Actualiza campos específicos de ModerationConfig sin sobreescribir el resto."""
+        current = await self.get_moderation_config(server_id)
+        if not current:
+            current = {
+                "enabled": True,
+                "log_channel_id": None,
+                "action": "notify",
+                "auto_ban_on_illegal": False,
+                "timeout_minutes": 10,
+                "scan_images": True,
+                "anti_flood": True,
+                "filter_links": True,
+                "filter_scams": True,
+            }
+
+        merged = {**current, **kwargs}
+        await self.set_moderation_config(
+            server_id=server_id,
+            enabled=merged["enabled"],
+            log_channel_id=merged["log_channel_id"],
+            action=merged["action"],
+            auto_ban_on_illegal=merged["auto_ban_on_illegal"],
+            timeout_minutes=merged["timeout_minutes"],
+            scan_images=merged["scan_images"],
+            anti_flood=merged["anti_flood"],
+            filter_links=merged["filter_links"],
+            filter_scams=merged["filter_scams"],
+        )
+        return merged
 
     async def log_mod_action(
         self,

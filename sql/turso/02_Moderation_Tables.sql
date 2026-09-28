@@ -9,6 +9,10 @@ CREATE TABLE IF NOT EXISTS ModerationConfig (
     Action TEXT DEFAULT 'notify',
     AutoBanOnIllegal BOOLEAN DEFAULT 1,
     TimeoutMinutes INTEGER DEFAULT 10,
+    ScanImages BOOLEAN DEFAULT 1,
+    AntiFlood BOOLEAN DEFAULT 1,
+    FilterLinks BOOLEAN DEFAULT 1,
+    FilterScams BOOLEAN DEFAULT 1,
     UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -155,6 +155,10 @@ class SQLiteManager:
                 Action TEXT DEFAULT 'notify',
                 AutoBanOnIllegal BOOLEAN DEFAULT 1,
                 TimeoutMinutes INTEGER DEFAULT 10,
+                ScanImages BOOLEAN DEFAULT 1,
+                AntiFlood BOOLEAN DEFAULT 1,
+                FilterLinks BOOLEAN DEFAULT 1,
+                FilterScams BOOLEAN DEFAULT 1,
                 UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """,
@@ -210,6 +214,16 @@ class SQLiteManager:
                 await cls._connection.commit()
             except Exception:
                 pass
+
+            # Migraciones de módulos de moderación
+            for mod_col in ["ScanImages", "AntiFlood", "FilterLinks", "FilterScams"]:
+                try:
+                    await cls._connection.execute(
+                        f"ALTER TABLE ModerationConfig ADD COLUMN {mod_col} BOOLEAN DEFAULT 1"
+                    )
+                    await cls._connection.commit()
+                except Exception:
+                    pass
 
             logger.info("Esquema de SQLite inicializado correctamente.")
         except Exception as e:

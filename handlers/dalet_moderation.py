@@ -47,7 +47,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
             return
 
         # 1. Chequeo de Anti-Flood en memoria (Ráfagas rápidas, links duplicados o misma foto repetida)
-        if self._mod_service:
+        if self._mod_service and config.get("anti_flood", True):
             att_sig = f"{message.attachments[0].filename}_{message.attachments[0].size}" if message.attachments else ""
             is_flood, flood_reason = self._mod_service.check_flood(
                 message.author.id, message.channel.id, message.content or "", attachment_sig=att_sig
@@ -66,8 +66,16 @@ class ModerationCog(commands.Cog, name="Moderación"):
         # 2. Escaneo de contenido (regex en texto y Gemini Vision en imágenes)
         # En canales marcados en Discord como NSFW (18+), omitimos escaneo visual para ahorrar costos de API
         is_nsfw_channel = getattr(message.channel, "is_nsfw", lambda: False)()
-        image_urls = [] if is_nsfw_channel else ModerationService.extract_image_urls(message)
-        result = await self._mod_service.scan_message(message.content or "", image_urls)
+        scan_images = config.get("scan_images", True) and not is_nsfw_channel
+        image_urls = ModerationService.extract_image_urls(message) if scan_images else []
+
+        result = await self._mod_service.scan_message(
+            content=message.content or "",
+            image_urls=image_urls,
+            filter_links=config.get("filter_links", True),
+            filter_scams=config.get("filter_scams", True),
+            scan_images=scan_images,
+        )
 
         if not result.flagged:
             return
@@ -197,47 +205,128 @@ class ModerationCog(commands.Cog, name="Moderación"):
             logger.warning(f"Sin permisos para enviar al canal de logs de mod ({log_channel_id})")
 
     # ------------------------------------------------------------------
-    # Slash commands de configuración
+    # Slash commands de configuración modular
     # ------------------------------------------------------------------
 
-    mod_group = app_commands.Group(name="mod", description="Configuración de auto-moderación de Dalet.")
+    mod_group = app_commands.Group(name="mod", description="Configuración granular de auto-moderación de Dalet.")
 
-    @mod_group.command(name="setup", description="Activa la moderación y configura el canal de logs.")
+    @mod_group.command(name="setup", description="Configuración completa o activación inicial de moderación.")
     @app_commands.describe(
-        log_channel="Canal donde se enviarán los reportes de moderación.",
+        log_channel="Canal donde se enviarán las alertas (opcional, default: canal actual).",
         action="Acción por defecto al detectar contenido adulto (NSFW).",
-        timeout_minutes="Duración del timeout en modo 'timeout' (default: 10).",
-        auto_ban_on_illegal="Banear automáticamente al detectar contenido ilegal/CP (default: False).",
+        timeout_minutes="Duración del timeout en modo 'timeout' (1-10080 min, default: 10).",
+        auto_ban_on_illegal="Banear automáticamente al detectar contenido ilegal (default: False).",
     )
     @app_commands.checks.has_permissions(administrator=True)
     async def mod_setup(
         self,
         interaction: discord.Interaction,
-        log_channel: discord.TextChannel,
+        log_channel: discord.TextChannel | None = None,
         action: Literal["notify", "timeout", "ban"] = "notify",
         timeout_minutes: int = 10,
         auto_ban_on_illegal: bool = False,
     ):
         await interaction.response.defer(ephemeral=True)
+        target_channel = log_channel or interaction.channel
 
-        await self.bot.admin_repo.set_moderation_config(
+        await self.bot.admin_repo.update_moderation_config(
             server_id=interaction.guild_id,
             enabled=True,
-            log_channel_id=log_channel.id,
+            log_channel_id=target_channel.id,
             action=action,
             auto_ban_on_illegal=auto_ban_on_illegal,
             timeout_minutes=max(1, min(timeout_minutes, 10080)),
         )
 
         embed = discord.Embed(
-            title=f"{DaletAtoms.EMOJI_DALET} Moderación activada",
+            title=f"{DaletAtoms.EMOJI_DALET} Moderación activada y configurada",
             color=DaletAtoms.COLOR_SUCCESS,
         )
-        embed.add_field(name="Canal de logs", value=log_channel.mention, inline=True)
+        embed.add_field(name="Canal de alertas", value=target_channel.mention, inline=True)
         embed.add_field(name="Acción NSFW", value=_ACTION_LABELS[action], inline=True)
         embed.add_field(name="Timeout", value=f"{timeout_minutes} min", inline=True)
-        embed.add_field(name="Auto-ban en CP/ilegal", value="Sí" if auto_ban_on_illegal else "No", inline=True)
-        DaletMolecules.add_standard_footer(embed, context_text="Admin")
+        embed.add_field(name="Auto-ban ilegal", value="Sí" if auto_ban_on_illegal else "No", inline=True)
+        DaletMolecules.add_standard_footer(embed, context_text="Admin • Usa /mod toggle para módulos específicos")
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    @mod_group.command(name="channel", description="Cambia solo el canal de alertas/logs de moderación.")
+    @app_commands.describe(log_channel="Nuevo canal donde se enviarán los reportes.")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def mod_channel(self, interaction: discord.Interaction, log_channel: discord.TextChannel):
+        await interaction.response.defer(ephemeral=True)
+        await self.bot.admin_repo.update_moderation_config(
+            server_id=interaction.guild_id,
+            log_channel_id=log_channel.id,
+            enabled=True,
+        )
+        await interaction.followup.send(f"✅ Canal de alertas de moderación actualizado a {log_channel.mention}.", ephemeral=True)
+
+    @mod_group.command(name="action", description="Cambia la acción para contenido NSFW (notify, timeout o ban).")
+    @app_commands.describe(action="Acción a aplicar al detectar contenido adulto.")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def mod_action(self, interaction: discord.Interaction, action: Literal["notify", "timeout", "ban"]):
+        await interaction.response.defer(ephemeral=True)
+        await self.bot.admin_repo.update_moderation_config(
+            server_id=interaction.guild_id,
+            action=action,
+        )
+        await interaction.followup.send(f"✅ Acción por defecto para NSFW cambiada a: **{_ACTION_LABELS[action]}**.", ephemeral=True)
+
+    @mod_group.command(name="timeout", description="Cambia la duración del timeout/aislamiento en minutos.")
+    @app_commands.describe(minutes="Minutos de duración del timeout (1 a 10080).")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def mod_timeout(self, interaction: discord.Interaction, minutes: int):
+        await interaction.response.defer(ephemeral=True)
+        minutes = max(1, min(minutes, 10080))
+        await self.bot.admin_repo.update_moderation_config(
+            server_id=interaction.guild_id,
+            timeout_minutes=minutes,
+        )
+        await interaction.followup.send(f"✅ Duración de timeout actualizada a: **{minutes} minutos**.", ephemeral=True)
+
+    @mod_group.command(name="toggle", description="Activa o desactiva módulos de moderación individualmente.")
+    @app_commands.describe(
+        module="Módulo a alternar: images (IA visión), flood (anti-spam), links (sitios adultos), scams (phishing/nitro).",
+        enabled="Opcional: forzar True para activar o False para desactivar.",
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    async def mod_toggle(
+        self,
+        interaction: discord.Interaction,
+        module: Literal["images", "flood", "links", "scams"],
+        enabled: bool | None = None,
+    ):
+        await interaction.response.defer(ephemeral=True)
+        cfg = await self.bot.admin_repo.get_moderation_config(interaction.guild_id)
+        if not cfg:
+            cfg = {
+                "scan_images": True,
+                "anti_flood": True,
+                "filter_links": True,
+                "filter_scams": True,
+            }
+
+        mod_map = {
+            "images": ("scan_images", "🖼️ Escaneo de imágenes (IA)"),
+            "flood": ("anti_flood", "🌊 Anti-Flood / Spam"),
+            "links": ("filter_links", "🔗 Filtro de Enlaces Adultos"),
+            "scams": ("filter_scams", "🎣 Anti-Phishing & Scams"),
+        }
+        col_name, display_name = mod_map[module]
+        new_val = (not cfg.get(col_name, True)) if enabled is None else enabled
+
+        await self.bot.admin_repo.update_moderation_config(
+            server_id=interaction.guild_id,
+            **{col_name: new_val}
+        )
+
+        state_str = "🟢 **Activado**" if new_val else "🔴 **Desactivado**"
+        embed = discord.Embed(
+            title=f"⚙️ Módulo {display_name}",
+            description=f"El módulo {display_name} ahora está {state_str}.",
+            color=DaletAtoms.COLOR_SUCCESS if new_val else DaletAtoms.COLOR_WARNING,
+        )
+        DaletMolecules.add_standard_footer(embed, context_text="Admin • /mod status para ver todos los módulos")
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @mod_group.command(name="off", description="Desactiva la auto-moderación en este servidor.")
@@ -248,34 +337,40 @@ class ModerationCog(commands.Cog, name="Moderación"):
         if not config:
             return await interaction.followup.send("La moderación no estaba configurada.", ephemeral=True)
 
-        await self.bot.admin_repo.set_moderation_config(
+        await self.bot.admin_repo.update_moderation_config(
             server_id=interaction.guild_id,
             enabled=False,
-            log_channel_id=config["log_channel_id"],
-            action=config["action"],
-            auto_ban_on_illegal=config["auto_ban_on_illegal"],
-            timeout_minutes=config["timeout_minutes"],
         )
         await interaction.followup.send("🔇 Moderación desactivada. Usa `/mod setup` para reactivarla.", ephemeral=True)
 
-    @mod_group.command(name="status", description="Muestra la configuración actual y las últimas acciones.")
+    @mod_group.command(name="status", description="Muestra la configuración granular y módulos activos.")
     @app_commands.checks.has_permissions(manage_messages=True)
     async def mod_status(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         config = await self.bot.admin_repo.get_moderation_config(interaction.guild_id)
 
-        embed = discord.Embed(title="🛡️ Estado de la Moderación", color=DaletAtoms.COLOR_INFO)
+        embed = discord.Embed(title="🛡️ Estado de la Auto-Moderación", color=DaletAtoms.COLOR_INFO)
 
         if not config or not config["enabled"]:
-            embed.description = "La auto-moderación está **desactivada**. Usa `/mod setup` para activarla."
+            embed.description = "La auto-moderación está **desactivada** en este servidor.\nUsa `/mod setup` para activarla con un clic."
             return await interaction.followup.send(embed=embed, ephemeral=True)
 
-        log_ch = interaction.guild.get_channel(config["log_channel_id"])
-        embed.add_field(name="Estado", value="✅ Activa", inline=True)
-        embed.add_field(name="Canal de logs", value=log_ch.mention if log_ch else "Sin canal", inline=True)
-        embed.add_field(name="Acción NSFW", value=_ACTION_LABELS.get(config["action"], config["action"]), inline=True)
-        embed.add_field(name="Auto-ban ilegal", value="Sí" if config["auto_ban_on_illegal"] else "No", inline=True)
-        embed.add_field(name="Timeout", value=f"{config['timeout_minutes']} min", inline=True)
+        log_ch = interaction.guild.get_channel(config.get("log_channel_id") or 0)
+        embed.add_field(name="Estado General", value="🟢 Activa", inline=True)
+        embed.add_field(name="Canal de Alertas", value=log_ch.mention if log_ch else "⚠️ Sin canal", inline=True)
+        embed.add_field(name="Acción Adulto (NSFW)", value=_ACTION_LABELS.get(config["action"], config["action"]), inline=True)
+        embed.add_field(name="Duración Timeout", value=f"{config['timeout_minutes']} min", inline=True)
+        embed.add_field(name="Auto-ban en Ilegal", value="Sí" if config["auto_ban_on_illegal"] else "No (Alertar)", inline=True)
+
+        # Módulos granulares
+        modules_lines = [
+            f"{'🟢' if config.get('scan_images', True) else '🔴'} **Imágenes (IA Visión):** {'Activo' if config.get('scan_images', True) else 'Desactivado'}",
+            f"{'🟢' if config.get('anti_flood', True) else '🔴'} **Anti-Flood / Ráfagas:** {'Activo' if config.get('anti_flood', True) else 'Desactivado'}",
+            f"{'🟢' if config.get('filter_links', True) else '🔴'} **Filtro Enlaces Adultos:** {'Activo' if config.get('filter_links', True) else 'Desactivado'}",
+            f"{'🟢' if config.get('filter_scams', True) else '🔴'} **Anti-Phishing & Scams:** {'Activo' if config.get('filter_scams', True) else 'Desactivado'}",
+            "🛡️ **Protección Ilegal (CSAM):** 🟢 Siempre Activa",
+        ]
+        embed.add_field(name="🧩 Módulos Granulares", value="\n".join(modules_lines), inline=False)
 
         recent = await self.bot.admin_repo.get_recent_mod_actions(interaction.guild_id, limit=5)
         if recent:
@@ -283,12 +378,16 @@ class ModerationCog(commands.Cog, name="Moderación"):
                 f"`{r['UserName']}` — {r['Severity']} — {r['ActionTaken']} ({r['OccurredAt'][:16]})"
                 for r in recent
             ]
-            embed.add_field(name="Últimas acciones", value="\n".join(lines), inline=False)
+            embed.add_field(name="📋 Últimas acciones", value="\n".join(lines), inline=False)
 
-        DaletMolecules.add_standard_footer(embed, context_text="Admin")
+        DaletMolecules.add_standard_footer(embed, context_text="Admin • Usa /mod toggle <modulo> para cambiar")
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @mod_setup.error
+    @mod_channel.error
+    @mod_action.error
+    @mod_timeout.error
+    @mod_toggle.error
     @mod_off.error
     @mod_status.error
     async def mod_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
@@ -297,7 +396,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
         else:
             logger.error(f"Error en comando /mod: {error}")
             if not interaction.response.is_done():
-                await interaction.response.send_message("❌ Error inesperado.", ephemeral=True)
+                await interaction.response.send_message("❌ Error inesperado al procesar el comando.", ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

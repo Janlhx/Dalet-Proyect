@@ -11,10 +11,8 @@ from collections import defaultdict
 
 logger = logging.getLogger("dalet.services.moderation")
 
-# 1. Contenido ilegal y de alto riesgo - Cero tolerancia y alerta urgente @here
-# Cubre: CSAM/CP contextual, Phishing de cuentas (Nitro/Steam), Token Stealers, Carding/Doxxing y Tráfico ilícito.
-_ILLEGAL_PATTERNS = [
-    # A. Abuso y explotación infantil (CSAM / CP)
+# 1. Protección estricta y de máxima prioridad - Cero tolerancia
+_CSAM_PATTERNS = [
     r"\bcsam\b",
     r"child\s*(?:porn|sex|nud|exploit)",
     r"kiddie\s*porn",
@@ -27,40 +25,35 @@ _ILLEGAL_PATTERNS = [
     r"\b(?:link|enlace|video|fotos?|pack|packs|trade|pasar|pasen|pasa|manda|mandame|vendo|venta|tengo|busco|intercambio|carpeta|mega|drive|telegram)\s+(?:de\s+)?cp\b",
     r"\bcp\s+(?:gratis|mega|drive|telegram|pack|packs|links?|videos?|fotos?)\b",
     r"\btr[áa]fico\s+(?:de\s+)?cp\b",
+]
 
-    # B. Phishing de Discord Nitro y Steam (Robo de cuentas y Stealers)
-    r"https?://\S*(?:dis(?:c|k)or(?:d|t)[a-z0-9-]*nitro|nitro[a-z0-9-]*discord|steamcommuni[a-z0-9-]+|steam[a-z0-9-]*(?:gift|nitro|trade))\.\S+",
+# 2. Phishing, Robos de cuenta, Stealers y Tráfico Ilícito (Módulo Scams)
+_SCAM_PATTERNS = [
+    r"https?://[^\s/]*(?:dis(?:c|k)or(?:d|t)[a-z0-9-]*nitro|nitro[a-z0-9-]*discord|steamcommuni[a-z0-9-]+|steam[a-z0-9-]*(?:gift|nitro|trade))[^\s/]*\.\S+",
     r"\b(?:token\s+stealer|grabber\s+de\s+tokens?|grabber\s+de\s+discord|stealer\s+de\s+passwords?)\b",
-
-    # C. Carding, Doxxing y Venta de Datos Financieros Robados
     r"\b(?:vendo|venta\s+de)\s+(?:tarjetas?\s+clonadas?|cc\s+clonadas?|bins?\s+activos?|cuentas\s+bancarias\s+hackeadas?)\b",
     r"\b(?:doxxeo|doxxear|doxxing)\s+(?:a|de)\s+(?:este|esta|algun|alguien|\S+)\b",
-
-    # D. Tráfico ilícito de drogas o armas de fuego en Discord
     r"\b(?:vendo|venta\s+de)\s+(?:drogas?|coca[ií]na|metanfetamina|armas?\s+de\s+fuego|tussi)\b",
 ]
 
-# 2. Contenido adulto / NSFW enfocado en LINKS, SPAM DE INVITACIONES y VENTA DE CONTENIDO
-# NOTA: No bloqueamos bromas de texto como "send porn" o "manden porno" ni charlas casuales.
+# 3. Contenido adulto / NSFW enfocado en LINKS, SPAM DE INVITACIONES y VENTA DE CONTENIDO (Módulo Links)
 _ADULT_PATTERNS = [
     # Enlaces directos a dominios de pornografía o contenido adulto
-    r"https?://\S*(?:pornhub|xvideos|xnxx|redtube|onlyfans|fansly|rule34|chaturbate|cam4|brazzers|youporn|spankbang|eporner|beeg|hqporner|nhentai|tsumino|hitomi\.la|hanime\.tv)\.\S+",
-
+    r"https?://[^\s/]*(?:pornhub|xvideos|xnxx|redtube|onlyfans|fansly|rule34|chaturbate|cam4|brazzers|youporn|spankbang|eporner|beeg|hqporner|nhentai|tsumino|hitomi|hanime)\.[a-z]{2,}(?:/\S*)?",
     # Enlaces con rutas o palabras clave explícitas
     r"https?://\S+/(?:porn|hentai|nsfw|nudes?|xxx|leaks?|packs?)/\S*",
-
     # Enlaces de Telegram, Discord o Mega acompañados de palabras clave de packs/nudes/porno (Spam de bots de raid)
     r"https?://(?:t\.me|telegram\.me|discord\.(?:gg|com/invite)|mega\.nz)/\S+[\s\S]{0,80}\b(?:nudes?|packs?|onlyfans|leaks?|porno?|xxx|contenido\s+exclusivo)\b",
     r"\b(?:nudes?|packs?|onlyfans|leaks?|porno?|xxx|contenido\s+exclusivo)\b[\s\S]{0,80}https?://(?:t\.me|telegram\.me|discord\.(?:gg|com/invite)|mega\.nz)/\S+",
-
     # Venta / Promoción comercial de contenido sexual o packs
     r"\b(?:vendo|venta\s+de)\s+(?:contenido\s+(?:hot|exclusivo|xxx)|packs?|nudes?|onlyfans)\b",
     r"\b(?:pack|packs)\s+de\s+(?:morras|chicas|mujeres|colegialas|familias)\s+(?:al\s+dm|por\s+telegram|disponibles?)\b",
     r"\bonlyfans\s+(?:gratis|free|leaks?|filtrado)\s+https?://\S+",
 ]
 
-_ILLEGAL_RE = re.compile("|".join(_ILLEGAL_PATTERNS), re.IGNORECASE)
-_ADULT_RE   = re.compile("|".join(_ADULT_PATTERNS), re.IGNORECASE)
+_CSAM_RE  = re.compile("|".join(_CSAM_PATTERNS), re.IGNORECASE)
+_SCAM_RE  = re.compile("|".join(_SCAM_PATTERNS), re.IGNORECASE)
+_ADULT_RE = re.compile("|".join(_ADULT_PATTERNS), re.IGNORECASE)
 
 _IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".heic"}
 
@@ -135,12 +128,19 @@ class ModerationService:
 
         return False, ""
 
-    async def scan_message(self, content: str, image_urls: list[str]) -> ModerationResult:
-        text_result = self._scan_text(content)
+    async def scan_message(
+        self,
+        content: str,
+        image_urls: list[str] = None,
+        filter_links: bool = True,
+        filter_scams: bool = True,
+        scan_images: bool = True,
+    ) -> ModerationResult:
+        text_result = self._scan_text(content, filter_links=filter_links, filter_scams=filter_scams)
         if text_result.flagged:
             return text_result
 
-        if image_urls:
+        if scan_images and image_urls:
             return await self._scan_image(image_urls[0])
 
         return ModerationResult(False, "safe", 1.0, "", "none")
@@ -155,17 +155,26 @@ class ModerationService:
         unique_channels = {ch for _, ch in events}
         return len(unique_channels) >= self.SPAM_CHANNEL_THRESHOLD
 
-    def _scan_text(self, content: str) -> ModerationResult:
+    def _scan_text(self, content: str, filter_links: bool = True, filter_scams: bool = True) -> ModerationResult:
         if not content:
             return ModerationResult(False, "safe", 1.0, "", "text_regex")
 
-        if _ILLEGAL_RE.search(content):
-            match = _ILLEGAL_RE.search(content)
-            return ModerationResult(True, "illegal", 1.0, f"keyword: {match.group()}", "text_regex")
+        # 1. CSAM / CP (Cero tolerancia, siempre activo)
+        match_csam = _CSAM_RE.search(content)
+        if match_csam:
+            return ModerationResult(True, "illegal", 1.0, f"keyword: {match_csam.group()}", "text_regex")
 
-        if _ADULT_RE.search(content):
-            match = _ADULT_RE.search(content)
-            return ModerationResult(True, "adult", 0.95, f"keyword: {match.group()}", "text_regex")
+        # 2. Phishing, Nitro/Steam scams, stealers, carding, tráfico ilícito (Módulo Scams)
+        if filter_scams:
+            match_scam = _SCAM_RE.search(content)
+            if match_scam:
+                return ModerationResult(True, "illegal", 1.0, f"scam: {match_scam.group()}", "text_regex")
+
+        # 3. Enlaces directos a sitios adultos, pornografía o packs (Módulo Links)
+        if filter_links:
+            match_adult = _ADULT_RE.search(content)
+            if match_adult:
+                return ModerationResult(True, "adult", 0.95, f"keyword: {match_adult.group()}", "text_regex")
 
         return ModerationResult(False, "safe", 1.0, "", "text_regex")
 
