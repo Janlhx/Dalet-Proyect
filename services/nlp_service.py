@@ -654,7 +654,7 @@ class NLPService:
                 "errors": self.telemetry["deepseek"]["errors"]
             },
             "gemini": {
-                "model": os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip(),
+                "model": os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip(),
                 "healthy": self._is_gemini_healthy(),
                 "cooldown_remaining": max(0, int(self._gemini_cooldown_until - now)),
                 "requests": self.telemetry["gemini"]["requests"],
@@ -1788,10 +1788,10 @@ class NLPService:
 
         prompt = self._format_user_prompt_with_context(trigger, context, username, image_description, **kwargs)
 
-        # Cadena de modelos de Gemini (1.5-flash y 2.5-flash)
-        primary_model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip()
+        # Cadena de modelos de Gemini
+        primary_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
         models_to_try = [primary_model]
-        for fallback_m in ("gemini-1.5-flash", "gemini-2.5-flash"):
+        for fallback_m in ("gemini-3.8-flash", "gemini-2.5-flash"):
             if fallback_m not in models_to_try:
                 models_to_try.append(fallback_m)
 
@@ -2127,7 +2127,7 @@ class NLPService:
             return self._vision_cache[url_hash]
 
         try:
-            model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip()
+            model_name = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
 
             # Descarga de imagen con timeout de 5 segundos
             resp = await self._http_client.get(url, timeout=5.0)

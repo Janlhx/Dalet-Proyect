@@ -135,7 +135,7 @@ class ModerationService:
             from google.genai import types
             image_part = types.Part.from_bytes(data=resp.content, mime_type=mime)
 
-            model_name = __import__("os").getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+            model_name = __import__("os").getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
 
             # Intentar deshabilitar bloqueos agresivos para que Gemini analice y nos entregue el JSON
             gen_config = None

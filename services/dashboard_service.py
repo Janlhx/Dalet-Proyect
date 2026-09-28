@@ -91,7 +91,7 @@ class DashboardService:
                     "errors": ds_data.get("errors", 0)
                 },
                 "gemini": {
-                    "model": os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip(),
+                    "model": os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip(),
                     "healthy": True,
                     "cooldown_remaining": 0,
                     "requests": gem_data.get("requests", 0),
