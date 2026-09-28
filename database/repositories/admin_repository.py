@@ -128,7 +128,7 @@ class AdminRepository(BaseRepository):
         enabled: bool,
         log_channel_id: int | None,
         action: str = "notify",
-        auto_ban_on_illegal: bool = True,
+        auto_ban_on_illegal: bool = False,
         timeout_minutes: int = 10,
     ):
         query = """

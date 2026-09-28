@@ -65,9 +65,11 @@ class ModerationCog(commands.Cog, name="Moderación"):
             pass
 
         action = "notify"
-        if result.severity == "illegal" and config["auto_ban_on_illegal"]:
+        if result.severity == "illegal" and config.get("auto_ban_on_illegal", False):
             action = "ban"
-        elif is_cross_channel_spam or config["action"] in ("timeout", "ban"):
+        elif is_cross_channel_spam and config.get("action") == "notify":
+            action = "timeout"
+        elif config.get("action") in ("timeout", "ban"):
             action = config["action"]
 
         action_taken = await self._apply_action(author, guild, action, config["timeout_minutes"], result.severity)
@@ -151,8 +153,14 @@ class ModerationCog(commands.Cog, name="Moderación"):
 
         DaletMolecules.add_standard_footer(embed, context_text="Auto-mod")
 
+        mention_prefix = ""
+        if result.severity == "illegal":
+            mention_prefix = "🚨 **ALERTA CRÍTICA (@here)** — Se detectó y eliminó posible contenido ilegal. Revisión urgente requerida:"
+        elif is_spam:
+            mention_prefix = "⚠️ **ALERTA DE SPAM (@here)** — Usuario detectado enviando spam en múltiples canales:"
+
         try:
-            await channel.send(embed=embed)
+            await channel.send(content=mention_prefix or None, embed=embed)
         except discord.Forbidden:
             logger.warning(f"Sin permisos para enviar al canal de logs de mod ({log_channel_id})")
 
@@ -167,7 +175,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
         log_channel="Canal donde se enviarán los reportes de moderación.",
         action="Acción por defecto al detectar contenido adulto (NSFW).",
         timeout_minutes="Duración del timeout en modo 'timeout' (default: 10).",
-        auto_ban_on_illegal="Banear automáticamente al detectar contenido ilegal/CP.",
+        auto_ban_on_illegal="Banear automáticamente al detectar contenido ilegal/CP (default: False).",
     )
     @app_commands.checks.has_permissions(administrator=True)
     async def mod_setup(
@@ -176,7 +184,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
         log_channel: discord.TextChannel,
         action: Literal["notify", "timeout", "ban"] = "notify",
         timeout_minutes: int = 10,
-        auto_ban_on_illegal: bool = True,
+        auto_ban_on_illegal: bool = False,
     ):
         await interaction.response.defer(ephemeral=True)
 
