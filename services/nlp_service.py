@@ -2117,7 +2117,7 @@ class NLPService:
 
     async def _get_images_description(self, image_urls: list) -> str:
         """Describe una imagen usando el modelo principal con timeout estricto y caché en RAM."""
-        if not self.gemini_api_key or not self.client or not image_urls:
+        if not self.gemini_api_key or not image_urls:
             return ""
 
         url = image_urls[0]
@@ -2139,30 +2139,30 @@ class NLPService:
             if not raw_mime.startswith('image/'):
                 raw_mime = 'image/jpeg'
 
-            image_part = types.Part.from_bytes(
-                data=resp.content,
-                mime_type=raw_mime
-            )
-
-            # Inferencia de visión con timeout de 7 segundos
-            res = await asyncio.wait_for(
-                self.client.aio.models.generate_content(
-                    model=model_name,
-                    contents=[
-                        "Describe brevemente esta imagen en 40 palabras o menos. "
-                        "Enfócate en el contenido principal y texto visible.",
-                        image_part
+            import base64
+            b64_img = base64.b64encode(resp.content).decode('utf-8')
+            gem_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={self.gemini_api_key}"
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {"text": "Describe brevemente esta imagen en 40 palabras o menos. Enfócate en el contenido principal y texto visible."},
+                        {"inline_data": {"mime_type": raw_mime, "data": b64_img}}
                     ]
-                ),
-                timeout=7.0
-            )
+                }],
+                "generationConfig": {"temperature": 0.2, "maxOutputTokens": 100}
+            }
 
-            if res and res.text:
-                desc = res.text.strip()
-                if len(self._vision_cache) > 50:
-                    self._vision_cache.clear()
-                self._vision_cache[url_hash] = desc
-                return desc
+            res = await self._http_client.post(gem_url, json=payload, timeout=8.0)
+            if res.status_code == 200:
+                cand = res.json().get("candidates", [])
+                if cand:
+                    parts = cand[0].get("content", {}).get("parts", [])
+                    if parts and "text" in parts[0]:
+                        desc = parts[0]["text"].strip()
+                        if len(self._vision_cache) > 50:
+                            self._vision_cache.clear()
+                        self._vision_cache[url_hash] = desc
+                        return desc
 
             return ""
 

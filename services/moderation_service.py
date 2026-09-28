@@ -1,5 +1,7 @@
+import os
 import re
 import json
+import base64
 import asyncio
 import hashlib
 import logging
@@ -113,9 +115,10 @@ class ModerationService:
         return ModerationResult(False, "safe", 1.0, "", "text_regex")
 
     async def _scan_image(self, url: str) -> ModerationResult:
-        if not self._nlp or not getattr(self._nlp, "client", None):
-            logger.warning("Moderación de imagen omitida: NLPService / cliente Gemini no disponible.")
-            return ModerationResult(False, "safe", 1.0, "vision_unavailable", "gemini_vision")
+        api_key = (getattr(self._nlp, "gemini_api_key", None) or os.getenv("GEMINI_API_KEY") or "").strip()
+        if not api_key:
+            logger.warning("Moderación de imagen omitida: GEMINI_API_KEY no configurada.")
+            return ModerationResult(False, "safe", 1.0, "no_api_key", "gemini_vision")
 
         url_hash = hashlib.md5(url.encode()).hexdigest()
         if url_hash in self._vision_cache:
@@ -123,95 +126,92 @@ class ModerationService:
 
         try:
             logger.info(f"Escaneando imagen con Gemini Vision: {url[:80]}...")
-            resp = await self._nlp._http_client.get(url, timeout=6.0)
-            if resp.status_code != 200:
-                logger.warning(f"Error descargando imagen para mod (HTTP {resp.status_code})")
-                return ModerationResult(False, "safe", 1.0, "download_failed", "gemini_vision")
+            http_client = getattr(self._nlp, "_http_client", None)
+            close_client = False
+            if not http_client:
+                import httpx
+                http_client = httpx.AsyncClient(timeout=15.0)
+                close_client = True
 
-            mime = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
-            if not mime.startswith("image/"):
-                mime = "image/jpeg"
-
-            from google.genai import types
-            image_part = types.Part.from_bytes(data=resp.content, mime_type=mime)
-
-            model_name = __import__("os").getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
-
-            # Intentar deshabilitar bloqueos agresivos para que Gemini analice y nos entregue el JSON
-            gen_config = None
             try:
-                gen_config = types.GenerateContentConfig(
-                    temperature=0.1,
-                    safety_settings=[
-                        types.SafetySetting(
-                            category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                            threshold=types.HarmBlockThreshold.BLOCK_NONE,
-                        ),
-                        types.SafetySetting(
-                            category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
-                            threshold=types.HarmBlockThreshold.BLOCK_NONE,
-                        ),
-                        types.SafetySetting(
-                            category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                            threshold=types.HarmBlockThreshold.BLOCK_NONE,
-                        ),
-                        types.SafetySetting(
-                            category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                            threshold=types.HarmBlockThreshold.BLOCK_NONE,
-                        ),
-                    ]
-                )
-            except Exception as conf_err:
-                logger.debug(f"Configuración de safety_settings personalizada no soportada: {conf_err}")
+                resp = await http_client.get(url, timeout=7.0)
+                if resp.status_code != 200:
+                    logger.warning(f"Error descargando imagen para mod (HTTP {resp.status_code})")
+                    return ModerationResult(False, "safe", 1.0, "download_failed", "gemini_vision")
 
-            raw = await asyncio.wait_for(
-                self._nlp.client.aio.models.generate_content(
-                    model=model_name,
-                    contents=[_VISION_SAFETY_PROMPT, image_part],
-                    config=gen_config,
-                ),
-                timeout=9.0,
-            )
+                mime = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
+                if not mime.startswith("image/"):
+                    mime = "image/jpeg"
 
-            # 1. Comprobar si Google bloqueó la generación por filtros de seguridad internos (p. ej. pornografía dura o CSAM)
-            if raw and raw.candidates:
-                cand = raw.candidates[0]
-                finish_reason = getattr(cand, "finish_reason", None)
-                if finish_reason and "SAFETY" in str(finish_reason).upper():
-                    logger.warning(f"Gemini bloqueó la imagen por FinishReason.SAFETY ({finish_reason}). Marcada como explícita.")
-                    result = ModerationResult(True, "adult", 1.0, "gemini_safety_block", "gemini_vision")
-                    self._cache_result(url_hash, result)
-                    return result
+                b64_data = base64.b64encode(resp.content).decode("utf-8")
+                model_name = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
 
-                # Revisar ratings de severidad alta
-                for rating in getattr(cand, "safety_ratings", []) or []:
-                    cat = str(getattr(rating, "category", "")).upper()
-                    prob = str(getattr(rating, "probability", "")).upper()
-                    if "SEXUALLY_EXPLICIT" in cat and prob in ("HIGH", "MEDIUM"):
-                        logger.warning(f"Gemini detectó probabilidad {prob} de contenido explícito.")
-                        result = ModerationResult(True, "adult", 0.95, f"safety_rating:{prob}", "gemini_vision")
+                gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+                payload = {
+                    "contents": [{
+                        "parts": [
+                            {"text": _VISION_SAFETY_PROMPT},
+                            {"inline_data": {"mime_type": mime, "data": b64_data}}
+                        ]
+                    }],
+                    "generationConfig": {
+                        "temperature": 0.1
+                    }
+                }
+
+                gem_resp = await http_client.post(gemini_url, json=payload, timeout=12.0)
+
+                # 1. Comprobar si Google respondió 200 OK
+                if gem_resp.status_code == 200:
+                    data = gem_resp.json()
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        cand = candidates[0]
+                        finish_reason = cand.get("finishReason", "")
+                        if "SAFETY" in finish_reason.upper():
+                            logger.warning(f"Gemini bloqueó la imagen por finishReason: {finish_reason}. Marcada como explícita.")
+                            result = ModerationResult(True, "adult", 1.0, "gemini_safety_block", "gemini_vision")
+                            self._cache_result(url_hash, result)
+                            return result
+
+                        for rating in cand.get("safetyRatings", []):
+                            cat = rating.get("category", "")
+                            prob = rating.get("probability", "")
+                            if "SEXUALLY_EXPLICIT" in cat and prob in ("HIGH", "MEDIUM"):
+                                logger.warning(f"Gemini detectó probabilidad {prob} de contenido explícito.")
+                                result = ModerationResult(True, "adult", 0.95, f"safety_rating:{prob}", "gemini_vision")
+                                self._cache_result(url_hash, result)
+                                return result
+
+                        parts = cand.get("content", {}).get("parts", [])
+                        if parts and "text" in parts[0]:
+                            raw_text = parts[0]["text"]
+                            result = self._parse_vision_response(raw_text)
+                            logger.info(f"Resultado escaneo de imagen: flagged={result.flagged}, severity={result.severity}, reason={result.reason}")
+                            self._cache_result(url_hash, result)
+                            return result
+
+                # 2. Si Google bloqueó por HTTP 400/403 debido a filtros de seguridad
+                elif gem_resp.status_code in (400, 403):
+                    err_text = gem_resp.text.lower()
+                    if "safety" in err_text or "blocked" in err_text:
+                        logger.warning(f"Google bloqueó la solicitud por seguridad (HTTP {gem_resp.status_code}): Marcada como explícita.")
+                        result = ModerationResult(True, "adult", 1.0, "gemini_safety_http_block", "gemini_vision")
                         self._cache_result(url_hash, result)
                         return result
+                    logger.error(f"Error HTTP de Gemini API ({gem_resp.status_code}): {gem_resp.text[:200]}")
 
-            # 2. Parsear el JSON textual devuelto por Gemini
-            raw_text = ""
-            try:
-                raw_text = raw.text or ""
-            except Exception as text_err:
-                err_str = str(text_err).lower()
-                if "safety" in err_str or "blocked" in err_str:
-                    logger.warning(f"Acceso a raw.text bloqueado por safety: {text_err}. Marcada como explícita.")
-                    result = ModerationResult(True, "adult", 1.0, "gemini_safety_block", "gemini_vision")
-                    self._cache_result(url_hash, result)
-                    return result
+                else:
+                    logger.error(f"Gemini API returned status {gem_resp.status_code}: {gem_resp.text[:200]}")
 
-            result = self._parse_vision_response(raw_text)
-            logger.info(f"Resultado de escaneo de imagen: flagged={result.flagged}, severity={result.severity}, reason={result.reason}")
-            self._cache_result(url_hash, result)
-            return result
+            finally:
+                if close_client:
+                    await http_client.aclose()
+
+            return ModerationResult(False, "safe", 1.0, "scan_failed", "gemini_vision")
 
         except asyncio.TimeoutError:
-            logger.warning("Timeout en vision scan de moderación (Gemini excedió 9s).")
+            logger.warning("Timeout en vision scan de moderación (Gemini excedió tiempo límite).")
             return ModerationResult(False, "safe", 1.0, "timeout", "gemini_vision")
         except Exception as e:
             err_msg = str(e).lower()
