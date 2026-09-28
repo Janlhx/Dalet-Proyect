@@ -88,14 +88,15 @@ class ModerationService:
         # {user_id: [(timestamp, channel_id, content_hash), ...]}
         self._message_history: dict[int, list[tuple[float, int, str]]] = defaultdict(list)
 
-    def check_flood(self, user_id: int, channel_id: int, content: str) -> tuple[bool, str]:
-        """Detecta ráfagas rápidas de mensajes (>=5 msgs en 4s) o mensajes repetidos (>=3 iguales en 10s)."""
+    def check_flood(self, user_id: int, channel_id: int, content: str, attachment_sig: str = "") -> tuple[bool, str]:
+        """Detecta ráfagas rápidas de mensajes (>=5 msgs en 4s) o mensajes repetidos (>=3 iguales en 10s, texto o imagen)."""
         now = time.monotonic()
         history = self._message_history[user_id]
         history = [(ts, ch, h) for ts, ch, h in history if now - ts < self.FLOOD_DUP_WINDOW_SEC]
 
         norm_content = re.sub(r"\s+", " ", (content or "").strip().lower())
-        content_hash = hashlib.md5(norm_content.encode("utf-8")).hexdigest() if norm_content else ""
+        sig = norm_content or attachment_sig
+        content_hash = hashlib.md5(sig.encode("utf-8")).hexdigest() if sig else ""
 
         history.append((now, channel_id, content_hash))
         self._message_history[user_id] = history

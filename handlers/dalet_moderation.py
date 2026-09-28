@@ -46,10 +46,11 @@ class ModerationCog(commands.Cog, name="Moderación"):
         if not config or not config["enabled"]:
             return
 
-        # 1. Chequeo de Anti-Flood en memoria (Ráfagas rápidas y mensajes duplicados)
+        # 1. Chequeo de Anti-Flood en memoria (Ráfagas rápidas, links duplicados o misma foto repetida)
         if self._mod_service:
+            att_sig = f"{message.attachments[0].filename}_{message.attachments[0].size}" if message.attachments else ""
             is_flood, flood_reason = self._mod_service.check_flood(
-                message.author.id, message.channel.id, message.content or ""
+                message.author.id, message.channel.id, message.content or "", attachment_sig=att_sig
             )
             if is_flood:
                 flood_result = ModerationResult(
