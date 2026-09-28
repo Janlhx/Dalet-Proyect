@@ -110,23 +110,63 @@ class UserRepository(BaseRepository):
         self._cache.pop(f"proactive_{channel_id}", None)
         return res
 
-    async def add_user_memory(self, user_id, user_name, content, topic="general"):
+    async def ensure_memories_schema(self):
+        """Asegura que la tabla UserMemories y las columnas nuevas existan."""
+        create_query = """
+            CREATE TABLE IF NOT EXISTS UserMemories (
+                MemoryID INTEGER PRIMARY KEY AUTOINCREMENT,
+                UserID INTEGER NOT NULL,
+                Topic TEXT DEFAULT 'general',
+                Content TEXT NOT NULL,
+                UserMessage TEXT,
+                DaletThought TEXT,
+                Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        await self.execute(create_query)
+        for col in ["UserMessage", "DaletThought"]:
+            try:
+                await self.execute(f"ALTER TABLE UserMemories ADD COLUMN {col} TEXT")
+            except Exception:
+                pass
+
+    async def add_user_memory(
+        self,
+        user_id: int,
+        user_name: str,
+        content: str,
+        topic: str = "general",
+        user_message: str | None = None,
+        dalet_thought: str | None = None,
+    ):
         # Asegurar usuario
         await self.execute(
             "INSERT INTO Users (UserID, UserName) VALUES (?, ?) ON CONFLICT(UserID) DO UPDATE SET UserName = excluded.UserName",
             user_id, user_name
         )
         res = await self.execute(
-            "INSERT INTO UserMemories (UserID, Topic, Content) VALUES (?, ?, ?)",
-            user_id, topic, content
+            "INSERT INTO UserMemories (UserID, Topic, Content, UserMessage, DaletThought) VALUES (?, ?, ?, ?, ?)",
+            user_id, topic, content, user_message, dalet_thought
         )
+        if res is None:
+            res = await self.execute(
+                "INSERT INTO UserMemories (UserID, Topic, Content) VALUES (?, ?, ?)",
+                user_id, topic, content
+            )
         self._cache.pop(f"memories_{user_id}", None)
         return res
 
     async def get_all_user_memories(self, user_id: int):
         async def _fetch(uid):
-            query = "SELECT Topic as topic, Content as content FROM UserMemories WHERE UserID = ? ORDER BY Timestamp DESC LIMIT 20"
-            return await self.fetch_all(query, uid)
+            query = """
+                SELECT Topic as topic, Content as content, UserMessage as user_message, DaletThought as dalet_thought, Timestamp as timestamp
+                FROM UserMemories WHERE UserID = ? ORDER BY Timestamp DESC LIMIT 25
+            """
+            rows = await self.fetch_all(query, uid)
+            if not rows:
+                fallback_query = "SELECT Topic as topic, Content as content FROM UserMemories WHERE UserID = ? ORDER BY Timestamp DESC LIMIT 25"
+                rows = await self.fetch_all(fallback_query, uid)
+            return rows
             
         return await self._get_cached(f"memories_{user_id}", _fetch, user_id)
 

@@ -177,6 +177,18 @@ class SQLiteManager:
                 OccurredAt DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """,
+            # Recuerdos y conclusiones sobre los usuarios
+            """
+            CREATE TABLE IF NOT EXISTS UserMemories (
+                MemoryID INTEGER PRIMARY KEY AUTOINCREMENT,
+                UserID INTEGER NOT NULL,
+                Topic TEXT DEFAULT 'general',
+                Content TEXT NOT NULL,
+                UserMessage TEXT,
+                DaletThought TEXT,
+                Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
             # Índices de rendimiento para consultas concurrentes de contexto y telemetría
             "CREATE INDEX IF NOT EXISTS idx_msg_channel ON Messages(ChannelID)",
             "CREATE INDEX IF NOT EXISTS idx_msg_timestamp ON Messages(Timestamp DESC)",
@@ -188,6 +200,7 @@ class SQLiteManager:
             "CREATE INDEX IF NOT EXISTS idx_feedback_time ON Feedbacks(CreatedAt DESC)",
             "CREATE INDEX IF NOT EXISTS idx_modactions_server ON ModActions(ServerID, OccurredAt DESC)",
             "CREATE INDEX IF NOT EXISTS idx_modactions_user ON ModActions(UserID, OccurredAt DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_usermemories_user ON UserMemories(UserID, Timestamp DESC)",
         ]
 
         try:
@@ -220,6 +233,16 @@ class SQLiteManager:
                 try:
                     await cls._connection.execute(
                         f"ALTER TABLE ModerationConfig ADD COLUMN {mod_col} BOOLEAN DEFAULT 1"
+                    )
+                    await cls._connection.commit()
+                except Exception:
+                    pass
+
+            # Migraciones de recuerdos de usuario (mensaje y pensamiento de Dalet)
+            for mem_col in ["UserMessage", "DaletThought"]:
+                try:
+                    await cls._connection.execute(
+                        f"ALTER TABLE UserMemories ADD COLUMN {mem_col} TEXT"
                     )
                     await cls._connection.commit()
                 except Exception:

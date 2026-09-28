@@ -37,6 +37,13 @@ class DaletNLPChat(commands.Cog):
         self.reactive_sessions: TTLCache = TTLCache(maxsize=2000, ttl=7200)
         self.recent_user_messages: TTLCache = TTLCache(maxsize=5000, ttl=300)
 
+    async def cog_load(self):
+        try:
+            if hasattr(self.bot, "user_repo") and self.bot.user_repo:
+                await self.bot.user_repo.ensure_memories_schema()
+        except Exception as e:
+            logger.debug(f"Error asegurando esquema de memorias: {e}")
+
     def _check_rate_limit(self, guild_id: int, channel_id: int, user_id: int, priority: str = "mention") -> bool:
         """
         Aplica un rate limiter usando Token Bucket en 3 niveles (Guild -> Canal -> Usuario).
@@ -426,13 +433,14 @@ class DaletNLPChat(commands.Cog):
             if len(clean_content) > 400:
                 clean_content = clean_content[:400] + "..."
 
-            # Obtener contexto de conversación del canal (con autoría de bot normalizada)
+            # Obtener contexto de conversación del canal (con autoría de bot normalizada y memorias reflexivas)
             context = await self.bot.memory_service.get_relevant_context(
                 message.channel.id,
                 message.author.id,
                 clean_content,
                 bot_id=self.bot.user.id if self.bot.user else None,
                 bot_name=bot_name,
+                user_name=message.author.display_name,
             )
 
             if ref_summary:
@@ -531,6 +539,18 @@ class DaletNLPChat(commands.Cog):
                             reply,
                         )
                     )
+
+                    # Iniciar análisis reflexivo de recuerdos en segundo plano (asíncrono, 0 lag al usuario)
+                    if hasattr(self.bot, "memory_service") and self.bot.memory_service:
+                        asyncio.create_task(
+                            self.bot.memory_service.analyze_and_record_memory(
+                                user_id=message.author.id,
+                                user_name=message.author.display_name,
+                                user_message=clean_content,
+                                dalet_reply=reply.strip(),
+                                nlp_service=self.bot.nlp_service,
+                            )
+                        )
 
                 except discord.HTTPException as e:
                     if e.status == 429:
