@@ -11,12 +11,24 @@ from collections import defaultdict
 
 logger = logging.getLogger("dalet.services.moderation")
 
-# 1. Contenido ilegal (CSAM, CP, pedofilia) - Cero tolerancia, ban automático
+# 1. Contenido ilegal (CSAM, CP, pedofilia) - Cero tolerancia y alerta urgente @here
+# NOTA: La sigla "cp" se evalúa con contexto para no sancionar términos de gaming (Pokémon Go CP, CoD Points, Club Penguin), Linux o Código Postal.
 _ILLEGAL_PATTERNS = [
-    r"\bcsam\b", r"\bcp\b(?!\+|\s*\d|\s*us|\s*point)", r"child\s*(porn|sex|nud|exploit)",
-    r"kiddie\s*porn", r"loli\s*porn", r"shota\s*porn",
-    r"menor(es)?\s*(desnud|porn|sex|naked|nud)",
-    r"pedofil(ia|e|o|os)?", r"pedo\s*porn", r"jailbait",
+    # Términos directos unívocos
+    r"\bcsam\b",
+    r"child\s*(?:porn|sex|nud|exploit)",
+    r"kiddie\s*porn",
+    r"loli\s*(?:porn|hentai|nsfw|sex)",
+    r"shota\s*(?:porn|hentai|nsfw|sex)",
+    r"menor(?:es)?\s*(?:desnud|porn|sex|naked|nud)",
+    r"pedofil(?:ia|e|o|os)?",
+    r"pedo\s*porn",
+    r"jailbait",
+
+    # "cp" SOLO cuando se usa en contexto de tráfico, links, packs, carpetas o intercambio
+    r"\b(?:link|enlace|video|fotos?|pack|packs|trade|pasar|pasen|pasa|manda|mandame|vendo|venta|tengo|busco|intercambio|carpeta|mega|drive|telegram)\s+(?:de\s+)?cp\b",
+    r"\bcp\s+(?:gratis|mega|drive|telegram|pack|packs|links?|videos?|fotos?)\b",
+    r"\btr[áa]fico\s+(?:de\s+)?cp\b",
 ]
 
 # 2. Contenido adulto / NSFW enfocado en LINKS, SPAM DE INVITACIONES y VENTA DE CONTENIDO
