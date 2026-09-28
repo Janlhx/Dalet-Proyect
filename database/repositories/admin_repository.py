@@ -100,3 +100,65 @@ class AdminRepository(BaseRepository):
             ON CONFLICT(ServerID) DO UPDATE SET Language = excluded.Language
         """
         return await self.execute(query, server_id, lang)
+
+    async def get_moderation_config(self, server_id: int) -> dict | None:
+        query = "SELECT Enabled, LogChannelID, Action, AutoBanOnIllegal, TimeoutMinutes FROM ModerationConfig WHERE ServerID = ?"
+        row = await self.fetch_one(query, server_id)
+        if not row:
+            return None
+        return {
+            "enabled": bool(row[0]),
+            "log_channel_id": row[1],
+            "action": row[2] or "notify",
+            "auto_ban_on_illegal": bool(row[3]),
+            "timeout_minutes": row[4] or 10,
+        }
+
+    async def set_moderation_config(
+        self,
+        server_id: int,
+        enabled: bool,
+        log_channel_id: int | None,
+        action: str = "notify",
+        auto_ban_on_illegal: bool = True,
+        timeout_minutes: int = 10,
+    ):
+        query = """
+            INSERT INTO ModerationConfig (ServerID, Enabled, LogChannelID, Action, AutoBanOnIllegal, TimeoutMinutes, UpdatedAt)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(ServerID) DO UPDATE SET
+                Enabled = excluded.Enabled,
+                LogChannelID = excluded.LogChannelID,
+                Action = excluded.Action,
+                AutoBanOnIllegal = excluded.AutoBanOnIllegal,
+                TimeoutMinutes = excluded.TimeoutMinutes,
+                UpdatedAt = CURRENT_TIMESTAMP
+        """
+        return await self.execute(query, server_id, 1 if enabled else 0, log_channel_id, action, 1 if auto_ban_on_illegal else 0, timeout_minutes)
+
+    async def log_mod_action(
+        self,
+        server_id: int,
+        channel_id: int,
+        user_id: int,
+        user_name: str,
+        severity: str,
+        method: str,
+        reason: str,
+        action_taken: str,
+    ):
+        query = """
+            INSERT INTO ModActions (ServerID, ChannelID, UserID, UserName, Severity, Method, Reason, ActionTaken)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        return await self.execute(query, server_id, channel_id, user_id, user_name, severity, method, reason, action_taken)
+
+    async def get_recent_mod_actions(self, server_id: int, limit: int = 10) -> list:
+        query = """
+            SELECT UserName, Severity, Method, Reason, ActionTaken, OccurredAt
+            FROM ModActions
+            WHERE ServerID = ?
+            ORDER BY OccurredAt DESC
+            LIMIT ?
+        """
+        return await self.fetch_all(query, server_id, limit)

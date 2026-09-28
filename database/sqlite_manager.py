@@ -146,6 +146,33 @@ class SQLiteManager:
                 CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """,
+            # Configuración de moderación por servidor
+            """
+            CREATE TABLE IF NOT EXISTS ModerationConfig (
+                ServerID INTEGER PRIMARY KEY,
+                Enabled BOOLEAN DEFAULT 0,
+                LogChannelID INTEGER,
+                Action TEXT DEFAULT 'notify',
+                AutoBanOnIllegal BOOLEAN DEFAULT 1,
+                TimeoutMinutes INTEGER DEFAULT 10,
+                UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
+            # Log de acciones de moderación
+            """
+            CREATE TABLE IF NOT EXISTS ModActions (
+                ActionID INTEGER PRIMARY KEY AUTOINCREMENT,
+                ServerID INTEGER NOT NULL,
+                ChannelID INTEGER NOT NULL,
+                UserID INTEGER NOT NULL,
+                UserName TEXT,
+                Severity TEXT NOT NULL,
+                Method TEXT NOT NULL,
+                Reason TEXT,
+                ActionTaken TEXT NOT NULL,
+                OccurredAt DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
             # Índices de rendimiento para consultas concurrentes de contexto y telemetría
             "CREATE INDEX IF NOT EXISTS idx_msg_channel ON Messages(ChannelID)",
             "CREATE INDEX IF NOT EXISTS idx_msg_timestamp ON Messages(Timestamp DESC)",
@@ -155,6 +182,8 @@ class SQLiteManager:
             "CREATE INDEX IF NOT EXISTS idx_ai_prov_time ON AIInteractions(Provider, InteractedAt DESC)",
             "CREATE INDEX IF NOT EXISTS idx_err_time ON BotErrors(OccurredAt DESC)",
             "CREATE INDEX IF NOT EXISTS idx_feedback_time ON Feedbacks(CreatedAt DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_modactions_server ON ModActions(ServerID, OccurredAt DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_modactions_user ON ModActions(UserID, OccurredAt DESC)",
         ]
 
         try:
