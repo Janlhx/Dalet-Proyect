@@ -59,7 +59,9 @@ class ModerationCog(commands.Cog, name="Moderación"):
 
         try:
             await message.delete()
-        except (discord.Forbidden, discord.NotFound):
+        except discord.Forbidden:
+            logger.warning(f"[MOD] Sin permisos (Manage Messages) para borrar mensaje {message.id} en #{message.channel.name}")
+        except discord.NotFound:
             pass
 
         action = "notify"
