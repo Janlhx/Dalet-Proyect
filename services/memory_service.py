@@ -63,8 +63,19 @@ class MemoryService:
                 memories_raw = await self.repo.get_all_user_memories(user_id)
                 if memories_raw:
                     msg_words = set(current_message.lower().split())
+                    def _get_cnt(row):
+                        if hasattr(row, "get"):
+                            return row.get('content') or row.get('Content') or ''
+                        try:
+                            return row['content']
+                        except Exception:
+                            try:
+                                return row[3] if len(row) > 3 else row[0]
+                            except Exception:
+                                return str(row)
+
                     for m in memories_raw[:6]:
-                        content = m.get('content', '')
+                        content = _get_cnt(m)
                         memory_words = set(content.lower().split())
                         if memory_words & msg_words:
                             memory_section.append(f"Dato usuario: {content}")
@@ -73,7 +84,7 @@ class MemoryService:
                     
                     # Fallback a 1 memoria reciente si no hubo match
                     if not memory_section and memories_raw:
-                        memory_section.append(f"Dato usuario: {memories_raw[-1].get('content', '')}")
+                        memory_section.append(f"Dato usuario: {_get_cnt(memories_raw[-1])}")
             except Exception as e:
                 logger.error(f"Error obteniendo memorias: {e}")
 

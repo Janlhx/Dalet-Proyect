@@ -2127,7 +2127,11 @@ class NLPService:
             return self._vision_cache[url_hash]
 
         try:
-            model_name = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
+            raw_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
+            if raw_model in ("gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash", "models/gemini-2.5-flash"):
+                model_name = "gemini-3.8-flash"
+            else:
+                model_name = raw_model
 
             # Descarga de imagen con timeout de 5 segundos
             resp = await self._http_client.get(url, timeout=5.0)
@@ -2153,6 +2157,10 @@ class NLPService:
             }
 
             res = await self._http_client.post(gem_url, json=payload, timeout=8.0)
+            if res.status_code == 404 and model_name != "gemini-3.8-flash":
+                model_name = "gemini-3.8-flash"
+                gem_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={self.gemini_api_key}"
+                res = await self._http_client.post(gem_url, json=payload, timeout=8.0)
             if res.status_code == 200:
                 cand = res.json().get("candidates", [])
                 if cand:

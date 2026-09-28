@@ -144,7 +144,11 @@ class ModerationService:
                     mime = "image/jpeg"
 
                 b64_data = base64.b64encode(resp.content).decode("utf-8")
-                model_name = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
+                raw_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
+                if raw_model in ("gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash", "models/gemini-2.5-flash"):
+                    model_name = "gemini-3.8-flash"
+                else:
+                    model_name = raw_model
 
                 gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
                 payload = {
@@ -160,6 +164,13 @@ class ModerationService:
                 }
 
                 gem_resp = await http_client.post(gemini_url, json=payload, timeout=12.0)
+
+                # Si el modelo en env devolvió 404, reintentar automáticamente con gemini-3.8-flash
+                if gem_resp.status_code == 404 and model_name != "gemini-3.8-flash":
+                    logger.warning(f"Modelo '{model_name}' devolvió 404 en Google. Reintentando con 'gemini-3.8-flash'...")
+                    model_name = "gemini-3.8-flash"
+                    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+                    gem_resp = await http_client.post(gemini_url, json=payload, timeout=12.0)
 
                 # 1. Comprobar si Google respondió 200 OK
                 if gem_resp.status_code == 200:
