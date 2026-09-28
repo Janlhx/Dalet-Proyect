@@ -11,10 +11,10 @@ from collections import defaultdict
 
 logger = logging.getLogger("dalet.services.moderation")
 
-# 1. Contenido ilegal (CSAM, CP, pedofilia) - Cero tolerancia y alerta urgente @here
-# NOTA: La sigla "cp" se evalúa con contexto para no sancionar términos de gaming (Pokémon Go CP, CoD Points, Club Penguin), Linux o Código Postal.
+# 1. Contenido ilegal y de alto riesgo - Cero tolerancia y alerta urgente @here
+# Cubre: CSAM/CP contextual, Phishing de cuentas (Nitro/Steam), Token Stealers, Carding/Doxxing y Tráfico ilícito.
 _ILLEGAL_PATTERNS = [
-    # Términos directos unívocos
+    # A. Abuso y explotación infantil (CSAM / CP)
     r"\bcsam\b",
     r"child\s*(?:porn|sex|nud|exploit)",
     r"kiddie\s*porn",
@@ -24,11 +24,20 @@ _ILLEGAL_PATTERNS = [
     r"pedofil(?:ia|e|o|os)?",
     r"pedo\s*porn",
     r"jailbait",
-
-    # "cp" SOLO cuando se usa en contexto de tráfico, links, packs, carpetas o intercambio
     r"\b(?:link|enlace|video|fotos?|pack|packs|trade|pasar|pasen|pasa|manda|mandame|vendo|venta|tengo|busco|intercambio|carpeta|mega|drive|telegram)\s+(?:de\s+)?cp\b",
     r"\bcp\s+(?:gratis|mega|drive|telegram|pack|packs|links?|videos?|fotos?)\b",
     r"\btr[áa]fico\s+(?:de\s+)?cp\b",
+
+    # B. Phishing de Discord Nitro y Steam (Robo de cuentas y Stealers)
+    r"https?://\S*(?:dis(?:c|k)or(?:d|t)[a-z0-9-]*nitro|nitro[a-z0-9-]*discord|steamcommuni[a-z0-9-]+|steam[a-z0-9-]*(?:gift|nitro|trade))\.\S+",
+    r"\b(?:token\s+stealer|grabber\s+de\s+tokens?|grabber\s+de\s+discord|stealer\s+de\s+passwords?)\b",
+
+    # C. Carding, Doxxing y Venta de Datos Financieros Robados
+    r"\b(?:vendo|venta\s+de)\s+(?:tarjetas?\s+clonadas?|cc\s+clonadas?|bins?\s+activos?|cuentas\s+bancarias\s+hackeadas?)\b",
+    r"\b(?:doxxeo|doxxear|doxxing)\s+(?:a|de)\s+(?:este|esta|algun|alguien|\S+)\b",
+
+    # D. Tráfico ilícito de drogas o armas de fuego en Discord
+    r"\b(?:vendo|venta\s+de)\s+(?:drogas?|coca[ií]na|metanfetamina|armas?\s+de\s+fuego|tussi)\b",
 ]
 
 # 2. Contenido adulto / NSFW enfocado en LINKS, SPAM DE INVITACIONES y VENTA DE CONTENIDO
