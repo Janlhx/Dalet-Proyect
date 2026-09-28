@@ -6,6 +6,7 @@ class AdminRepository(BaseRepository):
 
     _lang_cache: dict[int, str] = {}
     _name_cache: dict[int, str] = {}
+    _mod_cache: dict[int, dict | None] = {}
 
     async def is_channel_locked(self, channel_id: int) -> bool:
         """Verifica si los comandos están bloqueados en un canal."""
@@ -102,17 +103,24 @@ class AdminRepository(BaseRepository):
         return await self.execute(query, server_id, lang)
 
     async def get_moderation_config(self, server_id: int) -> dict | None:
+        if server_id in self._mod_cache:
+            return self._mod_cache[server_id]
+
         query = "SELECT Enabled, LogChannelID, Action, AutoBanOnIllegal, TimeoutMinutes FROM ModerationConfig WHERE ServerID = ?"
         row = await self.fetch_one(query, server_id)
         if not row:
+            self._mod_cache[server_id] = None
             return None
-        return {
+
+        cfg = {
             "enabled": bool(row[0]),
             "log_channel_id": row[1],
             "action": row[2] or "notify",
             "auto_ban_on_illegal": bool(row[3]),
             "timeout_minutes": row[4] or 10,
         }
+        self._mod_cache[server_id] = cfg
+        return cfg
 
     async def set_moderation_config(
         self,
@@ -134,7 +142,15 @@ class AdminRepository(BaseRepository):
                 TimeoutMinutes = excluded.TimeoutMinutes,
                 UpdatedAt = CURRENT_TIMESTAMP
         """
-        return await self.execute(query, server_id, 1 if enabled else 0, log_channel_id, action, 1 if auto_ban_on_illegal else 0, timeout_minutes)
+        res = await self.execute(query, server_id, 1 if enabled else 0, log_channel_id, action, 1 if auto_ban_on_illegal else 0, timeout_minutes)
+        self._mod_cache[server_id] = {
+            "enabled": enabled,
+            "log_channel_id": log_channel_id,
+            "action": action,
+            "auto_ban_on_illegal": auto_ban_on_illegal,
+            "timeout_minutes": timeout_minutes,
+        }
+        return res
 
     async def log_mod_action(
         self,
