@@ -58,12 +58,23 @@ _ADULT_RE = re.compile("|".join(_ADULT_PATTERNS), re.IGNORECASE)
 _IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".heic"}
 
 _VISION_SAFETY_PROMPT = (
-    "You are a strict content safety classifier for a Discord moderation system. "
-    "Classify the image content into ONE of these categories: "
-    "'safe' (normal images, fully clothed persons, memes, non-explicit anime/art, video games), "
-    "'suggestive' (revealing clothing, bikini, lingerie, cleavage, mild artistic fan service), "
-    "'explicit' (nudity, visible genitalia, sexual acts, pornographic content, hentai, uncensored or censored sexual intercourse), "
-    "'illegal' (CSAM, minors in sexual context, illegal material). "
+    "You are a strict automated content safety filter for a Discord moderation system. "
+    "Classify the image content into EXACTLY ONE category: "
+    "- 'explicit': "
+    "  * Any pornographic content, sexual intercourse, blowjobs, oral sex, penetration, or masturbation, "
+    "    WHETHER REAL PHOTOGRAPHY OR DRAWN/ANIMATED (hentai, eromanga, doujinshi, anime, 3D), "
+    "    EVEN IF genitalia is partially censored or blocked with mosaics, black bars, pixelation, or shadows. "
+    "  * Fully exposed genitalia (penis, vulva, anus) or fully exposed female nipples/areolas. "
+    "  * Visible bodily fluids from sexual acts (semen/cum, ejaculation, vaginal lubrication). "
+    "  * Sheer, wet, or transparent clothing that distinctly reveals bare nipples or genitalia underneath. "
+    "  * Screenshots or thumbnails of pornographic video sites or explicit adult media. "
+    "- 'illegal': "
+    "  * CSAM, real minors in any sexual or nude context, or child-like/minor characters depicted in sexual contexts (loli/shota hentai). "
+    "- 'suggestive': "
+    "  * Non-explicit revealing clothing, bikini, lingerie, swimsuits, cleavage, or artistic fan art WITHOUT any sexual acts, "
+    "    WITHOUT sexual fluids, and WITHOUT visible or transparently exposed genitalia/nipples. "
+    "- 'safe': "
+    "  * Normal clothing, memes, standard gaming screenshots, non-erotic anime/manga, landscapes, everyday photos. "
     "Reply ONLY with a raw JSON object and nothing else: "
     '{"safe": true/false, "category": "safe" | "suggestive" | "explicit" | "illegal", "confidence": 0.0-1.0}. '
     "Set safe=false if category is 'explicit' or 'illegal'."
@@ -89,6 +100,7 @@ class ModerationService:
     """
 
     SPAM_WINDOW_SEC = 60
+    SPAM_CHANNEL_THRESHOLD = 2
     FLOOD_BURST_MAX_MSGS = 5
     FLOOD_BURST_WINDOW_SEC = 4.0
     FLOOD_DUP_MAX_COUNT = 3
@@ -197,11 +209,15 @@ class ModerationService:
                 http_client = httpx.AsyncClient(timeout=15.0)
                 close_client = True
 
+            download_headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+                "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+            }
             try:
-                resp = await http_client.get(url, timeout=7.0)
+                resp = await http_client.get(url, headers=download_headers, timeout=8.0)
                 if resp.status_code != 200:
-                    logger.warning(f"Error descargando imagen para mod (HTTP {resp.status_code})")
-                    return ModerationResult(False, "safe", 1.0, "download_failed", "gemini_vision")
+                    logger.warning(f"Error descargando imagen para mod (HTTP {resp.status_code}) desde: {url[:80]}")
+                    return ModerationResult(False, "safe", 1.0, f"download_failed_{resp.status_code}", "gemini_vision")
 
                 mime = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
                 if not mime.startswith("image/"):

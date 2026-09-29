@@ -80,7 +80,12 @@ class ModerationCog(commands.Cog, name="Moderación"):
         if not result.flagged:
             return
 
-        is_spam = self._mod_service.track_flag(message.author.id, message.channel.id)
+        is_spam = False
+        try:
+            is_spam = self._mod_service.track_flag(message.author.id, message.channel.id)
+        except Exception as e:
+            logger.warning(f"Error evaluando cross-channel spam: {e}")
+
         await self._handle_violation(message, result, config, is_spam)
 
     async def _handle_violation(
@@ -95,6 +100,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
 
         try:
             await message.delete()
+            logger.info(f"[MOD] Mensaje {message.id} de {author} eliminado por infracción ({result.severity}: {result.reason})")
         except discord.Forbidden:
             logger.warning(f"[MOD] Sin permisos (Manage Messages) para borrar mensaje {message.id} en #{message.channel.name}")
         except discord.NotFound:
