@@ -7,7 +7,7 @@ import hashlib
 import logging
 import time
 from dataclasses import dataclass
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 logger = logging.getLogger("dalet.services.moderation")
 
@@ -109,13 +109,38 @@ class ModerationService:
     FLOOD_DUP_MAX_COUNT = 3
     FLOOD_DUP_WINDOW_SEC = 10.0
 
-    def __init__(self, nlp_service):
+    def __init__(self, nlp_service, admin_repo=None):
         self._nlp = nlp_service
-        self._vision_cache: dict[str, ModerationResult] = {}
+        self._admin_repo = admin_repo
+        self._blacklist_cache: dict[str, ModerationResult] = {}
+        self._safe_cache: OrderedDict[str, ModerationResult] = OrderedDict()
+        self._vision_cache: OrderedDict[str, ModerationResult] = OrderedDict()
+        self._prewarmed = False
         # {user_id: [(timestamp, channel_id), ...]}
         self._flag_tracker: dict[int, list[tuple[float, int]]] = defaultdict(list)
         # {user_id: [(timestamp, channel_id, content_hash), ...]}
         self._message_history: dict[int, list[tuple[float, int, str]]] = defaultdict(list)
+
+    async def prewarm_blacklist(self):
+        """Pre-calienta la lista negra de hashes en memoria desde la base de datos."""
+        if self._admin_repo and not self._prewarmed:
+            try:
+                await self._admin_repo.ensure_image_hashes_table()
+                rows = await self._admin_repo.get_all_flagged_image_hashes(limit=5000)
+                for r in rows:
+                    h = r.get("ImageHash")
+                    if h:
+                        self._blacklist_cache[h] = ModerationResult(
+                            flagged=True,
+                            severity=r.get("Severity", "adult"),
+                            confidence=1.0,
+                            reason=r.get("Reason", "known_blacklist"),
+                            method="image_hash_blacklist",
+                        )
+                self._prewarmed = True
+                logger.info(f"Lista negra de hashes precargada: {len(self._blacklist_cache)} imágenes bloqueadas en memoria.")
+            except Exception as e:
+                logger.warning(f"No se pudo precargar la lista negra de hashes: {e}")
 
     def check_flood(self, user_id: int, channel_id: int, content: str, attachment_sig: str = "") -> tuple[bool, str]:
         """Detecta ráfagas rápidas de mensajes (>=5 msgs en 4s) o mensajes repetidos (>=3 iguales en 10s, texto o imagen)."""
@@ -193,18 +218,35 @@ class ModerationService:
 
         return ModerationResult(False, "safe", 1.0, "", "text_regex")
 
+    # Dominios de reproductores multimedia oficiales cuyas miniaturas automáticas no son pornografía
+    _SAFE_PLAYER_DOMAINS = (
+        "youtube.com",
+        "youtu.be",
+        "ytimg.com",
+        "i.ytimg.com",
+        "spotify.com",
+        "scdn.co",
+        "twitch.tv",
+        "static-cdn.jtvnw.net",
+        "steamcommunity.com",
+        "steamstatic.com",
+    )
+
     async def _scan_image(self, url: str) -> ModerationResult:
         api_key = (getattr(self._nlp, "gemini_api_key", None) or os.getenv("GEMINI_API_KEY") or "").strip()
         if not api_key:
             logger.warning("Moderación de imagen omitida: GEMINI_API_KEY no configurada.")
             return ModerationResult(False, "safe", 1.0, "no_api_key", "gemini_vision")
 
+        # 1. Comprobación rápida por URL hash en caché
         url_hash = hashlib.md5(url.encode()).hexdigest()
-        if url_hash in self._vision_cache:
-            return self._vision_cache[url_hash]
+        if url_hash in self._blacklist_cache:
+            logger.info(f"[VACUNA URL] Bloqueo inmediato por URL en lista negra: {url[:60]}")
+            return self._blacklist_cache[url_hash]
+        if url_hash in self._safe_cache:
+            return self._safe_cache[url_hash]
 
         try:
-            logger.info(f"Escaneando imagen con Gemini Vision: {url[:80]}...")
             http_client = getattr(self._nlp, "_http_client", None)
             close_client = False
             if not http_client:
@@ -222,11 +264,45 @@ class ModerationService:
                     logger.warning(f"Error descargando imagen para mod (HTTP {resp.status_code}) desde: {url[:80]}")
                     return ModerationResult(False, "safe", 1.0, f"download_failed_{resp.status_code}", "gemini_vision")
 
+                content_bytes = resp.content
+                content_sha256 = hashlib.sha256(content_bytes).hexdigest()
+
+                # 2. Acierto en Lista Negra en RAM (In-Memory Blacklist)
+                if content_sha256 in self._blacklist_cache:
+                    logger.warning(f"[VACUNA RAM] Imagen bloqueada por coincidencia en Lista Negra SHA-256 ({content_sha256[:12]}...). 0 llamadas a Gemini.")
+                    res = self._blacklist_cache[content_sha256]
+                    self._blacklist_cache[url_hash] = res
+                    return res
+
+                # 3. Acierto en Lista Negra en Base de Datos (Turso / SQLite)
+                if self._admin_repo:
+                    db_entry = await self._admin_repo.get_image_hash(content_sha256)
+                    if db_entry and db_entry.get("Flagged"):
+                        logger.warning(f"[VACUNA BD] Imagen bloqueada por registro en BD ({content_sha256[:12]}...). 0 llamadas a Gemini.")
+                        res = ModerationResult(
+                            flagged=True,
+                            severity=db_entry.get("Severity", "adult"),
+                            confidence=1.0,
+                            reason=db_entry.get("Reason", "known_blacklist"),
+                            method="image_hash_blacklist",
+                        )
+                        self._blacklist_cache[content_sha256] = res
+                        self._blacklist_cache[url_hash] = res
+                        return res
+
+                # 4. Acierto en Lista de Imágenes Seguras (Safe Cache en RAM)
+                if content_sha256 in self._safe_cache:
+                    res = self._safe_cache[content_sha256]
+                    self._safe_cache[url_hash] = res
+                    return res
+
+                # 5. Imagen no vista anteriormente: Invocar Gemini Vision
+                logger.info(f"Escaneando imagen nueva con Gemini Vision ({len(content_bytes)} bytes): {url[:70]}...")
                 mime = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
                 if not mime.startswith("image/"):
                     mime = "image/jpeg"
 
-                b64_data = base64.b64encode(resp.content).decode("utf-8")
+                b64_data = base64.b64encode(content_bytes).decode("utf-8")
                 raw_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
                 if raw_model in ("gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash", "models/gemini-2.5-flash"):
                     model_name = "gemini-3.8-flash"
@@ -255,7 +331,9 @@ class ModerationService:
                     gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
                     gem_resp = await http_client.post(gemini_url, json=payload, timeout=12.0)
 
-                # 1. Comprobar si Google respondió 200 OK
+                result = ModerationResult(False, "safe", 1.0, "", "gemini_vision")
+
+                # Comprobar respuesta de Google
                 if gem_resp.status_code == 200:
                     data = gem_resp.json()
                     candidates = data.get("candidates", [])
@@ -265,45 +343,48 @@ class ModerationService:
                         if "SAFETY" in finish_reason.upper():
                             logger.warning(f"Gemini bloqueó la imagen por finishReason: {finish_reason}. Marcada como explícita.")
                             result = ModerationResult(True, "adult", 1.0, "gemini_safety_block", "gemini_vision")
-                            self._cache_result(url_hash, result)
-                            return result
+                        else:
+                            parts = cand.get("content", {}).get("parts", [])
+                            if parts and "text" in parts[0]:
+                                raw_text = parts[0]["text"]
+                                result = self._parse_vision_response(raw_text)
+                                logger.info(f"Resultado escaneo: flagged={result.flagged}, severity={result.severity}, reason={result.reason}")
 
-                        parts = cand.get("content", {}).get("parts", [])
-                        if parts and "text" in parts[0]:
-                            raw_text = parts[0]["text"]
-                            result = self._parse_vision_response(raw_text)
-                            logger.info(f"Resultado escaneo de imagen: flagged={result.flagged}, severity={result.severity}, reason={result.reason}")
-                            self._cache_result(url_hash, result)
-                            return result
+                            if not result.flagged:
+                                # Fallback a safetyRatings si el modelo no generó texto
+                                for rating in cand.get("safetyRatings", []):
+                                    cat = rating.get("category", "")
+                                    prob = rating.get("probability", "")
+                                    if "SEXUALLY_EXPLICIT" in cat and prob == "HIGH":
+                                        logger.warning(f"Gemini detectó probabilidad {prob} de contenido explícito.")
+                                        result = ModerationResult(True, "adult", 0.95, f"safety_rating:{prob}", "gemini_vision")
+                                        break
 
-                        # Fallback a safetyRatings si el modelo no generó texto
-                        for rating in cand.get("safetyRatings", []):
-                            cat = rating.get("category", "")
-                            prob = rating.get("probability", "")
-                            if "SEXUALLY_EXPLICIT" in cat and prob == "HIGH":
-                                logger.warning(f"Gemini detectó probabilidad {prob} de contenido explícito (sin texto generado).")
-                                result = ModerationResult(True, "adult", 0.95, f"safety_rating:{prob}", "gemini_vision")
-                                self._cache_result(url_hash, result)
-                                return result
-
-                # 2. Si Google bloqueó por HTTP 400/403 debido a filtros de seguridad
                 elif gem_resp.status_code in (400, 403):
                     err_text = gem_resp.text.lower()
                     if "safety" in err_text or "blocked" in err_text:
                         logger.warning(f"Google bloqueó la solicitud por seguridad (HTTP {gem_resp.status_code}): Marcada como explícita.")
                         result = ModerationResult(True, "adult", 1.0, "gemini_safety_http_block", "gemini_vision")
-                        self._cache_result(url_hash, result)
-                        return result
-                    logger.error(f"Error HTTP de Gemini API ({gem_resp.status_code}): {gem_resp.text[:200]}")
-
+                    else:
+                        logger.error(f"Error HTTP de Gemini API ({gem_resp.status_code}): {gem_resp.text[:200]}")
                 else:
                     logger.error(f"Gemini API returned status {gem_resp.status_code}: {gem_resp.text[:200]}")
+
+                # 6. Almacenar en Lista Negra permanente o en Safe Cache
+                if result.flagged:
+                    self._blacklist_cache[content_sha256] = result
+                    self._blacklist_cache[url_hash] = result
+                    if self._admin_repo:
+                        await self._admin_repo.save_image_hash(content_sha256, True, result.severity, result.reason)
+                        logger.warning(f"[VACUNA REGISTRADA] Hash {content_sha256[:12]}... guardado permanentemente en BD como infractor.")
+                else:
+                    self._cache_safe(content_sha256, url_hash, result)
+
+                return result
 
             finally:
                 if close_client:
                     await http_client.aclose()
-
-            return ModerationResult(False, "safe", 1.0, "scan_failed", "gemini_vision")
 
         except asyncio.TimeoutError:
             logger.warning("Timeout en vision scan de moderación (Gemini excedió tiempo límite).")
@@ -313,16 +394,18 @@ class ModerationService:
             if "safety" in err_msg or "blocked" in err_msg:
                 logger.warning(f"Excepción de seguridad de Gemini: {e}. Marcada como explícita.")
                 result = ModerationResult(True, "adult", 1.0, "gemini_safety_filter_trip", "gemini_vision")
-                self._cache_result(url_hash, result)
+                self._blacklist_cache[url_hash] = result
                 return result
 
             logger.error(f"Error inesperado en vision scan de moderación: {e}")
             return ModerationResult(False, "safe", 1.0, "error", "gemini_vision")
 
-    def _cache_result(self, url_hash: str, result: ModerationResult):
-        if len(self._vision_cache) > 100:
-            self._vision_cache.clear()
-        self._vision_cache[url_hash] = result
+    def _cache_safe(self, content_hash: str, url_hash: str, result: ModerationResult):
+        """Almacena imagen segura en caché LRU de memoria (hasta 5000 elementos)."""
+        if len(self._safe_cache) >= 5000:
+            self._safe_cache.popitem(last=False)
+        self._safe_cache[content_hash] = result
+        self._safe_cache[url_hash] = result
 
     @staticmethod
     def _parse_vision_response(text: str) -> ModerationResult:
@@ -340,16 +423,17 @@ class ModerationService:
             return ModerationResult(False, "safe", confidence, "", "gemini_vision")
         except Exception as e:
             logger.debug(f"Error interpretando JSON de visión '{text[:120]}': {e}")
-            # Si el texto menciona explicitamente sexual o porn, detectarlo como fallback
             lower = text.lower()
             if "explicit" in lower or "porn" in lower or "nsfw" in lower:
                 return ModerationResult(True, "adult", 0.85, "vision_fallback_keyword", "gemini_vision")
             return ModerationResult(False, "safe", 1.0, "parse_error", "gemini_vision")
 
-    @staticmethod
-    def extract_image_urls(message) -> list[str]:
-        """Extract image URLs from Discord message attachments, embeds, and content links."""
+    @classmethod
+    def extract_image_urls(cls, message) -> list[str]:
+        """Extrae URLs de imágenes para moderación priorizando adjuntos directos y descartando miniaturas de reproductores."""
         urls = []
+
+        # 1. Adjuntos subidos directamente por usuarios (máxima prioridad)
         for att in message.attachments:
             is_image = (
                 (att.content_type and att.content_type.startswith("image/"))
@@ -358,15 +442,28 @@ class ModerationService:
             if is_image:
                 urls.append(att.url)
 
+        # 2. Embeds e imágenes externas solo si NO provienen de reproductores conocidos (YouTube, Spotify, Twitch)
         for embed in message.embeds:
-            if embed.image and embed.image.url:
-                urls.append(embed.image.url)
-            elif embed.thumbnail and embed.thumbnail.url:
-                urls.append(embed.thumbnail.url)
+            provider_name = (embed.provider.name if embed.provider and embed.provider.name else "").lower()
+            if any(p in provider_name for p in ("youtube", "spotify", "twitch", "steam")):
+                continue
 
-        # Detectar URLs directas de imágenes en el texto del mensaje si no hay attachments
+            target_url = None
+            if embed.image and embed.image.url:
+                target_url = embed.image.url
+            elif embed.thumbnail and embed.thumbnail.url:
+                target_url = embed.thumbnail.url
+
+            if target_url:
+                lower_url = target_url.lower()
+                if not any(safe_dom in lower_url for safe_dom in cls._SAFE_PLAYER_DOMAINS):
+                    urls.append(target_url)
+
+        # 3. Enlaces directos a archivos de imagen en el texto si no hubo adjuntos
         if not urls and message.content:
-            url_matches = re.findall(r"https?://\S+\.(?:jpg|jpeg|png|gif|webp)(?:\?\S*)?", message.content, re.IGNORECASE)
-            urls.extend(url_matches)
+            url_matches = re.findall(r"https?://\S+\.(?:jpg|jpeg|png|webp)(?:\?\S*)?", message.content, re.IGNORECASE)
+            for u in url_matches:
+                if not any(safe_dom in u.lower() for safe_dom in cls._SAFE_PLAYER_DOMAINS):
+                    urls.append(u)
 
         return urls[:1]

@@ -42,12 +42,24 @@ class ModerationCog(commands.Cog, name="Moderación"):
 
     async def cog_load(self):
         nlp = getattr(self.bot, "nlp_service", None)
-        self._mod_service = ModerationService(nlp)
+        admin_repo = getattr(self.bot, "admin_repo", None)
+        self._mod_service = ModerationService(nlp, admin_repo=admin_repo)
+        if admin_repo:
+            try:
+                await self._mod_service.prewarm_blacklist()
+            except Exception as e:
+                logger.warning(f"Error precalentando lista negra de imágenes: {e}")
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        if message.author.bot or not message.guild:
+        if message.author.bot or message.webhook_id or not message.guild:
             return
+
+        # Bypass para Administradores y Moderadores con permisos en el servidor
+        if isinstance(message.author, discord.Member):
+            perms = message.author.guild_permissions
+            if perms.administrator or perms.manage_guild or perms.manage_messages:
+                return
 
         config = await self.bot.admin_repo.get_moderation_config(message.guild.id)
         if not config or not config["enabled"]:

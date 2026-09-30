@@ -390,3 +390,48 @@ class AdminRepository(BaseRepository):
             LIMIT ?
         """
         return await self.fetch_all(query, server_id, limit)
+
+    async def ensure_image_hashes_table(self):
+        """Asegura que la tabla ModImageHashes e índices existan en la BD."""
+        query = """
+            CREATE TABLE IF NOT EXISTS ModImageHashes (
+                ImageHash TEXT PRIMARY KEY,
+                Flagged BOOLEAN NOT NULL DEFAULT 1,
+                Severity TEXT NOT NULL,
+                Reason TEXT,
+                CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        await self.execute(query)
+        await self.execute("CREATE INDEX IF NOT EXISTS idx_mod_imagehash ON ModImageHashes(ImageHash)")
+
+    async def get_image_hash(self, image_hash: str) -> dict | None:
+        """Consulta el estado de una imagen por su hash SHA-256."""
+        query = "SELECT ImageHash, Flagged, Severity, Reason FROM ModImageHashes WHERE ImageHash = ?"
+        res = await self.fetch_one(query, image_hash)
+        if not res:
+            return None
+        return dict(res) if hasattr(res, "keys") else {
+            "ImageHash": res[0], "Flagged": bool(res[1]), "Severity": res[2], "Reason": res[3]
+        }
+
+    async def save_image_hash(self, image_hash: str, flagged: bool, severity: str, reason: str):
+        """Registra permanentemente el hash de una imagen en la base de datos."""
+        query = """
+            INSERT OR REPLACE INTO ModImageHashes (ImageHash, Flagged, Severity, Reason)
+            VALUES (?, ?, ?, ?)
+        """
+        return await self.execute(query, image_hash, 1 if flagged else 0, severity, reason)
+
+    async def get_all_flagged_image_hashes(self, limit: int = 5000) -> list[dict]:
+        """Obtiene hashes de imágenes explícitas para pre-calentar la memoria."""
+        query = "SELECT ImageHash, Severity, Reason FROM ModImageHashes WHERE Flagged = 1 ORDER BY CreatedAt DESC LIMIT ?"
+        rows = await self.fetch_all(query, limit)
+        results = []
+        for r in rows:
+            if hasattr(r, "keys"):
+                results.append(dict(r))
+            else:
+                results.append({"ImageHash": r[0], "Severity": r[1], "Reason": r[2]})
+        return results
+

@@ -190,6 +190,16 @@ class SQLiteManager:
                 Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """,
+            # Lista negra permanente de hashes de imágenes NSFW e ilícitas
+            """
+            CREATE TABLE IF NOT EXISTS ModImageHashes (
+                ImageHash TEXT PRIMARY KEY,
+                Flagged BOOLEAN NOT NULL DEFAULT 1,
+                Severity TEXT NOT NULL,
+                Reason TEXT,
+                CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
             # Índices de rendimiento para consultas concurrentes de contexto y telemetría
             "CREATE INDEX IF NOT EXISTS idx_msg_channel ON Messages(ChannelID)",
             "CREATE INDEX IF NOT EXISTS idx_msg_timestamp ON Messages(Timestamp DESC)",
@@ -202,6 +212,7 @@ class SQLiteManager:
             "CREATE INDEX IF NOT EXISTS idx_modactions_server ON ModActions(ServerID, OccurredAt DESC)",
             "CREATE INDEX IF NOT EXISTS idx_modactions_user ON ModActions(UserID, OccurredAt DESC)",
             "CREATE INDEX IF NOT EXISTS idx_usermemories_user ON UserMemories(UserID, Timestamp DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_mod_imagehash ON ModImageHashes(ImageHash)",
         ]
 
         try:
