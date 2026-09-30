@@ -65,25 +65,25 @@ class ChangelogService:
 
                         lower_msg = raw_msg.lower()
                         if lower_msg.startswith("feat"):
-                            icon = "✨"
+                            glyph = "✦"
                             category = "feat"
                         elif lower_msg.startswith("fix"):
-                            icon = "🐛"
+                            glyph = "▪"
                             category = "fix"
                         elif lower_msg.startswith("perf"):
-                            icon = "⚡"
+                            glyph = "»"
                             category = "perf"
                         elif lower_msg.startswith("docs"):
-                            icon = "📝"
+                            glyph = "◈"
                             category = "docs"
                         elif lower_msg.startswith("refactor"):
-                            icon = "🔨"
+                            glyph = "⟡"
                             category = "refactor"
                         elif lower_msg.startswith("test"):
-                            icon = "🧪"
+                            glyph = "◎"
                             category = "test"
                         else:
-                            icon = "🔧"
+                            glyph = "▫"
                             category = "chore"
 
                         commits.append({
@@ -91,7 +91,7 @@ class ChangelogService:
                             "url": f"{cls.REPO_URL}/commit/{chash}",
                             "message": raw_msg,
                             "date": date_str,
-                            "icon": icon,
+                            "glyph": glyph,
                             "category": category,
                         })
         except Exception as e:
@@ -108,12 +108,12 @@ class ChangelogService:
     def _get_fallback_commits(cls) -> list[dict]:
         """Commits de respaldo si el entorno de ejecución no tiene acceso al binario de git."""
         raw_fallback = [
-            ("4e3689f", "fix(mod): calibrate vision prompt for ecchi/waifu art and prioritize model analysis", "🐛"),
-            ("3e874f4", "fix(telemetry): prevent NaN latency crash on startup and handle async client close", "🐛"),
-            ("a79b380", "fix(db): prevent duplicate column errors and handle libsql KeyError 'result' gracefully", "🐛"),
-            ("ff2c89f", "fix(mod): add explicit role names and permission checks to timeout and ban diagnostics", "🐛"),
-            ("601ab46", "feat(mod): add channel exemption support and role hierarchy diagnostics", "✨"),
-            ("0bf16f9", "fix(moderation): fix missing SPAM_CHANNEL_THRESHOLD and enhance vision safety prompt", "🐛"),
+            ("476f4a8", "feat(admin): add d.memories and d.dbtables for database inspection", "✦"),
+            ("b9caa5e", "docs(i18n): update help categories, changelog v3.1, and add complete Spanish README_ES.md", "◈"),
+            ("cb6fa04", "feat(mod): add granular per-module channel exemptions to /mod ignore", "✦"),
+            ("4e3689f", "fix(mod): calibrate vision prompt for ecchi/waifu art and prioritize model analysis", "▪"),
+            ("3e874f4", "fix(telemetry): prevent NaN latency crash on startup and handle async client close", "▪"),
+            ("a79b380", "fix(db): prevent duplicate column errors and handle libsql KeyError 'result' gracefully", "▪"),
         ]
         return [
             {
@@ -121,15 +121,15 @@ class ChangelogService:
                 "url": f"{cls.REPO_URL}/commit/{h}",
                 "message": msg,
                 "date": "2026-09-30",
-                "icon": icon,
+                "glyph": glyph,
                 "category": "update",
             }
-            for h, msg, icon in raw_fallback
+            for h, msg, glyph in raw_fallback
         ]
 
     @classmethod
     def build_embed(cls, server_lang: str = "es", custom_banner: str | None = None):
-        """Construye un Embed enriquecido de Discord con el hito mayor y los últimos commits."""
+        """Construye un Embed enriquecido de Discord con el hito mayor y los últimos commits usando glifos tipográficos."""
         import discord
         from ui.atoms import DaletAtoms
         from ui.molecules import DaletMolecules
@@ -138,7 +138,7 @@ class ChangelogService:
         commits = cls.get_recent_commits(limit=6)
         is_es = server_lang == "es"
 
-        title = f"{DaletAtoms.EMOJI_DALET} Dalet {version} — {'Novedades y Registro de Cambios' if is_es else 'Updates & Changelog'}"
+        title = f"{DaletAtoms.EMOJI_DALET} Dalet {version} {DaletAtoms.GLYPH_PIPE} {'Novedades y Registro de Cambios' if is_es else 'Updates & Changelog'}"
         embed = discord.Embed(title=title, color=DaletAtoms.COLOR_PRIMARY)
 
         if custom_banner:
@@ -148,17 +148,17 @@ class ChangelogService:
         if is_es:
             milestone_title = f"{DaletAtoms.GLYPH_POINTER} Hito {cls.BASE_VERSION}: Auto-Moderación Modular & Memoria Cognitiva"
             milestone_desc = (
-                "• **Auto-Moderación**: Detección visual con IA (Gemini Vision), Anti-Flood en memoria, protección anti-phishing y canales exentos (`/mod ignore`).\n"
-                "• **Memoria Reflexiva**: Guarda mensajes de usuarios y conclusiones internas (`DaletThought`) para conversaciones naturales.\n"
-                "• **Infraestructura**: Migraciones cloud Turso automáticas con fallback offline en SQLite WAL."
+                f"{DaletAtoms.GLYPH_SUB} **Auto-Moderación**: Detección visual con IA (Gemini Vision), Anti-Flood en memoria, protección anti-phishing y canales exentos (`/mod ignore`).\n"
+                f"{DaletAtoms.GLYPH_SUB} **Memoria Reflexiva**: Guarda mensajes de usuarios y conclusiones internas (`DaletThought`) para conversaciones naturales.\n"
+                f"{DaletAtoms.GLYPH_SUB} **Infraestructura**: Migraciones cloud Turso automáticas con fallback offline en SQLite WAL."
             )
-            commits_header = f"{DaletAtoms.GLYPH_POINTER} Últimos Cambios (Commits)"
+            commits_header = f"{DaletAtoms.GLYPH_POINTER} Últimos Cambios (Git Commits)"
         else:
             milestone_title = f"{DaletAtoms.GLYPH_POINTER} Milestone {cls.BASE_VERSION}: Modular Auto-Moderation & Cognitive Memory"
             milestone_desc = (
-                "• **Auto-Moderation**: AI vision content filter (Gemini Vision), in-memory anti-flood, phishing heuristics, and channel exemptions (`/mod ignore`).\n"
-                "• **Reflective Memory**: Stores user interactions alongside internal takeaways (`DaletThought`) for natural banter.\n"
-                "• **Infrastructure**: Resilient zero-downtime Turso cloud migrations with local SQLite WAL fallback."
+                f"{DaletAtoms.GLYPH_SUB} **Auto-Moderation**: AI vision content filter (Gemini Vision), in-memory anti-flood, phishing heuristics, and channel exemptions (`/mod ignore`).\n"
+                f"{DaletAtoms.GLYPH_SUB} **Reflective Memory**: Stores user interactions alongside internal takeaways (`DaletThought`) for natural banter.\n"
+                f"{DaletAtoms.GLYPH_SUB} **Infrastructure**: Resilient zero-downtime Turso cloud migrations with local SQLite WAL fallback."
             )
             commits_header = f"{DaletAtoms.GLYPH_POINTER} Recent Commits & Patches"
 
@@ -166,11 +166,12 @@ class ChangelogService:
 
         commit_lines = []
         for c in commits:
-            commit_lines.append(f"• [`{c['hash']}`]({c['url']}) {c['icon']} {c['message']}")
+            glyph = c.get("glyph") or c.get("icon") or DaletAtoms.GLYPH_SUB
+            commit_lines.append(f"{glyph} [`{c['hash']}`]({c['url']}) {c['message']}")
 
         if commit_lines:
             embed.add_field(name=commits_header, value="\n".join(commit_lines), inline=False)
 
-        footer_text = f"Dalet {version} │ github.com/Janlhx/Dalet-Proyect"
+        footer_text = f"Dalet {version} {DaletAtoms.GLYPH_PIPE} github.com/Janlhx/Dalet-Proyect"
         DaletMolecules.add_standard_footer(embed, context_text=footer_text)
         return embed
