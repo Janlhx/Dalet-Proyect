@@ -353,7 +353,7 @@ async def main():
 
         finally:
             logger.info("Cerrando pools de base de datos...")
-            TursoClient.close()
+            await TursoClient.aclose()
             await SQLiteManager.close()
             logger.info("Apagado completo.")
 

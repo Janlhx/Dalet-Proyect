@@ -79,7 +79,29 @@ class TursoClient:
     @classmethod
     def close(cls):
         if cls._client:
-            cls._client.close()
+            try:
+                res = cls._client.close()
+                if asyncio.iscoroutine(res):
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(res)
+                    except RuntimeError:
+                        asyncio.run(res)
+            except Exception:
+                pass
+            cls._client = None
+            cls._db_available = False
+            logger.info("Turso client closed.")
+
+    @classmethod
+    async def aclose(cls):
+        if cls._client:
+            try:
+                res = cls._client.close()
+                if asyncio.iscoroutine(res):
+                    await res
+            except Exception:
+                pass
             cls._client = None
             cls._db_available = False
             logger.info("Turso client closed.")

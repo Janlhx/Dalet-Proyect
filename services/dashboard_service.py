@@ -2,6 +2,7 @@ import time
 import os
 import json
 import logging
+import math
 from database.turso_client import TursoClient
 from database.sqlite_manager import SQLiteManager
 
@@ -32,9 +33,12 @@ class DashboardService:
         uptime_seconds = int(now - cls._start_time)
 
         # 1. Discord Bot Telemetry
+        raw_lat = getattr(bot, "latency", None) if bot else None
+        latency_ms = round(raw_lat * 1000) if (raw_lat is not None and math.isfinite(raw_lat)) else 0
+
         discord_stats = {
             "online": bool(bot and bot.is_ready()),
-            "latency_ms": round(bot.latency * 1000) if (bot and bot.latency) else 0,
+            "latency_ms": latency_ms,
             "guilds": len(bot.guilds) if bot else 0,
             "users": sum((g.member_count or 0) for g in bot.guilds) if bot else 0,
             "uptime_formatted": cls._format_uptime(uptime_seconds),
