@@ -21,6 +21,9 @@ class BaseRepository:
         try:
             return await client.execute(query, args)
         except Exception as e:
+            if "ALTER TABLE" in query.upper() and ("duplicate column" in str(e).lower() or str(e) == "'result'"):
+                logger.debug(f"Columna ya existente en ALTER TABLE: {query}")
+                return None
             logger.error(f"Error ejecutando consulta en BD: {e} | Query: {query} | Args: {args}")
             return None
 

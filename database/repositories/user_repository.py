@@ -124,11 +124,18 @@ class UserRepository(BaseRepository):
             )
         """
         await self.execute(create_query)
+        try:
+            rows = await self.fetch_all("PRAGMA table_info(UserMemories)")
+            existing_cols = {row[1] for row in rows} if rows else set()
+        except Exception:
+            existing_cols = set()
+
         for col in ["UserMessage", "DaletThought"]:
-            try:
-                await self.execute(f"ALTER TABLE UserMemories ADD COLUMN {col} TEXT")
-            except Exception:
-                pass
+            if col not in existing_cols:
+                try:
+                    await self.execute(f"ALTER TABLE UserMemories ADD COLUMN {col} TEXT")
+                except Exception:
+                    pass
 
     async def add_user_memory(
         self,

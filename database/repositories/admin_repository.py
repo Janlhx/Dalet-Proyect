@@ -89,11 +89,16 @@ class AdminRepository(BaseRepository):
         lang = "es" if language.lower().strip() in ("es", "spanish", "español") else "en"
         self._lang_cache[server_id] = lang
 
-        # Intentar crear la columna por si no existe aún en la tabla Servers
-        try:
-            await self.execute("ALTER TABLE Servers ADD COLUMN Language TEXT DEFAULT 'en'")
-        except Exception:
-            pass
+        # Asegurar columna Language de forma idempotente
+        if not getattr(self, "_migrated_server_lang", False):
+            try:
+                rows = await self.fetch_all("PRAGMA table_info(Servers)")
+                existing_cols = {row[1] for row in rows} if rows else set()
+                if "Language" not in existing_cols:
+                    await self.execute("ALTER TABLE Servers ADD COLUMN Language TEXT DEFAULT 'en'")
+            except Exception:
+                pass
+            self._migrated_server_lang = True
 
         query = """
             INSERT INTO Servers (ServerID, ServerName, Language, IsReactive)
@@ -105,6 +110,12 @@ class AdminRepository(BaseRepository):
     async def _ensure_mod_columns(self):
         """Asegura de manera defensiva que las columnas de ModerationConfig existan en Turso."""
         if not hasattr(self, "_migrated_mod_cols"):
+            try:
+                rows = await self.fetch_all("PRAGMA table_info(ModerationConfig)")
+                existing_cols = {row[1] for row in rows} if rows else set()
+            except Exception:
+                existing_cols = set()
+
             for col, col_def in [
                 ("ScanImages", "BOOLEAN DEFAULT 1"),
                 ("AntiFlood", "BOOLEAN DEFAULT 1"),
@@ -112,10 +123,11 @@ class AdminRepository(BaseRepository):
                 ("FilterScams", "BOOLEAN DEFAULT 1"),
                 ("IgnoredChannels", "TEXT DEFAULT ''"),
             ]:
-                try:
-                    await self.execute(f"ALTER TABLE ModerationConfig ADD COLUMN {col} {col_def}")
-                except Exception:
-                    pass
+                if col not in existing_cols:
+                    try:
+                        await self.execute(f"ALTER TABLE ModerationConfig ADD COLUMN {col} {col_def}")
+                    except Exception:
+                        pass
             self._migrated_mod_cols = True
 
     async def get_moderation_config(self, server_id: int) -> dict | None:
