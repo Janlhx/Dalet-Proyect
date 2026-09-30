@@ -58,26 +58,29 @@ _ADULT_RE = re.compile("|".join(_ADULT_PATTERNS), re.IGNORECASE)
 _IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".heic"}
 
 _VISION_SAFETY_PROMPT = (
-    "You are a strict automated content safety filter for a Discord moderation system. "
-    "Classify the image content into EXACTLY ONE category: "
+    "You are an automated content moderation filter for a Discord anime/gaming server. "
+    "Your job is to strictly filter out true pornography, explicit sexual acts, and illegal content, "
+    "while allowing non-explicit artistic fan art, ecchi, waifus, and anime illustrations. "
+    "\nClassify the image into EXACTLY ONE category:\n"
     "- 'explicit': "
-    "  * Any pornographic content, sexual intercourse, blowjobs, oral sex, penetration, or masturbation, "
-    "    WHETHER REAL PHOTOGRAPHY OR DRAWN/ANIMATED (hentai, eromanga, doujinshi, anime, 3D), "
-    "    EVEN IF genitalia is partially censored or blocked with mosaics, black bars, pixelation, or shadows. "
-    "  * Fully exposed genitalia (penis, vulva, anus) or fully exposed female nipples/areolas. "
-    "  * Visible bodily fluids from sexual acts (semen/cum, ejaculation, vaginal lubrication). "
-    "  * Sheer, wet, or transparent clothing that distinctly reveals bare nipples or genitalia underneath. "
-    "  * Screenshots or thumbnails of pornographic video sites or explicit adult media. "
+    "  * True pornography or explicit sexual intercourse, oral sex, blowjobs, vaginal/anal penetration, or masturbation, "
+    "    whether photo or illustrated/anime/hentai/doujinshi, even if mosaic/censored. "
+    "  * Completely exposed genitalia (penis, vulva, anus) or completely exposed bare female nipples/areolas. "
+    "  * Visible ejaculation, semen/cum, or sexual bodily fluids from orgasm. "
+    "  * Note: Massage oil, skincare lotion, sunscreen, sweat, and bath water on skin/back are NOT semen. "
     "- 'illegal': "
-    "  * CSAM, real minors in any sexual or nude context, or child-like/minor characters depicted in sexual contexts (loli/shota hentai). "
+    "  * CSAM, real minors, or depiction of child-like characters engaging in sexual intercourse, penetration, oral sex, or exposed genitalia. "
     "- 'suggestive': "
-    "  * Non-explicit revealing clothing, bikini, lingerie, swimsuits, cleavage, or artistic fan art WITHOUT any sexual acts, "
-    "    WITHOUT sexual fluids, and WITHOUT visible or transparently exposed genitalia/nipples. "
+    "  * Ecchi, fanservice, waifu art, revealing clothing, lingerie, panties, bloomers, swimsuits, bikinis, bare back, or cleavage. "
+    "  * Characters resting on a bed, receiving a back massage, skincare/wing grooming, or posing in cute/alluring ways "
+    "    WITHOUT any sexual intercourse, WITHOUT penetration, WITHOUT genital nudity, and WITHOUT sexual fluids. "
     "- 'safe': "
-    "  * Normal clothing, memes, standard gaming screenshots, non-erotic anime/manga, landscapes, everyday photos. "
-    "Reply ONLY with a raw JSON object and nothing else: "
-    '{"safe": true/false, "category": "safe" | "suggestive" | "explicit" | "illegal", "confidence": 0.0-1.0}. '
-    "Set safe=false if category is 'explicit' or 'illegal'."
+    "  * Everyday clothing, gaming screenshots, memes, non-erotic anime, landscapes, animals. "
+    "\nReply ONLY with a raw JSON object and nothing else:\n"
+    '{"safe": true/false, "category": "safe" | "suggestive" | "explicit" | "illegal", "confidence": 0.0-1.0}\n'
+    "RULES: "
+    "1. If category is 'suggestive' or 'safe', set safe=true. "
+    "2. If category is 'explicit' or 'illegal', set safe=false."
 )
 
 
@@ -265,15 +268,6 @@ class ModerationService:
                             self._cache_result(url_hash, result)
                             return result
 
-                        for rating in cand.get("safetyRatings", []):
-                            cat = rating.get("category", "")
-                            prob = rating.get("probability", "")
-                            if "SEXUALLY_EXPLICIT" in cat and prob in ("HIGH", "MEDIUM"):
-                                logger.warning(f"Gemini detectó probabilidad {prob} de contenido explícito.")
-                                result = ModerationResult(True, "adult", 0.95, f"safety_rating:{prob}", "gemini_vision")
-                                self._cache_result(url_hash, result)
-                                return result
-
                         parts = cand.get("content", {}).get("parts", [])
                         if parts and "text" in parts[0]:
                             raw_text = parts[0]["text"]
@@ -281,6 +275,16 @@ class ModerationService:
                             logger.info(f"Resultado escaneo de imagen: flagged={result.flagged}, severity={result.severity}, reason={result.reason}")
                             self._cache_result(url_hash, result)
                             return result
+
+                        # Fallback a safetyRatings si el modelo no generó texto
+                        for rating in cand.get("safetyRatings", []):
+                            cat = rating.get("category", "")
+                            prob = rating.get("probability", "")
+                            if "SEXUALLY_EXPLICIT" in cat and prob == "HIGH":
+                                logger.warning(f"Gemini detectó probabilidad {prob} de contenido explícito (sin texto generado).")
+                                result = ModerationResult(True, "adult", 0.95, f"safety_rating:{prob}", "gemini_vision")
+                                self._cache_result(url_hash, result)
+                                return result
 
                 # 2. Si Google bloqueó por HTTP 400/403 debido a filtros de seguridad
                 elif gem_resp.status_code in (400, 403):
