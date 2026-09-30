@@ -218,44 +218,18 @@ class CommandsHandler(commands.Cog, name="Comandos Generales"):
 
     @commands.command(name="changelog", aliases=["novedades", "changes", "updates"])
     async def show_changelog(self, ctx):
-        """Muestra las notas de actualización y novedades de Dalet."""
+        """Muestra las notas de actualización, hito mayor y commits recientes de Dalet."""
         server_lang = "en"
         if ctx.guild:
             server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
 
         custom = getattr(self.bot, "custom_changelog", None)
-
-        embed = discord.Embed(
-            title=f"{DaletAtoms.EMOJI_DALET} " + t("changelog.title", server_lang, version=DaletAtoms.VERSION),
-            color=DaletAtoms.COLOR_PRIMARY
-        )
-
-        if custom:
-            embed.description = f'> *"{custom}"*\n'
-
-        embed.add_field(
-            name=f"{DaletAtoms.GLYPH_POINTER} " + t("changelog.brain_title", server_lang),
-            value=t("changelog.brain_desc", server_lang),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"{DaletAtoms.GLYPH_POINTER} " + t("changelog.skills_title", server_lang),
-            value=t("changelog.skills_desc", server_lang),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"{DaletAtoms.GLYPH_POINTER} " + t("changelog.i18n_title", server_lang),
-            value=t("changelog.i18n_desc", server_lang),
-            inline=False
-        )
+        from services.changelog_service import ChangelogService
+        embed = ChangelogService.build_embed(server_lang=server_lang, custom_banner=custom)
 
         if self.bot.user and self.bot.user.display_avatar:
             embed.set_thumbnail(url=self.bot.user.display_avatar.url)
 
-        footer_hint = "d.help for commands" if server_lang == "en" else "d.help para comandos"
-        DaletMolecules.add_standard_footer(embed, context_text=f"{DaletAtoms.VERSION} │ {footer_hint}")
         await ctx.send(embed=embed)
 
 

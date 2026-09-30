@@ -133,6 +133,21 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         DaletMolecules.add_standard_footer(embed, context_text=f"{DaletAtoms.VERSION} │ Litxe")
         await interaction.response.send_message(embed=embed)
 
+    @app_commands.command(name="changelog", description="Displays version release notes, major milestones, and recent commits.")
+    async def slash_changelog(self, interaction: discord.Interaction):
+        server_lang = "en"
+        if interaction.guild_id:
+            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+
+        custom = getattr(self.bot, "custom_changelog", None)
+        from services.changelog_service import ChangelogService
+        embed = ChangelogService.build_embed(server_lang=server_lang, custom_banner=custom)
+
+        if self.bot.user and self.bot.user.display_avatar:
+            embed.set_thumbnail(url=self.bot.user.display_avatar.url)
+
+        await interaction.response.send_message(embed=embed)
+
     @app_commands.command(name="help", description="Displays an interactive categorized command guide.")
     async def slash_help(self, interaction: discord.Interaction):
         server_lang = "en"

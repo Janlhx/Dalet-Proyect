@@ -167,7 +167,7 @@ Dalet supports both native Discord Slash Commands (`/`) and the traditional `d.`
 | `/resumir [messages]` | Slash / `d.summary` | Generates a smart AI digest of recent channel conversations |
 | `/lore <topic>` | Slash / `d.lore` | Researches server history and chat archives with cynical commentary |
 | `/info` | Slash / `d.info` | Displays Dalet's version, status, and system information |
-| `d.changelog` | Prefix | Displays version release notes and recent updates |
+| `/changelog` | Slash / `d.changelog` | Displays version release notes, major milestone, and recent commits |
 | `d.ms` | Prefix | Checks bot response latency in milliseconds |
 
 ### Moderation (Admin Only)

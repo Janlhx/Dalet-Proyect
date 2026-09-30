@@ -1,11 +1,21 @@
 import discord
 from datetime import datetime, timezone
 
-class DaletAtoms:
+class DaletAtomsMeta(type):
+    @property
+    def VERSION(cls) -> str:
+        try:
+            from services.changelog_service import ChangelogService
+            return ChangelogService.get_version()
+        except Exception:
+            return "v3.1.8"
+
+
+class DaletAtoms(metaclass=DaletAtomsMeta):
     """Design Tokens e Identidad Visual de Dalet."""
 
-    # --- Versión de Dalet ---
-    VERSION = "v3.0.1"
+    # --- Versión de Dalet (Fallback estático) ---
+    VERSION = "v3.1.8"
 
     # --- Paleta de Colores ---
     COLOR_PRIMARY = discord.Color.from_rgb(255, 105, 180)  # #FF69B4 (Dalet Pink)
