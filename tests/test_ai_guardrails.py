@@ -63,8 +63,7 @@ class TestAIGuardrails(unittest.TestCase):
         prompt = nlp._get_system_prompt(bot_name="Yukipa", language="es")
         self.assertIn("Yukipa", prompt)
         self.assertIn("Dalet", prompt)
-        self.assertIn("Tú eres tanto Dalet como Yukipa", prompt)
-        self.assertIn("ERES TÚ MISMA", prompt)
+        self.assertIn("Dalet y Yukipa son la misma chica: TÚ MISMA", prompt)
         self.assertIn("HABLA EN PRIMERA PERSONA", prompt)
 
     def test_system_prompt_custom_alias_awareness_en(self):
@@ -73,15 +72,14 @@ class TestAIGuardrails(unittest.TestCase):
         prompt = nlp._get_system_prompt(bot_name="Yukipa", language="en")
         self.assertIn("Yukipa", prompt)
         self.assertIn("Dalet", prompt)
-        self.assertIn("You are both Dalet and Yukipa", prompt)
-        self.assertIn("THAT IS YOU", prompt)
+        self.assertIn("Dalet and Yukipa are the exact same girl: YOU", prompt)
         self.assertIn("FIRST PERSON ONLY", prompt)
 
     def test_system_prompt_canonical_name(self):
         """Verifica que con el nombre canonical 'Dalet' se apliquen las reglas de primera persona limpiamente."""
         nlp = NLPService()
         prompt = nlp._get_system_prompt(bot_name="Dalet", language="es")
-        self.assertIn("Tu nombre es Dalet", prompt)
+        self.assertIn("Te llamas Dalet", prompt)
         self.assertNotIn("Tú eres tanto Dalet como Dalet", prompt)
         self.assertIn("HABLA EN PRIMERA PERSONA", prompt)
 

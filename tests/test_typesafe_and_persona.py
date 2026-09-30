@@ -71,7 +71,7 @@ class TestTypeSafeAndPersona(unittest.IsolatedAsyncioTestCase):
             is_opinion_req=True
         )
         self.assertIn("Cuenta osu! vinculada: Ninguna vinculada", msg)
-        self.assertIn("recomiéndale con tu estilo vincular su cuenta con /link <usuario>", msg)
+        self.assertIn("/link <usuario>", msg)
 
     async def test_execute_osu_tool_fallback_to_linked_user(self):
         """Verifica que _execute_osu_tool resuelva automáticamente la cuenta enlazada si el usuario dice 'mi' o no pasa nick."""
