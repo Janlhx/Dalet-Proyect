@@ -94,6 +94,94 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
             logger.error(f"SQL command error: {e}")
             await ctx.send(f"❌ Error al ejecutar la consulta SQL:\n```\n{e}\n```")
 
+    @commands.command(name="memories", aliases=["recuerdos", "mymemories"])
+    @commands.has_permissions(administrator=True)
+    async def view_user_memories(self, ctx, user: discord.Member | discord.User | None = None):
+        """[ADMIN] Muestra los recuerdos y conclusiones internas (DaletThought) de un usuario."""
+        target = user or ctx.author
+        try:
+            query = """
+                SELECT Topic as topic, Content as content, UserMessage as user_message, DaletThought as dalet_thought, Timestamp as timestamp
+                FROM UserMemories WHERE UserID = ? ORDER BY Timestamp DESC LIMIT 10
+            """
+            rows = await self.repo.fetch_all(query, target.id)
+            if not rows:
+                fallback_query = "SELECT Topic as topic, Content as content, Timestamp as timestamp FROM UserMemories WHERE UserID = ? ORDER BY Timestamp DESC LIMIT 10"
+                rows = await self.repo.fetch_all(fallback_query, target.id)
+
+            if not rows:
+                return await ctx.send(f"ℹ️ Dalet todavía no ha registrado recuerdos cognitivos para **{target.display_name}**.")
+
+            embed = discord.Embed(
+                title=f"🧠 Recuerdos Cognitivos de Dalet · {target.display_name}",
+                description=f"Mostrando los últimos **{len(rows)}** recuerdos registrados en la base de datos:",
+                color=DaletAtoms.COLOR_PRIMARY
+            )
+            if target.display_avatar:
+                embed.set_thumbnail(url=target.display_avatar.url)
+
+            for i, r in enumerate(rows, 1):
+                topic = r.get("topic") or "general"
+                content = r.get("content") or "Sin resumen"
+                u_msg = r.get("user_message")
+                thought = r.get("dalet_thought")
+                ts = str(r.get("timestamp") or "")[:19]
+
+                field_lines = [f"**Tema:** `{topic}` │ ⏱️ `{ts}`", f"**Conclusión:** {content}"]
+                if u_msg:
+                    field_lines.append(f"**Usuario dijo:** *\"{u_msg[:120]}{'...' if len(u_msg) > 120 else ''}\"*")
+                if thought:
+                    field_lines.append(f"**Pensamiento de Dalet:** 💭 *\"{thought[:150]}{'...' if len(thought) > 150 else ''}\"*")
+
+                embed.add_field(
+                    name=f"📌 Recuerdo #{i}",
+                    value="\n".join(field_lines),
+                    inline=False
+                )
+
+            DaletMolecules.add_standard_footer(embed, context_text="Cognitive Memory Engine • Dalet v" + DaletAtoms.VERSION)
+            await ctx.send(embed=embed)
+        except Exception as e:
+            logger.error(f"Error consultando recuerdos: {e}")
+            await ctx.send(f"❌ Error al consultar recuerdos en la base de datos: {e}")
+
+    @commands.command(name="dbtables", aliases=["dbstatus", "tables"])
+    @commands.is_owner()
+    async def view_db_tables(self, ctx):
+        """[OWNER] Muestra el estado y conteo de filas de todas las tablas en la BD."""
+        try:
+            from database.turso_client import TursoClient
+            tables = [
+                ("Users", "Usuarios registrados"),
+                ("UserMemories", "Recuerdos cognitivos"),
+                ("Messages", "Historial de mensajes"),
+                ("ModerationConfig", "Servidores con moderación"),
+                ("ModActions", "Acciones de moderación registradas"),
+                ("Feedbacks", "Feedbacks recibidos"),
+                ("UserReminders", "Recordatorios programados"),
+                ("AITelemetryTotals", "Totales de telemetría IA"),
+            ]
+            lines = []
+            for tbl, desc in tables:
+                try:
+                    res = await self.repo.fetch_one(f"SELECT COUNT(*) as cnt FROM {tbl}")
+                    cnt = res.get("cnt", 0) if isinstance(res, dict) else (res[0] if res else 0)
+                    lines.append(f"• **`{tbl}`**: `{cnt:,}` filas *({desc})*")
+                except Exception:
+                    lines.append(f"• **`{tbl}`**: *No inicializada o vacía*")
+
+            backend = "🟢 Turso Cloud (libSQL HTTPS)" if TursoClient.is_available() else "🟡 SQLite Local (WAL Fallback)"
+            embed = discord.Embed(
+                title="🗄️ Estado de Tablas en la Base de Datos",
+                description=f"**Backend Activo:** {backend}\n\n" + "\n".join(lines),
+                color=DaletAtoms.COLOR_INFO
+            )
+            DaletMolecules.add_standard_footer(embed, context_text="Database Engine • Usa d.sql para consultas SELECT")
+            await ctx.send(embed=embed)
+        except Exception as e:
+            logger.error(f"Error consultando tablas: {e}")
+            await ctx.send(f"❌ Error consultando tablas de la base de datos: {e}")
+
     @commands.command(name="lock")
     @commands.has_permissions(administrator=True)
     async def lock_channel(self, ctx):
