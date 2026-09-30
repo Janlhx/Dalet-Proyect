@@ -101,7 +101,7 @@ Administrators can configure parameters individually without executing full setu
 | `/mod action <notify \| timeout \| ban>` | Administrator | Sets the default enforcement action for adult content violations. |
 | `/mod timeout <minutes>` | Administrator | Modifies timeout duration (1 to 10080 minutes). |
 | `/mod toggle <images \| flood \| links \| scams> [enabled]` | Administrator | Enables or disables individual moderation modules on demand. |
-| `/mod ignore <add \| remove \| list> [channel]` | Administrator | Exempts or re-includes channels from auto-moderation and anti-flood (e.g. bot or spam channels). |
+| `/mod ignore <add \| remove \| list> [channel] [module]` | Administrator | Exempts or re-includes channels per module (`all`, `flood`, `images`, `links`, `scams`). Ideal for Mudae, waifu art channels, or spam bots. |
 | `/mod status` | Manage Messages | Displays current operational status, active modules, exempt channels, and recent enforcement log. |
 | `/mod off` | Administrator | Pauses auto-moderation for the server. |
 

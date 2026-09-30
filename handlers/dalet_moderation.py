@@ -24,6 +24,13 @@ _SEVERITY_COLORS = {
     "flood": DaletAtoms.COLOR_PURPLE,
 }
 _ACTION_LABELS   = {"notify": "Notificar", "timeout": "Timeout", "ban": "Ban"}
+_EXEMPT_MODULE_NAMES = {
+    "all": "🛡️ Todo el canal",
+    "flood": "🌊 Anti-Flood",
+    "images": "🖼️ Imágenes (IA Visión)",
+    "links": "🔗 Enlaces Adultos",
+    "scams": "🎣 Phishing & Scams",
+}
 
 
 class ModerationCog(commands.Cog, name="Moderación"):
@@ -46,12 +53,14 @@ class ModerationCog(commands.Cog, name="Moderación"):
         if not config or not config["enabled"]:
             return
 
-        # Chequeo de canales exentos/ignorados (ej: spam, mudae, comandos)
-        if message.channel.id in config.get("ignored_channels", []):
+        # Chequeo de canales y módulos exentos (ej: spam, mudae, waifu-posting)
+        ignored_map = config.get("ignored_channels_map", {})
+        exempt_mods = ignored_map.get(message.channel.id, set())
+        if "all" in exempt_mods:
             return
 
         # 1. Chequeo de Anti-Flood en memoria (Ráfagas rápidas, links duplicados o misma foto repetida)
-        if self._mod_service and config.get("anti_flood", True):
+        if self._mod_service and config.get("anti_flood", True) and "flood" not in exempt_mods:
             att_sig = f"{message.attachments[0].filename}_{message.attachments[0].size}" if message.attachments else ""
             is_flood, flood_reason = self._mod_service.check_flood(
                 message.author.id, message.channel.id, message.content or "", attachment_sig=att_sig
@@ -70,14 +79,21 @@ class ModerationCog(commands.Cog, name="Moderación"):
         # 2. Escaneo de contenido (regex en texto y Gemini Vision en imágenes)
         # En canales marcados en Discord como NSFW (18+), omitimos escaneo visual para ahorrar costos de API
         is_nsfw_channel = getattr(message.channel, "is_nsfw", lambda: False)()
-        scan_images = config.get("scan_images", True) and not is_nsfw_channel
+        scan_images = config.get("scan_images", True) and not is_nsfw_channel and "images" not in exempt_mods
+        filter_links = config.get("filter_links", True) and "links" not in exempt_mods
+        filter_scams = config.get("filter_scams", True) and "scams" not in exempt_mods
+
+        # Si todos los módulos activos están exentos en este canal, omitir escaneo
+        if not scan_images and not filter_links and not filter_scams:
+            return
+
         image_urls = ModerationService.extract_image_urls(message) if scan_images else []
 
         result = await self._mod_service.scan_message(
             content=message.content or "",
             image_urls=image_urls,
-            filter_links=config.get("filter_links", True),
-            filter_scams=config.get("filter_scams", True),
+            filter_links=filter_links,
+            filter_scams=filter_scams,
             scan_images=scan_images,
         )
 
@@ -361,10 +377,11 @@ class ModerationCog(commands.Cog, name="Moderación"):
         DaletMolecules.add_standard_footer(embed, context_text="Admin • /mod status para ver todos los módulos")
         await interaction.followup.send(embed=embed, ephemeral=True)
 
-    @mod_group.command(name="ignore", description="Gestiona canales exentos de auto-moderación y anti-flood.")
+    @mod_group.command(name="ignore", description="Gestiona canales y módulos específicos exentos de moderación.")
     @app_commands.describe(
-        action="add (excluir canal), remove (volver a moderar), list (ver exentos)",
+        action="add (excluir módulo o canal), remove (re-incluir / vigilar), list (ver exenciones)",
         channel="Canal a ignorar o re-incluir (opcional si es list, default: canal actual)",
+        module="Módulo a eximir: all (todo el canal), flood (anti-spam), images (visión IA), links (adultos), scams (phishing)",
     )
     @app_commands.checks.has_permissions(administrator=True)
     async def mod_ignore(
@@ -372,27 +389,30 @@ class ModerationCog(commands.Cog, name="Moderación"):
         interaction: discord.Interaction,
         action: Literal["add", "remove", "list"],
         channel: discord.TextChannel | None = None,
+        module: Literal["all", "flood", "images", "links", "scams"] = "all",
     ):
         await interaction.response.defer(ephemeral=True)
         server_id = interaction.guild_id
 
         if action == "list":
             cfg = await self.bot.admin_repo.get_moderation_config(server_id)
-            ignored = cfg.get("ignored_channels", []) if cfg else []
-            if not ignored:
+            ignored_map = cfg.get("ignored_channels_map", {}) if cfg else {}
+            if not ignored_map:
                 return await interaction.followup.send("ℹ️ No hay canales exentos de moderación.", ephemeral=True)
 
-            mentions = []
-            for cid in ignored:
+            lines = []
+            for cid, mods in ignored_map.items():
                 ch = interaction.guild.get_channel(cid)
-                mentions.append(ch.mention if ch else f"`#{cid}`")
+                ch_str = ch.mention if ch else f"`#{cid}`"
+                badges = ", ".join(_EXEMPT_MODULE_NAMES.get(m, m) for m in sorted(mods))
+                lines.append(f"• {ch_str}: {badges}")
 
             embed = discord.Embed(
-                title="🛡️ Canales Exentos de Auto-Moderación",
-                description="Los siguientes canales están excluidos de moderación y anti-flood:\n\n" + "\n".join(f"• {m}" for m in mentions),
+                title="🛡️ Canales y Módulos Exentos de Moderación",
+                description="Los siguientes canales tienen reglas exentas configuradas:\n\n" + "\n".join(lines),
                 color=DaletAtoms.COLOR_INFO,
             )
-            DaletMolecules.add_standard_footer(embed, context_text="Admin • Usa /mod ignore remove para volver a vigilar")
+            DaletMolecules.add_standard_footer(embed, context_text="Admin • Usa /mod ignore add o remove")
             return await interaction.followup.send(embed=embed, ephemeral=True)
 
         target_ch = channel or interaction.channel
@@ -400,20 +420,42 @@ class ModerationCog(commands.Cog, name="Moderación"):
             return await interaction.followup.send("❌ Debes especificar un canal de texto válido.", ephemeral=True)
 
         if action == "add":
-            await self.bot.admin_repo.add_ignored_channel(server_id, target_ch.id)
+            updated_map = await self.bot.admin_repo.add_ignored_channel_module(server_id, target_ch.id, module)
+            current_mods = updated_map.get(target_ch.id, {module})
+            mod_badges = ", ".join(_EXEMPT_MODULE_NAMES.get(m, m) for m in sorted(current_mods))
+            module_desc = _EXEMPT_MODULE_NAMES.get(module, module)
             embed = discord.Embed(
-                title="🛡️ Canal Excluido de Moderación",
-                description=f"El canal {target_ch.mention} ha sido añadido a los canales exentos.\nDalet ya no moderará mensajes ni aplicará anti-flood aquí.",
+                title="🛡️ Exención Añadida en Canal",
+                description=(
+                    f"Se ha añadido la exención de **{module_desc}** en {target_ch.mention}.\n\n"
+                    f"**Exenciones activas en este canal:** {mod_badges}\n"
+                    f"*(Dalet no aplicará esas reglas en {target_ch.mention})*"
+                ),
                 color=DaletAtoms.COLOR_SUCCESS,
             )
-            DaletMolecules.add_standard_footer(embed, context_text="Admin • Usa /mod ignore list para ver todos")
+            DaletMolecules.add_standard_footer(embed, context_text="Admin • Usa /mod ignore list para ver todas")
             return await interaction.followup.send(embed=embed, ephemeral=True)
 
         elif action == "remove":
-            await self.bot.admin_repo.remove_ignored_channel(server_id, target_ch.id)
+            updated_map = await self.bot.admin_repo.remove_ignored_channel_module(server_id, target_ch.id, module)
+            remaining_mods = updated_map.get(target_ch.id, set())
+            module_desc = _EXEMPT_MODULE_NAMES.get(module, module)
+
+            if remaining_mods:
+                rem_badges = ", ".join(_EXEMPT_MODULE_NAMES.get(m, m) for m in sorted(remaining_mods))
+                desc = (
+                    f"Se ha removido la exención de **{module_desc}** en {target_ch.mention}.\n\n"
+                    f"**Exenciones restantes en este canal:** {rem_badges}"
+                )
+            else:
+                desc = (
+                    f"El canal {target_ch.mention} ya no tiene exenciones.\n"
+                    f"Dalet volverá a vigilar y moderar todas las funciones en este canal con normalidad."
+                )
+
             embed = discord.Embed(
-                title="🛡️ Canal Re-incluido en Moderación",
-                description=f"El canal {target_ch.mention} fue removido de la lista de exentos.\nDalet volverá a vigilar y moderar este canal con normalidad.",
+                title="🛡️ Exención Removida de Canal",
+                description=desc,
                 color=DaletAtoms.COLOR_SUCCESS,
             )
             DaletMolecules.add_standard_footer(embed, context_text="Admin • Usa /mod status para ver la config")
@@ -453,12 +495,15 @@ class ModerationCog(commands.Cog, name="Moderación"):
         embed.add_field(name="Auto-ban en Ilegal", value="Sí" if config["auto_ban_on_illegal"] else "No (Alertar)", inline=True)
 
         # Canales exentos
-        ignored = config.get("ignored_channels", [])
-        if ignored:
-            exempt_str = ", ".join(
-                interaction.guild.get_channel(cid).mention if interaction.guild.get_channel(cid) else f"`#{cid}`"
-                for cid in ignored
-            )
+        ignored_map = config.get("ignored_channels_map", {})
+        if ignored_map:
+            lines = []
+            for cid, mods in ignored_map.items():
+                ch = interaction.guild.get_channel(cid)
+                ch_str = ch.mention if ch else f"`#{cid}`"
+                badges = ", ".join(_EXEMPT_MODULE_NAMES.get(m, m) for m in sorted(mods))
+                lines.append(f"• {ch_str} ({badges})")
+            exempt_str = "\n".join(lines)
         else:
             exempt_str = "Ninguno (todos vigilados)"
         embed.add_field(name="🛡️ Canales Exentos", value=exempt_str, inline=False)

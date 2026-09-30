@@ -1,3 +1,4 @@
+import json
 from database.repositories.base_repository import BaseRepository
 
 
@@ -154,7 +155,29 @@ class AdminRepository(BaseRepository):
                 return default
 
         raw_ignored = _get_val(9, "") or ""
-        ignored_list = [int(cid.strip()) for cid in str(raw_ignored).split(",") if cid.strip().isdigit()]
+        ignored_map: dict[int, set[str]] = {}
+        try:
+            parsed = json.loads(raw_ignored)
+            if isinstance(parsed, dict):
+                for k, v in parsed.items():
+                    if str(k).isdigit():
+                        cid = int(k)
+                        if isinstance(v, list):
+                            ignored_map[cid] = set(v)
+                        elif isinstance(v, str):
+                            ignored_map[cid] = {v}
+                        else:
+                            ignored_map[cid] = {"all"}
+            elif isinstance(parsed, list):
+                for cid in parsed:
+                    if str(cid).isdigit():
+                        ignored_map[int(cid)] = {"all"}
+        except Exception:
+            for cid in str(raw_ignored).split(","):
+                if cid.strip().isdigit():
+                    ignored_map[int(cid.strip())] = {"all"}
+
+        ignored_list = list(ignored_map.keys())
 
         cfg = {
             "enabled": bool(_get_val(0, 0)),
@@ -167,6 +190,7 @@ class AdminRepository(BaseRepository):
             "filter_links": bool(_get_val(7, 1)),
             "filter_scams": bool(_get_val(8, 1)),
             "ignored_channels": ignored_list,
+            "ignored_channels_map": ignored_map,
         }
         self._mod_cache[server_id] = cfg
         return cfg
@@ -183,10 +207,21 @@ class AdminRepository(BaseRepository):
         anti_flood: bool = True,
         filter_links: bool = True,
         filter_scams: bool = True,
+        ignored_channels_map: dict[int, list[str] | set[str]] | None = None,
         ignored_channels: list[int] | None = None,
     ):
         await self._ensure_mod_columns()
-        channels_str = ",".join(str(c) for c in (ignored_channels or []))
+
+        # Normalizar y serializar mapa de exenciones por canal a JSON
+        final_map: dict[str, list[str]] = {}
+        if ignored_channels_map is not None:
+            for cid, mods in ignored_channels_map.items():
+                final_map[str(cid)] = sorted(list(mods))
+        elif ignored_channels is not None:
+            for cid in ignored_channels:
+                final_map[str(cid)] = ["all"]
+
+        channels_str = json.dumps(final_map) if final_map else ""
 
         query = """
             INSERT INTO ModerationConfig (
@@ -221,6 +256,7 @@ class AdminRepository(BaseRepository):
             1 if filter_scams else 0,
             channels_str,
         )
+        parsed_map = {int(k): set(v) for k, v in final_map.items()}
         self._mod_cache[server_id] = {
             "enabled": enabled,
             "log_channel_id": log_channel_id,
@@ -231,7 +267,8 @@ class AdminRepository(BaseRepository):
             "anti_flood": anti_flood,
             "filter_links": filter_links,
             "filter_scams": filter_scams,
-            "ignored_channels": ignored_channels or [],
+            "ignored_channels": list(parsed_map.keys()),
+            "ignored_channels_map": parsed_map,
         }
         return res
 
@@ -250,6 +287,7 @@ class AdminRepository(BaseRepository):
                 "filter_links": True,
                 "filter_scams": True,
                 "ignored_channels": [],
+                "ignored_channels_map": {},
             }
 
         merged = {**current, **kwargs}
@@ -264,27 +302,67 @@ class AdminRepository(BaseRepository):
             anti_flood=merged["anti_flood"],
             filter_links=merged["filter_links"],
             filter_scams=merged["filter_scams"],
-            ignored_channels=merged.get("ignored_channels", []),
+            ignored_channels_map=merged.get("ignored_channels_map"),
+            ignored_channels=merged.get("ignored_channels"),
         )
         return merged
 
-    async def add_ignored_channel(self, server_id: int, channel_id: int) -> list[int]:
-        """Añade un canal a la lista de canales exentos de moderación."""
+    async def add_ignored_channel_module(
+        self,
+        server_id: int,
+        channel_id: int,
+        module: str = "all",
+    ) -> dict[int, set[str]]:
+        """Añade una exención específica (o 'all') para un canal en el servidor."""
         current = await self.get_moderation_config(server_id)
-        channels = list(current.get("ignored_channels", [])) if current else []
-        if channel_id not in channels:
-            channels.append(channel_id)
-            await self.update_moderation_config(server_id, ignored_channels=channels)
-        return channels
+        current_map = dict(current.get("ignored_channels_map", {})) if current else {}
+
+        existing_mods = set(current_map.get(channel_id, set()))
+        if module == "all":
+            existing_mods = {"all"}
+        else:
+            existing_mods.discard("all")
+            existing_mods.add(module)
+
+        current_map[channel_id] = existing_mods
+        await self.update_moderation_config(server_id, ignored_channels_map=current_map)
+        return current_map
+
+    async def remove_ignored_channel_module(
+        self,
+        server_id: int,
+        channel_id: int,
+        module: str = "all",
+    ) -> dict[int, set[str]]:
+        """Remueve una exención específica (o todas) para un canal en el servidor."""
+        current = await self.get_moderation_config(server_id)
+        current_map = dict(current.get("ignored_channels_map", {})) if current else {}
+
+        if channel_id in current_map:
+            existing_mods = set(current_map[channel_id])
+            if module == "all" or "all" in existing_mods:
+                del current_map[channel_id]
+            else:
+                existing_mods.discard(module)
+                if not existing_mods:
+                    del current_map[channel_id]
+                else:
+                    current_map[channel_id] = existing_mods
+
+            await self.update_moderation_config(server_id, ignored_channels_map=current_map)
+        return current_map
+
+    async def add_ignored_channel(self, server_id: int, channel_id: int) -> list[int]:
+        """Añade un canal a la lista de canales exentos de moderación (compatibilidad)."""
+        await self.add_ignored_channel_module(server_id, channel_id, "all")
+        current = await self.get_moderation_config(server_id)
+        return list(current.get("ignored_channels", [])) if current else []
 
     async def remove_ignored_channel(self, server_id: int, channel_id: int) -> list[int]:
-        """Elimina un canal de la lista de canales exentos de moderación."""
+        """Elimina un canal de la lista de canales exentos de moderación (compatibilidad)."""
+        await self.remove_ignored_channel_module(server_id, channel_id, "all")
         current = await self.get_moderation_config(server_id)
-        channels = list(current.get("ignored_channels", [])) if current else []
-        if channel_id in channels:
-            channels.remove(channel_id)
-            await self.update_moderation_config(server_id, ignored_channels=channels)
-        return channels
+        return list(current.get("ignored_channels", [])) if current else []
 
     async def log_mod_action(
         self,
