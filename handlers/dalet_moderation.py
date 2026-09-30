@@ -150,35 +150,39 @@ class ModerationCog(commands.Cog, name="Moderación"):
                 return "user_not_in_guild"
 
         if action == "ban":
+            if not guild.me or not (guild.me.guild_permissions.ban_members or guild.me.guild_permissions.administrator):
+                return "ban_fallido (Dalet no tiene el permiso 'Banear miembros')"
             if member == guild.owner:
                 return "ban_fallido (es owner)"
             if getattr(member, "guild_permissions", None) and member.guild_permissions.administrator:
                 return "ban_fallido (es administrador)"
             if guild.me and member.top_role >= guild.me.top_role:
-                return "ban_fallido (rol superior o igual a Dalet)"
+                return f"ban_fallido (rol '{member.top_role.name}' >= '{guild.me.top_role.name}')"
             try:
                 await guild.ban(member, reason=f"Auto-mod: {severity}", delete_message_days=1)
                 return "banned"
-            except discord.Forbidden:
-                logger.warning(f"Sin permisos para banear a {member} en {guild}")
-                return "ban_fallido (sin permisos o jerarquía)"
+            except discord.Forbidden as e:
+                logger.warning(f"Sin permisos para banear a {member} en {guild}: {e} (código {e.code})")
+                return f"ban_fallido (código {e.code}: {e.text})"
 
         if action == "timeout":
+            if not guild.me or not (guild.me.guild_permissions.moderate_members or guild.me.guild_permissions.administrator):
+                return "timeout_fallido (Dalet no tiene el permiso 'Time out members' / 'Moderar miembros')"
             if member == guild.owner:
                 return "timeout_fallido (es owner)"
             if getattr(member, "guild_permissions", None) and member.guild_permissions.administrator:
                 return "timeout_fallido (es administrador)"
             if guild.me and member.top_role >= guild.me.top_role:
-                return "timeout_fallido (rol superior o igual a Dalet)"
+                return f"timeout_fallido (rol '{member.top_role.name}' >= '{guild.me.top_role.name}')"
             try:
                 await member.timeout(
                     timedelta(minutes=timeout_minutes),
                     reason=f"Auto-mod: {severity}",
                 )
                 return f"timeout_{timeout_minutes}m"
-            except discord.Forbidden:
-                logger.warning(f"Sin permisos para timeout a {member} en {guild}")
-                return "timeout_fallido (sin permisos o jerarquía)"
+            except discord.Forbidden as e:
+                logger.warning(f"Sin permisos para timeout a {member} en {guild}: {e} (código {e.code})")
+                return f"timeout_fallido (código {e.code}: {e.text})"
 
         return "deleted"
 
