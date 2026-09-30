@@ -46,6 +46,10 @@ class ModerationCog(commands.Cog, name="Moderación"):
         if not config or not config["enabled"]:
             return
 
+        # Chequeo de canales exentos/ignorados (ej: spam, mudae, comandos)
+        if message.channel.id in config.get("ignored_channels", []):
+            return
+
         # 1. Chequeo de Anti-Flood en memoria (Ráfagas rápidas, links duplicados o misma foto repetida)
         if self._mod_service and config.get("anti_flood", True):
             att_sig = f"{message.attachments[0].filename}_{message.attachments[0].size}" if message.attachments else ""
@@ -139,15 +143,33 @@ class ModerationCog(commands.Cog, name="Moderación"):
         timeout_minutes: int,
         severity: str,
     ) -> str:
+        # Asegurar que tengamos el objeto Member con roles y permisos en el servidor
+        if not isinstance(member, discord.Member):
+            member = guild.get_member(member.id)
+            if not member:
+                return "user_not_in_guild"
+
         if action == "ban":
+            if member == guild.owner:
+                return "ban_fallido (es owner)"
+            if getattr(member, "guild_permissions", None) and member.guild_permissions.administrator:
+                return "ban_fallido (es administrador)"
+            if guild.me and member.top_role >= guild.me.top_role:
+                return "ban_fallido (rol superior o igual a Dalet)"
             try:
                 await guild.ban(member, reason=f"Auto-mod: {severity}", delete_message_days=1)
                 return "banned"
             except discord.Forbidden:
                 logger.warning(f"Sin permisos para banear a {member} en {guild}")
-                return "ban_failed"
+                return "ban_fallido (sin permisos o jerarquía)"
 
         if action == "timeout":
+            if member == guild.owner:
+                return "timeout_fallido (es owner)"
+            if getattr(member, "guild_permissions", None) and member.guild_permissions.administrator:
+                return "timeout_fallido (es administrador)"
+            if guild.me and member.top_role >= guild.me.top_role:
+                return "timeout_fallido (rol superior o igual a Dalet)"
             try:
                 await member.timeout(
                     timedelta(minutes=timeout_minutes),
@@ -156,7 +178,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
                 return f"timeout_{timeout_minutes}m"
             except discord.Forbidden:
                 logger.warning(f"Sin permisos para timeout a {member} en {guild}")
-                return "timeout_failed"
+                return "timeout_fallido (sin permisos o jerarquía)"
 
         return "deleted"
 
@@ -335,6 +357,64 @@ class ModerationCog(commands.Cog, name="Moderación"):
         DaletMolecules.add_standard_footer(embed, context_text="Admin • /mod status para ver todos los módulos")
         await interaction.followup.send(embed=embed, ephemeral=True)
 
+    @mod_group.command(name="ignore", description="Gestiona canales exentos de auto-moderación y anti-flood.")
+    @app_commands.describe(
+        action="add (excluir canal), remove (volver a moderar), list (ver exentos)",
+        channel="Canal a ignorar o re-incluir (opcional si es list, default: canal actual)",
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    async def mod_ignore(
+        self,
+        interaction: discord.Interaction,
+        action: Literal["add", "remove", "list"],
+        channel: discord.TextChannel | None = None,
+    ):
+        await interaction.response.defer(ephemeral=True)
+        server_id = interaction.guild_id
+
+        if action == "list":
+            cfg = await self.bot.admin_repo.get_moderation_config(server_id)
+            ignored = cfg.get("ignored_channels", []) if cfg else []
+            if not ignored:
+                return await interaction.followup.send("ℹ️ No hay canales exentos de moderación.", ephemeral=True)
+
+            mentions = []
+            for cid in ignored:
+                ch = interaction.guild.get_channel(cid)
+                mentions.append(ch.mention if ch else f"`#{cid}`")
+
+            embed = discord.Embed(
+                title="🛡️ Canales Exentos de Auto-Moderación",
+                description="Los siguientes canales están excluidos de moderación y anti-flood:\n\n" + "\n".join(f"• {m}" for m in mentions),
+                color=DaletAtoms.COLOR_INFO,
+            )
+            DaletMolecules.add_standard_footer(embed, context_text="Admin • Usa /mod ignore remove para volver a vigilar")
+            return await interaction.followup.send(embed=embed, ephemeral=True)
+
+        target_ch = channel or interaction.channel
+        if not isinstance(target_ch, discord.TextChannel):
+            return await interaction.followup.send("❌ Debes especificar un canal de texto válido.", ephemeral=True)
+
+        if action == "add":
+            await self.bot.admin_repo.add_ignored_channel(server_id, target_ch.id)
+            embed = discord.Embed(
+                title="🛡️ Canal Excluido de Moderación",
+                description=f"El canal {target_ch.mention} ha sido añadido a los canales exentos.\nDalet ya no moderará mensajes ni aplicará anti-flood aquí.",
+                color=DaletAtoms.COLOR_SUCCESS,
+            )
+            DaletMolecules.add_standard_footer(embed, context_text="Admin • Usa /mod ignore list para ver todos")
+            return await interaction.followup.send(embed=embed, ephemeral=True)
+
+        elif action == "remove":
+            await self.bot.admin_repo.remove_ignored_channel(server_id, target_ch.id)
+            embed = discord.Embed(
+                title="🛡️ Canal Re-incluido en Moderación",
+                description=f"El canal {target_ch.mention} fue removido de la lista de exentos.\nDalet volverá a vigilar y moderar este canal con normalidad.",
+                color=DaletAtoms.COLOR_SUCCESS,
+            )
+            DaletMolecules.add_standard_footer(embed, context_text="Admin • Usa /mod status para ver la config")
+            return await interaction.followup.send(embed=embed, ephemeral=True)
+
     @mod_group.command(name="off", description="Desactiva la auto-moderación en este servidor.")
     @app_commands.checks.has_permissions(administrator=True)
     async def mod_off(self, interaction: discord.Interaction):
@@ -368,6 +448,17 @@ class ModerationCog(commands.Cog, name="Moderación"):
         embed.add_field(name="Duración Timeout", value=f"{config['timeout_minutes']} min", inline=True)
         embed.add_field(name="Auto-ban en Ilegal", value="Sí" if config["auto_ban_on_illegal"] else "No (Alertar)", inline=True)
 
+        # Canales exentos
+        ignored = config.get("ignored_channels", [])
+        if ignored:
+            exempt_str = ", ".join(
+                interaction.guild.get_channel(cid).mention if interaction.guild.get_channel(cid) else f"`#{cid}`"
+                for cid in ignored
+            )
+        else:
+            exempt_str = "Ninguno (todos vigilados)"
+        embed.add_field(name="🛡️ Canales Exentos", value=exempt_str, inline=False)
+
         # Módulos granulares
         modules_lines = [
             f"{'🟢' if config.get('scan_images', True) else '🔴'} **Imágenes (IA Visión):** {'Activo' if config.get('scan_images', True) else 'Desactivado'}",
@@ -386,7 +477,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
             ]
             embed.add_field(name="📋 Últimas acciones", value="\n".join(lines), inline=False)
 
-        DaletMolecules.add_standard_footer(embed, context_text="Admin • Usa /mod toggle <modulo> para cambiar")
+        DaletMolecules.add_standard_footer(embed, context_text="Admin • Usa /mod toggle o /mod ignore")
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @mod_setup.error
@@ -394,6 +485,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
     @mod_action.error
     @mod_timeout.error
     @mod_toggle.error
+    @mod_ignore.error
     @mod_off.error
     @mod_status.error
     async def mod_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):

@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS ModerationConfig (
     AntiFlood BOOLEAN DEFAULT 1,
     FilterLinks BOOLEAN DEFAULT 1,
     FilterScams BOOLEAN DEFAULT 1,
+    IgnoredChannels TEXT DEFAULT '',
     UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

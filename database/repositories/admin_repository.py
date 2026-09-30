@@ -102,13 +102,31 @@ class AdminRepository(BaseRepository):
         """
         return await self.execute(query, server_id, lang)
 
+    async def _ensure_mod_columns(self):
+        """Asegura de manera defensiva que las columnas de ModerationConfig existan en Turso."""
+        if not hasattr(self, "_migrated_mod_cols"):
+            for col, col_def in [
+                ("ScanImages", "BOOLEAN DEFAULT 1"),
+                ("AntiFlood", "BOOLEAN DEFAULT 1"),
+                ("FilterLinks", "BOOLEAN DEFAULT 1"),
+                ("FilterScams", "BOOLEAN DEFAULT 1"),
+                ("IgnoredChannels", "TEXT DEFAULT ''"),
+            ]:
+                try:
+                    await self.execute(f"ALTER TABLE ModerationConfig ADD COLUMN {col} {col_def}")
+                except Exception:
+                    pass
+            self._migrated_mod_cols = True
+
     async def get_moderation_config(self, server_id: int) -> dict | None:
         if server_id in self._mod_cache:
             return self._mod_cache[server_id]
 
+        await self._ensure_mod_columns()
+
         query = """
             SELECT Enabled, LogChannelID, Action, AutoBanOnIllegal, TimeoutMinutes,
-                   ScanImages, AntiFlood, FilterLinks, FilterScams
+                   ScanImages, AntiFlood, FilterLinks, FilterScams, IgnoredChannels
             FROM ModerationConfig WHERE ServerID = ?
         """
         row = await self.fetch_one(query, server_id)
@@ -123,6 +141,9 @@ class AdminRepository(BaseRepository):
             except (IndexError, KeyError):
                 return default
 
+        raw_ignored = _get_val(9, "") or ""
+        ignored_list = [int(cid.strip()) for cid in str(raw_ignored).split(",") if cid.strip().isdigit()]
+
         cfg = {
             "enabled": bool(_get_val(0, 0)),
             "log_channel_id": _get_val(1, None),
@@ -133,6 +154,7 @@ class AdminRepository(BaseRepository):
             "anti_flood": bool(_get_val(6, 1)),
             "filter_links": bool(_get_val(7, 1)),
             "filter_scams": bool(_get_val(8, 1)),
+            "ignored_channels": ignored_list,
         }
         self._mod_cache[server_id] = cfg
         return cfg
@@ -149,13 +171,17 @@ class AdminRepository(BaseRepository):
         anti_flood: bool = True,
         filter_links: bool = True,
         filter_scams: bool = True,
+        ignored_channels: list[int] | None = None,
     ):
+        await self._ensure_mod_columns()
+        channels_str = ",".join(str(c) for c in (ignored_channels or []))
+
         query = """
             INSERT INTO ModerationConfig (
                 ServerID, Enabled, LogChannelID, Action, AutoBanOnIllegal, TimeoutMinutes,
-                ScanImages, AntiFlood, FilterLinks, FilterScams, UpdatedAt
+                ScanImages, AntiFlood, FilterLinks, FilterScams, IgnoredChannels, UpdatedAt
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(ServerID) DO UPDATE SET
                 Enabled = excluded.Enabled,
                 LogChannelID = excluded.LogChannelID,
@@ -166,6 +192,7 @@ class AdminRepository(BaseRepository):
                 AntiFlood = excluded.AntiFlood,
                 FilterLinks = excluded.FilterLinks,
                 FilterScams = excluded.FilterScams,
+                IgnoredChannels = excluded.IgnoredChannels,
                 UpdatedAt = CURRENT_TIMESTAMP
         """
         res = await self.execute(
@@ -180,6 +207,7 @@ class AdminRepository(BaseRepository):
             1 if anti_flood else 0,
             1 if filter_links else 0,
             1 if filter_scams else 0,
+            channels_str,
         )
         self._mod_cache[server_id] = {
             "enabled": enabled,
@@ -191,6 +219,7 @@ class AdminRepository(BaseRepository):
             "anti_flood": anti_flood,
             "filter_links": filter_links,
             "filter_scams": filter_scams,
+            "ignored_channels": ignored_channels or [],
         }
         return res
 
@@ -208,6 +237,7 @@ class AdminRepository(BaseRepository):
                 "anti_flood": True,
                 "filter_links": True,
                 "filter_scams": True,
+                "ignored_channels": [],
             }
 
         merged = {**current, **kwargs}
@@ -222,8 +252,27 @@ class AdminRepository(BaseRepository):
             anti_flood=merged["anti_flood"],
             filter_links=merged["filter_links"],
             filter_scams=merged["filter_scams"],
+            ignored_channels=merged.get("ignored_channels", []),
         )
         return merged
+
+    async def add_ignored_channel(self, server_id: int, channel_id: int) -> list[int]:
+        """Añade un canal a la lista de canales exentos de moderación."""
+        current = await self.get_moderation_config(server_id)
+        channels = list(current.get("ignored_channels", [])) if current else []
+        if channel_id not in channels:
+            channels.append(channel_id)
+            await self.update_moderation_config(server_id, ignored_channels=channels)
+        return channels
+
+    async def remove_ignored_channel(self, server_id: int, channel_id: int) -> list[int]:
+        """Elimina un canal de la lista de canales exentos de moderación."""
+        current = await self.get_moderation_config(server_id)
+        channels = list(current.get("ignored_channels", [])) if current else []
+        if channel_id in channels:
+            channels.remove(channel_id)
+            await self.update_moderation_config(server_id, ignored_channels=channels)
+        return channels
 
     async def log_mod_action(
         self,

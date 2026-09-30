@@ -159,6 +159,7 @@ class SQLiteManager:
                 AntiFlood BOOLEAN DEFAULT 1,
                 FilterLinks BOOLEAN DEFAULT 1,
                 FilterScams BOOLEAN DEFAULT 1,
+                IgnoredChannels TEXT DEFAULT '',
                 UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """,
@@ -228,11 +229,17 @@ class SQLiteManager:
             except Exception:
                 pass
 
-            # Migraciones de módulos de moderación
-            for mod_col in ["ScanImages", "AntiFlood", "FilterLinks", "FilterScams"]:
+            # Migraciones de módulos y canales de moderación
+            for mod_col, col_type in [
+                ("ScanImages", "BOOLEAN DEFAULT 1"),
+                ("AntiFlood", "BOOLEAN DEFAULT 1"),
+                ("FilterLinks", "BOOLEAN DEFAULT 1"),
+                ("FilterScams", "BOOLEAN DEFAULT 1"),
+                ("IgnoredChannels", "TEXT DEFAULT ''"),
+            ]:
                 try:
                     await cls._connection.execute(
-                        f"ALTER TABLE ModerationConfig ADD COLUMN {mod_col} BOOLEAN DEFAULT 1"
+                        f"ALTER TABLE ModerationConfig ADD COLUMN {mod_col} {col_type}"
                     )
                     await cls._connection.commit()
                 except Exception:
