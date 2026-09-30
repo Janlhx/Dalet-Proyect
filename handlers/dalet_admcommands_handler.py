@@ -66,55 +66,26 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
 
     # --- Comandos de Base de Datos y Utilidad ---
 
-    @commands.command(name="sql", hidden=True)
-    @commands.is_owner()
-    async def run_sql_select(self, ctx, *, query: str):
-        """[ADMIN] Ejecuta una consulta SELECT en la BD (solo Owner)."""
-        if not query.lower().strip().startswith("select"):
-            return await ctx.send("❌ Este comando solo permite consultas `SELECT`.")
-
-        try:
-            # Usando el repositorio base para consultas directas
-            results = await self.repo.fetch_all(query)
-            
-            if not results:
-                return await ctx.send("✅ Consulta ejecutada, no se devolvieron resultados.")
-
-            # Formatear la respuesta
-            response = ""
-            for i, row in enumerate(results):
-                response += f"Fila {i+1}: {dict(row)}\n"
-                if len(response) > 1800:
-                    response += "\n... (resultados truncados)"
-                    break
-            
-            await ctx.send(f"Resultados de la consulta:\n```\n{response}\n```")
-
-        except Exception as e:
-            logger.error(f"SQL command error: {e}")
-            await ctx.send(f"❌ Error al ejecutar la consulta SQL:\n```\n{e}\n```")
-
     @commands.command(name="memories", aliases=["recuerdos", "mymemories"])
-    @commands.has_permissions(administrator=True)
-    async def view_user_memories(self, ctx, user: discord.Member | discord.User | None = None):
-        """[ADMIN] Muestra los recuerdos y conclusiones internas (DaletThought) de un usuario."""
-        target = user or ctx.author
+    async def view_user_memories(self, ctx):
+        """Muestra exclusivamente tus propios recuerdos y conclusiones cognitivas registradas por Dalet."""
+        target = ctx.author
         try:
             query = """
                 SELECT Topic as topic, Content as content, UserMessage as user_message, DaletThought as dalet_thought, Timestamp as timestamp
-                FROM UserMemories WHERE UserID = ? ORDER BY Timestamp DESC LIMIT 10
+                FROM UserMemories WHERE UserID = ? ORDER BY Timestamp DESC LIMIT 8
             """
             rows = await self.repo.fetch_all(query, target.id)
             if not rows:
-                fallback_query = "SELECT Topic as topic, Content as content, Timestamp as timestamp FROM UserMemories WHERE UserID = ? ORDER BY Timestamp DESC LIMIT 10"
+                fallback_query = "SELECT Topic as topic, Content as content, Timestamp as timestamp FROM UserMemories WHERE UserID = ? ORDER BY Timestamp DESC LIMIT 8"
                 rows = await self.repo.fetch_all(fallback_query, target.id)
 
             if not rows:
-                return await ctx.send(f"ℹ️ Dalet todavía no ha registrado recuerdos cognitivos para **{target.display_name}**.")
+                return await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Dalet todavía no ha registrado recuerdos cognitivos sobre ti.")
 
             embed = discord.Embed(
-                title=f"🧠 Recuerdos Cognitivos de Dalet · {target.display_name}",
-                description=f"Mostrando los últimos **{len(rows)}** recuerdos registrados en la base de datos:",
+                title=f"{DaletAtoms.EMOJI_DALET} Recuerdos Cognitivos {DaletAtoms.GLYPH_PIPE} {target.display_name}",
+                description=f"Mostrando tus últimos **{len(rows)}** recuerdos almacenados en memoria:",
                 color=DaletAtoms.COLOR_PRIMARY
             )
             if target.display_avatar:
@@ -127,60 +98,23 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
                 thought = r.get("dalet_thought")
                 ts = str(r.get("timestamp") or "")[:19]
 
-                field_lines = [f"**Tema:** `{topic}` │ ⏱️ `{ts}`", f"**Conclusión:** {content}"]
+                field_lines = [f"{DaletAtoms.GLYPH_POINTER} **Tema:** `{topic}` {DaletAtoms.GLYPH_PIPE} `{ts}`", f"{DaletAtoms.GLYPH_SUB} **Conclusión:** {content}"]
                 if u_msg:
-                    field_lines.append(f"**Usuario dijo:** *\"{u_msg[:120]}{'...' if len(u_msg) > 120 else ''}\"*")
+                    field_lines.append(f"{DaletAtoms.GLYPH_SUB} **Tu mensaje:** *\"{u_msg[:120]}{'...' if len(u_msg) > 120 else ''}\"*")
                 if thought:
-                    field_lines.append(f"**Pensamiento de Dalet:** 💭 *\"{thought[:150]}{'...' if len(thought) > 150 else ''}\"*")
+                    field_lines.append(f"{DaletAtoms.GLYPH_SUB} **Pensamiento de Dalet:** *\"{thought[:150]}{'...' if len(thought) > 150 else ''}\"*")
 
                 embed.add_field(
-                    name=f"📌 Recuerdo #{i}",
+                    name=f"Recuerdo #{i}",
                     value="\n".join(field_lines),
                     inline=False
                 )
 
-            DaletMolecules.add_standard_footer(embed, context_text="Cognitive Memory Engine • Dalet v" + DaletAtoms.VERSION)
+            DaletMolecules.add_standard_footer(embed, context_text=f"Dalet {DaletAtoms.VERSION} {DaletAtoms.GLYPH_PIPE} Memoria Cognitiva Privada")
             await ctx.send(embed=embed)
         except Exception as e:
             logger.error(f"Error consultando recuerdos: {e}")
-            await ctx.send(f"❌ Error al consultar recuerdos en la base de datos: {e}")
-
-    @commands.command(name="dbtables", aliases=["dbstatus", "tables"])
-    @commands.is_owner()
-    async def view_db_tables(self, ctx):
-        """[OWNER] Muestra el estado y conteo de filas de todas las tablas en la BD."""
-        try:
-            from database.turso_client import TursoClient
-            tables = [
-                ("Users", "Usuarios registrados"),
-                ("UserMemories", "Recuerdos cognitivos"),
-                ("Messages", "Historial de mensajes"),
-                ("ModerationConfig", "Servidores con moderación"),
-                ("ModActions", "Acciones de moderación registradas"),
-                ("Feedbacks", "Feedbacks recibidos"),
-                ("UserReminders", "Recordatorios programados"),
-                ("AITelemetryTotals", "Totales de telemetría IA"),
-            ]
-            lines = []
-            for tbl, desc in tables:
-                try:
-                    res = await self.repo.fetch_one(f"SELECT COUNT(*) as cnt FROM {tbl}")
-                    cnt = res.get("cnt", 0) if isinstance(res, dict) else (res[0] if res else 0)
-                    lines.append(f"• **`{tbl}`**: `{cnt:,}` filas *({desc})*")
-                except Exception:
-                    lines.append(f"• **`{tbl}`**: *No inicializada o vacía*")
-
-            backend = "🟢 Turso Cloud (libSQL HTTPS)" if TursoClient.is_available() else "🟡 SQLite Local (WAL Fallback)"
-            embed = discord.Embed(
-                title="🗄️ Estado de Tablas en la Base de Datos",
-                description=f"**Backend Activo:** {backend}\n\n" + "\n".join(lines),
-                color=DaletAtoms.COLOR_INFO
-            )
-            DaletMolecules.add_standard_footer(embed, context_text="Database Engine • Usa d.sql para consultas SELECT")
-            await ctx.send(embed=embed)
-        except Exception as e:
-            logger.error(f"Error consultando tablas: {e}")
-            await ctx.send(f"❌ Error consultando tablas de la base de datos: {e}")
+            await ctx.send(f"{DaletAtoms.GLYPH_POINTER} No se pudieron consultar tus recuerdos en este momento.")
 
     @commands.command(name="lock")
     @commands.has_permissions(administrator=True)

@@ -98,38 +98,39 @@ def api_telemetry():
 @app.route('/api/feedbacks')
 @require_dashboard_auth
 def api_feedbacks():
-    """Devuelve los feedbacks enviados por usuarios en formato JSON (thread-safe WAL)."""
+    """Devuelve los feedbacks enviados por usuarios en formato JSON."""
+    return jsonify(DashboardService.get_feedbacks())
+
+@app.route('/api/database/overview')
+@require_dashboard_auth
+def api_database_overview():
+    """Devuelve métricas y conteo de filas de todas las tablas en la base de datos."""
+    return jsonify(DashboardService.get_database_overview())
+
+@app.route('/api/database/memories')
+@require_dashboard_auth
+def api_database_memories():
+    """Devuelve recuerdos cognitivos registrados con filtro de búsqueda y paginación."""
+    search = request.args.get("q", "").strip()
     try:
-        if not os.path.exists(DB_PATH):
-            return jsonify({"feedbacks": [], "total": 0})
-        conn = sqlite3.connect(DB_PATH, timeout=3.0)
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT FeedbackID, UserID, UserName, UserAvatar, ServerID, ServerName, ChannelID, ChannelName, Content, CreatedAt
-            FROM Feedbacks
-            ORDER BY CreatedAt DESC
-            LIMIT 50
-        """)
-        rows = cursor.fetchall()
-        conn.close()
-        feedbacks = []
-        for r in rows:
-            feedbacks.append({
-                "id": r[0],
-                "user_id": r[1],
-                "user_name": r[2],
-                "user_avatar": r[3] or "",
-                "server_id": r[4],
-                "server_name": r[5] or "Direct Message",
-                "channel_id": r[6],
-                "channel_name": r[7] or "DM",
-                "content": r[8],
-                "created_at": str(r[9])
-            })
-        return jsonify({"feedbacks": feedbacks, "total": len(feedbacks)})
-    except Exception as e:
-        logger.error(f"Error consultando feedbacks: {e}")
-        return jsonify({"feedbacks": [], "total": 0, "error": str(e)})
+        limit = int(request.args.get("limit", 50))
+    except ValueError:
+        limit = 50
+    try:
+        offset = int(request.args.get("offset", 0))
+    except ValueError:
+        offset = 0
+    return jsonify(DashboardService.get_memories(search=search, limit=limit, offset=offset))
+
+@app.route('/api/database/mod_actions')
+@require_dashboard_auth
+def api_database_mod_actions():
+    """Devuelve las últimas acciones de moderación registradas."""
+    try:
+        limit = int(request.args.get("limit", 50))
+    except ValueError:
+        limit = 50
+    return jsonify(DashboardService.get_mod_actions(limit=limit))
 
 @app.route('/health')
 @app.route('/ping')
