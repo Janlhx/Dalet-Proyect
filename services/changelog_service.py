@@ -15,7 +15,7 @@ class ChangelogService:
     BASE_VERSION = "v3.1"
     # Commit base del hito v3.1 (Moderación modular y memoria cognitiva)
     BASE_MILESTONE_COMMIT = "268bce4"
-    FALLBACK_PATCH = 8
+    FALLBACK_PATCH = 10
     REPO_URL = "https://github.com/Janlhx/Dalet-Proyect"
 
     _cached_version: str | None = None

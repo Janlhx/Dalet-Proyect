@@ -36,14 +36,28 @@ SLASH_CATEGORIES_ES = {
         "color": discord.Color.from_rgb(130, 100, 255),
         "commands": [
             ("/resumir",            "Resume el chat reciente del canal con IA"),
-            ("/lore <búsqueda>",    "Busca fragmentos del pasado del servidor"),
-            ("@Dalet",              "Hablar directamente con Dalet (IA conversacional)"),
+            ("/lore <búsqueda>",    "Busca fragmentos y anécdotas del pasado del servidor"),
+            ("@Dalet",              "Hablar directamente con Dalet (IA conversacional ácida)"),
+        ]
+    },
+    "Moderación": {
+        "color": discord.Color.from_rgb(230, 126, 34),
+        "commands": [
+            ("/mod setup [canal] [acción]...", "Configuración inicial o actualización de auto-moderación"),
+            ("/mod toggle <módulo> [activo]",   "Activa/desactiva escaneo de imágenes, flood, links o scams"),
+            ("/mod ignore <acción> [ch] [mod]", "Exime o re-incluye canales por módulo específico o completo"),
+            ("/mod status",                     "Muestra el estado general, módulos activos y canales exentos"),
+            ("/mod action <acción>",            "Cambia acción por defecto en NSFW (notify, timeout, ban)"),
+            ("/mod timeout <minutos>",          "Configura la duración del aislamiento (1 a 10080 min)"),
+            ("/mod channel <canal>",            "Actualiza el canal de auditoría y alertas"),
+            ("/mod off",                        "Desactiva la auto-moderación en el servidor"),
         ]
     },
     "Servidor": {
         "color": discord.Color.from_rgb(52, 152, 219),
         "commands": [
             ("/info",               "Tarjeta de presentación e información de Dalet"),
+            ("/changelog",          "Novedades de la versión, hito mayor y commits recientes"),
             ("/ping",               "Latencia del bot en ms"),
             ("/stats [usuario]",    "Estadísticas sociales de un miembro"),
             ("/userinfo [usuario]", "Información detallada de un usuario"),
@@ -98,10 +112,24 @@ SLASH_CATEGORIES_EN = {
             ("@Dalet",              "Chat directly with Dalet (conversational AI)"),
         ]
     },
+    "Moderation": {
+        "color": discord.Color.from_rgb(230, 126, 34),
+        "commands": [
+            ("/mod setup [channel] [action]...", "Initial setup or full update of auto-moderation"),
+            ("/mod toggle <module> [enabled]",   "Toggle image AI scan, anti-flood, links, or scams"),
+            ("/mod ignore <action> [ch] [mod]",  "Exempt or re-include channels per module or completely"),
+            ("/mod status",                      "Displays current status, active modules & exempt channels"),
+            ("/mod action <action>",             "Sets default NSFW action (notify, timeout, ban)"),
+            ("/mod timeout <minutes>",           "Configures timeout isolation duration in minutes"),
+            ("/mod channel <channel>",           "Updates the moderation alert and audit channel"),
+            ("/mod off",                         "Disables auto-moderation for this server"),
+        ]
+    },
     "Server": {
         "color": discord.Color.from_rgb(52, 152, 219),
         "commands": [
             ("/info",               "Dalet showcase card and bot information"),
+            ("/changelog",          "Version release notes, major milestone & recent commits"),
             ("/ping",               "Checks bot websocket and response latency in ms"),
             ("/stats [user]",       "Social activity statistics for a member"),
             ("/userinfo [user]",    "Detailed member account and server information"),
@@ -310,28 +338,29 @@ def build_help_pages(bot, user, server_lang: str = "en") -> tuple[list[discord.E
         [f"> **{i+1}.** {name}" for i, name in enumerate(category_names)]
     )
 
+    version = DaletAtoms.VERSION
     if server_lang == "es":
         portada_desc = (
             f"Hola, **{user.display_name}**.\n\n"
-            f"Soy **Dalet** — bot de osu!, IA conversacional y utilidades.\n"
-            f"Escribe `/` en Discord para autocompletar comandos, o usa `d.help`.\n\n"
+            f"Soy **Dalet {version}** — bot de osu!, IA conversacional, auto-moderación y utilidades.\n"
+            f"Escribe `/` en Discord para autocompletar comandos, o usa el prefijo `d.`.\n\n"
             f"**Categorías:**\n{nav_lines}\n\n"
             f"{DaletAtoms.GLYPH_SUB} Usa el menú desplegable o botones para explorar.\n"
-            f"{DaletAtoms.GLYPH_SUB} Escribe `/feedback` o `d.feedback` para enviar sugerencias al creador.\n"
-            f"{DaletAtoms.GLYPH_SUB} Escribe `d.changelog` para consultar las novedades."
+            f"{DaletAtoms.GLYPH_SUB} Escribe `/feedback` o `d.feedback` para enviar sugerencias al desarrollador.\n"
+            f"{DaletAtoms.GLYPH_SUB} Escribe `/changelog` o `d.changelog` para consultar las novedades."
         )
-        footer_cover = "Dalet │ Centro de Control • /feedback para sugerencias"
+        footer_cover = f"Dalet {version} │ Centro de Control • /feedback para sugerencias"
     else:
         portada_desc = (
             f"Hello, **{user.display_name}**.\n\n"
-            f"I am **Dalet** — osu! companion, conversational AI & server utilities.\n"
-            f"Type `/` in Discord to autocomplete commands, or use `d.help`.\n\n"
+            f"I am **Dalet {version}** — osu! companion, conversational AI, auto-moderation & server utilities.\n"
+            f"Type `/` in Discord to autocomplete commands, or use the `d.` prefix.\n\n"
             f"**Categories:**\n{nav_lines}\n\n"
             f"{DaletAtoms.GLYPH_SUB} Use the dropdown menu or navigation buttons to explore.\n"
             f"{DaletAtoms.GLYPH_SUB} Type `/feedback` or `d.feedback` to send suggestions directly to the developer.\n"
-            f"{DaletAtoms.GLYPH_SUB} Type `d.changelog` to check the latest updates."
+            f"{DaletAtoms.GLYPH_SUB} Type `/changelog` or `d.changelog` to check the latest updates."
         )
-        footer_cover = "Dalet │ Control Center • /feedback for suggestions"
+        footer_cover = f"Dalet {version} │ Control Center • /feedback for suggestions"
 
     portada = discord.Embed(
         title="",

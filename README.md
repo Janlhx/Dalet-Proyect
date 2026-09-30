@@ -16,6 +16,8 @@
 
 [Features](#features) | [osu! Analytics](#osu-tracking-and-skill-breakdown) | [Conversational Brain and Cognitive Memory](#conversational-brain-and-cognitive-memory) | [Auto-Moderation](#modular-auto-moderation) | [Tech Stack](#tech-stack) | [Web Dashboard](#telemetry-dashboard) | [Getting Started](#getting-started) | [Commands](#commands) | [Architecture](#architecture)
 
+**English** │ [Español](README_ES.md)
+
 </div>
 
 ---
@@ -161,32 +163,49 @@ Dalet supports both native Discord Slash Commands (`/`) and the traditional `d.`
 ### AI, Social and Utilities
 | Command | Type | Description |
 | :--- | :--- | :--- |
-| `/language [en/es]` | Slash / `d.language` | Configures server language (English default / Espanol) |
+| `/language [en/es]` | Slash / `d.language` | Configures server language (English default / Español) |
 | `/help` | Slash / `d.help` | Interactive categorized command navigator and overview |
-| `/feedback <message>` | Slash / `d.feedback` | Sends feedback, suggestions, or bug reports directly to the developer |
+| `/changelog` | Slash / `d.changelog` | Displays version release notes, major milestone, and recent commits |
+| `/info` | Slash / `d.info` | Displays Dalet's version, status, and system information |
+| `/ping` | Slash / `d.ms`, `d.ping` | Checks bot response and websocket latency in milliseconds |
 | `/resumir [messages]` | Slash / `d.summary` | Generates a smart AI digest of recent channel conversations |
 | `/lore <topic>` | Slash / `d.lore` | Researches server history and chat archives with cynical commentary |
-| `/info` | Slash / `d.info` | Displays Dalet's version, status, and system information |
-| `/changelog` | Slash / `d.changelog` | Displays version release notes, major milestone, and recent commits |
-| `d.ms` | Prefix | Checks bot response latency in milliseconds |
+| `/stats [user]` | Slash / `d.stats` | Shows social activity and chat habits for a member |
+| `/userinfo [user]` | Slash / `d.userinfo` | Member account creation, server join date, and details |
+| `/serverinfo` | Slash / `d.serverinfo` | Overview of server members, ownership, and creation date |
+| `/feedback <message>` | Slash / `d.feedback` | Sends feedback, suggestions, or bug reports directly to the developer |
+
+### Reminders
+| Command | Type | Description |
+| :--- | :--- | :--- |
+| `/reminder add <time> <msg> [repeat]` | Slash | Schedule daily, weekly, or specific date reminders |
+| `/reminder list` | Slash | Displays all active reminders created in the server |
+| `/reminder edit <id> [time] [msg]` | Slash | Edits an existing scheduled reminder |
+| `/reminder remove <id>` | Slash | Deletes a scheduled reminder by its ID |
+| `/reminder toggle <id>` | Slash | Pauses or unpauses a reminder by its ID |
 
 ### Moderation (Admin Only)
 | Command | Permission | Description |
 | :--- | :--- | :--- |
-| `/mod setup` | Administrator | Initial setup with optional channel, action, timeout, and ban parameters |
-| `/mod channel <channel>` | Administrator | Modifies the alert log channel |
-| `/mod action <action>` | Administrator | Modifies the default violation action (notify, timeout, ban) |
-| `/mod timeout <minutes>` | Administrator | Adjusts timeout length |
-| `/mod toggle <module>` | Administrator | Enables or disables modules (images, flood, links, scams) |
-| `/mod status` | Manage Messages | Shows granular module statuses and recent actions |
-| `/mod off` | Administrator | Disables auto-moderation |
+| `/mod setup [log_ch] [action] [timeout] [ban]` | Administrator | Initial setup or full update of auto-moderation parameters |
+| `/mod toggle <module> [enabled]` | Administrator | Enables or disables modules (`images`, `flood`, `links`, `scams`) |
+| `/mod ignore <action> [ch] [module]` | Administrator | Exempts or re-includes channels per module (`all`, `flood`, `images`, `links`, `scams`) |
+| `/mod status` | Manage Messages | Displays current operational status, active modules, and exempt channels |
+| `/mod action <action>` | Administrator | Sets default enforcement action for NSFW (`notify`, `timeout`, `ban`) |
+| `/mod timeout <minutes>` | Administrator | Sets timeout isolation duration in minutes (1 to 10080) |
+| `/mod channel <channel>` | Administrator | Modifies the alert and audit log channel |
+| `/mod off` | Administrator | Disables auto-moderation across the server |
 
 ### Admin and Server Management
 | Command | Permission | Description |
 | :--- | :--- | :--- |
-| `d.lock` / `d.unlock` | Administrator | Locks or unlocks Dalet commands in the current channel |
-| `d.setname <name>` | Administrator | Sets a custom bot name for the server |
-| `d.setwelcome` / `d.removewelcome` | Administrator | Configures or removes the welcome/farewell channel |
+| `/lock` / `d.lock` | Administrator | Locks Dalet commands in the current channel |
+| `/unlock` / `d.unlock` | Administrator | Unlocks Dalet commands in the current channel |
+| `/proactive` | Administrator | Enables or disables proactive AI chat in the channel |
+| `/reactive` | Administrator | Enables or disables reactive AI replies to mentions |
+| `/setwelcome` / `d.setwelcome` | Administrator | Configures the welcome message channel |
+| `/removewelcome` / `d.removewelcome` | Administrator | Removes the welcome channel and disables greetings |
+| `/setname <name>` / `d.setname` | Administrator | Sets a custom bot nickname for this server |
 | `d.cs` | Any | Shows the current channel lock and AI responsiveness state |
 | `d.sync [here/global/clear]` | Administrator | Synchronizes slash commands to the guild or globally |
 

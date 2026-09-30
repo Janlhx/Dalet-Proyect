@@ -8,14 +8,14 @@ class DaletAtomsMeta(type):
             from services.changelog_service import ChangelogService
             return ChangelogService.get_version()
         except Exception:
-            return "v3.1.8"
+            return "v3.1.10"
 
 
 class DaletAtoms(metaclass=DaletAtomsMeta):
     """Design Tokens e Identidad Visual de Dalet."""
 
     # --- Versión de Dalet (Fallback estático) ---
-    VERSION = "v3.1.8"
+    VERSION = "v3.1.10"
 
     # --- Paleta de Colores ---
     COLOR_PRIMARY = discord.Color.from_rgb(255, 105, 180)  # #FF69B4 (Dalet Pink)
