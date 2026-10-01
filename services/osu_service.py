@@ -102,6 +102,13 @@ class OsuService:
             params={"mode": mode, "limit": limit}
         )
 
+    async def get_user_most_played(self, user_id: int, limit: int = 5) -> list:
+        """Mapas más jugados / con más reintentos por el usuario."""
+        return await self._get(
+            f"users/{user_id}/beatmapsets/most_played",
+            params={"limit": limit}
+        )
+
     # ------------------------------------------------------------------
     # Beatmaps
     # ------------------------------------------------------------------

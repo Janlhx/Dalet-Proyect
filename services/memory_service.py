@@ -45,7 +45,7 @@ class MemoryService:
 
     def __init__(self, user_repo):
         self.repo = user_repo
-        self.max_db_history = 6  # Ventana optimizada de mensajes
+        self.max_db_history = 10  # Ventana optimizada de mensajes (permite mantener el hilo completo de conversaciones)
         self._user_memory_cooldown: dict[int, float] = {}  # {user_id: last_analysis_timestamp}
 
     async def get_relevant_context(
@@ -65,9 +65,9 @@ class MemoryService:
         """
         history_section = []
 
-        # Ajustar límite de mensajes según longitud del mensaje actual
+        # Ajustar límite de mensajes según longitud del mensaje actual (mínimo 6 para no perder contexto)
         msg_len = len(current_message.split())
-        history_limit = 4 if msg_len <= 3 else self.max_db_history
+        history_limit = 6 if msg_len <= 3 else self.max_db_history
 
         # 1. Historial Unificado
         try:

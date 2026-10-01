@@ -66,8 +66,14 @@ class ModerationCog(commands.Cog, name="Moderación"):
             return
 
         # Chequeo de canales y módulos exentos (ej: spam, mudae, waifu-posting)
+        # Soporta canales directos y threads (hilos) creados dentro de canales exentos
         ignored_map = config.get("ignored_channels_map", {})
-        exempt_mods = ignored_map.get(message.channel.id, set())
+        ch_id = message.channel.id
+        parent_id = getattr(message.channel, "parent_id", None)
+        exempt_mods = set(ignored_map.get(ch_id, set()))
+        if parent_id and parent_id in ignored_map:
+            exempt_mods |= set(ignored_map.get(parent_id, set()))
+
         if "all" in exempt_mods:
             return
 
@@ -392,7 +398,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
     @mod_group.command(name="ignore", description="Gestiona canales y módulos específicos exentos de moderación.")
     @app_commands.describe(
         action="add (excluir módulo o canal), remove (re-incluir / vigilar), list (ver exenciones)",
-        channel="Canal a ignorar o re-incluir (opcional si es list, default: canal actual)",
+        channel="Canal o hilo a ignorar o re-incluir (opcional si es list, default: canal actual)",
         module="Módulo a eximir: all (todo el canal), flood (anti-spam), images (visión IA), links (adultos), scams (phishing)",
     )
     @app_commands.checks.has_permissions(administrator=True)
@@ -400,7 +406,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
         self,
         interaction: discord.Interaction,
         action: Literal["add", "remove", "list"],
-        channel: discord.TextChannel | None = None,
+        channel: discord.abc.GuildChannel | discord.Thread | None = None,
         module: Literal["all", "flood", "images", "links", "scams"] = "all",
     ):
         await interaction.response.defer(ephemeral=True)
@@ -414,7 +420,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
 
             lines = []
             for cid, mods in ignored_map.items():
-                ch = interaction.guild.get_channel(cid)
+                ch = interaction.guild.get_channel(cid) or interaction.guild.get_thread(cid)
                 ch_str = ch.mention if ch else f"`#{cid}`"
                 badges = ", ".join(_EXEMPT_MODULE_NAMES.get(m, m) for m in sorted(mods))
                 lines.append(f"• {ch_str}: {badges}")
@@ -428,8 +434,8 @@ class ModerationCog(commands.Cog, name="Moderación"):
             return await interaction.followup.send(embed=embed, ephemeral=True)
 
         target_ch = channel or interaction.channel
-        if not isinstance(target_ch, discord.TextChannel):
-            return await interaction.followup.send("❌ Debes especificar un canal de texto válido.", ephemeral=True)
+        if not hasattr(target_ch, "id"):
+            return await interaction.followup.send("❌ Debes especificar un canal o hilo válido.", ephemeral=True)
 
         if action == "add":
             updated_map = await self.bot.admin_repo.add_ignored_channel_module(server_id, target_ch.id, module)

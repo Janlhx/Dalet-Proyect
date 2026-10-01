@@ -106,8 +106,8 @@ class ModerationService:
     SPAM_CHANNEL_THRESHOLD = 2
     FLOOD_BURST_MAX_MSGS = 5
     FLOOD_BURST_WINDOW_SEC = 4.0
-    FLOOD_DUP_MAX_COUNT = 3
-    FLOOD_DUP_WINDOW_SEC = 10.0
+    FLOOD_DUP_MAX_COUNT = 4
+    FLOOD_DUP_WINDOW_SEC = 8.0
 
     def __init__(self, nlp_service, admin_repo=None):
         self._nlp = nlp_service
@@ -143,7 +143,7 @@ class ModerationService:
                 logger.warning(f"No se pudo precargar la lista negra de hashes: {e}")
 
     def check_flood(self, user_id: int, channel_id: int, content: str, attachment_sig: str = "") -> tuple[bool, str]:
-        """Detecta ráfagas rápidas de mensajes (>=5 msgs en 4s) o mensajes repetidos (>=3 iguales en 10s, texto o imagen)."""
+        """Detecta ráfagas rápidas de mensajes (>=5 msgs en 4s) o mensajes repetidos (>=4 iguales en 8s, o >=5 si son muy cortos)."""
         now = time.monotonic()
         history = self._message_history[user_id]
         history = [(ts, ch, h) for ts, ch, h in history if now - ts < self.FLOOD_DUP_WINDOW_SEC]
@@ -158,12 +158,16 @@ class ModerationService:
         # 1. Ráfaga rápida
         recent_burst = [ts for ts, _, _ in history if now - ts <= self.FLOOD_BURST_WINDOW_SEC]
         if len(recent_burst) >= self.FLOOD_BURST_MAX_MSGS:
+            self._message_history[user_id] = []
             return True, f"burst_flood:{len(recent_burst)}_msgs_in_{self.FLOOD_BURST_WINDOW_SEC}s"
 
         # 2. Mensajes duplicados repetidos
         if content_hash:
             same_msgs = [ts for ts, _, h in history if h == content_hash and now - ts <= self.FLOOD_DUP_WINDOW_SEC]
-            if len(same_msgs) >= self.FLOOD_DUP_MAX_COUNT:
+            # Mensajes muy cortos (< 10 caracteres como 'xd', 'jaja', '67') requieren al menos 5 para no castigar risas o conteos
+            req_count = 5 if len(sig) < 10 else self.FLOOD_DUP_MAX_COUNT
+            if len(same_msgs) >= req_count:
+                self._message_history[user_id] = []
                 return True, f"duplicate_flood:{len(same_msgs)}_same_msgs"
 
         return False, ""

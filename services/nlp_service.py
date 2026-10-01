@@ -139,6 +139,27 @@ OSU_TOOLS = [
                 "required": ["vibe"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_osu_most_played",
+            "description": "Obtiene los beatmaps más jugados (most played beatmaps) o con más reintentos de un jugador en osu!, con título, dificultad en estrellas y cantidad de veces jugado.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "description": "Nombre de usuario o nick en osu! del jugador. Si el usuario pregunta por sí mismo ('yo', 'mi', etc.), se puede omitir o poner 'yo'."
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Cantidad de mapas más jugados a consultar (default: 5, máx 10)."
+                    }
+                },
+                "required": ["username"]
+            }
+        }
     }
 ]
 
@@ -151,6 +172,7 @@ OSU_TRIGGER_KEYWORDS = (
     "skill", "skills", "skillset", "destaco", "destaca", "destacar", "fuerte",
     "debil", "débil", "accuracy", "mi juego", "cómo juego", "como juego",
     "mi rendimiento", "mis jugadas", "mis scores", "mi top", "mis skills",
+    "más jugados", "mas jugados", "most played", "mis retries", "reintentos", "más juego", "mas juego",
     "opina de mi", "opina de mis", "opinas de mi", "opinas de mis",
     "califica mi", "critica mi", "cómo me ves", "como me ves", "qué tal juego", "que tal juego"
 )
@@ -162,6 +184,7 @@ ACTION_TO_TOOL_MAP: dict[str, str] = {
     "top_plays":   "get_top_osu_play",
     "skills":      "get_osu_skills",
     "profile":     "get_osu_user_profile",
+    "most_played": "get_osu_most_played",
 }
 
 # Mapa de "vibes" de usuario a keywords de búsqueda en la API osu! (beatmapsets/search?q=...).
@@ -713,18 +736,28 @@ class NLPService:
         # 1. Eliminar bloques <think>...</think> (cerrados o no cerrados)
         cleaned = re.sub(r"(?is)<think>.*?(?:</think>|$)", "", cleaned).strip()
 
-        # 1a. Eliminar pseudo-etiquetas XML de herramientas (ej. <get_osu_user_profile>...</get_osu_user_profile>, <tool_call>...</tool_call>)
-        xml_tool_names = r"(?:get_recent_osu_play|get_top_osu_play|get_osu_user_profile|get_osu_skills|recommend_beatmaps|tool_call|function_call|function|call:default_api:[^\s>]+)"
-        # 1a.1 Bloques completos cerrados
+        # 1a. Eliminar bloques y llamadas DSML de DeepSeek (<｜｜DSML｜｜ calls> ... </｜｜DSML｜｜ calls>, <|DSML|> etc.)
+        # 1a.1 Bloques DSML completos (calls, invoke, parameter)
+        cleaned = re.sub(r"(?is)<[|｜]+DSML[|｜]+\s*calls[^>]*>.*?</[|｜]+DSML[|｜]+\s*calls>", "", cleaned).strip()
+        cleaned = re.sub(r"(?is)<[|｜]+DSML[|｜]+\s*invoke[^>]*>.*?</[|｜]+DSML[|｜]+\s*invoke>", "", cleaned).strip()
+        cleaned = re.sub(r"(?is)<[|｜]+DSML[|｜]+\s*parameter[^>]*>.*?</[|｜]+DSML[|｜]+\s*parameter>", "", cleaned).strip()
+        # 1a.2 Bloques DSML abiertos o truncados hasta el final
+        cleaned = re.sub(r"(?is)<[|｜]+DSML[|｜]+[^>]*>.*$", "", cleaned).strip()
+        # 1a.3 Etiquetas huérfanas de apertura o cierre DSML y tokens especiales de tool calling (<｜tool...｜>)
+        cleaned = re.sub(r"(?is)</?[|｜]+(?:DSML|tool[ _\w]*)[|｜]+[^>]*>", "", cleaned).strip()
+
+        # 1b. Eliminar pseudo-etiquetas XML de herramientas (ej. <get_osu_user_profile>...</get_osu_user_profile>, <tool_call>...</tool_call>)
+        xml_tool_names = r"(?:get_recent_osu_play|get_top_osu_play|get_osu_user_profile|get_osu_skills|get_osu_most_played|recommend_beatmaps|tool_call|function_call|function|call:default_api:[^\s>]+)"
+        # 1b.1 Bloques completos cerrados
         cleaned = re.sub(rf"(?is)<({xml_tool_names})[^>]*>.*?</\1>", "", cleaned).strip()
-        # 1a.2 Bloques no cerrados o cortados al final
+        # 1b.2 Bloques no cerrados o cortados al final
         cleaned = re.sub(rf"(?is)<({xml_tool_names})[^>]*>.*$", "", cleaned).strip()
-        # 1a.3 Etiquetas huérfanas de apertura o cierre (incluyendo parámetros XML de herramientas)
-        param_tags = r"(?:username|mode|index|vibe|star_min|star_max|parameters|arguments)"
+        # 1b.3 Etiquetas huérfanas de apertura o cierre (incluyendo parámetros XML de herramientas)
+        param_tags = r"(?:username|mode|index|limit|vibe|star_min|star_max|parameters|arguments)"
         cleaned = re.sub(rf"(?is)</?(?:{xml_tool_names}|{param_tags})[^>]*>", "", cleaned).strip()
-        # 1a.4 Limpiar etiquetas de formato <call:...> o nombres con dos puntos huérfanas
+        # 1b.4 Limpiar etiquetas de formato <call:...> o nombres con dos puntos huérfanas
         cleaned = re.sub(r"(?is)</?[a-zA-Z0-9_]+:[a-zA-Z0-9_]+[^>]*>", "", cleaned).strip()
-        # 1a.5 Limpiar espacios dobles o saltos de línea excesivos
+        # 1b.5 Limpiar espacios dobles o saltos de línea excesivos
         cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
         cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
 
@@ -908,6 +941,7 @@ class NLPService:
                                     "top_plays":   "Show my top plays or best scores (e.g. 'mi top', 'mis mejores jugadas', 'top plays')",
                                     "skills":      "Show my skill breakdown or radar (e.g. 'mis skills', 'mi radar de habilidades')",
                                     "profile":     "Show my profile stats: rank, pp, accuracy (e.g. 'mi perfil', 'mis stats globales', 'mi rank')",
+                                    "most_played": "Show my most played beatmaps or retry counts (e.g. 'mis más jugados', 'most played', 'mapas que más juego')",
                                     "none":        "No direct data retrieval request, or the user is asking for commentary/opinion, or about another player",
                                 }
                             ),
@@ -1246,6 +1280,7 @@ class NLPService:
             "get_top_osu_play",
             "get_osu_user_profile",
             "get_osu_skills",
+            "get_osu_most_played",
             "recommend_beatmaps",
         )
         known_tools_pattern = "|".join(known_tools)
@@ -1296,6 +1331,33 @@ class NLPService:
                 param_pattern = r"(?is)<(?P<param>[a-zA-Z0-9_]+)>(?P<val>.*?)</(?P=param)>"
                 for p_match in re.finditer(param_pattern, body):
                     args[p_match.group("param").strip().lower()] = p_match.group("val").strip()
+            if fn_name and fn_name in known_tools:
+                results.append((fn_name, args))
+
+        # Formato 4: DeepSeek DSML (<｜｜DSML｜｜ calls> ... <｜｜DSML｜｜ invoke name="..."> ... </｜｜DSML｜｜ invoke> ... </｜｜DSML｜｜ calls>)
+        # Soporta barras verticales estándar (|) y unicode fullwidth (｜)
+        dsml_invoke_pattern = r"(?is)<[|｜]+DSML[|｜]+\s+invoke\s+name=[\"'](?P<fn>[^\"']+)[\"'][^>]*>(?P<body>.*?)</[|｜]+DSML[|｜]+\s+invoke>"
+        for match in re.finditer(dsml_invoke_pattern, text):
+            fn_name = match.group("fn").strip().lower()
+            body = match.group("body").strip()
+            args = {}
+            param_pattern = r"(?is)<[|｜]+DSML[|｜]+\s+parameter\s+name=[\"'](?P<param>[^\"']+)[\"'][^>]*>(?P<val>.*?)</[|｜]+DSML[|｜]+\s+parameter>"
+            for p_match in re.finditer(param_pattern, body):
+                p_name = p_match.group("param").strip().lower()
+                val_raw = p_match.group("val").strip()
+                if val_raw.lower() == "true":
+                    val = True
+                elif val_raw.lower() == "false":
+                    val = False
+                elif val_raw.isdigit():
+                    val = int(val_raw)
+                else:
+                    try:
+                        val = json.loads(val_raw)
+                    except Exception:
+                        val = val_raw
+                args[p_name] = val
+
             if fn_name and fn_name in known_tools:
                 results.append((fn_name, args))
 
@@ -1514,6 +1576,39 @@ class NLPService:
                     "recommendations": recommendations
                 }, ensure_ascii=False)
 
+            elif name == "get_osu_most_played":
+                limit = min(max(int(args.get("limit") or 5), 1), 10)
+                user_obj = await self.osu_service.get_user(raw_user)
+                if (not user_obj or "id" not in user_obj) and linked and linked != raw_user:
+                    raw_user = linked
+                    user_obj = await self.osu_service.get_user(raw_user)
+                if not user_obj or "id" not in user_obj:
+                    return json.dumps({"error": f"No se encontró al jugador '{raw_user}' en osu!."})
+
+                uid = user_obj["id"]
+                most_played = await self.osu_service.get_user_most_played(uid, limit=limit)
+                if not most_played:
+                    return json.dumps({"status": "no_plays", "player": raw_user, "message": "No tiene mapas más jugados registrados."})
+
+                maps_data = []
+                for item in most_played[:limit]:
+                    bm = item.get("beatmap", {})
+                    bset = item.get("beatmapset", {})
+                    title = bset.get("title", "Desconocido")
+                    version = bm.get("version", "")
+                    count = item.get("count", 0)
+                    stars = bm.get("difficulty_rating", 0.0)
+                    maps_data.append({
+                        "beatmap": f"{title} [{version}]",
+                        "stars": f"{stars}★",
+                        "plays": count
+                    })
+
+                return json.dumps({
+                    "player": user_obj.get("username", raw_user),
+                    "most_played": maps_data
+                }, ensure_ascii=False)
+
             return json.dumps({"error": f"Herramienta desconocida: {name}"})
         except Exception as e:
             logger.error(f"Excepción ejecutando herramienta osu '{name}': {e}")
@@ -1574,9 +1669,11 @@ class NLPService:
         context_guardrail = (
             "\n[PRIORIDAD AL PRESENTE Y REGLAS DE CONTEXTO]:\n"
             f"1. Lo prioritario y principal es el 'Mensaje actual de {username}' que está al final. Responde a lo que te dicen AHORA.\n"
-            "2. El <contexto_chat> es solo contexto de fondo. NO intentes meter a la fuerza temas viejos del historial si el usuario está diciendo algo nuevo, saludando o cambiando de tema.\n"
-            "3. Si el usuario te responde con una sola palabra o frase corta (ej. 'so', 'XD', 'qué', 'hola'), reacciona de forma natural e ingeniosa al presente, sin sobreanalizar ni inventar conexiones forzadas con mensajes pasados.\n"
-            f"4. NO asumas que los mensajes de otras personas en el historial iban dirigidos a ti a menos que {username} los mencione directamente."
+            "2. El <contexto_chat> es el hilo de la conversación inmediata. Si el mensaje actual es una réplica, contraargumento, reto, broma o seguimiento directo de lo que estaban hablando (ej: 'pregúntale a mis más jugados', 'y qué opinas de X', 'mentira', debates de stats/mapas), MANTÉN la fluidez y coherencia del tema de forma orgánica.\n"
+            "3. NUNCA respondas como una máquina o terminal diciendo 'no tengo comando de...' o 'no dispongo de función para...'. Si no tienes un dato o si no existe una función, contéstale como una chica real de Discord: con réplica rápida, sarcasmo, humor seco o picardía sin salirte jamás de tu personalidad.\n"
+            "4. NO intentes meter a la fuerza temas viejos del historial si el usuario claramente está diciendo algo nuevo, saludando o cambiando de tema.\n"
+            "5. Si el usuario te responde con una sola palabra o frase corta (ej. 'so', 'XD', 'qué', 'hola'), reacciona de forma natural e ingeniosa al presente, sin sobreanalizar ni inventar conexiones forzadas con mensajes viejos.\n"
+            f"6. NO asumas que los mensajes de otras personas en el historial iban dirigidos a ti a menos que {username} los mencione directamente."
         )
         
         return f"{meta_header}{hint_str}{context_guardrail}\n\n<contexto_chat>\n{context}\n</contexto_chat>{shortcut_section}{vision_context}\n\nMensaje actual de {username}: {trigger}"

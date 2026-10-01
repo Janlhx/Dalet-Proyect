@@ -1,4 +1,5 @@
 import json
+import re
 from database.repositories.base_repository import BaseRepository
 
 
@@ -131,8 +132,8 @@ class AdminRepository(BaseRepository):
                         pass
             self._migrated_mod_cols = True
 
-    async def get_moderation_config(self, server_id: int) -> dict | None:
-        if server_id in self._mod_cache:
+    async def get_moderation_config(self, server_id: int, force_refresh: bool = False) -> dict | None:
+        if not force_refresh and server_id in self._mod_cache:
             return self._mod_cache[server_id]
 
         await self._ensure_mod_columns()
@@ -154,28 +155,36 @@ class AdminRepository(BaseRepository):
             except (IndexError, KeyError):
                 return default
 
-        raw_ignored = _get_val(9, "") or ""
+        raw_ignored = str(_get_val(9, "") or "").strip()
         ignored_map: dict[int, set[str]] = {}
-        try:
-            parsed = json.loads(raw_ignored)
-            if isinstance(parsed, dict):
-                for k, v in parsed.items():
-                    if str(k).isdigit():
-                        cid = int(k)
-                        if isinstance(v, list):
-                            ignored_map[cid] = set(v)
-                        elif isinstance(v, str):
-                            ignored_map[cid] = {v}
-                        else:
-                            ignored_map[cid] = {"all"}
-            elif isinstance(parsed, list):
-                for cid in parsed:
-                    if str(cid).isdigit():
-                        ignored_map[int(cid)] = {"all"}
-        except Exception:
-            for cid in str(raw_ignored).split(","):
-                if cid.strip().isdigit():
-                    ignored_map[int(cid.strip())] = {"all"}
+        if raw_ignored:
+            try:
+                parsed = json.loads(raw_ignored)
+                if isinstance(parsed, dict):
+                    for k, v in parsed.items():
+                        if str(k).isdigit():
+                            cid = int(k)
+                            if isinstance(v, list):
+                                ignored_map[cid] = set(v)
+                            elif isinstance(v, str):
+                                ignored_map[cid] = {v}
+                            else:
+                                ignored_map[cid] = {"all"}
+                elif isinstance(parsed, list):
+                    for cid in parsed:
+                        if str(cid).isdigit():
+                            ignored_map[int(cid)] = {"all"}
+                elif isinstance(parsed, int):
+                    ignored_map[parsed] = {"all"}
+            except Exception:
+                pass
+
+            # Fallback robusto para IDs separados por comas, espacios o saltos de línea
+            if not ignored_map:
+                for part in re.split(r"[,;\s]+", raw_ignored):
+                    clean_part = part.strip()
+                    if clean_part.isdigit():
+                        ignored_map[int(clean_part)] = {"all"}
 
         ignored_list = list(ignored_map.keys())
 

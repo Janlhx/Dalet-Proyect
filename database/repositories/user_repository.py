@@ -212,7 +212,17 @@ class UserRepository(BaseRepository):
         return buffered_results
     
     async def log_message(self, user_id, user_name, server_id, server_name, channel_id, channel_name, content):
-        self._log_buffer.append((user_id, user_name, server_id, server_name, channel_id, channel_name, content))
+        clean_content = (content or "").strip()
+        if not clean_content:
+            return False
+
+        # Evitar duplicar el mismo mensaje inmediatamente consecutivo en el mismo canal (ej: doble log de respuesta)
+        if self._log_buffer:
+            last = self._log_buffer[-1]
+            if last[0] == user_id and last[4] == channel_id and last[6].strip() == clean_content:
+                return True
+
+        self._log_buffer.append((user_id, user_name, server_id, server_name, channel_id, channel_name, clean_content))
         if len(self._log_buffer) >= self._max_buffer_size:
             asyncio.create_task(self.flush_logs())
         return True
