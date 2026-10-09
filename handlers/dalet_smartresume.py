@@ -1,101 +1,140 @@
 import discord
 from discord.ext import commands
-from datetime import datetime, timezone
 import logging
+from ui.atoms import DaletAtoms
+from ui.molecules import DaletMolecules
 
 logger = logging.getLogger("dalet.handlers.smartresume")
 
+
 class ResumenInteligente(commands.Cog, name="Resumen Inteligente"):
-    """Comandos para generar y ver resúmenes de chat."""
+    """Comandos para generar resúmenes dinámicos de chat con IA."""
+
     def __init__(self, bot):
         self.bot = bot
-        self.repo = bot.user_repo
         self.nlp = bot.nlp_service
 
     @commands.command(name="resumir", aliases=["resume"])
-    async def resumir(self, ctx, cantidad_mensajes: int = 50):
-        """📄 Genera un resumen de los últimos N mensajes del canal. Uso: `d.resumir [cantidad]`"""
+    async def resumir(self, ctx, cantidad_mensajes: int = 25, estilo: str = "dalet"):
+        """📄 Genera un resumen inteligente de los últimos N mensajes del canal. Uso: `d.resumir [cantidad] [dalet|neutral]`"""
         await ctx.typing()
 
         try:
-            registros = await self.repo.get_channel_messages(ctx.channel.id, cantidad_mensajes)
+            clamped_limit = min(max(10, cantidad_mensajes), 50)
+            channel = ctx.channel
 
-            if not registros:
-                return await ctx.send("No hay suficientes mensajes en este canal para generar un resumen.")
+            raw_messages = []
+            async for msg in channel.history(limit=clamped_limit + 5):
+                # Omitir el comando de invocación actual
+                if msg.id == ctx.message.id:
+                    continue
+                raw_messages.append(msg)
+                if len(raw_messages) >= clamped_limit:
+                    break
 
-            display_list = list(registros)
-            display_list.reverse()
-            historial_texto = "\n".join([
-                f"{r.get('username') or r.get('UserName') or 'Desconocido'}: {r.get('content') or r.get('Content') or ''}"
-                for r in display_list
-            ])
+            if len(raw_messages) < 3:
+                return await ctx.send("⚠️ No hay suficientes mensajes recientes en este canal para generar un resumen.")
 
-            prompt = (
-                f"Analiza el siguiente historial de chat y genera un resumen conciso y neutral de los temas principales, "
-                f"eventos importantes y el tono general de la conversación. Sé breve y directo.\n\n"
-                f"Historial:\n{historial_texto}\n\nResumen:"
-            )
+            # Invertir para leer en orden cronológico (antiguo -> reciente)
+            raw_messages.reverse()
+
+            lineas = []
+            for m in raw_messages:
+                author_name = m.author.display_name or m.author.name
+                content = (m.clean_content or "").strip()
+                if not content and m.attachments:
+                    content = f"[Adjuntó {len(m.attachments)} archivo(s)/imagen(es)]"
+                elif not content and m.embeds:
+                    content = "[Envió un embed/enlace]"
+                elif m.attachments:
+                    content += f" (+{len(m.attachments)} adjunto(s))"
+
+                if len(content) > 300:
+                    content = content[:300] + "…"
+
+                lineas.append(f"{author_name}: {content}")
+
+            historial_texto = "\n".join(lineas)
+            estilo_clean = estilo.lower().strip()
+
+            if estilo_clean == "neutral":
+                system_prompt = (
+                    "Eres un asistente analítico y neutral especializado en síntesis de conversaciones. "
+                    "Tu tarea es resumir objetivamente la conversación reciente de este canal. "
+                    "Sigue ESTRICTAMENTE esta estructura en Markdown:\n"
+                    "### 📌 En pocas palabras (TL;DR)\n"
+                    "(1 o 2 oraciones con el resumen ejecutivo central)\n\n"
+                    "### 💬 Temas clave\n"
+                    "• (Punto 1 objetivo)\n"
+                    "• (Punto 2 objetivo)\n"
+                    "• (Punto 3 objetivo si aplica)\n\n"
+                    "### 📋 Conclusión\n"
+                    "(Cierre analítico y neutral del estado de la conversación)"
+                )
+            else:
+                system_prompt = (
+                    "Eres Dalet, una chica aguda, observadora, ligeramente sarcástica y muy carismática de Discord. "
+                    "Tu tarea es resumir la conversación reciente de este canal sin rodeos innecesarios. "
+                    "Sigue ESTRICTAMENTE esta estructura en Markdown:\n"
+                    "### 📌 En pocas palabras (TL;DR)\n"
+                    "(1 o 2 oraciones resumiendo el punto central de lo que pasó)\n\n"
+                    "### 💬 Temas clave\n"
+                    "• (Punto 1 claro)\n"
+                    "• (Punto 2 claro)\n"
+                    "• (Punto 3 claro si aplica)\n\n"
+                    "### 🎭 El veredicto de Dalet\n"
+                    "(Un comentario ingenioso, con tu humor seco y personalidad sobre de qué estaban hablando)"
+                )
+
+            user_prompt = f"Analiza esta conversación reciente ({len(raw_messages)} mensajes):\n\n{historial_texto}\n\nGenera el resumen estructurado:"
 
             resumen_generado = await self.nlp.generate_reply(
-                prompt,
+                user_prompt,
                 "Resumen de Chat",
-                "Sistema",
-                system_prompt_override=(
-                    "Eres un asistente analítico y neutral especializado en resumir conversaciones. "
-                    "No tienes personalidad, no haces chistes, no interactúas con los usuarios. "
-                    "Tu única función es extraer la información clave de forma estructurada y objetiva."
-                )
+                ctx.author.display_name or ctx.author.name,
+                system_prompt_override=system_prompt,
+                max_tokens=550
             )
 
             if not resumen_generado:
-                return await ctx.send("La IA no pudo generar un resumen esta vez.")
+                return await ctx.send("❌ La IA no pudo generar un resumen esta vez.")
 
-            # Nota: guardado de resumen en DB omitido (no implementado en SQLite/Turso)
+            color = DaletAtoms.COLOR_PRIMARY if estilo_clean != "neutral" else DaletAtoms.COLOR_INFO
+            estilo_label = "Modo Neutral" if estilo_clean == "neutral" else "Modo Dalet"
 
             embed = discord.Embed(
-                title=f"📄 Resumen de los últimos {len(registros)} mensajes",
+                title=f"📄 Resumen del Canal · {estilo_label}",
                 description=resumen_generado,
-                color=discord.Color.orange(),
-                timestamp=datetime.now(timezone.utc)
+                color=color
             )
-            embed.set_footer(text=f"#{ctx.channel.name}")
+            embed.set_author(
+                name=f"#{getattr(channel, 'name', 'chat')} • {len(raw_messages)} mensajes analizados",
+                icon_url=ctx.guild.icon.url if ctx.guild and ctx.guild.icon else None
+            )
+            DaletMolecules.add_standard_footer(embed, context_text="Resumen Inteligente con IA")
             await ctx.send(embed=embed)
 
         except Exception as e:
             logger.error(f"Error in resumir: {e}")
-            await ctx.send(f"❌ Ocurrió un error al generar el resumen.")
+            await ctx.send("❌ Ocurrió un error al generar el resumen.")
 
     @commands.command(name="ver_resumenes", aliases=["resumenes"])
-    async def ver_resumenes(self, ctx, cantidad: int = 5):
-        """📜 Muestra los últimos resúmenes guardados para este canal. Uso: `d.ver_resumenes [cantidad]`"""
-        try:
-            query = "SELECT generated_date, summary_text FROM fn_GetRecentSummaries($1, $2)"
-            resumenes = await self.repo.fetch_all(query, ctx.channel.id, cantidad)
+    async def ver_resumenes(self, ctx):
+        """📜 Información sobre la generación de resúmenes en el canal."""
+        embed = discord.Embed(
+            title="📄 Resumen en Tiempo Real",
+            description=(
+                "Los resúmenes de Dalet ahora se generan dinámicamente en tiempo real leyendo directamente "
+                "el historial fresco del canal.\n\n"
+                "**Uso recomendado:**\n"
+                "• `/resumir` (Comando de barra con selector de estilo `dalet` o `neutral`)\n"
+                "• `d.resumir [cantidad=25] [dalet|neutral]` (Comando clásico de texto)"
+            ),
+            color=DaletAtoms.COLOR_INFO
+        )
+        DaletMolecules.add_standard_footer(embed, context_text="Dalet AI • Tiempo Real")
+        await ctx.send(embed=embed)
 
-            if not resumenes:
-                return await ctx.send("No hay resúmenes guardados para este canal todavía. Usa `d.resumir` para generar uno.")
-
-            embed = discord.Embed(
-                title=f"📜 Últimos {len(resumenes)} Resúmenes · #{ctx.channel.name}",
-                color=discord.Color.dark_orange()
-            )
-
-            for i, r in enumerate(resumenes):
-                fecha_str = r[0].strftime('%d/%m/%Y %H:%M UTC') if r[0] else "Fecha desconocida"
-                texto = r[1] or "(vacío)"
-                texto_corto = (texto[:200] + '…') if len(texto) > 200 else texto
-                embed.add_field(
-                    name=f"#{i+1} — {fecha_str}",
-                    value=texto_corto,
-                    inline=False
-                )
-
-            embed.set_footer(text=f"Mostrando {len(resumenes)} resúmenes.")
-            await ctx.send(embed=embed)
-
-        except Exception as e:
-            logger.error(f"Error in ver_resumenes: {e}")
-            await ctx.send(f"❌ Error al obtener los resúmenes.")
 
 async def setup(bot):
     await bot.add_cog(ResumenInteligente(bot))

@@ -5,6 +5,7 @@ Unifica y expone los comandos principales como comandos de barra / para Discord.
 import asyncio
 import logging
 import time
+from typing import Literal
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -666,11 +667,19 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             logger.error(f"Error en /lore: {e}")
             await interaction.followup.send("error leyendo los archivos.", ephemeral=True)
 
-    @app_commands.command(name="resumir", description="Generates a smart AI digest of recent channel conversations.")
-    @app_commands.describe(limit="Number of messages to analyze (default: 50)")
-    async def slash_resumir(self, interaction: discord.Interaction, limit: int = 50):
-        # Cooldown anti-spam de 20s por canal
-        cd_left = self._check_cooldown(f"resumir:{interaction.channel_id}", 20.0)
+    @app_commands.command(name="resumir", description="Genera un resumen inteligente de la conversación reciente del canal.")
+    @app_commands.describe(
+        limit="Cantidad de mensajes recientes a analizar (10 a 50, por defecto: 25).",
+        estilo="Tono del resumen: 'dalet' (ingenioso y con personalidad) o 'neutral' (objetivo y analítico)."
+    )
+    async def slash_resumir(
+        self,
+        interaction: discord.Interaction,
+        limit: int = 25,
+        estilo: Literal["dalet", "neutral"] = "dalet",
+    ):
+        # Cooldown anti-spam de 15s por canal
+        cd_left = self._check_cooldown(f"resumir:{interaction.channel_id}", 15.0)
         if cd_left:
             return await interaction.response.send_message(
                 f"⏳ Este canal ya fue resumido hace poco. Espera `{cd_left:.0f}s` antes de pedir otro resumen.",
@@ -679,37 +688,103 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
 
         await interaction.response.defer()
         try:
-            registros = await self.bot.user_repo.get_channel_messages(
-                interaction.channel_id, min(max(5, limit), 80)
-            )
-            if not registros:
-                return await interaction.followup.send("no hay suficientes mensajes para resumir.")
+            clamped_limit = min(max(10, limit), 50)
+            channel = interaction.channel
+            if not channel or not hasattr(channel, "history"):
+                return await interaction.followup.send("❌ No se puede acceder al historial de este canal.", ephemeral=True)
 
-            display_list = list(registros)
-            display_list.reverse()
-            historial = "\n".join([f"{r.get('username') or r.get('UserName') or 'Desconocido'}: {r.get('content') or r.get('Content') or ''}" for r in display_list])
+            raw_messages = []
+            async for msg in channel.history(limit=clamped_limit + 5):
+                # Omitir invocaciones vacías o el propio mensaje actual
+                if msg.id == interaction.id:
+                    continue
+                raw_messages.append(msg)
+                if len(raw_messages) >= clamped_limit:
+                    break
 
-            prompt = (
-                f"Genera un resumen conciso y directo de esta conversación. "
-                f"Tono casual, sin florituras:\n\n{historial}\n\nResumen:"
-            )
+            if len(raw_messages) < 3:
+                return await interaction.followup.send("⚠️ No hay suficientes mensajes recientes para generar un resumen.", ephemeral=True)
+
+            # Invertir para leer en orden cronológico (antiguo -> reciente)
+            raw_messages.reverse()
+
+            lineas = []
+            for m in raw_messages:
+                author_name = m.author.display_name or m.author.name
+                content = (m.clean_content or "").strip()
+                if not content and m.attachments:
+                    content = f"[Adjuntó {len(m.attachments)} archivo(s)/imagen(es)]"
+                elif not content and m.embeds:
+                    content = "[Envió un embed/enlace]"
+                elif m.attachments:
+                    content += f" (+{len(m.attachments)} adjunto(s))"
+
+                if len(content) > 300:
+                    content = content[:300] + "…"
+
+                lineas.append(f"{author_name}: {content}")
+
+            historial = "\n".join(lineas)
+
+            if estilo == "dalet":
+                system_prompt = (
+                    "Eres Dalet, una chica aguda, observadora, ligeramente sarcástica y muy carismática de Discord. "
+                    "Tu tarea es resumir la conversación reciente de este canal sin rodeos innecesarios. "
+                    "Sigue ESTRICTAMENTE esta estructura en Markdown:\n"
+                    "### 📌 En pocas palabras (TL;DR)\n"
+                    "(1 o 2 oraciones resumiendo el punto central de lo que pasó)\n\n"
+                    "### 💬 Temas clave\n"
+                    "• (Punto 1 claro)\n"
+                    "• (Punto 2 claro)\n"
+                    "• (Punto 3 claro si aplica)\n\n"
+                    "### 🎭 El veredicto de Dalet\n"
+                    "(Un comentario ingenioso, con tu humor seco y personalidad sobre de qué estaban hablando)"
+                )
+            else:
+                system_prompt = (
+                    "Eres un asistente analítico y neutral especializado en síntesis de conversaciones. "
+                    "Tu tarea es resumir objetivamente la conversación reciente de este canal. "
+                    "Sigue ESTRICTAMENTE esta estructura en Markdown:\n"
+                    "### 📌 En pocas palabras (TL;DR)\n"
+                    "(1 o 2 oraciones con el resumen ejecutivo central)\n\n"
+                    "### 💬 Temas clave\n"
+                    "• (Punto 1 objetivo)\n"
+                    "• (Punto 2 objetivo)\n"
+                    "• (Punto 3 objetivo si aplica)\n\n"
+                    "### 📋 Conclusión\n"
+                    "(Cierre analítico y neutral del estado de la conversación)"
+                )
+
+            user_prompt = f"Analiza esta conversación reciente ({len(raw_messages)} mensajes):\n\n{historial}\n\nGenera el resumen estructurado:"
+
             resumen = await self.bot.nlp_service.generate_reply(
-                prompt, "Resumen", "Sistema",
-                system_prompt_override="Eres un asistente analítico y neutral especializado en resumir conversaciones. No tienes personalidad, no haces chistes.",
-                max_tokens=600
+                user_prompt,
+                "Resumen de Chat",
+                interaction.user.display_name or interaction.user.name,
+                system_prompt_override=system_prompt,
+                max_tokens=550
             )
-            if not resumen:
-                return await interaction.followup.send("no pude generar el resumen.")
 
+            if not resumen:
+                return await interaction.followup.send("❌ No pude generar el resumen esta vez.", ephemeral=True)
+
+            color = DaletAtoms.COLOR_PRIMARY if estilo == "dalet" else DaletAtoms.COLOR_INFO
+            estilo_label = "Modo Dalet" if estilo == "dalet" else "Modo Neutral"
             embed = discord.Embed(
-                title=f"📄 Resumen de {len(registros)} mensajes",
+                title=f"📄 Resumen del Canal · {estilo_label}",
                 description=resumen,
-                color=0xFF8C42
+                color=color
             )
+            ch_name = getattr(channel, "name", "chat")
+            embed.set_author(
+                name=f"#{ch_name} • {len(raw_messages)} mensajes analizados",
+                icon_url=interaction.guild.icon.url if interaction.guild and interaction.guild.icon else None
+            )
+            DaletMolecules.add_standard_footer(embed, context_text="Resumen Inteligente con IA")
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /resumir: {e}")
-            await interaction.followup.send("error generando el resumen.", ephemeral=True)
+            await interaction.followup.send("❌ Ocurrió un error al generar el resumen.", ephemeral=True)
 
     # ------------------------------------------------------------------
     # Admin: Lock / Unlock
