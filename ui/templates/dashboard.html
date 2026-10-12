@@ -2131,6 +2131,7 @@
             const countBadge = document.getElementById('badge-memories-count');
             const kpiMemories = document.getElementById('db-kpi-memories-count');
             const memories = data.memories || [];
+            const personas = data.personas || [];
             const total = data.total || memories.length;
 
             if (countBadge) countBadge.innerText = total;
@@ -2139,18 +2140,51 @@
             const container = document.getElementById('memories-container');
             if (!container) return;
 
-            if (memories.length === 0) {
+            if (memories.length === 0 && personas.length === 0) {
                 container.innerHTML = `
-                    <div style="text-align: center; padding: 48px 20px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); color: var(--text-secondary);">
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); color: var(--text-secondary);">
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" style="margin-bottom: 12px; opacity: 0.6;"><path d="M12 2a4 4 0 0 0-4 4v1a4 4 0 0 0-4 4v1a4 4 0 0 0 4 4v1a4 4 0 0 0 4 4h0a4 4 0 0 0 4-4v-1a4 4 0 0 0 4-4v-1a4 4 0 0 0-4-4V6a4 4 0 0 0-4-4z"></path></svg>
-                        <div style="font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">No se encontraron recuerdos cognitivos</div>
-                        <div style="font-size: 12px; color: var(--text-tertiary);">Dalet almacena aprendizajes y síntesis de pensamiento sobre los usuarios a medida que interactúan en Discord.</div>
+                        <div style="font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">No se encontraron recuerdos en la Pirámide Semántica</div>
+                        <div style="font-size: 12px; color: var(--text-tertiary);">Dalet destila automáticamente Átomos (L1), Escenarios Activos (L2) y Perfiles Persona (L3) a medida que los usuarios conversan en Discord.</div>
                     </div>
                 `;
                 return;
             }
 
-            container.innerHTML = memories.map(m => {
+            const personasHtml = personas.map(p => {
+                const userName = escapeHtml(p.user_name || 'Usuario');
+                const userId = escapeHtml(p.user_id || 'N/A');
+                const l3 = escapeHtml(p.persona_l3 || 'En construcción...');
+                const l2 = escapeHtml(p.scenario_l2 || 'Sin escenario activo.');
+                const memCount = p.memory_count || 0;
+                const updatedAt = escapeHtml(p.updated_at || '--');
+
+                return `
+                    <div class="memory-card" style="border-color: var(--pale-mauve-border); background: linear-gradient(180deg, rgba(168, 146, 179, 0.06) 0%, var(--bg-surface) 100%);">
+                        <div class="memory-card-header">
+                            <div class="memory-tags">
+                                <span class="topic-badge" style="background: var(--pale-mauve-bg); color: var(--pale-mauve); border-color: var(--pale-mauve-border);">
+                                    ▲ PIRÁMIDE L3/L2 · ${userName}
+                                </span>
+                                <span class="user-id-badge" onclick="copyText('${userId}', this)" title="Clic para copiar User ID">
+                                    ID: ${userId} (${memCount} evoluciones)
+                                </span>
+                            </div>
+                            <span class="memory-timestamp">${updatedAt}</span>
+                        </div>
+                        <div class="memory-thought" style="margin-bottom: 8px;">
+                            <div class="memory-thought-label">L3 · Perfil Persona (Identidad Duradera)</div>
+                            ${l3}
+                        </div>
+                        <div class="memory-conclusion">
+                            <div class="memory-conclusion-label">L2 · Escenario Actual (Contexto Activo)</div>
+                            ${l2}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const atomsHtml = memories.map(m => {
                 const topic = escapeHtml(m.topic || 'general');
                 const userId = escapeHtml(m.user_id || 'N/A');
                 const content = escapeHtml(m.content || '');
@@ -2164,7 +2198,7 @@
                             <div class="memory-tags">
                                 <span class="topic-badge">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
-                                    ${topic}
+                                    L1 · ${topic}
                                 </span>
                                 <span class="user-id-badge" onclick="copyText('${userId}', this)" title="Clic para copiar User ID">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -2176,7 +2210,7 @@
 
                         ${userMsg ? `
                             <div class="memory-quote">
-                                <div class="memory-quote-label">Mensaje del usuario</div>
+                                <div class="memory-quote-label">L0 · Mensaje del usuario</div>
                                 "${userMsg}"
                             </div>
                         ` : ''}
@@ -2185,7 +2219,7 @@
                             <div class="memory-thought">
                                 <div class="memory-thought-label">
                                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 0-4 4v1a4 4 0 0 0-4 4v1a4 4 0 0 0 4 4v1a4 4 0 0 0 4 4h0a4 4 0 0 0 4-4v-1a4 4 0 0 0 4-4v-1a4 4 0 0 0-4-4V6a4 4 0 0 0-4-4z"></path></svg>
-                                    Razonamiento Cognitivo de Dalet
+                                    L1 · Átomo Cognitivo de Dalet
                                 </div>
                                 "${thought}"
                             </div>
@@ -2201,6 +2235,8 @@
                     </div>
                 `;
             }).join('');
+
+            container.innerHTML = personasHtml + atomsHtml;
         }
 
         async function fetchModActions() {

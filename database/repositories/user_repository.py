@@ -111,7 +111,7 @@ class UserRepository(BaseRepository):
         return res
 
     async def ensure_memories_schema(self):
-        """Asegura que la tabla UserMemories y las columnas nuevas existan."""
+        """Asegura que las tablas de la Pirámide Semántica (UserMemories L1 y UserPersonas L2/L3) existan."""
         create_query = """
             CREATE TABLE IF NOT EXISTS UserMemories (
                 MemoryID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -124,6 +124,19 @@ class UserRepository(BaseRepository):
             )
         """
         await self.execute(create_query)
+
+        personas_query = """
+            CREATE TABLE IF NOT EXISTS UserPersonas (
+                UserID INTEGER PRIMARY KEY,
+                UserName TEXT,
+                PersonaL3 TEXT DEFAULT '',
+                ScenarioL2 TEXT DEFAULT '',
+                MemoryCount INTEGER DEFAULT 0,
+                UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        await self.execute(personas_query)
+
         try:
             rows = await self.fetch_all("PRAGMA table_info(UserMemories)")
             existing_cols = {row[1] for row in rows} if rows else set()
@@ -136,6 +149,69 @@ class UserRepository(BaseRepository):
                     await self.execute(f"ALTER TABLE UserMemories ADD COLUMN {col} TEXT")
                 except Exception:
                     pass
+
+    async def get_user_persona(self, user_id: int) -> dict | None:
+        """Obtiene las capas superiores de la pirámide semántica (L3 Persona y L2 Scenario) del usuario."""
+        async def _fetch(uid):
+            query = """
+                SELECT PersonaL3, ScenarioL2, MemoryCount, UpdatedAt
+                FROM UserPersonas WHERE UserID = ?
+            """
+            row = await self.fetch_one(query, uid)
+            if not row:
+                return None
+            if hasattr(row, "get"):
+                return {
+                    "persona_l3": row.get("PersonaL3") or row.get("persona_l3") or "",
+                    "scenario_l2": row.get("ScenarioL2") or row.get("scenario_l2") or "",
+                    "memory_count": row.get("MemoryCount") or row.get("memory_count") or 0,
+                    "updated_at": str(row.get("UpdatedAt") or ""),
+                }
+            return {
+                "persona_l3": row[0] if len(row) > 0 and row[0] else "",
+                "scenario_l2": row[1] if len(row) > 1 and row[1] else "",
+                "memory_count": int(row[2]) if len(row) > 2 and row[2] is not None else 0,
+                "updated_at": str(row[3]) if len(row) > 3 and row[3] else "",
+            }
+
+        return await self._get_cached(f"persona_{user_id}", _fetch, user_id)
+
+    async def upsert_user_persona(
+        self,
+        user_id: int,
+        user_name: str,
+        persona_l3: str,
+        scenario_l2: str = "",
+    ):
+        """Actualiza atómicamente (UPSERT O(1)) las capas L3 Persona y L2 Scenario del usuario."""
+        query = """
+            INSERT INTO UserPersonas (UserID, UserName, PersonaL3, ScenarioL2, MemoryCount, UpdatedAt)
+            VALUES (?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+            ON CONFLICT(UserID) DO UPDATE SET
+                UserName = excluded.UserName,
+                PersonaL3 = excluded.PersonaL3,
+                ScenarioL2 = CASE WHEN excluded.ScenarioL2 != '' THEN excluded.ScenarioL2 ELSE UserPersonas.ScenarioL2 END,
+                MemoryCount = UserPersonas.MemoryCount + 1,
+                UpdatedAt = CURRENT_TIMESTAMP
+        """
+        res = await self.execute(query, user_id, user_name, persona_l3, scenario_l2 or "")
+        self._cache.pop(f"persona_{user_id}", None)
+        return res
+
+    async def prune_old_user_memories(self, user_id: int, max_atoms: int = 20):
+        """Poda átomos L1 antiguos cuando superan el umbral, ya que su esencia fue destilada en L3."""
+        query = """
+            DELETE FROM UserMemories
+            WHERE UserID = ? AND MemoryID NOT IN (
+                SELECT MemoryID FROM UserMemories
+                WHERE UserID = ?
+                ORDER BY Timestamp DESC, MemoryID DESC
+                LIMIT ?
+            )
+        """
+        res = await self.execute(query, user_id, user_id, max_atoms)
+        self._cache.pop(f"memories_{user_id}", None)
+        return res
 
     async def add_user_memory(
         self,

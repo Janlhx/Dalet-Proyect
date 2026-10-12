@@ -178,7 +178,7 @@ class SQLiteManager:
                 OccurredAt DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """,
-            # Recuerdos y conclusiones sobre los usuarios
+            # Recuerdos y conclusiones sobre los usuarios (Capa L1 - Átomos)
             """
             CREATE TABLE IF NOT EXISTS UserMemories (
                 MemoryID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -188,6 +188,17 @@ class SQLiteManager:
                 UserMessage TEXT,
                 DaletThought TEXT,
                 Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
+            # Pirámide Semántica de Memoria (Capas L2 Scenario y L3 Persona por usuario)
+            """
+            CREATE TABLE IF NOT EXISTS UserPersonas (
+                UserID INTEGER PRIMARY KEY,
+                UserName TEXT,
+                PersonaL3 TEXT DEFAULT '',
+                ScenarioL2 TEXT DEFAULT '',
+                MemoryCount INTEGER DEFAULT 0,
+                UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """,
             # Lista negra permanente de hashes de imágenes NSFW e ilícitas

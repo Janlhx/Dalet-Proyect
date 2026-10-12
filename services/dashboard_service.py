@@ -241,8 +241,9 @@ class DashboardService:
         """Obtiene métricas y conteo de filas de todas las tablas de la base de datos."""
         tables = [
             ("Users", "Usuarios registrados e historial de interacción", "users"),
-            ("UserMemories", "Recuerdos cognitivos y síntesis de pensamiento", "memories"),
-            ("Messages", "Historial de mensajes de chat registrados", "messages"),
+            ("UserPersonas", "Pirámide Semántica: Perfiles Persona (L3) y Escenarios Activos (L2)", "personas"),
+            ("UserMemories", "Pirámide Semántica: Átomos cognitivos y pensamientos (L1)", "memories"),
+            ("Messages", "Historial de mensajes de chat registrados (L0)", "messages"),
             ("ModerationConfig", "Configuraciones de moderación activa por servidor", "moderation_config"),
             ("ModActions", "Auditoría de infracciones y acciones automáticas", "mod_actions"),
             ("Feedbacks", "Buzón de sugerencias y comentarios de la comunidad", "feedbacks"),
@@ -284,7 +285,7 @@ class DashboardService:
 
     @classmethod
     def get_memories(cls, search: str = "", limit: int = 50, offset: int = 0) -> dict:
-        """Obtiene recuerdos cognitivos de UserMemories con filtro de búsqueda."""
+        """Obtiene la Pirámide Semántica (UserPersonas L3/L2 y UserMemories L1) con filtro de búsqueda."""
         limit = min(max(1, limit), 100)
         offset = max(0, offset)
 
@@ -320,10 +321,40 @@ class DashboardService:
                 "timestamp": str(r.get("Timestamp") or "")
             })
 
+        # Consultar también UserPersonas (L3 Persona & L2 Scenario)
+        personas = []
+        try:
+            p_where = ""
+            p_params: list = []
+            if search:
+                p_where = "WHERE UserName LIKE ? OR PersonaL3 LIKE ? OR ScenarioL2 LIKE ? OR CAST(UserID as TEXT) LIKE ?"
+                like_term = f"%{search}%"
+                p_params = [like_term, like_term, like_term, like_term]
+            p_query = f"""
+                SELECT UserID, UserName, PersonaL3, ScenarioL2, MemoryCount, UpdatedAt
+                FROM UserPersonas
+                {p_where}
+                ORDER BY UpdatedAt DESC
+                LIMIT 30
+            """
+            p_rows = cls._execute_query(p_query, tuple(p_params))
+            for pr in p_rows:
+                personas.append({
+                    "user_id": str(pr.get("UserID", "")),
+                    "user_name": pr.get("UserName") or "Usuario",
+                    "persona_l3": pr.get("PersonaL3") or "",
+                    "scenario_l2": pr.get("ScenarioL2") or "",
+                    "memory_count": pr.get("MemoryCount") or 0,
+                    "updated_at": str(pr.get("UpdatedAt") or "")
+                })
+        except Exception as e:
+            logger.debug(f"UserPersonas query fallback: {e}")
+
         return {
             "total": total,
             "limit": limit,
             "offset": offset,
+            "personas": personas,
             "memories": memories
         }
 
