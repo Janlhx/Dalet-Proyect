@@ -57,6 +57,8 @@ class DaletAtoms(metaclass=DaletAtomsMeta):
     GLYPH_PIPE = "│"
     GLYPH_STAR = "★"
     GLYPH_CORNER = "└"
+    DIVIDER_MAIN = "─────────────────────────"
+    DIVIDER_LIGHT = "┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄"
 
     # --- Glifos Tipográficos de Habilidades y Métricas ---
     GLYPH_AIM = "⌖"

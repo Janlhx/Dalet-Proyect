@@ -232,7 +232,26 @@ class TestDSMLAndChatFlow(unittest.TestCase):
         self.assertEqual(fetch_data["title"], "osu! News")
         self.assertIn("# Big Update", fetch_data["content"])
 
+    def test_build_help_pages_es_and_en(self):
+        from handlers.dalet_helpcommands_handlers import build_help_pages
+
+        bot_mock = MagicMock()
+        bot_mock.user.avatar.url = "https://example.com/avatar.png"
+        user_mock = MagicMock()
+        user_mock.display_name = "Juans"
+
+        pages_es, cats_es = build_help_pages(bot_mock, user_mock, server_lang="es")
+        pages_en, cats_en = build_help_pages(bot_mock, user_mock, server_lang="en")
+
+        self.assertEqual(len(pages_es), 7)
+        self.assertEqual(len(cats_es), 6)
+        self.assertEqual(len(pages_en), 7)
+        self.assertEqual(len(cats_en), 6)
+        self.assertIn("Juans", pages_es[0].description)
+        self.assertIn("Juans", pages_en[0].description)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
