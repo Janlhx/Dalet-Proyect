@@ -245,13 +245,18 @@ class TestDSMLAndChatFlow(unittest.TestCase):
 
         self.assertEqual(len(pages_es), 7)
         self.assertEqual(len(cats_es), 6)
+        self.assertEqual(len(pages_es[0].fields), 6)
+        self.assertTrue(all(f.inline for f in pages_es[0].fields))
         self.assertEqual(len(pages_en), 7)
         self.assertEqual(len(cats_en), 6)
+        self.assertEqual(len(pages_en[0].fields), 6)
+        self.assertTrue(all(f.inline for f in pages_en[0].fields))
         self.assertIn("Juans", pages_es[0].description)
         self.assertIn("Juans", pages_en[0].description)
 
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
