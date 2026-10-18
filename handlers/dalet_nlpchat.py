@@ -3,7 +3,15 @@ import random
 import re
 import time
 import asyncio
-from cachetools import TTLCache
+
+try:
+    from cachetools import TTLCache
+except ImportError:
+    class TTLCache(dict):  # Fallback ligero para entornos de CI/tests sin cachetools
+        def __init__(self, maxsize=1000, ttl=3600, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.maxsize = maxsize
+            self.ttl = ttl
 
 import discord
 from discord.ext import commands
@@ -11,10 +19,10 @@ from discord.ext import commands
 logger = logging.getLogger("dalet.handlers.nlp")
 
 # Configuración de comportamiento proactivo y reactivo
-BASE_RESPONSE_RATE = 0.25  # 25% de probabilidad de responder proactivamente
-COOLDOWN_TIME = 45         # Segundos mínimos entre respuestas proactivas
-MIN_MESSAGES_BETWEEN_REPLIES = 10
-MAX_MESSAGES_WINDOW = 30
+BASE_RESPONSE_RATE = 0.30  # Probabilidad base de intervenir proactivamente al cumplir umbral
+COOLDOWN_TIME = 45         # Segundos mínimos entre intervenciones proactivas por canal
+MIN_MESSAGES_BETWEEN_REPLIES = 6
+MAX_MESSAGES_WINDOW = 20
 REACTIVE_SESSION_MAX = 12
 REACTIVE_SESSION_COOLDOWN = 2
 
@@ -36,6 +44,7 @@ class DaletNLPChat(commands.Cog):
         self.user_ratelimits: TTLCache = TTLCache(maxsize=5000, ttl=7200)
         self.reactive_sessions: TTLCache = TTLCache(maxsize=2000, ttl=7200)
         self.recent_user_messages: TTLCache = TTLCache(maxsize=5000, ttl=300)
+        self.proactive_channels: TTLCache = TTLCache(maxsize=2000, ttl=7200)
 
     async def cog_load(self):
         try:
@@ -156,25 +165,67 @@ class DaletNLPChat(commands.Cog):
 
         return wait_secs
 
-    def _should_respond(self) -> bool:
-        """Decide si el bot debe responder proactivamente en este mensaje."""
-        self.message_counter += 1
-
-        now = time.time()
-        if now - self.last_reply_time < COOLDOWN_TIME:
+    @staticmethod
+    def _is_meaningful_proactive_message(content: str) -> bool:
+        """
+        Verifica si un mensaje tiene suficiente sustancia conversacional para que valga
+        la pena evaluarlo en modo proactivo (descarta monosílabos, risas sueltas o links puros).
+        """
+        if not content:
             return False
 
-        # Si ya pasamos la ventana de reset, reiniciamos el contador de mensajes
-        if self.message_counter > MAX_MESSAGES_WINDOW:
-            self.message_counter = 1
+        # Limpiar menciones, emojis custom y URLs
+        cleaned = re.sub(r"<@!?\d+>|<a?:[a-zA-Z0-9_]+:\d+>|https?://\S+", "", content).strip()
+        if len(cleaned) < 12:
+            return False
 
-        if (
-            self.message_counter >= MIN_MESSAGES_BETWEEN_REPLIES
-            and random.random() < BASE_RESPONSE_RATE
-        ):
+        words = [w for w in cleaned.split() if len(w) > 1]
+        if len(words) < 3:
+            return False
+
+        # Descartar si es únicamente risa repetida (ej. "jajajaja xd lol")
+        filler_pattern = r"^(?:(?:ja)+|(?:je)+|xd+|lol+|lmao+|ok+|si+|sí+|no+|wtf+|\?+|!+|\s+)+$"
+        if re.match(filler_pattern, cleaned, flags=re.IGNORECASE):
+            return False
+
+        return True
+
+    def _should_respond(self, channel_id: int = 0, content: str = "") -> bool:
+        """
+        Decide si el bot debe evaluar una intervención proactiva en este canal.
+        Mantiene estado aislado por canal (O(1) en TTLCache) y exige que el mensaje
+        tenga sustancia conversacional antes de invocar al LLM.
+        """
+        now = time.time()
+        state = self.proactive_channels.get(channel_id)
+        if state is None:
+            state = {"count": 0, "last_reply_time": self.last_reply_time}
+
+        state["count"] += 1
+        self.message_counter = state["count"]
+        self.proactive_channels[channel_id] = state
+
+        if now - state["last_reply_time"] < COOLDOWN_TIME:
+            return False
+
+        if state["count"] < MIN_MESSAGES_BETWEEN_REPLIES:
+            return False
+
+        # Si se pasó el texto del mensaje y es trivial/corto, mantener el contador alto
+        # para evaluar el siguiente mensaje con contenido real en el canal.
+        if content and not self._is_meaningful_proactive_message(content):
+            return False
+
+        # Si ya alcanzamos el tope de la ventana, disparo garantizado sobre este mensaje con sustancia
+        if state["count"] >= MAX_MESSAGES_WINDOW:
             return True
 
-        return False
+        # Probabilidad progresiva: sube desde BASE_RESPONSE_RATE hacia 1.0 a medida que avanza la ventana
+        progress = (state["count"] - MIN_MESSAGES_BETWEEN_REPLIES) / max(
+            1, MAX_MESSAGES_WINDOW - MIN_MESSAGES_BETWEEN_REPLIES
+        )
+        dynamic_prob = BASE_RESPONSE_RATE + (1.0 - BASE_RESPONSE_RATE) * (progress * 0.5)
+        return random.random() < dynamic_prob
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -298,11 +349,18 @@ class DaletNLPChat(commands.Cog):
             except Exception as e:
                 logger.debug(f"Error consultando proactividad (usando False): {e}")
 
-            if is_proactive and self._should_respond():
+            # Si el mensaje menciona a OTRO bot (ej. Sengo, Mudae), no meterse en modo proactivo
+            mentions_other_bot = any(
+                getattr(m, "bot", False) and (not self.bot.user or m.id != self.bot.user.id)
+                for m in getattr(message, "mentions", [])
+            )
+            if mentions_other_bot:
+                return
+
+            if is_proactive and self._should_respond(message.channel.id, message.content):
                 # Aplicar Rate Limit también a proactividad por seguridad
                 if not self._check_rate_limit(message.guild.id, message.channel.id, self.bot.user.id, priority="proactive"):
                     return
-
 
                 await self.generate_response(
                     message,
@@ -334,7 +392,7 @@ class DaletNLPChat(commands.Cog):
 
         self.active_user_responses.add(user_id)
         try:
-            # Recopilar imágenes adjuntas o en embeds
+            # Recopilar imágenes adjuntas o en embeds del propio mensaje actual
             image_urls = []
             if message.attachments:
                 for att in message.attachments:
@@ -362,7 +420,12 @@ class DaletNLPChat(commands.Cog):
                         logger.debug(f"No se pudo resolver mensaje de referencia: {e}")
 
                 if isinstance(ref, discord.Message):
-                    if not image_urls:
+                    # En modo proactivo, si el usuario le está haciendo Reply a OTRO bot (ej. Sengo), no meterse
+                    if not is_direct_mention and getattr(ref.author, "bot", False) and ref.author != self.bot.user:
+                        return
+
+                    # Solo heredar imágenes del mensaje referenciado cuando el usuario menciona/habla con Dalet directamente
+                    if is_direct_mention and not image_urls:
                         for att in ref.attachments:
                             if any(
                                 att.filename.lower().endswith(ext)
@@ -384,7 +447,7 @@ class DaletNLPChat(commands.Cog):
                             ref_summary = f"[El usuario te está respondiendo directamente a este Embed que enviaste tú ({bot_name}): {' | '.join(parts)}]"
                         elif ref.content:
                             ref_summary = f"[El usuario te está respondiendo directamente a tu mensaje anterior: \"{ref.content}\"]"
-                    else:
+                    elif is_direct_mention:
                         if ref.embeds:
                             emb = ref.embeds[0]
                             parts = []
@@ -394,10 +457,16 @@ class DaletNLPChat(commands.Cog):
                             ref_summary = f"[El usuario te responde en referencia a este Embed de {ref.author.display_name}: {' | '.join(parts)}]"
                         elif ref.content:
                             ref_summary = f"[El usuario está respondiendo al mensaje de {ref.author.display_name}: \"{ref.content}\"]"
+                    else:
+                        if ref.content:
+                            ref_summary = (
+                                f"[Contexto del hilo: {message.author.display_name} le está respondiendo al mensaje de "
+                                f"{ref.author.display_name} (\"{ref.content}\"), NO a ti]"
+                            )
 
-            # Si el usuario no usó Reply explícito pero pregunta por 'mi top', 'este top', 'mis skills', 'eso', etc.,
-            # recuperar el Embed más reciente enviado por Dalet en el canal
-            if not ref_summary:
+            # Si el usuario mencionó a Dalet sin usar Reply explícito pero pregunta por 'mi top', 'mis skills', etc.,
+            # recuperar el Embed más reciente enviado por Dalet en el canal (solo en mención directa)
+            if is_direct_mention and not ref_summary:
                 trigger_probes = (
                     "opina", "opinas", "qué tal", "que tal", "mi top", "este top",
                     "mi play", "mi jugada", "mis skills", "mi perfil", "eso", "esto",
@@ -406,7 +475,6 @@ class DaletNLPChat(commands.Cog):
                     "qué opinas de mi", "que opinas de mi", "cómo me ves", "como me ves"
                 )
                 if any(p in message.content.lower() for p in trigger_probes):
-
                     try:
                         async for prev_msg in message.channel.history(limit=6, before=message):
                             if prev_msg.author == self.bot.user and prev_msg.embeds:
@@ -422,11 +490,16 @@ class DaletNLPChat(commands.Cog):
 
             image_urls = list(dict.fromkeys(image_urls))[:1]  # Solo 1 imagen
 
-            # Normalizar menciones numéricas de Discord a formato legible para que la IA entienda a quién se refieren
+            # Normalizar menciones numéricas de Discord a nombres reales para que la IA entienda a quién se refieren
             clean_content = message.content
             if self.bot.user:
                 clean_content = re.sub(rf"<@!?{self.bot.user.id}>", f"@{bot_name}", clean_content)
-            # Reemplazar menciones a otros usuarios por '@usuario' para no exponer IDs crudos
+            for mentioned_user in getattr(message, "mentions", []):
+                if self.bot.user and mentioned_user.id == self.bot.user.id:
+                    continue
+                m_label = f"@{mentioned_user.display_name} [BOT]" if getattr(mentioned_user, "bot", False) else f"@{mentioned_user.display_name}"
+                clean_content = re.sub(rf"<@!?{mentioned_user.id}>", m_label, clean_content)
+            # Reemplazar menciones restantes sin resolver por '@usuario'
             clean_content = re.sub(r"<@!?\d+>", "@usuario", clean_content)
             clean_content = clean_content.strip() or message.content
             # Truncado de seguridad para evitar muros de texto abusivos (máx 400 caracteres)
@@ -463,11 +536,34 @@ class DaletNLPChat(commands.Cog):
                 except Exception:
                     server_lang = "en"
 
+            is_proactive_turn = trigger_type == "proactive"
+
             # Generar respuesta con protección de timeout estricto (máx 25s)
+            # En modo proactivo evitamos mostrar "Dalet está escribiendo..." antes de saber
+            # si el modelo eligió [PASS] o solo reaccionar con un emoji.
             async with self.bot.discord_semaphore:
                 try:
-                    async with message.channel.typing():
-                        reply = await asyncio.wait_for(
+                    if is_direct_mention:
+                        async with message.channel.typing():
+                            raw_reply = await asyncio.wait_for(
+                                self.bot.nlp_service.generate_reply(
+                                    clean_content,
+                                    context,
+                                    message.author.display_name,
+                                    bot_name=bot_name,
+                                    image_urls=image_urls,
+                                    user_id=message.author.id,
+                                    channel_id=message.channel.id,
+                                    active_room_users=active_users,
+                                    is_reactive=is_reactive,
+                                    language=server_lang,
+                                    allow_reactions=True,
+                                    is_proactive=False,
+                                ),
+                                timeout=25.0
+                            )
+                    else:
+                        raw_reply = await asyncio.wait_for(
                             self.bot.nlp_service.generate_reply(
                                 clean_content,
                                 context,
@@ -479,19 +575,20 @@ class DaletNLPChat(commands.Cog):
                                 active_room_users=active_users,
                                 is_reactive=is_reactive,
                                 language=server_lang,
+                                allow_reactions=True,
+                                is_proactive=is_proactive_turn,
                             ),
-                            timeout=25.0
+                            timeout=20.0
                         )
                 except asyncio.TimeoutError:
-                    logger.warning(f"Timeout (25s) generando respuesta para {message.author.display_name}")
-                    reply = None
+                    logger.warning(f"Timeout generando respuesta para {message.author.display_name}")
+                    raw_reply = None
                 except discord.HTTPException as e:
                     if e.status == 429:
                         await self._handle_429(e, "typing")
                         return
-                    # Si falla el typing (permisos), intentar sin él
                     try:
-                        reply = await asyncio.wait_for(
+                        raw_reply = await asyncio.wait_for(
                             self.bot.nlp_service.generate_reply(
                                 clean_content,
                                 context,
@@ -503,19 +600,47 @@ class DaletNLPChat(commands.Cog):
                                 active_room_users=active_users,
                                 is_reactive=is_reactive,
                                 language=server_lang,
+                                allow_reactions=True,
+                                is_proactive=is_proactive_turn,
                             ),
                             timeout=20.0
                         )
                     except Exception as e:
                         logger.error(f"Error llamando nlp_service (sin typing): {e}")
-                        reply = None
+                        raw_reply = None
                 except Exception as e:
                     logger.error(f"Error llamando nlp_service: {e}")
-                    reply = None
+                    raw_reply = None
 
+            from services.nlp_service import NLPService
+            reply, reaction_emoji = NLPService.extract_reaction(raw_reply or "")
+
+            # 1. Aplicar reacción con emoji si Dalet decidió reaccionar al mensaje
+            if reaction_emoji:
+                try:
+                    await message.add_reaction(reaction_emoji)
+                    self.consecutive_429s = 0
+                    self.bot.global_consecutive_429s = 0
+                except discord.HTTPException as e:
+                    if e.status == 429:
+                        await self._handle_429(e, "reaction")
+                    else:
+                        logger.debug(f"No se pudo agregar reacción '{reaction_emoji}': {e}")
+                except Exception as e:
+                    logger.debug(f"Error aplicando reacción '{reaction_emoji}': {e}")
+
+            # 2. Enviar respuesta de texto si hay contenido verbal (usando Reply nativo sin @ping)
             if reply:
                 try:
-                    await message.channel.send(reply)
+                    if hasattr(message, "reply"):
+                        try:
+                            await message.reply(reply, mention_author=False)
+                        except discord.HTTPException as e_rep:
+                            if e_rep.status == 429:
+                                raise
+                            await message.channel.send(reply)
+                    else:
+                        await message.channel.send(reply)
                     self.consecutive_429s = 0
                     self.bot.global_consecutive_429s = 0
 
@@ -559,8 +684,20 @@ class DaletNLPChat(commands.Cog):
                         logger.error(f"Error HTTP enviando mensaje: {e}")
 
             if not is_direct_mention:
-                self.last_reply_time = time.time()
-                self.message_counter = 0
+                now_ts = time.time()
+                if reply or reaction_emoji:
+                    self.last_reply_time = now_ts
+                    self.message_counter = 0
+                    self.proactive_channels[message.channel.id] = {
+                        "count": 0,
+                        "last_reply_time": now_ts,
+                    }
+                else:
+                    # Si eligió [PASS], hacer una pausa breve antes de volver a evaluar el canal
+                    self.proactive_channels[message.channel.id] = {
+                        "count": MIN_MESSAGES_BETWEEN_REPLIES // 2,
+                        "last_reply_time": now_ts - (COOLDOWN_TIME // 2),
+                    }
 
         except Exception as e:
             logger.error(f"Error generando respuesta: {e}", exc_info=True)

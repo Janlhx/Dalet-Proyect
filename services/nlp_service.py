@@ -163,6 +163,53 @@ OSU_TOOLS = [
     }
 ]
 
+# Herramientas de Búsqueda Web y Lectura de URLs nativas de DeepSeek (/v1/tools/search y /v1/tools/fetch)
+WEB_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "web_search",
+            "description": (
+                "Busca información en vivo en internet usando el motor de búsqueda nativo de DeepSeek. "
+                "Úsala SOLO cuando el usuario pregunte por noticias, eventos recientes, precios, clima, parches o actualizaciones de juegos, "
+                "o cuando mencionen un término, juego, personaje, meme o tema específico que NO conozcas con certeza. "
+                "NO la uses para charla casual, saludos, bromas internas del servidor o cosas que ya están en el contexto."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Consulta de búsqueda concisa (máx 128 caracteres). Soporta operadores como site: o comillas."
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "web_fetch",
+            "description": (
+                "Extrae y lee el contenido principal en Markdown de una página web específica (http/https). "
+                "Úsala SOLO cuando el usuario comparta un enlace URL en su mensaje y pida tu opinión/resumen, "
+                "o cuando necesites leer el detalle completo de un resultado de web_search."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "URL completa (http:// o https://) de la página web a leer."
+                    }
+                },
+                "required": ["url"]
+            }
+        }
+    }
+]
+
 # Palabras clave para activar Function Calling de osu! y análisis de jugador
 OSU_TRIGGER_KEYWORDS = (
     "osu", "osu!", "play", "plays", "score", "scores", "choke", "chokeó", "chokeo",
@@ -719,7 +766,38 @@ class NLPService:
             await self._http_client.aclose()
 
     @staticmethod
-    def _clean_reply_text(text: str, bot_name: str = "Dalet") -> str:
+    def extract_reaction(text: str) -> tuple[str, str | None]:
+        """
+        Extrae una etiqueta [REACTION: <emoji>] o [PASS] de la respuesta generada.
+        Retorna (texto_limpio, emoji_reaccion | None).
+        """
+        if not text:
+            return "", None
+
+        if re.search(r"(?i)\[\s*PASS\s*\]", text):
+            return "", None
+
+        reaction_emoji = None
+        match = re.search(r"(?i)\[\s*REACTION\s*:\s*([^\]]+?)\s*\]", text)
+        if match:
+            raw_candidate = match.group(1).strip()
+            # Soportar emoji custom de Discord (<:name:123> o <a:name:123>) o emoji Unicode
+            custom_match = re.search(r"<a?:[a-zA-Z0-9_]+:\d+>", raw_candidate)
+            if custom_match:
+                reaction_emoji = custom_match.group(0)
+            else:
+                uni_match = re.search(
+                    r"(?:[\U00010000-\U0010ffff]|[\u2600-\u27bf]|[\u2300-\u23ff]|[\u2b50-\u2b55]|[\u3030-\u303d])(?:\ufe0f)?",
+                    raw_candidate,
+                )
+                if uni_match:
+                    reaction_emoji = uni_match.group(0)
+
+        cleaned = re.sub(r"(?i)\[\s*REACTION\s*:\s*[^\]]*\]", "", text).strip()
+        return cleaned, reaction_emoji
+
+    @staticmethod
+    def _clean_reply_text(text: str, bot_name: str = "Dalet", preserve_reaction: bool = False) -> str:
         """
         Limpia y sanea la respuesta generada por cualquier LLM:
         1. Elimina etiquetas de razonamiento/pensamiento como <think>...</think>.
@@ -747,19 +825,25 @@ class NLPService:
         cleaned = re.sub(r"(?is)</?[|｜]+(?:DSML|tool[ _\w]*)[|｜]+[^>]*>", "", cleaned).strip()
 
         # 1b. Eliminar pseudo-etiquetas XML de herramientas (ej. <get_osu_user_profile>...</get_osu_user_profile>, <tool_call>...</tool_call>)
-        xml_tool_names = r"(?:get_recent_osu_play|get_top_osu_play|get_osu_user_profile|get_osu_skills|get_osu_most_played|recommend_beatmaps|tool_call|function_call|function|call:default_api:[^\s>]+)"
+        xml_tool_names = r"(?:get_recent_osu_play|get_top_osu_play|get_osu_user_profile|get_osu_skills|get_osu_most_played|recommend_beatmaps|web_search|web_fetch|tool_call|function_call|function|call:default_api:[^\s>]+)"
         # 1b.1 Bloques completos cerrados
         cleaned = re.sub(rf"(?is)<({xml_tool_names})[^>]*>.*?</\1>", "", cleaned).strip()
         # 1b.2 Bloques no cerrados o cortados al final
         cleaned = re.sub(rf"(?is)<({xml_tool_names})[^>]*>.*$", "", cleaned).strip()
         # 1b.3 Etiquetas huérfanas de apertura o cierre (incluyendo parámetros XML de herramientas)
-        param_tags = r"(?:username|mode|index|limit|vibe|star_min|star_max|parameters|arguments)"
+        param_tags = r"(?:username|mode|index|limit|vibe|star_min|star_max|query|url|parameters|arguments)"
         cleaned = re.sub(rf"(?is)</?(?:{xml_tool_names}|{param_tags})[^>]*>", "", cleaned).strip()
         # 1b.4 Limpiar etiquetas de formato <call:...> o nombres con dos puntos huérfanas
         cleaned = re.sub(r"(?is)</?[a-zA-Z0-9_]+:[a-zA-Z0-9_]+[^>]*>", "", cleaned).strip()
         # 1b.5 Limpiar espacios dobles o saltos de línea excesivos
         cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
         cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+
+        # 1b.6 Extraer etiquetas de control [PASS] y [REACTION: <emoji>] antes de sanitizar emojis del cuerpo
+        if re.search(r"(?i)\[\s*PASS\s*\]", cleaned):
+            return "[PASS]" if preserve_reaction else ""
+
+        cleaned, reaction_emoji = NLPService.extract_reaction(cleaned)
 
         # 1b. Neutralizar fugas de monólogo interno / reasoning (ej. 'We need to respond as...', 'Thinking Process:')
         leak_prefixes = (
@@ -839,6 +923,9 @@ class NLPService:
             parts = emoji_pattern.split(cleaned)
             cleaned = parts[0] + first_emoji + "".join(parts[1:])
             cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+        if preserve_reaction and reaction_emoji:
+            return f"{cleaned} [REACTION: {reaction_emoji}]".strip()
 
         return cleaned
 
@@ -1061,10 +1148,11 @@ class NLPService:
     def _select_provider(self, has_images: bool, needs_web_search: bool, trigger: str, needs_tools: bool = False) -> str:
         """
         Determina dinámicamente qué proveedor usar según intención, salud y balanceo.
-        Jerarquía:
-        1. Imágenes / Web Search -> Gemini Flash
-        2. Modo forzado por env (si se especifica)
-        3. Modo "auto" -> DeepSeek como motor primario dominante (alta calidad, pagado, sin rate limits).
+        Jerarquía v4.0:
+        1. Imágenes (Visión) -> Gemini Flash
+        2. Herramientas osu! o Búsqueda Web nativa (/v1/tools/search & /v1/tools/fetch) -> DeepSeek
+        3. Modo forzado por env (si se especifica)
+        4. Modo "auto" -> DeepSeek como motor primario dominante.
            Fallbacks: Groq (ultra rápido), Gemini, OpenRouter.
         """
         deepseek_ok = self._is_deepseek_healthy()
@@ -1072,12 +1160,8 @@ class NLPService:
         groq_ok = self._is_groq_healthy()
         openrouter_ok = self._is_openrouter_healthy()
 
-        # Si requiere herramientas (Function Calling de osu!) y DeepSeek está disponible -> DeepSeek prioritario
-        if needs_tools and deepseek_ok:
-            return "deepseek"
-
-        # Si el mensaje contiene imágenes o requiere búsqueda web en vivo -> Gemini es prioritario
-        if has_images or needs_web_search:
+        # Si el mensaje contiene imágenes adjuntas -> Gemini Vision es prioritario
+        if has_images:
             if gemini_ok:
                 return "gemini"
             elif deepseek_ok:
@@ -1086,6 +1170,12 @@ class NLPService:
                 return "openrouter"
             elif groq_ok:
                 return "groq"
+
+        # Si requiere herramientas (osu! o Web Search/Fetch nativo de DeepSeek) -> DeepSeek prioritario
+        if (needs_tools or needs_web_search) and deepseek_ok:
+            return "deepseek"
+        elif needs_web_search and gemini_ok:
+            return "gemini"
 
         # Modo estricto o forzado por env
         if self.routing_mode == "deepseek" and deepseek_ok:
@@ -1157,7 +1247,7 @@ class NLPService:
             clean_trigger = re.sub(pat, "[intento de manipulación neutralizado]", clean_trigger)
         trigger = clean_trigger
 
-        search_keywords = ("busca", "googlea", "noticias", "noticia", "precio", "resultado", "quién es", "quien es", "clima", "actualmente", "hoy en día", "partido")
+        search_keywords = ("busca", "googlea", "noticias", "noticia", "precio", "resultado", "quién es", "quien es", "clima", "actualmente", "hoy en día", "partido", "http://", "https://")
         needs_web_search = any(kw in trigger.lower() for kw in search_keywords)
         has_images = bool(image_urls)
 
@@ -1168,50 +1258,61 @@ class NLPService:
         if is_reactive:
             context = self._trim_context_smart(context, trigger)
 
+        is_proactive = bool(kwargs.get("is_proactive", False))
+        if is_proactive:
+            needs_web_search = False
+
         # 1. Resolver cuenta de osu! vinculada si tenemos user_id
         caller_user_id = kwargs.get("user_id")
         linked_osu_username = None
-        if caller_user_id and self.osu_repo:
+        if caller_user_id and self.osu_repo and not is_proactive:
             try:
                 linked_osu_username = await self.osu_repo.get_linked_username(caller_user_id)
             except Exception as e:
                 logger.debug(f"Error resolviendo cuenta enlazada en generate_reply para {caller_user_id}: {e}")
 
-        # 2. Clasificación semántica rápida con TypeSafe Jev (System One)
-        jev_analysis = await self._classify_with_jev(trigger)
-        is_opinion_req = jev_analysis.get("is_opinion", 0.0) >= 0.5
-        topic = jev_analysis.get("topic", "general")
-        direct_action = jev_analysis.get("direct_osu_action", "none")
-        user_mood = jev_analysis.get("user_mood", "casual")
-        player_scope = jev_analysis.get("player_scope", "none")
+        # 2. Clasificación semántica rápida con TypeSafe Jev (System One) — solo en modo reactivo/mención
+        if not is_proactive:
+            jev_analysis = await self._classify_with_jev(trigger)
+            is_opinion_req = jev_analysis.get("is_opinion", 0.0) >= 0.5
+            topic = jev_analysis.get("topic", "general")
+            direct_action = jev_analysis.get("direct_osu_action", "none")
+            user_mood = jev_analysis.get("user_mood", "casual")
+            player_scope = jev_analysis.get("player_scope", "none")
 
-        # 2b. Enrutamiento directo (Shortcut): si el usuario pide ver datos propios concretos y está vinculado
-        if (
-            direct_action != "none"
-            and player_scope == "self"
-            and linked_osu_username
-            and self.osu_service
-        ):
-            shortcut_reply = await self._shortcut_osu_reply(
-                action=direct_action,
-                osu_username=linked_osu_username,
-                discord_username=username,
-                user_id=caller_user_id,
-                bot_name=bot_name,
-                language=kwargs.get("language", "en"),
-                context=context,
-                trigger=trigger,
+            # 2b. Enrutamiento directo (Shortcut): si el usuario pide ver datos propios concretos y está vinculado
+            if (
+                direct_action != "none"
+                and player_scope == "self"
+                and linked_osu_username
+                and self.osu_service
+            ):
+                shortcut_reply = await self._shortcut_osu_reply(
+                    action=direct_action,
+                    osu_username=linked_osu_username,
+                    discord_username=username,
+                    user_id=caller_user_id,
+                    bot_name=bot_name,
+                    language=kwargs.get("language", "en"),
+                    context=context,
+                    trigger=trigger,
+                )
+                if shortcut_reply:
+                    return shortcut_reply
+
+            trigger_lower = trigger.lower()
+            has_osu_kw = any(kw in trigger_lower for kw in OSU_TRIGGER_KEYWORDS)
+            needs_tools = bool(
+                self.osu_service
+                and topic != "other_game"
+                and (has_osu_kw or topic == "beatmap_request" or (is_opinion_req and linked_osu_username))
             )
-            if shortcut_reply:
-                return shortcut_reply
-
-        trigger_lower = trigger.lower()
-        has_osu_kw = any(kw in trigger_lower for kw in OSU_TRIGGER_KEYWORDS)
-        needs_tools = bool(
-            self.osu_service
-            and topic != "other_game"
-            and (has_osu_kw or topic == "beatmap_request" or (is_opinion_req and linked_osu_username))
-        )
+        else:
+            is_opinion_req = False
+            topic = "general"
+            user_mood = "casual"
+            player_scope = "none"
+            needs_tools = False
 
         kwargs["linked_osu_username"] = linked_osu_username
         kwargs["topic"] = topic
@@ -1221,7 +1322,7 @@ class NLPService:
         kwargs["player_scope"] = player_scope
 
         chosen_provider = self._select_provider(has_images, needs_web_search, trigger, needs_tools=needs_tools)
-        logger.info(f"Load Balancer enrutó a '{chosen_provider}' para {username} (web_search={needs_web_search}, imgs={has_images}, tools={needs_tools}, topic={topic}, mood={user_mood})")
+        logger.info(f"Load Balancer enrutó a '{chosen_provider}' para {username} (proactive={is_proactive}, web_search={needs_web_search}, imgs={has_images}, tools={needs_tools}, topic={topic}, mood={user_mood})")
 
         # Cadena de proveedores a probar en orden
         provider_chain = [chosen_provider]
@@ -1282,6 +1383,8 @@ class NLPService:
             "get_osu_skills",
             "get_osu_most_played",
             "recommend_beatmaps",
+            "web_search",
+            "web_fetch",
         )
         known_tools_pattern = "|".join(known_tools)
 
@@ -1363,8 +1466,112 @@ class NLPService:
 
         return results
 
+    async def _execute_web_search(self, query: str, ori_question: str = "") -> str:
+        """
+        Ejecuta una búsqueda web en vivo mediante la API nativa de DeepSeek (/v1/tools/search)
+        y devuelve los 4 mejores resultados truncados de forma compacta (~350 tokens máx).
+        """
+        if not self.deepseek_api_key:
+            return json.dumps({"error": "No hay clave de DeepSeek configurada para web_search."})
+
+        clean_query = (query or "").strip()[:128]
+        if not clean_query:
+            return json.dumps({"error": "Consulta de búsqueda vacía."})
+
+        url = "https://api.deepseek.com/v1/tools/search"
+        headers = {
+            "Authorization": f"Bearer {self.deepseek_api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "query": clean_query,
+            "count": 5,
+            "need_content": False,
+        }
+        if ori_question:
+            payload["ori_question"] = ori_question.strip()[:128]
+
+        try:
+            resp = await self._http_client.post(url, headers=headers, json=payload, timeout=8.0)
+            if resp.status_code != 200:
+                logger.warning(f"DeepSeek /v1/tools/search HTTP {resp.status_code}: {resp.text[:200]}")
+                return json.dumps({"error": f"Error HTTP {resp.status_code} en búsqueda web."})
+
+            data = resp.json()
+            raw_results = data.get("results", data if isinstance(data, list) else [])
+            compact_results = []
+            for item in raw_results[:4]:
+                if not isinstance(item, dict):
+                    continue
+                summary_text = (item.get("summary") or item.get("snippet") or "").strip()
+                if len(summary_text) > 350:
+                    summary_text = summary_text[:347] + "..."
+                compact_results.append({
+                    "title": (item.get("title") or "")[:120],
+                    "url": item.get("url") or "",
+                    "summary": summary_text,
+                })
+
+            if not compact_results:
+                return json.dumps({"status": "no_results", "query": clean_query})
+
+            return json.dumps({"query": clean_query, "results": compact_results}, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Error ejecutando DeepSeek _execute_web_search ('{clean_query}'): {e}")
+            return json.dumps({"error": f"Fallo al buscar en la web: {str(e)}"})
+
+    async def _execute_web_fetch(self, target_url: str) -> str:
+        """
+        Lee el contenido Markdown de una URL mediante la API nativa de DeepSeek (/v1/tools/fetch),
+        truncando el cuerpo a 2500 caracteres para proteger el presupuesto de tokens.
+        """
+        if not self.deepseek_api_key:
+            return json.dumps({"error": "No hay clave de DeepSeek configurada para web_fetch."})
+
+        clean_url = (target_url or "").strip()
+        if not clean_url.startswith(("http://", "https://")):
+            return json.dumps({"error": "URL inválida. Debe comenzar con http:// o https://."})
+
+        url = "https://api.deepseek.com/v1/tools/fetch"
+        headers = {
+            "Authorization": f"Bearer {self.deepseek_api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {"url": clean_url[:8192]}
+
+        try:
+            resp = await self._http_client.post(url, headers=headers, json=payload, timeout=10.0)
+            if resp.status_code != 200:
+                logger.warning(f"DeepSeek /v1/tools/fetch HTTP {resp.status_code}: {resp.text[:200]}")
+                return json.dumps({"error": f"No se pudo leer la página (HTTP {resp.status_code})."})
+
+            data = resp.json()
+            title = (data.get("title") or "").strip()[:150]
+            content = (data.get("content") or "").strip()
+            if len(content) > 2500:
+                content = content[:2500] + "\n...[contenido truncado]..."
+
+            return json.dumps({
+                "url": clean_url,
+                "title": title,
+                "content": content,
+            }, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Error ejecutando DeepSeek _execute_web_fetch ('{clean_url}'): {e}")
+            return json.dumps({"error": f"Fallo al extraer contenido de la URL: {str(e)}"})
+
     async def _execute_osu_tool(self, name: str, args: dict, user_id: int = None) -> str:
-        """Ejecuta una herramienta de osu! en Bancho API y devuelve un payload JSON compacto."""
+        """Ejecuta una herramienta de osu! o de búsqueda/lectura web (DeepSeek Search & Fetch) y devuelve JSON compacto."""
+        if name == "web_search":
+            return await self._execute_web_search(
+                query=str(args.get("query") or ""),
+                ori_question=str(args.get("ori_question") or ""),
+            )
+        if name == "web_fetch":
+            return await self._execute_web_fetch(
+                target_url=str(args.get("url") or ""),
+            )
+
         if not self.osu_service:
             return json.dumps({"error": "El servicio de osu! no está configurado en el bot."})
 
@@ -1619,12 +1826,45 @@ class NLPService:
     ) -> str:
         """Formatea el prompt del usuario inyectando metadatos de cuenta enlazada, directrices contextuales y visión."""
         linked_user = kwargs.get("linked_osu_username")
-        meta_header = f"[Usuario: {username} | Cuenta osu! vinculada: {linked_user or 'Ninguna vinculada'}]"
+        is_proactive = bool(kwargs.get("is_proactive"))
+        lang = str(kwargs.get("language", "en")).lower().strip()
+        is_es = lang == "es"
+        is_micro_prompt = bool(kwargs.get("system_prompt_override"))
 
+        if is_proactive and not is_micro_prompt:
+            meta_header = f"[Modo: Observadora en el canal | Último hablante: {username}]"
+            proactive_instructions = (
+                "\n[MODO PROACTIVO — INTERVENCIÓN POR CUENTA PROPIA]:\n"
+                f"1. ATENCIÓN: **{username} NO te está hablando a ti ni te mencionó**. Están charlando entre miembros del servidor y tú estás leyendo el canal por tu cuenta.\n"
+                "2. PROHIBIDO hablar como si el mensaje fuera dirigido a ti: NUNCA digas 'me mandaste', 'me dijiste', 'me invocaste', 'no me uses de...', ni reclames que no te dieron contexto. Tú eres la que se está metiendo espontáneamente en su charla.\n"
+                "3. Si están hablando con otro bot o de algo donde no pintas nada, elige `[PASS]`.\n"
+                "4. Elige UNA de estas 3 acciones según el último mensaje y el hilo del chat:\n"
+                "   • OPCIÓN A — SOLO REACCIONAR CON EMOJI (ideal para bromas, fails, chokes o anécdotas): Responde ÚNICAMENTE con `[REACTION: <emoji>]` usando un emoji Unicode (ej. `[REACTION: 😆]`, `[REACTION: 💀]`, `[REACTION: 🤨]`, `[REACTION: 😭]`, `[REACTION: 🔥]`, `[REACTION: 🤡]`) sin texto.\n"
+                "   • OPCIÓN B — METER BAZA POR TU CUENTA (1 línea): Si el tema da para soltar un comentario espontáneo, ácido o gracioso sobre LO QUE ESTÁN HABLANDO (como una amiga más que escuchó la charla y opina del tema), escribe 1 línea natural (opcionalmente con `[REACTION: <emoji>]` al final).\n"
+                "   • OPCIÓN C — PASAR EN SILENCIO: Si es una frase suelta sin contexto, charla ajena o no tienes un comentario natural sobre el tema, responde ÚNICAMENTE con `[PASS]`."
+                if is_es else
+                "\n[PROACTIVE MODE — AUTONOMOUS INTERVENTION]:\n"
+                f"1. ATTENTION: **{username} is NOT talking to you and did NOT mention you**. Server members are chatting among themselves and you are reading the channel on your own.\n"
+                "2. FORBIDDEN to speak as if the message was addressed to you: NEVER say 'you sent me', 'you asked me', 'you summoned me', or complain about lack of context. You are jumping into their conversation on your own.\n"
+                "3. If they are talking to another bot or about something where you don't belong, choose `[PASS]`.\n"
+                "4. Pick ONE of these 3 actions based on the latest message and chat thread:\n"
+                "   • OPTION A — REACT WITH EMOJI ONLY (best for jokes, fails, chokes, or funny moments): Reply ONLY with `[REACTION: <emoji>]` using a Unicode emoji (e.g. `[REACTION: 😆]`, `[REACTION: 💀]`, `[REACTION: 🤨]`, `[REACTION: 😭]`, `[REACTION: 🔥]`, `[REACTION: 🤡]`) with zero text.\n"
+                "   • OPTION B — CHIME IN ON YOUR OWN (1 line): If the topic naturally invites a witty, dry, or funny remark ABOUT WHAT THEY ARE DISCUSSING (like a friend overhearing and chiming in on the topic), write 1 natural line (optionally with `[REACTION: <emoji>]` at the end).\n"
+                "   • OPTION C — SILENT PASS: If it's an out-of-context fragment, private banter, or you have nothing natural to add, reply ONLY with `[PASS]`."
+            )
+            vision_context = f"\n[IMAGEN EN EL MENSAJE DE {username}: {image_description}]\n" if image_description else ""
+            closing_line = (
+                f"Último mensaje en el canal (de {username} hablando con el chat, NO dirigido a ti): {trigger}"
+                if is_es else
+                f"Latest message in the channel (from {username} talking to the chat, NOT addressed to you): {trigger}"
+            )
+            return f"{meta_header}{proactive_instructions}\n\n<contexto_chat>\n{context}\n</contexto_chat>{vision_context}\n\n{closing_line}"
+
+        meta_header = f"[Usuario: {username} | Cuenta osu! vinculada: {linked_user or 'Ninguna vinculada'}]"
         system_hints = []
         topic = kwargs.get("topic", "general")
-        is_micro_prompt = bool(kwargs.get("system_prompt_override"))
-        
+        mood = kwargs.get("user_mood", "casual")
+
         if not is_micro_prompt:
             if topic == "other_game":
                 system_hints.append("[DIRECTRIZ ESTRICTA: La consulta es sobre otro juego. Prohibido mencionar o recomendar osu! o puntería de círculos. Responde con mecánicas técnicas de ese juego específico.]")
@@ -1636,12 +1876,6 @@ class NLPService:
                 else:
                     system_hints.append(f"[DIRECTRIZ: {username} no tiene cuenta vinculada. Si pide que opines de él, insúltalo suavemente por no vincular su cuenta (dile que use '/link <usuario>') si quiere que analices sus stats. Hazlo de forma cínica y muy casual, sin parecer un tutorial genérico.]")
 
-        # Directiva contextual de tono según registro emocional detectado por Jev (user_mood)
-        lang = str(kwargs.get("language", "en")).lower().strip()
-        is_es = lang == "es"
-        mood = kwargs.get("user_mood", "casual")
-        
-        if not is_micro_prompt:
             if mood == "banter":
                 system_hints.append(
                     "[DIRECTRIZ DE ÁNIMO: El usuario está en modo banter o retándote. Responde con humor seco, más afilada e irónica de lo habitual y devuélvele el golpe.]"
@@ -1659,6 +1893,13 @@ class NLPService:
                     "[DIRECTRIZ DE ÁNIMO: El usuario pide consejo técnico o ayuda seria. Sé directa, concisa, precisa y de alto valor técnico sin rodeos.]"
                     if is_es else
                     "[MOOD DIRECTIVE: User wants genuine technical advice or serious help. Be direct, concise, precise, and high-value with zero fluff.]"
+                )
+
+            if kwargs.get("allow_reactions"):
+                system_hints.append(
+                    "[REACCIONES CON EMOJI EN DISCORD]: Puedes reaccionar físicamente al mensaje del usuario en Discord añadiendo al final de tu respuesta `[REACTION: <emoji>]` con un emoji Unicode (ej. `[REACTION: 😆]`, `[REACTION: 💀]`, `[REACTION: 🤨]`, `[REACTION: 😭]`, `[REACTION: 🔥]`, `[REACTION: 🤡]`). Úsalo cuando el mensaje cuente algo gracioso, irónico, un fail (ej. se fue la luz, chokeó un mapa), o si te piden reaccionar con un emoji. También puedes responder ÚNICAMENTE con `[REACTION: <emoji>]` sin texto si una reacción muda queda mejor. No reacciones en todos los mensajes, solo cuando encaje con naturalidad."
+                    if is_es else
+                    "[DISCORD EMOJI REACTIONS]: You can physically react to the user's message on Discord by appending `[REACTION: <emoji>]` at the end of your reply with a Unicode emoji (e.g. `[REACTION: 😆]`, `[REACTION: 💀]`, `[REACTION: 🤨]`, `[REACTION: 😭]`, `[REACTION: 🔥]`, `[REACTION: 🤡]`). Use it when the message is funny, ironic, a fail/choke, or when asked to react. You can even reply ONLY with `[REACTION: <emoji>]` with no text if a silent reaction is funnier. Use it selectively when it fits naturally."
                 )
 
         hint_str = ("\n" + "\n".join(system_hints)) if system_hints else ""
@@ -1701,20 +1942,32 @@ class NLPService:
         user_msg = self._format_user_prompt_with_context(trigger, context, username, image_description, **kwargs)
         max_tokens = kwargs.get("max_tokens") or kwargs.get("max_tokens_override") or 1500
 
-        # Determinar si activamos herramientas (Function Calling) de osu!
-        use_tools = False
+        # Determinar si activamos herramientas de osu! y herramientas nativas de Web Search / Fetch
+        use_osu_tools = False
         topic = kwargs.get("topic", "general")
-        if self.osu_service and topic != "other_game":
+        if self.osu_service and topic != "other_game" and not kwargs.get("is_proactive"):
             if kwargs.get("needs_tools"):
-                use_tools = True
+                use_osu_tools = True
             elif any(kw in trigger.lower() for kw in OSU_TRIGGER_KEYWORDS):
-                use_tools = True
+                use_osu_tools = True
+
+        use_web_tools = bool(
+            not kwargs.get("is_proactive")
+            and not kwargs.get("system_prompt_override")
+            and not kwargs.get("shortcut_tool_data")
+            and kwargs.get("enable_web_tools", True)
+        )
+
+        active_tools = []
+        if use_osu_tools:
+            active_tools.extend(OSU_TOOLS)
+        if use_web_tools:
+            active_tools.extend(WEB_TOOLS)
 
         messages = [
             {"role": "system", "content": deepseek_system},
             {"role": "user", "content": user_msg}
         ]
-
 
         data = {
             "model": model_name,
@@ -1722,12 +1975,14 @@ class NLPService:
             "temperature": 0.7,
             "max_tokens": max_tokens
         }
-        if use_tools:
-            data["tools"] = OSU_TOOLS
+        if active_tools:
+            data["tools"] = active_tools
 
         t0 = time.time()
         try:
-            logger.info(f"Llamando DeepSeek: {model_name} (tools={use_tools}, fallback={is_fallback})")
+            logger.info(
+                f"Llamando DeepSeek: {model_name} (osu_tools={use_osu_tools}, web_tools={use_web_tools}, fallback={is_fallback})"
+            )
             response = await self._http_client.post(url, headers=headers, json=data, timeout=10.0)
 
             if response.status_code == 429:
@@ -1761,6 +2016,9 @@ class NLPService:
                     except Exception:
                         fn_args = {}
 
+                    if fn_name == "web_search" and isinstance(fn_args, dict):
+                        fn_args.setdefault("ori_question", trigger[:128])
+
                     logger.info(f"DeepSeek Tool Call: '{fn_name}' con args: {fn_args}")
                     tool_output = await self._execute_osu_tool(fn_name, fn_args, user_id=caller_user_id)
 
@@ -1792,6 +2050,8 @@ class NLPService:
                 logger.info(f"DeepSeek XML Tool Call detectado en content: {xml_tools}")
                 tool_results_list = []
                 for fn_name, fn_args in xml_tools:
+                    if fn_name == "web_search" and isinstance(fn_args, dict):
+                        fn_args.setdefault("ori_question", trigger[:128])
                     tool_out = await self._execute_osu_tool(fn_name, fn_args, user_id=caller_user_id)
                     tool_results_list.append(
                         f"Herramienta: {fn_name}\n"
@@ -1828,7 +2088,8 @@ class NLPService:
             else:
                 raw_text = choice_msg.get("content") or ""
 
-            reply_text = self._clean_reply_text(raw_text, bot_name)
+            preserve_rx = bool(kwargs.get("allow_reactions") or kwargs.get("is_proactive"))
+            reply_text = self._clean_reply_text(raw_text, bot_name, preserve_reaction=preserve_rx)
             latency_ms = int((time.time() - t0) * 1000)
 
             c_tokens = c_tokens or (len(reply_text) // 4)
@@ -1917,7 +2178,8 @@ class NLPService:
 
                 if response and response.text:
                     latency_ms = int((time.time() - t0) * 1000)
-                    reply_text = self._clean_reply_text(response.text, bot_name)
+                    preserve_rx = bool(kwargs.get("allow_reactions") or kwargs.get("is_proactive"))
+                    reply_text = self._clean_reply_text(response.text, bot_name, preserve_reaction=preserve_rx)
 
                     usage = getattr(response, "usage_metadata", None)
                     p_tokens = getattr(usage, "prompt_token_count", None) or (len(prompt) // 4)
@@ -2034,7 +2296,8 @@ class NLPService:
 
                 result = response.json()
                 raw_text = result['choices'][0]['message']['content'] or ""
-                reply_text = self._clean_reply_text(raw_text, bot_name)
+                preserve_rx = bool(kwargs.get("allow_reactions") or kwargs.get("is_proactive"))
+                reply_text = self._clean_reply_text(raw_text, bot_name, preserve_reaction=preserve_rx)
                 latency_ms = int((time.time() - t0) * 1000)
 
                 usage = result.get("usage", {})
@@ -2143,7 +2406,8 @@ class NLPService:
 
                 result = response.json()
                 raw_text = result['choices'][0]['message']['content'] or ""
-                reply_text = self._clean_reply_text(raw_text, bot_name)
+                preserve_rx = bool(kwargs.get("allow_reactions") or kwargs.get("is_proactive"))
+                reply_text = self._clean_reply_text(raw_text, bot_name, preserve_reaction=preserve_rx)
                 latency_ms = int((time.time() - t0) * 1000)
 
                 usage = result.get("usage", {})

@@ -12,10 +12,10 @@ class ChangelogService:
     Calcula versiones semánticas automáticamente y lee los últimos commits desde Git.
     """
 
-    BASE_VERSION = "v3.1"
-    # Commit base del hito v3.1 (Moderación modular y memoria cognitiva)
-    BASE_MILESTONE_COMMIT = "268bce4"
-    FALLBACK_PATCH = 10
+    BASE_VERSION = "v4.0"
+    # Commit base del hito v4.0 (Pirámide Semántica L0-L3, DeepSeek Web Search/Fetch, Proactive AI & SHA-256 Guard)
+    BASE_MILESTONE_COMMIT = "4815b25"
+    FALLBACK_PATCH = 0
     REPO_URL = "https://github.com/Janlhx/Dalet-Proyect"
 
     _cached_version: str | None = None
@@ -25,7 +25,7 @@ class ChangelogService:
 
     @classmethod
     def get_version(cls) -> str:
-        """Calcula dinámicamente la versión semántica (v3.1.<patch>) a partir de los commits."""
+        """Calcula dinámicamente la versión semántica (v4.0.<patch>) a partir de los commits."""
         now = time.time()
         if cls._cached_version and (now - cls._last_cache_time < cls._CACHE_TTL):
             return cls._cached_version
@@ -35,7 +35,7 @@ class ChangelogService:
             cmd = ["git", "rev-list", "--count", f"{cls.BASE_MILESTONE_COMMIT}..HEAD"]
             res = subprocess.run(cmd, capture_output=True, text=True, timeout=3.0)
             if res.returncode == 0 and res.stdout.strip().isdigit():
-                patch_number = int(res.stdout.strip())
+                patch_number = max(0, int(res.stdout.strip()) - 1)
         except Exception as e:
             logger.debug(f"No se pudo consultar conteo de git: {e}")
 
@@ -108,19 +108,19 @@ class ChangelogService:
     def _get_fallback_commits(cls) -> list[dict]:
         """Commits de respaldo si el entorno de ejecución no tiene acceso al binario de git."""
         raw_fallback = [
+            ("v4.0.0", "feat(v4): integrate DeepSeek native Web Search & Fetch, overhaul /proactive & emoji reactions, and redesign /help", "✦"),
+            ("4815b25", "feat(memory): implement L0-L3 Semantic Pyramid memory architecture and dashboard view", "✦"),
+            ("a4dbb6a", "feat(resumen): overhaul /resumir with discord live history, dual tone styles, and structured tl;dr embeds", "✦"),
+            ("13e2ace", "fix(moderation): resolve single channel id parsing bug and calibrate duplicate flood thresholds", "▪"),
             ("476f4a8", "feat(admin): add d.memories and d.dbtables for database inspection", "✦"),
-            ("b9caa5e", "docs(i18n): update help categories, changelog v3.1, and add complete Spanish README_ES.md", "◈"),
             ("cb6fa04", "feat(mod): add granular per-module channel exemptions to /mod ignore", "✦"),
-            ("4e3689f", "fix(mod): calibrate vision prompt for ecchi/waifu art and prioritize model analysis", "▪"),
-            ("3e874f4", "fix(telemetry): prevent NaN latency crash on startup and handle async client close", "▪"),
-            ("a79b380", "fix(db): prevent duplicate column errors and handle libsql KeyError 'result' gracefully", "▪"),
         ]
         return [
             {
                 "hash": h,
                 "url": f"{cls.REPO_URL}/commit/{h}",
                 "message": msg,
-                "date": "2026-09-30",
+                "date": "2026-10-18",
                 "glyph": glyph,
                 "category": "update",
             }
@@ -144,21 +144,21 @@ class ChangelogService:
         if custom_banner:
             embed.description = f'> *"{custom_banner}"*\n'
 
-        # Sección del Hito Mayor (v3.1)
+        # Sección del Hito Mayor (v4.0)
         if is_es:
-            milestone_title = f"{DaletAtoms.GLYPH_POINTER} Hito {cls.BASE_VERSION}: Auto-Moderación Modular & Memoria Cognitiva"
+            milestone_title = f"{DaletAtoms.GLYPH_POINTER} Hito {cls.BASE_VERSION}: DeepSeek Web Search/Fetch, Pirámide L0–L3 & IA Proactiva"
             milestone_desc = (
-                f"{DaletAtoms.GLYPH_SUB} **Auto-Moderación**: Detección visual con IA (Gemini Vision), Anti-Flood en memoria, protección anti-phishing y canales exentos (`/mod ignore`).\n"
-                f"{DaletAtoms.GLYPH_SUB} **Memoria Reflexiva**: Guarda mensajes de usuarios y conclusiones internas (`DaletThought`) para conversaciones naturales.\n"
-                f"{DaletAtoms.GLYPH_SUB} **Infraestructura**: Migraciones cloud Turso automáticas con fallback offline en SQLite WAL."
+                f"{DaletAtoms.GLYPH_SUB} **DeepSeek Web Search & Fetch**: Búsqueda web en vivo (`/v1/tools/search`) y lectura de URLs (`/v1/tools/fetch`) autónomas sin depender de Gemini.\n"
+                f"{DaletAtoms.GLYPH_SUB} **Pirámide Semántica (L0–L3) + TypeSafe Jev**: Memoria jerárquica (Episodios, Grafo Social y Dossier) enrutada en sub-50ms.\n"
+                f"{DaletAtoms.GLYPH_SUB} **IA Proactiva, Reply Nativo & Seguridad**: Modo observadora autónoma en `/proactive`, reacciones con emojis, reply visual (`╭─`) y blacklist SHA-256 a `0ms`."
             )
             commits_header = f"{DaletAtoms.GLYPH_POINTER} Últimos Cambios (Git Commits)"
         else:
-            milestone_title = f"{DaletAtoms.GLYPH_POINTER} Milestone {cls.BASE_VERSION}: Modular Auto-Moderation & Cognitive Memory"
+            milestone_title = f"{DaletAtoms.GLYPH_POINTER} Milestone {cls.BASE_VERSION}: DeepSeek Web Search/Fetch, L0–L3 Pyramid & Proactive AI"
             milestone_desc = (
-                f"{DaletAtoms.GLYPH_SUB} **Auto-Moderation**: AI vision content filter (Gemini Vision), in-memory anti-flood, phishing heuristics, and channel exemptions (`/mod ignore`).\n"
-                f"{DaletAtoms.GLYPH_SUB} **Reflective Memory**: Stores user interactions alongside internal takeaways (`DaletThought`) for natural banter.\n"
-                f"{DaletAtoms.GLYPH_SUB} **Infrastructure**: Resilient zero-downtime Turso cloud migrations with local SQLite WAL fallback."
+                f"{DaletAtoms.GLYPH_SUB} **DeepSeek Web Search & Fetch**: Autonomous live web search (`/v1/tools/search`) and URL reading (`/v1/tools/fetch`) without Gemini dependency.\n"
+                f"{DaletAtoms.GLYPH_SUB} **L0–L3 Semantic Pyramid + TypeSafe Jev**: Hierarchical memory (Episodes, Social Graph & Dossier) gated in sub-50ms.\n"
+                f"{DaletAtoms.GLYPH_SUB} **Proactive AI, Native Reply & Security**: Autonomous observer framing in `/proactive`, emoji reactions, visual reply (`╭─`), and 0ms SHA-256 image blacklist."
             )
             commits_header = f"{DaletAtoms.GLYPH_POINTER} Recent Commits & Patches"
 

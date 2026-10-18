@@ -27,14 +27,15 @@
 Dalet combines conversational AI with rhythm game telemetry, proactive content security, and resilient hybrid storage:
 
 - **5-Dimension Skill Breakdown (`/skills`)**: Algorithmic evaluation of user top plays across Aim, Speed, Accuracy, Stamina, and Reading in star ratings ($\star$) with mod re-weighting (DT, HR, EZ, FL) and an AI verdict.
-- **Cognitive Reflective Memory**: Background extraction of personal traits, preferences, and dynamics. Stores both user input and Dalet's internal deductions (`DaletThought`) to enrich context naturally without robotic recitation.
-- **Granular Auto-Moderation System**: Dual-layer detection combining instant regex heuristic filters and Google Gemini Vision image scanning. Fully modular with individual toggles (`images`, `flood`, `links`, `scams`), multi-channel burst detection, duplicate media hashing, and high-priority alerts.
-- **Smart Multi-LLM Load Balancer**: High-throughput routing across DeepSeek V3, Google Gemini 3.8 Flash, Groq (<200ms inference), and OpenRouter with automatic circuit breaker failover.
+- **L0–L3 Semantic Pyramid Memory**: Hierarchical cognitive architecture combining an in-RAM channel buffer (**L0**), time-decaying episodic memories (**L1**), cross-member social relationship graphs (**L2**), and consolidated psychological dossiers (**L3**), gated by **TypeSafe Jev (System 1)** in sub-50ms.
+- **Smart Proactive Mode & Native Discord Reactions (`/proactive`)**: Per-channel autonomous participation with filler-noise filtering, zero ghost typing indicators (silent `[PASS]`), and the ability to react with native or custom guild emojis directly on messages.
+- **Granular Auto-Moderation + SHA-256 Blacklist**: Multi-layer detection combining 0ms SHA-256 cryptographic image hashing (blocking repeat NSFW/gore uploads without burning API quota), instant regex heuristic filters, and Google Gemini Vision scanning. Fully modular with individual toggles (`images`, `flood`, `links`, `scams`) and per-channel exemptions (`/mod ignore`).
+- **DeepSeek Native Web Search & Fetch + Multi-LLM Load Balancer**: Live web search (`/v1/tools/search`) and Markdown webpage extraction (`/v1/tools/fetch`) powered natively by DeepSeek Function Calling without rigid keyword dictionaries or Gemini Grounding dependency, backed by circuit-breaker failover across Groq, Gemini, and OpenRouter.
 - **Full Bilingual Support (i18n)**: English by default for global communities, switchable to Spanish per guild with zero-overhead RAM caching via `/language`.
 - **Atomic Design UI**: Modern, typography-focused Discord embeds for scores, user profiles, rankings, and comparisons without visual clutter.
 - **Hybrid libSQL Cloud + SQLite Storage**: Cloud-synced database via Turso (HTTP Pipeline) with local SQLite WAL fallback, in-memory caching, and asynchronous log batching.
 - **Live Telemetry and Dashboard**: Real-time dark-mode web panel (Flask + Chart.js) tracking Prompt/Completion token burn, provider latencies, and circuit breaker status.
-- **Channel Digest Summaries**: Historical conversation synthesis via `/resumir` and `d.summary`.
+- **Dual-Tone Channel Digests (`/resumir`)**: Historical conversation synthesis of up to 500 messages in either **Serious / Executive** or **Dalet (Sarcastic)** style via `/resumir` and `d.summary`.
 
 ---
 
@@ -63,11 +64,14 @@ Evaluates a player's top 50/100 plays through mathematical heuristics:
 
 Dalet features a distinctive persona providing direct, witty, and contextual dialogue rather than generic assistant responses.
 
-### Reflective Memory Architecture
-- **Dual-Data Persistence**: Each memory captures the user context (`UserMessage`) paired with Dalet's internal deductive insight (`DaletThought`).
-- **Zero-Latency Background Analysis**: Reflection runs asynchronously after delivering responses to Discord, imposing zero lag on user interactions.
-- **Heuristic Token-Saving Filters**: Trivial interactions (greetings, laughter, short acknowledgments) are dismissed in sub-milliseconds without LLM calls.
-- **Organic Contextual Injection**: Memories are injected as subconscious psychological background. Dalet is explicitly instructed never to quote memories mechanically (avoiding "I remember you said..."), ensuring human-like familiarity and tone modulation.
+### L0–L3 Semantic Pyramid & TypeSafe Jev Routing
+- **System 1 Cognitive Gating**: Uses **TypeSafe Jev** to evaluate in milliseconds whether an incoming message requires deep memory retrieval, classify social sentiment, and gate background reflection — saving over 75% of unnecessary LLM calls.
+- **4-Tier Memory Hierarchy**:
+  - **L0 (Working Buffer)**: Immediate in-RAM channel context with strict speaker attribution.
+  - **L1 (Episodic Memory)**: Specific interactions (`UserMessage` + `DaletThought`) ranked by exponential time decay and importance.
+  - **L2 (Social Graph)**: Cross-user relationship dynamics and inside jokes (`user_a` ↔ `user_b`).
+  - **L3 (Semantic Dossier)**: Consolidated psychological profile per user, automatically synthesized as episodes accumulate.
+- **Proactive Mode & Native Emoji Reactions**: When `/proactive` is enabled in a channel, Dalet evaluates conversations every few meaningful messages and autonomously chooses whether to drop a 1-line quip, react with an emoji (`[REACTION: 💀]`), or stay silent (`[PASS]`).
 
 ### Multi-LLM Routing
 - **Dynamic Language Selection**: Adapts replies between English and Spanish based on guild settings.
@@ -85,10 +89,12 @@ Dalet provides an integrated, opt-in moderation suite designed to secure Discord
 1. **Anti-Flood and Burst Filter (In-Memory)**:
    - Evaluates message frequency ($\ge 5$ messages in 4 seconds) and duplicate content ($\ge 3$ repeated messages in 10 seconds).
    - Generates attachment signatures (`filename_filesize`) to detect identical image or GIF spam launched across multiple channels simultaneously.
-2. **Text Regex Heuristics (Instant, 0 API Cost)**:
+2. **SHA-256 Cryptographic Image Blacklist (0ms, 0 API Cost)**:
+   - Any image flagged by Gemini Vision has its SHA-256 hash recorded in memory and the database. Repeat uploads are intercepted and deleted instantaneously without burning AI quota.
+3. **Text Regex Heuristics (Instant, 0 API Cost)**:
    - Scans against categorized pattern libraries for adult links, invite spam, Discord Nitro/Steam phishing, token stealers, carding, and unauthorized data trade.
    - Strict, zero-tolerance CSAM contextual regex protection with false-positive mitigation (differentiating competitive terms like Pokemon Go CP, CoD Points, and Club Penguin).
-3. **Multimodal Vision Layer (Gemini Vision)**:
+4. **Multimodal Vision Layer (Gemini Vision)**:
    - Inspects attached images and GIFs using safety classification prompts.
    - Automatically bypasses scanning in native Discord NSFW channels (`channel.is_nsfw() = True`) to eliminate unnecessary API costs.
 
@@ -125,7 +131,7 @@ Critical infractions (illegal content or cross-channel raid floods) prepend high
 | :--- | :--- |
 | Language and Runtime | Python 3.11+ / discord.py 2.x (asyncio) |
 | Conversational AI | DeepSeek V3 (primary) / Google Gemini 3.8 Flash (vision, cognition, fallback) |
-| High-Speed Inference | Groq LPU (`openai/gpt-oss-120b`, `20b`) / OpenRouter |
+| Cognitive Router (System 1) | TypeSafe Jev (`typesafety` SDK) / Groq LPU (`openai/gpt-oss-120b`, `20b`) |
 | Database Layer | Turso (libSQL Cloud Database over HTTPS) / SQLite 3 (WAL mode local fallback) |
 | Web and Telemetry | Flask / Chart.js / Vanilla CSS |
 | Rhythm Game API | osu! API v2 (OAuth2 Client Credentials) |
@@ -160,20 +166,26 @@ Dalet supports both native Discord Slash Commands (`/`) and the traditional `d.`
 | `/link <username>` | Slash / `d.link` | Links your Discord account to your osu! profile |
 | `d.unlink` | Prefix | Unlinks your osu! account |
 
-### AI, Social and Utilities
+### Conversational AI & Social
 | Command | Type | Description |
 | :--- | :--- | :--- |
-| `/language [en/es]` | Slash / `d.language` | Configures server language (English default / Español) |
+| `/resumir [messages] [style]` | Slash / `d.summary` | Generates a smart AI digest of recent chat (up to 500 msgs) in Serious or Dalet mode |
+| `/lore <topic>` | Slash / `d.lore` | Researches server history and chat archives with cynical commentary |
+| `/proactive` | Slash (Admin) | Enables or disables spontaneous AI interventions & emoji reactions in the channel |
+| `/reactive` | Slash (Admin) | Enables or disables AI replies when Dalet is mentioned |
+| `d.cs` | Prefix | Shows the current channel lock, reactive, and proactive AI state |
+
+### Profile & Server Utilities
+| Command | Type | Description |
+| :--- | :--- | :--- |
+| `/stats [user]` | Slash / `d.stats` | Shows social activity and chat habits for a member |
+| `/userinfo [user]` | Slash / `d.userinfo` | Member account creation, server join date, roles, and details |
+| `/serverinfo` | Slash / `d.serverinfo` | Overview of server members, ownership, and creation date |
 | `/help` | Slash / `d.help` | Interactive categorized command navigator and overview |
 | `/changelog` | Slash / `d.changelog` | Displays version release notes, major milestone, and recent commits |
 | `/info` | Slash / `d.info` | Displays Dalet's version, status, and system information |
 | `/ping` | Slash / `d.ms`, `d.ping` | Checks bot response and websocket latency in milliseconds |
-| `/resumir [messages]` | Slash / `d.summary` | Generates a smart AI digest of recent channel conversations |
-| `/lore <topic>` | Slash / `d.lore` | Researches server history and chat archives with cynical commentary |
-| `/stats [user]` | Slash / `d.stats` | Shows social activity and chat habits for a member |
-| `/userinfo [user]` | Slash / `d.userinfo` | Member account creation, server join date, and details |
-| `/serverinfo` | Slash / `d.serverinfo` | Overview of server members, ownership, and creation date |
-| `/feedback <message>` | Slash / `d.feedback` | Sends feedback, suggestions, or bug reports directly to the developer |
+| `/feedback <message>` | Slash / `d.feedback` | Privately sends feedback, suggestions, or bug reports directly to the developer |
 
 ### Reminders
 | Command | Type | Description |
@@ -199,14 +211,14 @@ Dalet supports both native Discord Slash Commands (`/`) and the traditional `d.`
 ### Admin and Server Management
 | Command | Permission | Description |
 | :--- | :--- | :--- |
+| `/language [en/es]` / `d.language` | Administrator | Configures server language (English default / Español) |
 | `/lock` / `d.lock` | Administrator | Locks Dalet commands in the current channel |
 | `/unlock` / `d.unlock` | Administrator | Unlocks Dalet commands in the current channel |
-| `/proactive` | Administrator | Enables or disables proactive AI chat in the channel |
-| `/reactive` | Administrator | Enables or disables reactive AI replies to mentions |
 | `/setwelcome` / `d.setwelcome` | Administrator | Configures the welcome message channel |
 | `/removewelcome` / `d.removewelcome` | Administrator | Removes the welcome channel and disables greetings |
 | `/setname <name>` / `d.setname` | Administrator | Sets a custom bot nickname for this server |
-| `d.cs` | Any | Shows the current channel lock and AI responsiveness state |
+| `d.memories [user]` | Administrator | Inspects the user's memory pyramid (L3 Dossier, L2 Social & L1 Episodes) |
+| `d.dbtables` | Administrator | Checks table health and row counts in Turso Cloud / SQLite |
 | `d.sync [here/global/clear]` | Administrator | Synchronizes slash commands to the guild or globally |
 
 ---
