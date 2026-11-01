@@ -108,12 +108,12 @@ class ChangelogService:
     def _get_fallback_commits(cls) -> list[dict]:
         """Commits de respaldo si el entorno de ejecución no tiene acceso al binario de git."""
         raw_fallback = [
+            ("v4.0.3", "feat(osu,memory): add recent best/pass/acc/mod filters to /recent & /top and strict relevance gating for memory", "✦"),
             ("v4.0.0", "feat(v4): integrate DeepSeek native Web Search & Fetch, overhaul /proactive & emoji reactions, and redesign /help", "✦"),
             ("4815b25", "feat(memory): implement L0-L3 Semantic Pyramid memory architecture and dashboard view", "✦"),
             ("a4dbb6a", "feat(resumen): overhaul /resumir with discord live history, dual tone styles, and structured tl;dr embeds", "✦"),
             ("13e2ace", "fix(moderation): resolve single channel id parsing bug and calibrate duplicate flood thresholds", "▪"),
             ("476f4a8", "feat(admin): add d.memories and d.dbtables for database inspection", "✦"),
-            ("cb6fa04", "feat(mod): add granular per-module channel exemptions to /mod ignore", "✦"),
         ]
         return [
             {

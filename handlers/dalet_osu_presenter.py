@@ -34,14 +34,10 @@ def _format_acc(acc: float) -> str:
     return f"{val:.2f}%"
 
 def _get_country_flag(country_code: str) -> str:
-    """Convierte un código ISO de país (ej. 'CO', 'US') en su emoji de bandera."""
+    """Formatea el código ISO de país (ej. 'CO', 'US') como etiqueta tipográfica sin emojis."""
     if not country_code or len(country_code) != 2:
-        return "🌐"
-    try:
-        code = country_code.upper()
-        return chr(ord(code[0]) + 127397) + chr(ord(code[1]) + 127397)
-    except Exception:
-        return "🌐"
+        return ""
+    return f"`[{country_code.upper()}]`"
 
 def _mode_title(mode: str) -> str:
     modes = {
@@ -161,7 +157,123 @@ class OsuPresenter:
         return "0"
 
     @staticmethod
-    def build_recent_card(username: str, mode: str, play: dict, user_data: dict = None, lang: str = "en") -> discord.Embed:
+    def matches_mods(play: dict, mods_filter: str | None) -> bool:
+        """
+        Verifica si una jugada coincide con el filtro de mods especificado (ej. 'DT', 'HDDT', 'NM').
+        Soporta equivalencias estándar de osu! (NC cuenta como DT, PF cuenta como SD).
+        """
+        if not mods_filter or not str(mods_filter).strip():
+            return True
+
+        clean_req = str(mods_filter).upper().replace("+", "").replace("-", "").replace(" ", "").strip()
+        if not clean_req or clean_req in ("ALL", "ANY"):
+            return True
+
+        raw_mods = play.get("mods", []) or []
+        play_mods = []
+        for m in raw_mods:
+            if isinstance(m, str):
+                play_mods.append(m.upper())
+            elif isinstance(m, dict) and "acronym" in m:
+                play_mods.append(str(m["acronym"]).upper())
+
+        effective_play_mods = [m for m in play_mods if m != "CL"]
+
+        if clean_req in ("NM", "NOMOD"):
+            return len(effective_play_mods) == 0
+
+        req_acronyms = [clean_req[i:i + 2] for i in range(0, len(clean_req), 2) if len(clean_req[i:i + 2]) == 2]
+        if not req_acronyms:
+            return True
+
+        normalized_play_set = set(effective_play_mods)
+        if "NC" in normalized_play_set:
+            normalized_play_set.add("DT")
+        if "PF" in normalized_play_set:
+            normalized_play_set.add("SD")
+
+        return all(req in normalized_play_set for req in req_acronyms)
+
+    @staticmethod
+    def filter_recent_scores(scores: list, filter_by: str = "last", mods_filter: str | None = None) -> list:
+        """
+        Filtra y ordena la lista de jugadas recientes (últimas 24h en Bancho):
+        - filter_by='last': orden cronológico (la más reciente primero).
+        - filter_by='pass': solo jugadas completadas sin fallar (passed=True y rank != 'F').
+        - filter_by='best': la mejor jugada reciente por PP / precisión / score.
+        """
+        if not scores:
+            return []
+
+        mode_filter = (filter_by or "last").lower().strip()
+        filtered = []
+        for idx, s in enumerate(scores):
+            if not isinstance(s, dict):
+                continue
+            if not OsuPresenter.matches_mods(s, mods_filter):
+                continue
+            passed = s.get("passed", True) and str(s.get("rank", "")).upper() != "F"
+            if mode_filter == "pass" and not passed:
+                continue
+            s_copy = dict(s)
+            s_copy["_recent_index"] = idx + 1
+            filtered.append(s_copy)
+
+        if mode_filter == "best":
+            def _best_key(play_item: dict):
+                is_pass = 1 if (play_item.get("passed", True) and str(play_item.get("rank", "")).upper() != "F") else 0
+                pp_val = float(play_item.get("pp") or 0.0)
+                acc_val = float(play_item.get("accuracy") or 0.0)
+                score_val = int(play_item.get("classic_total_score") or play_item.get("total_score") or play_item.get("score") or 0)
+                return (is_pass, pp_val, acc_val, score_val)
+
+            filtered.sort(key=_best_key, reverse=True)
+
+        return filtered
+
+    @staticmethod
+    def filter_and_sort_top_scores(scores: list, sort_by: str = "pp", mods_filter: str | None = None) -> list:
+        """
+        Anota cada jugada con su posición real (#1..#100) en el Top del jugador,
+        aplica filtro de mods opcional y ordena según sort_by:
+        - 'pp': Mayor PP (orden original).
+        - 'recent': Más recientes primero ('Recent Best').
+        - 'acc': Mayor precisión primero.
+        """
+        if not scores:
+            return []
+
+        annotated = []
+        for idx, s in enumerate(scores):
+            if not isinstance(s, dict):
+                continue
+            s_copy = dict(s)
+            if "_top_rank" not in s_copy:
+                s_copy["_top_rank"] = idx + 1
+            if OsuPresenter.matches_mods(s_copy, mods_filter):
+                annotated.append(s_copy)
+
+        sort_mode = (sort_by or "pp").lower().strip()
+        if sort_mode in ("recent", "rb", "recent_best", "date"):
+            annotated.sort(key=lambda x: str(x.get("created_at") or ""), reverse=True)
+        elif sort_mode in ("acc", "accuracy"):
+            annotated.sort(
+                key=lambda x: (float(x.get("accuracy") or 0.0), float(x.get("pp") or 0.0)),
+                reverse=True,
+            )
+
+        return annotated
+
+    @staticmethod
+    def build_recent_card(
+        username: str,
+        mode: str,
+        play: dict,
+        user_data: dict = None,
+        lang: str = "en",
+        filter_by: str = "last",
+        mods_filter: str | None = None,
+    ) -> discord.Embed:
         """Construye una tarjeta de jugada reciente única, estructurada y sin ruido visual."""
         beatmap = play.get("beatmap", {})
         beatmapset = play.get("beatmapset", {})
@@ -218,19 +330,32 @@ class OsuPresenter:
         length_str = DaletAtoms.format_duration(length_sec)
 
         rel_time = DaletAtoms.parse_timestamp_relative(play.get("created_at", ""))
-        country_code = user_data.get("country", {}).get("code", "").lower() if user_data else ""
-        flag_md = f":flag_{country_code}: " if country_code else ""
+        country_code = user_data.get("country", {}).get("code", "").upper() if user_data else ""
+        flag_md = f"`[{country_code}]` " if country_code else ""
 
         # Indicador de estado si falló el mapa
         passed = play.get("passed", True)
         fail_txt = t("osu.failed", lang)
         rank_badge = f"` {rank} `" if passed else f"` {rank} ({fail_txt}) `"
 
+        filter_clean = (filter_by or "last").lower().strip()
+        if filter_clean == "best":
+            author_key = "osu.recent_best_author"
+        elif filter_clean == "pass":
+            author_key = "osu.recent_pass_author"
+        else:
+            author_key = "osu.recent_author"
+
+        author_text = t(author_key, lang, username=username, mode=_mode_title(mode))
+        if mods_filter and str(mods_filter).strip():
+            clean_mod_tag = str(mods_filter).upper().replace("+", "").strip()
+            author_text += f" · +{clean_mod_tag}"
+
         embed = discord.Embed(
             color=DaletAtoms.get_grade_color(rank)
         )
         embed.set_author(
-            name=t("osu.recent_author", lang, username=username, mode=_mode_title(mode)),
+            name=author_text,
             icon_url=user_data.get("avatar_url") if user_data else None,
             url=f"https://osu.ppy.sh/users/{user_data.get('id', username)}/{mode}" if user_data else None
         )
@@ -289,7 +414,9 @@ class OsuPresenter:
         plays: list = None,
         user_data: dict = None,
         mode: str = "osu",
-        lang: str = "en"
+        lang: str = "en",
+        sort_by: str = "pp",
+        mods_filter: str | None = None,
     ) -> discord.Embed:
         """Construye un Embed estructurado con los Top Plays del usuario con la identidad visual de Dalet."""
         if isinstance(username_or_user, dict):
@@ -320,11 +447,16 @@ class OsuPresenter:
         avatar_url = actual_user.get("avatar_url", "")
         acc_global = stats.get("hit_accuracy", 0.0) or 0.0
 
-        # Weighted PP estimado con decaimiento oficial del 0.95
-        weighted_pp = sum(s.get("pp", 0) * (0.95 ** i) for i, s in enumerate(actual_scores))
+        # Weighted PP estimado con decaimiento oficial del 0.95 (ordenado por PP descendente)
+        scores_by_pp = sorted(actual_scores, key=lambda s: float(s.get("pp") or 0.0), reverse=True)
+        weighted_pp = sum(float(s.get("pp") or 0.0) * (0.95 ** i) for i, s in enumerate(scores_by_pp))
+
+        title_str = f"✦ Top Plays ({_mode_title(actual_mode)}) — {username}"
+        if flag:
+            title_str += f" {flag}"
 
         embed = discord.Embed(
-            title=f"✦ Top Plays ({_mode_title(actual_mode)}) — {username} {flag}",
+            title=title_str,
             url=f"https://osu.ppy.sh/users/{user_id}/{actual_mode}" if user_id else "https://osu.ppy.sh",
             color=DaletAtoms.COLOR_PRIMARY
         )
@@ -368,13 +500,28 @@ class OsuPresenter:
                 ver = ver[:16] + ".."
 
             map_link = f"https://osu.ppy.sh/b/{bm_id}" if bm_id else "https://osu.ppy.sh"
+            orig_rank = s.get("_top_rank", i)
+            rel_time = DaletAtoms.parse_timestamp_relative(s.get("created_at", ""))
+            time_suffix = f" · {rel_time}" if rel_time else ""
 
-            header = f"`#{i}` {badge} **[{title} [{ver}]]({map_link})**"
+            header = f"`#{orig_rank}` {badge} **[{title} [{ver}]]({map_link})**{time_suffix}"
             stats_line = f"└─ **{pp:.1f}pp** │ `{acc}` │ `{combo_str}` │ `{miss_str}` │ **{mods_str}** │ `{sr:.2f}★`"
             play_lines.append(f"{header}\n{stats_line}")
 
         if play_lines:
-            header_label = t("osu.top_header", actual_lang, count=len(top_plays))
+            sort_clean = (sort_by or "pp").lower().strip()
+            if sort_clean in ("recent", "rb", "recent_best", "date"):
+                header_key = "osu.top_recent_header"
+            elif sort_clean in ("acc", "accuracy"):
+                header_key = "osu.top_acc_header"
+            else:
+                header_key = "osu.top_header"
+
+            header_label = t(header_key, actual_lang, count=len(top_plays))
+            if mods_filter and str(mods_filter).strip():
+                clean_mod_tag = str(mods_filter).upper().replace("+", "").strip()
+                header_label += f" · +{clean_mod_tag}"
+
             embed.add_field(
                 name=f"{DaletAtoms.GLYPH_STAR} {header_label}",
                 value="\n".join(play_lines),

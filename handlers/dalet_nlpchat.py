@@ -506,11 +506,12 @@ class DaletNLPChat(commands.Cog):
             if len(clean_content) > 400:
                 clean_content = clean_content[:400] + "..."
 
-            # Obtener contexto de conversación del canal (con autoría de bot normalizada y memorias reflexivas)
+            # Obtener contexto de conversación del canal (solo inyectar memorias personales en mención directa)
             context = await self.bot.memory_service.get_relevant_context(
                 message.channel.id,
                 message.author.id,
                 clean_content,
+                check_user_memory=is_direct_mention,
                 bot_id=self.bot.user.id if self.bot.user else None,
                 bot_name=bot_name,
                 user_name=message.author.display_name,

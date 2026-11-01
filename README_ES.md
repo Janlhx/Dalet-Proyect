@@ -116,8 +116,8 @@ Dalet es compatible tanto con comandos de barra diagonal (`/`) de Discord como c
 | Comando | Tipo | Descripción |
 | :--- | :--- | :--- |
 | `/skills [usuario] [modo]` | Slash / `d.skills` | Desglose de habilidades 5D (Aim, Speed, Acc, Stamina, Reading) con veredicto IA |
-| `/recent [usuario] [modo]` | Slash / `d.recent`, `d.or` | Muestra tu última jugada con estadísticas completas de mapa e impactos |
-| `/top [usuario] [modo]` | Slash / `d.top` | Muestra tus mejores 5 jugadas registradas |
+| `/recent [usuario] [modo] [filtro] [mods]` | Slash / `d.rs`, `d.rp`, `d.or` | Muestra tu jugada reciente con filtros (`last`, `best` 24h, `pass`, `+mods`) |
+| `/top [usuario] [modo] [filtro] [mods]` | Slash / `d.top`, `d.rb` | Muestra tu Top 5 ordenado por `pp`, `recent` (*Recent Best*), `acc` o `+mods` |
 | `/op [usuario] [modo]` | Slash / `d.op` | Muestra el perfil completo de osu!, rango, precisión e historial de notas |
 | `/compare <usuario>` | Slash | Compara estadísticas cara a cara contra otro jugador |
 | `/link <usuario>` | Slash / `d.link` | Vincula tu cuenta de Discord con tu perfil de osu! |

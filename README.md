@@ -159,8 +159,8 @@ Dalet supports both native Discord Slash Commands (`/`) and the traditional `d.`
 | Command | Type | Description |
 | :--- | :--- | :--- |
 | `/skills [user] [mode]` | Slash / `d.skills` | 5-dimension skill breakdown (Aim, Speed, Acc, Stamina, Reading) with AI verdict |
-| `/recent [user] [mode]` | Slash / `d.recent`, `d.or` | Displays your latest play with full hit and map stats |
-| `/top [user] [mode]` | Slash / `d.top` | Shows your top 5 best registered scores |
+| `/recent [user] [mode] [filter] [mods]` | Slash / `d.rs`, `d.rp`, `d.or` | Displays latest play with filters (`last`, `best` in 24h, `pass` only, `+mods`) |
+| `/top [user] [mode] [filter] [mods]` | Slash / `d.top`, `d.rb` | Shows top 5 scores sorted by `pp`, `recent` (*Recent Best*), `acc`, or `+mods` |
 | `/op [user] [mode]` | Slash / `d.op` | Displays complete osu! profile, rank, accuracy, and grade history |
 | `/compare <user>` | Slash | Compares stats head-to-head against another player |
 | `/link <username>` | Slash / `d.link` | Links your Discord account to your osu! profile |

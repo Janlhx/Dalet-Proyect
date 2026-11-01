@@ -251,26 +251,39 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 stats.get("hit_accuracy", 0.0),
             )
             await interaction.followup.send(
-                f"✅ vinculado con **{user_data['username']}**.", ephemeral=True
+                f"{DaletAtoms.GLYPH_VERDICT} vinculado con **{user_data['username']}**.", ephemeral=True
             )
         except Exception as e:
             logger.error(f"Error en /link: {e}")
-            await interaction.followup.send("❌ error al vincular.", ephemeral=True)
+            await interaction.followup.send(f"{DaletAtoms.GLYPH_POINTER} error al vincular.", ephemeral=True)
 
-    @app_commands.command(name="recent", description="Displays your most recent osu! play with detailed stats.")
+    @app_commands.command(name="recent", description="Displays your most recent osu! play with optional session-best, pass-only, or mod filters.")
     @app_commands.describe(
         username="osu! username (or leave empty for your linked account)",
-        mode="Game mode"
+        mode="Game mode",
+        filter="Filter recent plays: last play, best play in last 24h, or last pass without fails",
+        mods="Filter by mods (e.g. DT, HDDT, HR, NM)"
     )
-    @app_commands.choices(mode=[
-        app_commands.Choice(name="osu!standard", value="osu"),
-        app_commands.Choice(name="osu!taiko",    value="taiko"),
-        app_commands.Choice(name="osu!catch",    value="fruits"),
-        app_commands.Choice(name="osu!mania",    value="mania"),
-    ])
+    @app_commands.choices(
+        mode=[
+            app_commands.Choice(name="osu!standard", value="osu"),
+            app_commands.Choice(name="osu!taiko",    value="taiko"),
+            app_commands.Choice(name="osu!catch",    value="fruits"),
+            app_commands.Choice(name="osu!mania",    value="mania"),
+        ],
+        filter=[
+            app_commands.Choice(name="Last Play (Default)",          value="last"),
+            app_commands.Choice(name="Recent Best (Best in 24h)",    value="best"),
+            app_commands.Choice(name="Last Pass (Ignore Fails)",     value="pass"),
+        ],
+    )
     async def slash_recent(
-        self, interaction: discord.Interaction,
-        username: str = None, mode: str = "osu"
+        self,
+        interaction: discord.Interaction,
+        username: str = None,
+        mode: str = "osu",
+        filter: str = "last",
+        mods: str = None,
     ):
         await interaction.response.defer()
         uname = username
@@ -278,48 +291,81 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             uname = await self.bot.osu_repo.get_linked_username(interaction.user.id)
         if not uname:
             return await interaction.followup.send(
-                "❌ no tienes cuenta vinculada.", ephemeral=True
+                f"{DaletAtoms.GLYPH_POINTER} no tienes cuenta vinculada.", ephemeral=True
             )
         try:
             server_lang = "en"
             if interaction.guild:
                 server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
             user = await self.bot.osu_service.get_user(uname, mode)
+            fetch_limit = 50 if (filter != "last" or mods) else 1
+            include_fails = 0 if filter == "pass" else 1
             recent = await self.bot.osu_service.get_user_recent_scores(
-                user["id"], mode, limit=1, include_fails=1
+                user["id"], mode, limit=fetch_limit, include_fails=include_fails
             )
             if not recent:
                 return await interaction.followup.send(
-                    f"**{uname}** no tiene jugadas recientes."
+                    f"{DaletAtoms.GLYPH_POINTER} {t('osu.no_recent', server_lang, username=uname, mode=mode)}"
                 )
 
-            await self.bot.osu_service.enrich_scores_with_attributes(recent, mode=mode)
-            embed = OsuPresenter.build_recent_card(user.get("username", uname), mode, recent[0], user_data=user, lang=server_lang)
+            filtered = OsuPresenter.filter_recent_scores(recent, filter_by=filter, mods_filter=mods)
+            if not filtered:
+                return await interaction.followup.send(
+                    f"{DaletAtoms.GLYPH_POINTER} {t('osu.no_recent_filtered', server_lang, username=uname, mode=mode)}"
+                )
+
+            target_list = filtered[:1]
+            await self.bot.osu_service.enrich_scores_with_attributes(target_list, mode=mode)
+            embed = OsuPresenter.build_recent_card(
+                user.get("username", uname),
+                mode,
+                target_list[0],
+                user_data=user,
+                lang=server_lang,
+                filter_by=filter,
+                mods_filter=mods,
+            )
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
             logger.error(f"Error en /recent: {e}")
-            await interaction.followup.send("⚠️ error obteniendo la jugada.", ephemeral=True)
+            await interaction.followup.send(f"{DaletAtoms.GLYPH_POINTER} error obteniendo la jugada.", ephemeral=True)
 
-    @app_commands.command(name="top", description="Displays your top 5 best registered osu! scores.")
+    @app_commands.command(name="top", description="Displays your top 5 osu! scores sorted by PP, Recent Best, Accuracy, or filtered by mods.")
     @app_commands.describe(
         username="osu! username (or leave empty for your linked account)",
-        mode="Game mode"
+        mode="Game mode",
+        filter="Sort order: Highest PP (default), Recent Best (newest in top 100), or Highest Accuracy",
+        mods="Filter top 100 plays by mods (e.g. DT, HDDT, HR, NM)"
     )
-    @app_commands.choices(mode=[
-        app_commands.Choice(name="osu!standard", value="osu"),
-        app_commands.Choice(name="osu!taiko",    value="taiko"),
-        app_commands.Choice(name="osu!catch",    value="fruits"),
-        app_commands.Choice(name="osu!mania",    value="mania"),
-    ])
-    async def slash_top(self, interaction: discord.Interaction, username: str = None, mode: str = "osu"):
+    @app_commands.choices(
+        mode=[
+            app_commands.Choice(name="osu!standard", value="osu"),
+            app_commands.Choice(name="osu!taiko",    value="taiko"),
+            app_commands.Choice(name="osu!catch",    value="fruits"),
+            app_commands.Choice(name="osu!mania",    value="mania"),
+        ],
+        filter=[
+            app_commands.Choice(name="Highest PP (Default)",             value="pp"),
+            app_commands.Choice(name="Recent Best (Newest in Top 100)",  value="recent"),
+            app_commands.Choice(name="Highest Accuracy",                 value="acc"),
+        ],
+    )
+    async def slash_top(
+        self,
+        interaction: discord.Interaction,
+        username: str = None,
+        mode: str = "osu",
+        filter: str = "pp",
+        mods: str = None,
+    ):
         await interaction.response.defer()
         uname = username
         if not uname:
             uname = await self.bot.osu_repo.get_linked_username(interaction.user.id)
         if not uname:
             return await interaction.followup.send(
-                "❌ no tienes cuenta vinculada.", ephemeral=True
+                f"{DaletAtoms.GLYPH_POINTER} no tienes cuenta vinculada.", ephemeral=True
             )
         try:
             server_lang = "en"
@@ -329,10 +375,25 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=mode, limit=100)
             if not best:
                 return await interaction.followup.send(
-                    f"**{uname}** no tiene top plays en {mode}."
+                    f"{DaletAtoms.GLYPH_POINTER} **{uname}** no tiene top plays en {mode}."
                 )
-            await self.bot.osu_service.enrich_scores_with_attributes(best[:5], mode=mode)
-            embed = OsuPresenter.build_top_card(user.get("username", uname), mode, best, user_data=user, lang=server_lang)
+
+            filtered_best = OsuPresenter.filter_and_sort_top_scores(best, sort_by=filter, mods_filter=mods)
+            if not filtered_best:
+                return await interaction.followup.send(
+                    f"{DaletAtoms.GLYPH_POINTER} {t('osu.top_none_filtered', server_lang, username=uname, mode=mode)}"
+                )
+
+            await self.bot.osu_service.enrich_scores_with_attributes(filtered_best[:5], mode=mode)
+            embed = OsuPresenter.build_top_card(
+                user.get("username", uname),
+                mode,
+                filtered_best,
+                user_data=user,
+                lang=server_lang,
+                sort_by=filter,
+                mods_filter=mods,
+            )
             chart_file = OsuPresenter.generate_pp_chart(user.get("username", uname), best, lang=server_lang)
             if chart_file:
                 embed.set_image(url="attachment://pp_distribution.png")
@@ -341,7 +402,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /top: {e}")
-            await interaction.followup.send("⚠️ error obteniendo top plays.", ephemeral=True)
+            await interaction.followup.send(f"{DaletAtoms.GLYPH_POINTER} error obteniendo top plays.", ephemeral=True)
 
     @app_commands.command(name="skills", description="5-dimension osu! skill radar (Aim, Speed, Acc, Stamina, Reading) with Dalet's verdict.")
     @app_commands.describe(

@@ -31,23 +31,59 @@ class OsuHandler(commands.Cog, name="osu!"):
 
     async def _parse_args(self, ctx, args: str | None):
         """Parsea argumentos: extraer username y modo (-osu/-taiko/-mania/-fruits)."""
-        username, mode = None, "osu"
+        username, mode, _, _ = await self._parse_osu_filter_args(ctx, args, default_filter="last")
+        return username, mode
+
+    async def _parse_osu_filter_args(self, ctx, args: str | None, default_filter: str = "last"):
+        """
+        Parsea argumentos flexibles al estilo de bots de osu! (Bathbot/owo):
+        - Modo: -osu, -taiko, -mania, -fruits, -ctb, -catch
+        - Filtro: best/-b, recent/-r/rb, pass/-p, acc/-a, pp
+        - Mods: +dt, +hddt, +hr, +nm, etc.
+        - Username: resto de argumentos (o cuenta vinculada del autor)
+        """
+        mode = "osu"
+        filter_by = default_filter
+        mods_filter = None
+        user_tokens = []
+
+        mode_aliases = {
+            "osu": "osu", "std": "osu", "standard": "osu",
+            "taiko": "taiko", "tko": "taiko",
+            "fruits": "fruits", "ctb": "fruits", "catch": "fruits",
+            "mania": "mania", "mna": "mania",
+        }
+        filter_aliases = {
+            "best": "best", "-b": "best", "-best": "best",
+            "recent": "recent", "-r": "recent", "-recent": "recent", "rb": "recent",
+            "pass": "pass", "passes": "pass", "-p": "pass", "-pass": "pass",
+            "acc": "acc", "accuracy": "acc", "-a": "acc", "-acc": "acc",
+            "pp": "pp", "-pp": "pp",
+            "last": "last",
+        }
+
         if args:
             parts = args.split()
             for part in parts:
-                if part.startswith("-") and part[1:].lower() in VALID_MODES:
-                    mode = part[1:].lower()
+                low = part.lower().strip()
+                if low.startswith("-") and low[1:] in mode_aliases:
+                    mode = mode_aliases[low[1:]]
+                elif low in filter_aliases:
+                    filter_by = filter_aliases[low]
+                elif low.startswith("+") and len(low) >= 3:
+                    mods_filter = low[1:].upper()
                 else:
-                    username = part
+                    user_tokens.append(part)
 
+        username = " ".join(user_tokens).strip() if user_tokens else None
         if not username:
             username = await self.repo.get_linked_username(ctx.author.id)
             if not username:
                 await ctx.send(
-                    "❌ no tienes cuenta vinculada. usa `d.link <usuario>` primero."
+                    f"{DaletAtoms.GLYPH_POINTER} no tienes cuenta vinculada. usa `d.link <usuario>` primero."
                 )
-                return None, None
-        return username, mode
+                return None, None, None, None
+        return username, mode, filter_by, mods_filter
 
     async def _maybe_snapshot(self, discord_id: int, queried_username: str, user_data: dict):
         """Actualiza estadísticas y snapshot diario si el usuario consultó su propia cuenta."""
@@ -163,61 +199,85 @@ class OsuHandler(commands.Cog, name="osu!"):
             await ctx.send(f"⚠️ no pude obtener el perfil de '{username}'.")
 
     # ------------------------------------------------------------------
-    # d.orecent / d.or — Última jugada
+    # d.orecent / d.or / d.rs / d.rp — Jugadas recientes con filtros
     # ------------------------------------------------------------------
 
-    @commands.command(name="orecent", aliases=["or", "rs"])
+    @commands.command(name="orecent", aliases=["or", "rs", "recent"])
     async def osu_recent(self, ctx, *, args: str = None):
-        """Muestra tu última jugada de osu! con todos los detalles."""
-        username, mode = await self._parse_args(ctx, args)
+        """Muestra tu última jugada de osu! (soporta filtros: best, pass, +mods, -modo)."""
+        username, mode, filter_by, mods_filter = await self._parse_osu_filter_args(ctx, args, default_filter="last")
         if not username:
             return
+        if filter_by not in ("last", "best", "pass"):
+            filter_by = "last"
 
         try:
+            fetch_limit = 50 if (filter_by != "last" or mods_filter) else 1
+            include_fails = 0 if filter_by == "pass" else 1
             async with ctx.typing():
                 user = await self.osu.get_user(username, mode)
                 recent = await self.osu.get_user_recent_scores(
-                    user["id"], mode, limit=1, include_fails=1
+                    user["id"], mode, limit=fetch_limit, include_fails=include_fails
                 )
-
-            if not recent:
-                return await ctx.send(f"**{username}** no tiene jugadas recientes en {mode}.")
-
-            await self.osu.enrich_scores_with_attributes(recent, mode=mode)
 
             server_lang = "en"
             if ctx.guild:
                 server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
 
+            if not recent:
+                return await ctx.send(
+                    f"{DaletAtoms.GLYPH_POINTER} {t('osu.no_recent', server_lang, username=username, mode=mode)}"
+                )
+
+            filtered = OsuPresenter.filter_recent_scores(recent, filter_by=filter_by, mods_filter=mods_filter)
+            if not filtered:
+                return await ctx.send(
+                    f"{DaletAtoms.GLYPH_POINTER} {t('osu.no_recent_filtered', server_lang, username=username, mode=mode)}"
+                )
+
+            target_list = filtered[:1]
+            await self.osu.enrich_scores_with_attributes(target_list, mode=mode)
+
             embed = OsuPresenter.build_recent_card(
-                user.get("username", username), mode, recent[0], user_data=user, lang=server_lang
+                user.get("username", username),
+                mode,
+                target_list[0],
+                user_data=user,
+                lang=server_lang,
+                filter_by=filter_by,
+                mods_filter=mods_filter,
             )
             await ctx.send(embed=embed)
 
         except Exception as e:
             logger.error(f"Error en orecent: {e}")
-            await ctx.send(f"⚠️ error obteniendo jugada reciente de '{username}'.")
+            await ctx.send(f"{DaletAtoms.GLYPH_POINTER} error obteniendo jugada reciente de '{username}'.")
+
+    @commands.command(name="recentpass", aliases=["rp"])
+    async def osu_recent_pass(self, ctx, *, args: str = None):
+        """Atajo directo para mostrar el último pass reciente sin fallos (d.rp)."""
+        merged_args = f"{args} pass".strip() if args else "pass"
+        await self.osu_recent(ctx, args=merged_args)
 
     # ------------------------------------------------------------------
-    # d.otop — Top plays con distribución de PP
+    # d.otop / d.top / d.rb — Top plays con filtros (pp, recent, acc, +mods)
     # ------------------------------------------------------------------
 
     @commands.command(name="otop", aliases=["top"])
     async def osu_top(self, ctx, *, args: str = None):
-        """Muestra tus mejores plays y una gráfica de distribución de PP."""
-        username, mode = await self._parse_args(ctx, args)
+        """Muestra tus mejores plays (soporta filtros: recent/rb/-r, acc/-a, +mods, -modo)."""
+        username, mode, sort_by, mods_filter = await self._parse_osu_filter_args(ctx, args, default_filter="pp")
         if not username:
             return
+        if sort_by == "best":
+            sort_by = "pp"
+        elif sort_by not in ("pp", "recent", "acc"):
+            sort_by = "pp"
 
         try:
             async with ctx.typing():
                 user = await self.osu.get_user(username, mode)
                 best = await self.osu.get_user_best_scores(user["id"], mode, limit=100)
-
-            if not best:
-                return await ctx.send(f"**{username}** no tiene plays en {mode}.")
-
-            await self.osu.enrich_scores_with_attributes(best[:5], mode=mode)
 
             server_lang = "en"
             if ctx.guild:
@@ -226,7 +286,25 @@ class OsuHandler(commands.Cog, name="osu!"):
                 except Exception:
                     server_lang = "en"
 
-            embed = OsuPresenter.build_top_card(user, best, mode=mode, lang=server_lang)
+            if not best:
+                return await ctx.send(f"{DaletAtoms.GLYPH_POINTER} **{username}** no tiene plays en {mode}.")
+
+            filtered_best = OsuPresenter.filter_and_sort_top_scores(best, sort_by=sort_by, mods_filter=mods_filter)
+            if not filtered_best:
+                return await ctx.send(
+                    f"{DaletAtoms.GLYPH_POINTER} {t('osu.top_none_filtered', server_lang, username=username, mode=mode)}"
+                )
+
+            await self.osu.enrich_scores_with_attributes(filtered_best[:5], mode=mode)
+
+            embed = OsuPresenter.build_top_card(
+                user,
+                filtered_best,
+                mode=mode,
+                lang=server_lang,
+                sort_by=sort_by,
+                mods_filter=mods_filter,
+            )
 
             # Gráfico de distribución de PP
             chart_file = OsuPresenter.generate_pp_chart(username, best, lang=server_lang)
@@ -238,7 +316,13 @@ class OsuHandler(commands.Cog, name="osu!"):
 
         except Exception as e:
             logger.error(f"Error en otop: {e}")
-            await ctx.send(f"⚠️ error obteniendo top plays de '{username}'.")
+            await ctx.send(f"{DaletAtoms.GLYPH_POINTER} error obteniendo top plays de '{username}'.")
+
+    @commands.command(name="recentbest", aliases=["rb"])
+    async def osu_recent_best(self, ctx, *, args: str = None):
+        """Atajo directo para mostrar los mejores plays recientes del Top 100 (d.rb)."""
+        merged_args = f"{args} recent".strip() if args else "recent"
+        await self.osu_top(ctx, args=merged_args)
 
     # ------------------------------------------------------------------
     # d.compare — Comparar dos jugadores

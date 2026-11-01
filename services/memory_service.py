@@ -5,6 +5,7 @@ import json
 import time
 import asyncio
 from collections import deque
+from datetime import datetime, timezone
 
 logger = logging.getLogger("dalet.services.memory")
 
@@ -41,21 +42,97 @@ Si SÍ vale la pena recordar y evolucionar la pirámide:
 }}
 """
 
+_MEMORY_STOPWORDS = {
+    # Español
+    "que", "con", "por", "para", "una", "uno", "unos", "unas", "los", "las", "del",
+    "como", "cómo", "pero", "este", "esta", "esto", "estos", "estas", "eso", "esa",
+    "esos", "esas", "aquel", "mas", "más", "muy", "sin", "sobre", "entre", "hasta",
+    "desde", "cuando", "cuándo", "donde", "dónde", "quien", "quién", "cual", "cuál",
+    "todo", "toda", "todos", "todas", "hacer", "hace", "hizo", "tiene", "tengo",
+    "tienes", "estoy", "está", "estas", "estás", "estaban", "eres", "soy", "somos",
+    "fue", "fueron", "son", "era", "eran", "hay", "algo", "nada", "poco", "mucho",
+    "muchos", "muchas", "tambien", "también", "solo", "sólo", "mejor", "peor",
+    "creo", "dice", "dijo", "decir", "puede", "puedo", "puedes", "quiero", "quieres",
+    "siento", "parece", "porque", "porqué", "pues", "entonces", "ahora", "antes",
+    "despues", "después", "siempre", "nunca", "cada", "otro", "otra", "otros",
+    "otras", "mismo", "misma", "tanto", "tanta", "algun", "algún", "alguna",
+    "alguien", "nadie", "hola", "buenas", "buenos", "dias", "días", "noches",
+    "tardes", "gracias", "favor", "dalet", "bot", "server", "servidor", "canal",
+    "chat", "mensaje", "usuario", "cosa", "cosas", "vez", "veces", "bien", "mal",
+    "ver", "ves", "mira", "oye", "sabes", "sabe", "mis", "tus", "sus", "nos", "les",
+    # Inglés
+    "the", "and", "for", "that", "this", "with", "from", "your", "have", "has",
+    "had", "are", "was", "were", "been", "what", "when", "where", "which", "who",
+    "whom", "whose", "why", "how", "about", "into", "over", "after", "before",
+    "between", "under", "again", "further", "then", "once", "here", "there",
+    "all", "any", "both", "each", "few", "more", "most", "other", "some", "such",
+    "only", "own", "same", "than", "too", "very", "can", "will", "just", "should",
+    "now", "like", "know", "think", "want", "need", "make", "made", "take",
+}
+
+_EXPLICIT_SELF_MEMORY_TRIGGERS = (
+    "recuerdas", "te acuerdas", "qué sabes de mí", "que sabes de mi",
+    "me conoces", "quién soy", "quien soy", "mi memoria", "sobre mí", "sobre mi",
+    "remember me", "what do you know about me", "who am i",
+)
+
+
+def _extract_meaningful_words(text: str) -> set[str]:
+    """Extrae palabras con carga semántica real filtrando stopwords y términos cortos."""
+    if not text:
+        return set()
+    raw_words = re.findall(r"[a-záéíóúüñ]{3,}", text.lower())
+    return {w for w in raw_words if w not in _MEMORY_STOPWORDS and len(w) >= 3}
+
+
+def _parse_timestamp_age(ts_str: str) -> tuple[float | None, str]:
+    """
+    Calcula la antigüedad en días y una etiqueta legible (ej. 'hace 3 días', 'hace 2 meses')
+    a partir de un timestamp ISO o SQLite ('YYYY-MM-DD HH:MM:SS').
+    """
+    if not ts_str or not str(ts_str).strip():
+        return None, ""
+    try:
+        clean = str(ts_str).strip().replace("Z", "+00:00")
+        dt = datetime.fromisoformat(clean)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        delta_days = max(0.0, (now - dt).total_seconds() / 86400.0)
+        if delta_days < 1.0:
+            return delta_days, "hoy"
+        if delta_days < 2.0:
+            return delta_days, "ayer"
+        if delta_days < 14.0:
+            return delta_days, f"hace {int(delta_days)} días"
+        if delta_days < 60.0:
+            weeks = max(2, int(delta_days // 7))
+            return delta_days, f"hace {weeks} semanas"
+        months = max(2, int(delta_days // 30))
+        return delta_days, f"hace {months} meses"
+    except Exception:
+        return None, ""
+
 
 class MemoryService:
     """
     Servicio de memoria cognitiva para Dalet basado en Pirámide Semántica (L0 -> L1 -> L2 -> L3).
     - L3 (Persona): Identidad estable, rasgos base y relación con Dalet.
-    - L2 (Scenario): Contexto activo, proyectos actuales y estado reciente.
-    - L1 (Atom): Hechos puntuales y conclusiones granulares en UserMemories.
+    - L2 (Scenario): Contexto activo, proyectos actuales y estado reciente (caduca tras 14 días).
+    - L1 (Atom): Hechos puntuales y conclusiones granulares en UserMemories (solo por relevancia estricta).
     - L0 (Conversation): Historial reciente de mensajes del canal.
     """
+
+    SCENARIO_L2_MAX_AGE_DAYS = 14.0  # L2 deja de inyectarse como 'actual' si lleva >14 días sin cambios
+    ATOM_L1_MAX_AGE_DAYS = 60.0      # Átomos L1 >60 días requieren coincidencia fuerte (>=2 palabras clave)
+    MEMORY_INJECTION_COOLDOWN_SEC = 600.0  # 10 min entre inyecciones pasivas de L3/L2 al mismo usuario
 
     def __init__(self, user_repo):
         self.repo = user_repo
         self.max_db_history = 10  # Ventana optimizada de mensajes (L0)
         self.max_atoms_per_user = 20  # Tope de átomos L1 por usuario tras consolidar en L2/L3
         self._user_memory_cooldown: dict[int, float] = {}  # {user_id: last_analysis_timestamp}
+        self._memory_injection_cooldown: dict[int, float] = {}  # {user_id: last_context_injection_ts}
 
     async def get_relevant_context(
         self,
@@ -69,8 +146,8 @@ class MemoryService:
     ) -> str:
         """
         Construye el contexto de conversación Top-Down usando la Pirámide Semántica:
-        1. L3 (Persona) + L2 (Escenario Actual) desde UserPersonas
-        2. L1 (Átomos relevantes) desde UserMemories (máx 3 coincidencias/recientes)
+        1. L3 (Persona) + L2 (Escenario Actual vigente) desde UserPersonas, sujeto a cooldown anti-repetición
+        2. L1 (Átomos relevantes) desde UserMemories (SOLO si hay coincidencia semántica real con el mensaje actual)
         3. L0 (Chat reciente del canal)
         """
         history_section = []
@@ -104,25 +181,18 @@ class MemoryService:
         # 2. Capas L3 (Persona), L2 (Escenario) y L1 (Átomos) sobre el usuario
         pyramid_lines = []
         if check_user_memory:
-            # 2a. Consultar L3 y L2 (UserPersonas)
-            try:
-                if hasattr(self.repo, "get_user_persona"):
-                    persona_data = await self.repo.get_user_persona(user_id)
-                    if persona_data:
-                        p_l3 = (persona_data.get("persona_l3") or "").strip()
-                        s_l2 = (persona_data.get("scenario_l2") or "").strip()
-                        if p_l3:
-                            pyramid_lines.append(f"• [L3 - Perfil Persona]: {p_l3}")
-                        if s_l2:
-                            pyramid_lines.append(f"• [L2 - Escenario Actual]: {s_l2}")
-            except Exception as e:
-                logger.error(f"Error obteniendo UserPersona (L2/L3): {e}")
+            now = time.time()
+            lower_current = (current_message or "").lower()
+            explicit_self_query = any(trig in lower_current for trig in _EXPLICIT_SELF_MEMORY_TRIGGERS)
+            last_injected = self._memory_injection_cooldown.get(user_id, 0.0)
+            in_cooldown = (now - last_injected) < self.MEMORY_INJECTION_COOLDOWN_SEC and not explicit_self_query
 
-            # 2b. Consultar L1 (Átomos en UserMemories)
+            # 2a. Consultar L1 primero para saber si el usuario tocó un tema específico de su memoria
+            matched_l1 = []
             try:
                 memories_raw = await self.repo.get_all_user_memories(user_id)
                 if memories_raw:
-                    msg_words = set(re.findall(r"\w{3,}", current_message.lower()))
+                    msg_words = _extract_meaningful_words(current_message)
 
                     def _extract(row):
                         if hasattr(row, "get"):
@@ -131,6 +201,7 @@ class MemoryService:
                                 row.get("dalet_thought") or row.get("DaletThought") or "",
                                 row.get("content") or row.get("Content") or "",
                                 row.get("topic") or row.get("Topic") or "general",
+                                row.get("timestamp") or row.get("Timestamp") or "",
                             )
                         try:
                             return (
@@ -138,52 +209,84 @@ class MemoryService:
                                 row["dalet_thought"],
                                 row["content"],
                                 row.get("topic", "general"),
+                                row.get("timestamp", ""),
                             )
                         except Exception:
                             u = row[2] if len(row) > 2 else ""
                             d = row[3] if len(row) > 3 else ""
                             c = row[1] if len(row) > 1 else str(row)
                             t = row[0] if len(row) > 0 else "general"
-                            return (u or "", d or "", c or "", t or "general")
+                            ts = row[4] if len(row) > 4 else ""
+                            return (u or "", d or "", c or "", t or "general", ts or "")
 
-                    # Filtrar por relevancia temática primero
-                    matched = []
-                    unmatched = []
                     for m in memories_raw:
-                        u_msg, d_th, cnt, topic = _extract(m)
-                        search_text = f"{u_msg} {d_th} {cnt}".lower()
-                        mem_words = set(re.findall(r"\w{3,}", search_text))
+                        u_msg, d_th, cnt, topic, ts_val = _extract(m)
+                        search_text = f"{u_msg} {d_th} {cnt}"
+                        mem_words = _extract_meaningful_words(search_text)
+                        overlap = mem_words & msg_words
+
+                        # Si no hay overlap semántico real (y no pidió explícitamente su memoria), NO inyectar
+                        if not overlap and not explicit_self_query:
+                            continue
+
+                        age_days, age_label = _parse_timestamp_age(ts_val)
+                        # Si el recuerdo tiene más de 60 días, exigir al menos 2 palabras clave en común
+                        if age_days is not None and age_days > self.ATOM_L1_MAX_AGE_DAYS and len(overlap) < 2 and not explicit_self_query:
+                            continue
+
+                        age_tag = f" [{age_label}]" if age_label else ""
                         line = ""
                         if d_th:
-                            line = f"• [L1 - Átomo ({topic})]: {d_th}"
+                            line = f"• [L1 - Átomo ({topic}){age_tag}]: {d_th}"
                             if u_msg:
                                 line += f' (Dijo: "{u_msg[:100]}")'
                         elif cnt:
-                            line = f"• [L1 - Dato ({topic})]: {cnt}"
+                            line = f"• [L1 - Dato ({topic}){age_tag}]: {cnt}"
 
                         if line:
-                            if mem_words & msg_words:
-                                matched.append(line)
-                            else:
-                                unmatched.append(line)
+                            matched_l1.append((len(overlap), line))
 
-                    # Seleccionar hasta 3 átomos L1 (priorizando coincidencias temáticas)
-                    selected_memories = (matched + unmatched)[:3]
-                    pyramid_lines.extend(selected_memories)
-
+                    # Ordenar por mayor número de palabras clave en común y tomar máx 2
+                    matched_l1.sort(key=lambda item: item[0], reverse=True)
             except Exception as e:
                 logger.error(f"Error obteniendo recuerdos L1 de usuario: {e}")
 
-        # Construir contexto final con instrucción de actitud natural
+            # 2b. Consultar L3 y L2 (UserPersonas) solo si no está en cooldown o si hay match temático L1 / consulta explícita
+            if not in_cooldown or matched_l1 or explicit_self_query:
+                try:
+                    if hasattr(self.repo, "get_user_persona"):
+                        persona_data = await self.repo.get_user_persona(user_id)
+                        if persona_data:
+                            p_l3 = (persona_data.get("persona_l3") or "").strip()
+                            s_l2 = (persona_data.get("scenario_l2") or "").strip()
+                            updated_at = persona_data.get("updated_at") or ""
+                            age_days, age_label = _parse_timestamp_age(updated_at)
+
+                            if p_l3:
+                                pyramid_lines.append(f"• [L3 - Perfil Persona]: {p_l3}")
+                            # Solo inyectar L2 si sigue vigente (<= 14 días) o no tiene timestamp antiguo
+                            if s_l2 and (age_days is None or age_days <= self.SCENARIO_L2_MAX_AGE_DAYS):
+                                l2_tag = f" ({age_label})" if age_label else ""
+                                pyramid_lines.append(f"• [L2 - Escenario Actual{l2_tag}]: {s_l2}")
+                except Exception as e:
+                    logger.error(f"Error obteniendo UserPersona (L2/L3): {e}")
+
+                for _, l1_line in matched_l1[:2]:
+                    pyramid_lines.append(l1_line)
+
+                if pyramid_lines:
+                    self._memory_injection_cooldown[user_id] = now
+
+        # Construir contexto final con directiva estricta anti-repetición
         final_parts = []
         if pyramid_lines:
             header = f"[PIRÁMIDE SEMÁNTICA DE {user_name.upper()} (L3 -> L1)]:\n" + "\n".join(pyramid_lines)
             instruction = (
-                "[DIRECTIVA DE MEMORIA NATURAL]:\n"
-                f"Esta es tu pirámide de memoria sobre {user_name} (L3 identidad estable, L2 contexto actual, L1 recuerdos puntuales). "
-                "Úsala como trasfondo psicológico y contextual (incluso para desambiguar búsquedas o referencias implícitas) de forma 100% natural. "
-                "NUNCA recites ni fuerces estos recuerdos de manera robótica (por ejemplo, NO digas 'según mi memoria L3 sé que X') "
-                "a menos que la conversación fluya orgánicamente hacia ello."
+                "[DIRECTIVA DE MEMORIA PASIVA — ANTI-REPETICIÓN]:\n"
+                f"Esta es tu memoria interna sobre {user_name}. Es SOLO contexto silencioso de fondo.\n"
+                "- PROHIBIDO sacar a colación gustos, estudios, proyectos o anécdotas de esta lista si el usuario está hablando de otra cosa.\n"
+                "- NO repitas chistes ni referencias a recuerdos viejos que no vengan al caso con el mensaje actual.\n"
+                "- Enfócate en responder directamente a lo que dice AHORA y al CHAT RECIENTE (L0)."
             )
             final_parts.append(f"{header}\n\n{instruction}")
 
@@ -346,5 +449,3 @@ class MemoryService:
 
         except Exception as e:
             logger.debug(f"[MEMORY] No se pudo analizar recuerdo: {e}")
-
-

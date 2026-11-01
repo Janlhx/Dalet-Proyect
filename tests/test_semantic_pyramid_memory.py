@@ -126,3 +126,101 @@ async def test_single_pass_distillation_and_pruning(monkeypatch):
         scenario_l2="Implementando la pirámide semántica L0-L3 en Dalet tras actualizar /resumir.",
     )
     mock_repo.prune_old_user_memories.assert_awaited_once_with(101, max_atoms=20)
+
+
+@pytest.mark.asyncio
+async def test_memory_strict_gating_no_unmatched_and_cooldown():
+    """Verifica que recuerdos L1 sin relación NO se inyecten, que L2 viejo (>14d) caduque y que aplique cooldown."""
+    from datetime import datetime, timedelta, timezone
+
+    old_l2_date = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    mock_repo = MagicMock()
+    mock_repo.get_channel_messages = AsyncMock(
+        return_value=[{"user_id": 101, "username": "Juan", "content": "hola qué mapa recomiendas"}]
+    )
+    mock_repo.get_user_persona = AsyncMock(
+        return_value={
+            "user_id": 101,
+            "user_name": "Juan",
+            "persona_l3": "Jugador de osu! colombiano.",
+            "scenario_l2": "Estresado por parciales de cálculo hace un mes.",
+            "updated_at": old_l2_date,
+        }
+    )
+    mock_repo.get_all_user_memories = AsyncMock(
+        return_value=[
+            {
+                "topic": "gustos",
+                "user_message": "Para comer me gusta mucho la pizza hawaiana",
+                "dalet_thought": "Le encanta la pizza con piña para cenar.",
+                "content": "Le encanta la pizza con piña para cenar.",
+                "timestamp": old_l2_date,
+            }
+        ]
+    )
+
+    service = MemoryService(mock_repo)
+    # Turno 1: habla de mapas de osu! (usa 'para', que es stopword, pero nada de pizza)
+    ctx1 = await service.get_relevant_context(
+        channel_id=999,
+        user_id=101,
+        current_message="¿Qué mapa tienes para calentar streams?",
+        check_user_memory=True,
+        user_name="Juan",
+    )
+    # L3 se inyecta la primera vez, pero L2 (>14 días) y L1 (sin relación) NO se inyectan
+    assert "• [L3 - Perfil Persona]: Jugador de osu! colombiano." in ctx1
+    assert "Estresado por parciales" not in ctx1
+    assert "pizza" not in ctx1
+
+    # Turno 2 (seguido dentro de los 10 min de cooldown, sin match L1): NO vuelve a inyectar la pirámide
+    ctx2 = await service.get_relevant_context(
+        channel_id=999,
+        user_id=101,
+        current_message="¿Y otro de 6 estrellas?",
+        check_user_memory=True,
+        user_name="Juan",
+    )
+    assert "[PIRÁMIDE SEMÁNTICA" not in ctx2
+    assert "CHAT RECIENTE (L0):" in ctx2
+
+
+def test_osu_top_and_recent_filters():
+    """Verifica el filtrado y ordenamiento de /top (recent best, acc, mods) y /recent (best, pass, mods)."""
+    from handlers.dalet_osu_presenter import OsuPresenter
+
+    top_scores = [
+        {"pp": 500.0, "accuracy": 0.97, "created_at": "2026-01-10T12:00:00Z", "mods": ["HD", "DT"]},
+        {"pp": 480.0, "accuracy": 0.995, "created_at": "2026-10-30T18:00:00Z", "mods": []},
+        {"pp": 450.0, "accuracy": 0.98, "created_at": "2026-11-01T10:00:00Z", "mods": ["NC"]},
+    ]
+
+    # 1. Recent Best: ordena por fecha más reciente preservando _top_rank original
+    recent_best = OsuPresenter.filter_and_sort_top_scores(top_scores, sort_by="recent")
+    assert [s["_top_rank"] for s in recent_best] == [3, 2, 1]
+    assert recent_best[0]["pp"] == 450.0
+
+    # 2. Best Accuracy
+    best_acc = OsuPresenter.filter_and_sort_top_scores(top_scores, sort_by="acc")
+    assert best_acc[0]["_top_rank"] == 2
+    assert best_acc[0]["accuracy"] == 0.995
+
+    # 3. Filtro por mods (+DT incluye NC, y NM filtra sin mods)
+    dt_only = OsuPresenter.filter_and_sort_top_scores(top_scores, sort_by="pp", mods_filter="DT")
+    assert [s["_top_rank"] for s in dt_only] == [1, 3]
+    nm_only = OsuPresenter.filter_and_sort_top_scores(top_scores, sort_by="pp", mods_filter="NM")
+    assert [s["_top_rank"] for s in nm_only] == [2]
+
+    # 4. Filtros de /recent (pass y best)
+    recent_scores = [
+        {"pp": None, "accuracy": 0.85, "passed": False, "rank": "F", "mods": ["DT"], "score": 100000},
+        {"pp": 320.0, "accuracy": 0.96, "passed": True, "rank": "A", "mods": ["HD"], "score": 800000},
+        {"pp": 410.0, "accuracy": 0.98, "passed": True, "rank": "S", "mods": ["DT"], "score": 950000},
+    ]
+    passes = OsuPresenter.filter_recent_scores(recent_scores, filter_by="pass")
+    assert len(passes) == 2
+    assert passes[0]["pp"] == 320.0
+
+    session_best = OsuPresenter.filter_recent_scores(recent_scores, filter_by="best")
+    assert session_best[0]["pp"] == 410.0
+

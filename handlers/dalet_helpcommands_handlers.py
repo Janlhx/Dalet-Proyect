@@ -27,8 +27,8 @@ SLASH_CATEGORIES_ES = {
         "commands": [
             ("/op",               "Perfil general, rango y PP"),
             ("/skills",           "Radar de habilidades y veredicto"),
-            ("/recent",           "Última jugada (incluye fails)"),
-            ("/top",              "Top 5 mejores jugadas"),
+            ("/recent",           "Última jugada (`last`, `best`, `pass`, `+mods`)"),
+            ("/top",              "Top 5 plays (`pp`, `recent` / `d.rb`, `acc`, `+mods`)"),
             ("/compare",          "Comparativa entre 2 jugadores"),
             ("/rank",             "Ranking del servidor"),
             ("/link",             "Vincular tu cuenta de osu!"),
@@ -111,8 +111,8 @@ SLASH_CATEGORIES_EN = {
         "commands": [
             ("/op",               "Profile card, rank, and PP"),
             ("/skills",           "5D skill radar and Dalet's verdict"),
-            ("/recent",           "Most recent play (includes fails)"),
-            ("/top",              "Top 5 best scores"),
+            ("/recent",           "Recent play (`last`, `best`, `pass`, `+mods`)"),
+            ("/top",              "Top 5 scores (`pp`, `recent` / `d.rb`, `acc`, `+mods`)"),
             ("/compare",          "Compare 2 players head-to-head"),
             ("/rank",             "Server osu! leaderboard"),
             ("/link",             "Link your osu! account"),
