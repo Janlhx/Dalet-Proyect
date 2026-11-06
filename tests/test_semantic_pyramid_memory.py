@@ -224,3 +224,87 @@ def test_osu_top_and_recent_filters():
     session_best = OsuPresenter.filter_recent_scores(recent_scores, filter_by="best")
     assert session_best[0]["pp"] == 410.0
 
+
+@pytest.mark.asyncio
+async def test_persona_self_training_insight_distillation_and_injection():
+    """
+    Verifica que:
+    1. Si un usuario da feedback de tono (ej. 'sabes eres grosera cruel y arrogante xd') o Dalet
+       detecta un fallo de literalidad/bucle, analyze_and_record_memory guarda un PersonaInsight
+       incluso si save=false para memorias personales efímeras.
+    2. get_relevant_context inyecta las reglas de PersonaInsights aprendidas.
+    """
+    mock_repo = MagicMock()
+    mock_repo.get_user_persona = AsyncMock(return_value=None)
+    mock_repo.add_user_memory = AsyncMock()
+    mock_repo.upsert_user_persona = AsyncMock()
+    mock_repo.prune_old_user_memories = AsyncMock()
+    mock_repo.add_persona_insight = AsyncMock()
+    mock_repo.get_channel_messages = AsyncMock(return_value=[])
+    mock_repo.get_all_user_memories = AsyncMock(return_value=[])
+    mock_repo.get_recent_persona_insights = AsyncMock(
+        return_value=[
+            {
+                "style_rule": "No repetir el mismo chiste del segundo monitor en turnos seguidos ni dar golpes bajos cuando el usuario busca socializar.",
+                "critique": "Dalet se encasilló con el segundo monitor y fue innecesariamente cortante.",
+            }
+        ]
+    )
+
+    mock_nlp = MagicMock()
+    mock_nlp.gemini_api_key = "fake_test_key"
+
+    mock_http_resp = MagicMock()
+    mock_http_resp.status_code = 200
+    mock_http_resp.json.return_value = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {
+                            "text": json.dumps(
+                                {
+                                    "save": False,
+                                    "critique": "Dalet repitió el ataque del segundo monitor y trató al usuario como enemigo cuando dijo 'hay q socializar'.",
+                                    "style_lesson": "Cuando un usuario busca socializar tras una broma, bajar la hostilidad y conversar con complicidad sin repetir el mismo roast.",
+                                }
+                            )
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+
+    mock_http_client = MagicMock()
+    mock_http_client.post = AsyncMock(return_value=mock_http_resp)
+    mock_nlp._http_client = mock_http_client
+
+    service = MemoryService(mock_repo)
+    await service.analyze_and_record_memory(
+        user_id=777,
+        user_name="Gemenirdol",
+        user_message="sabes eres grosera cruel y arrogante xd",
+        dalet_reply="socializar con el segundo monitor y no con las personas del server, gran técnica. luego te quejas de que nadie te habla",
+        nlp_service=mock_nlp,
+    )
+
+    # No debe guardar memoria efímera del segundo monitor (save=False), pero SÍ la regla de estilo aprendida
+    mock_repo.add_user_memory.assert_not_called()
+    mock_repo.add_persona_insight.assert_called_once()
+    call_kwargs = mock_repo.add_persona_insight.call_args.kwargs
+    assert "complicidad" in call_kwargs["style_rule"]
+    assert "segundo monitor" in call_kwargs["critique"]
+
+    # Verificar que get_relevant_context inyecta la lección aprendida
+    ctx = await service.get_relevant_context(
+        channel_id=10,
+        user_id=777,
+        current_message="hola dalet como va todo",
+        check_user_memory=True,
+        user_name="Gemenirdol",
+    )
+    assert "[AUTO-CALIBRACIÓN DE PERSONALIDAD APRENDIDA" in ctx
+    assert "No repetir el mismo chiste del segundo monitor" in ctx
+
+

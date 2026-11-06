@@ -2132,6 +2132,7 @@
             const kpiMemories = document.getElementById('db-kpi-memories-count');
             const memories = data.memories || [];
             const personas = data.personas || [];
+            const insights = data.insights || [];
             const total = data.total || memories.length;
 
             if (countBadge) countBadge.innerText = total;
@@ -2140,16 +2141,56 @@
             const container = document.getElementById('memories-container');
             if (!container) return;
 
-            if (memories.length === 0 && personas.length === 0) {
+            if (memories.length === 0 && personas.length === 0 && insights.length === 0) {
                 container.innerHTML = `
                     <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); color: var(--text-secondary);">
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" style="margin-bottom: 12px; opacity: 0.6;"><path d="M12 2a4 4 0 0 0-4 4v1a4 4 0 0 0-4 4v1a4 4 0 0 0 4 4v1a4 4 0 0 0 4 4h0a4 4 0 0 0 4-4v-1a4 4 0 0 0 4-4v-1a4 4 0 0 0-4-4V6a4 4 0 0 0-4-4z"></path></svg>
                         <div style="font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">No se encontraron recuerdos en la Pirámide Semántica</div>
-                        <div style="font-size: 12px; color: var(--text-tertiary);">Dalet destila automáticamente Átomos (L1), Escenarios Activos (L2) y Perfiles Persona (L3) a medida que los usuarios conversan en Discord.</div>
+                        <div style="font-size: 12px; color: var(--text-tertiary);">Dalet destila automáticamente Átomos (L1), Escenarios Activos (L2), Perfiles Persona (L3) y Lecciones de Auto-Entrenamiento a medida que conversa en Discord.</div>
                     </div>
                 `;
                 return;
             }
+
+            const insightsHtml = insights.map(ins => {
+                const userName = escapeHtml(ins.user_name || 'Usuario');
+                const styleRule = escapeHtml(ins.style_rule || '');
+                const critique = escapeHtml(ins.critique || '');
+                const userMsg = escapeHtml(ins.user_message || '');
+                const createdAt = escapeHtml(ins.created_at || '--');
+
+                return `
+                    <div class="memory-card" style="border-color: rgba(212, 163, 115, 0.35); background: linear-gradient(180deg, rgba(212, 163, 115, 0.07) 0%, var(--bg-surface) 100%);">
+                        <div class="memory-card-header">
+                            <div class="memory-tags">
+                                <span class="topic-badge" style="background: rgba(212, 163, 115, 0.14); color: #e2b887; border-color: rgba(212, 163, 115, 0.35);">
+                                    ✦ AUTO-CALIBRACIÓN · Personalidad
+                                </span>
+                                <span class="user-id-badge">
+                                    Contexto: ${userName}
+                                </span>
+                            </div>
+                            <span class="memory-timestamp">${createdAt}</span>
+                        </div>
+                        ${userMsg ? `
+                            <div class="memory-quote">
+                                <div class="memory-quote-label">Disparador conversacional</div>
+                                "${userMsg}"
+                            </div>
+                        ` : ''}
+                        ${critique ? `
+                            <div class="memory-thought" style="margin-bottom: 8px;">
+                                <div class="memory-thought-label">Autocrítica detectada</div>
+                                ${critique}
+                            </div>
+                        ` : ''}
+                        <div class="memory-conclusion">
+                            <div class="memory-conclusion-label">✦ Regla Aprendida Activa</div>
+                            ${styleRule}
+                        </div>
+                    </div>
+                `;
+            }).join('');
 
             const personasHtml = personas.map(p => {
                 const userName = escapeHtml(p.user_name || 'Usuario');
@@ -2236,7 +2277,7 @@
                 `;
             }).join('');
 
-            container.innerHTML = personasHtml + atomsHtml;
+            container.innerHTML = insightsHtml + personasHtml + atomsHtml;
         }
 
         async function fetchModActions() {

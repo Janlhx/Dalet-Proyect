@@ -9,36 +9,43 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger("dalet.services.memory")
 
-_MEMORY_ANALYSIS_PROMPT = """Eres el motor de Pirámide Semántica Cognitiva (L0 -> L1 -> L2 -> L3) de Dalet (un bot de Discord con personalidad humana, sarcástica pero leal y empática).
-Tu tarea es observar la conversación actual (L0) de {user_name} con Dalet y destilarla en las 3 capas superiores de memoria si aporta valor real:
+_MEMORY_ANALYSIS_PROMPT = """Eres el motor de Pirámide Semántica Cognitiva (L0 -> L1 -> L2 -> L3) y Auto-Calibrador de Personalidad de Dalet (una chica en Discord ingeniosa, sarcástica y directa, pero cómplice y leal con los miembros del servidor, nunca cruel gratuitamente ni robótica).
+Tu tarea tiene DOS objetivos en una sola pasada al observar la conversación actual (L0) de {user_name} con Dalet:
 
 [ESTADO ACTUAL DE MEMORIA DEL USUARIO]:
-- L3 (Perfil Persona duradero actual): "{current_persona_l3}"
+- L3 (Perfil Persona duradero + calibración social): "{current_persona_l3}"
 - L2 (Escenario/Contexto activo actual): "{current_scenario_l2}"
 
 [INTERACCIÓN RECIENTE (L0)]:
 Usuario ({user_name}): "{user_message}"
 Respuesta de Dalet: "{dalet_reply}"
 
-Pregunta: ¿Este mensaje revela algún dato duradero, preferencia, rasgo de personalidad, anécdota, proyecto actual, estado emocional o dinámica de relación sobre {user_name} que Dalet deba recordar o evolucionar?
-Descarta:
-- Saludos simples ("hola", "buenas", "que tal").
-- Bromas casuales efímeras sin sustancia personal.
-- Consultas puntuales externas efímeras ("a cómo está el dólar", "qué hora es") a menos que revelen un interés o contexto personal del usuario.
-- Respuestas triviales ("ok", "si", "no", "jaja", "xd").
+OBJETIVO 1 — MEMORIA DEL USUARIO (`save`: true/false):
+Evalúa si este mensaje revela algún rasgo DURADERO, hobby real, carrera/estudios, proyecto importante o la dinámica social que mejor funciona con {user_name} (ej. si le gusta el sarcasmo pesado o prefiere charla más cómplice/relajada).
+¡FILTRO ANTI-RUIDO ESTRICTO! Pon `"save": false` y NO guardes como recuerdo:
+- Detalles situacionales efímeros o irrelevantes del momento (ej. "tiene Discord en el segundo monitor", "está mirando el chat", "no vio un mensaje", "acaba de entrar").
+- Saludos simples, bromas pasajeras sin trasfondo personal, o quejas puntuales del momento.
+- Consultas externas puntuales ("qué hora es", "a cómo está el dólar").
+- Si actualizas `persona_l3`, incluye siempre una nota breve de calibración social (cómo tratar a este usuario para que la charla fluya genial sin saturarlo con el mismo chiste).
 
-Responde ÚNICAMENTE con un objeto JSON en crudo:
-Si NO vale la pena recordar ni actualizar la pirámide:
-{{"save": false}}
+OBJETIVO 2 — AUTO-ENTRENAMIENTO DE PERSONALIDAD DE DALET (`style_lesson`, opcional):
+Evalúa con ojo crítico la respuesta de Dalet (`dalet_reply`) y la reacción del usuario (`user_message`).
+Genera una regla de mejora en `"style_lesson"` SOLO si detectas alguno de estos fallos en Dalet:
+1. Literalidad robótica / soporte técnico no pedido: El usuario dijo una frase retórica, sarcástica o con errata de Discord (ej. "hay que no puedo ver mis mensajes ahora?" = "¡ay!, ¿acaso no puedo mirar mis mensajes?") y Dalet lo tomó literal dándole soporte técnico de Discord (Ctrl+R, canales, etc.).
+2. Crueldad gratuita o trato de enemigo: Dalet cruzó la línea del sarcasmo ingenioso hacia ataques personales pesados ("nadie te habla", hostilidad cortante) o el usuario se quejó directamente de su actitud (ej. "eres grosera/cruel/arrogante/pesada").
+3. Bucle temático: Dalet repitió el mismo ángulo de burla de turnos anteriores en vez de fluir con la conversación cuando el usuario quería socializar.
+Si Dalet respondió bien y con buen tono, deja `"style_lesson": ""` y `"critique": ""`.
 
-Si SÍ vale la pena recordar y evolucionar la pirámide:
+Responde ÚNICAMENTE con un objeto JSON en crudo con esta estructura exacta:
 {{
-  "save": true,
+  "save": true | false,
   "topic": "gustos" | "personal" | "humor" | "emocional" | "interaccion" | "general",
-  "user_message": "cita o resumen breve de lo que dijo el usuario",
-  "dalet_thought": "L1 (Átomo): Hecho concreto o conclusión puntual de esta interacción en 1-2 frases concisas.",
-  "scenario_l2": "L2 (Escenario Actual): Síntesis actualizada de en qué anda el usuario últimamente, sus proyectos actuales, estado de ánimo reciente o temas recurrentes (fusiona lo nuevo con el L2 anterior en máx 2 frases).",
-  "persona_l3": "L3 (Perfil Persona): Retrato psicológico e identidad estable del usuario (quién es, qué estudia/trabaja, gustos base y cómo se lleva con Dalet, evolucionando el L3 anterior en máx 2-3 frases densas)."
+  "user_message": "cita o resumen breve de lo que dijo el usuario (si save es true)",
+  "dalet_thought": "L1 (Átomo): Hecho concreto duradero o preferencia social de esta interacción en 1 frase (vacío si save es false).",
+  "scenario_l2": "L2 (Escenario Actual): En qué anda el usuario últimamente a nivel de estudios, juegos o proyectos reales (máx 2 frases, vacío si save es false).",
+  "persona_l3": "L3 (Perfil Persona + Calibración): Identidad estable del usuario, gustos base y cómo calibrar el sarcasmo/complicidad con él/ella (máx 2-3 frases, vacío si save es false).",
+  "critique": "Breve diagnóstico de 1 frase si Dalet falló en tono, literalidad o repetición (vacío si estuvo bien).",
+  "style_lesson": "Regla accionable y concisa en 1 frase para que Dalet mejore su personalidad en futuras charlas (vacío si no aplica)."
 }}
 """
 
@@ -279,6 +286,25 @@ class MemoryService:
 
         # Construir contexto final con directiva estricta anti-repetición
         final_parts = []
+
+        # 2c. Inyectar reglas globales de auto-calibración de personalidad aprendidas por Dalet
+        try:
+            if hasattr(self.repo, "get_recent_persona_insights"):
+                insights = await self.repo.get_recent_persona_insights(limit=3)
+                if insights:
+                    rule_lines = []
+                    for ins in insights:
+                        rule_txt = (ins.get("style_rule") or "").strip()
+                        if rule_txt:
+                            rule_lines.append(f"• {rule_txt}")
+                    if rule_lines:
+                        final_parts.append(
+                            "[AUTO-CALIBRACIÓN DE PERSONALIDAD APRENDIDA (Lecciones propias de Dalet)]:\n"
+                            + "\n".join(rule_lines)
+                        )
+        except Exception as e:
+            logger.debug(f"Error obteniendo PersonaInsights: {e}")
+
         if pyramid_lines:
             header = f"[PIRÁMIDE SEMÁNTICA DE {user_name.upper()} (L3 -> L1)]:\n" + "\n".join(pyramid_lines)
             instruction = (
@@ -323,21 +349,30 @@ class MemoryService:
         nlp_service,
     ):
         """
-        Destilación Single-Pass en background (L0 -> L1 + L2 + L3):
+        Destilación Single-Pass en background (L0 -> L1 + L2 + L3 + PersonaInsights):
         1. Recupera L3 (Persona) y L2 (Escenario) actuales del usuario.
-        2. Analiza con Gemini si el mensaje aporta información significativa.
-        3. Guarda el nuevo átomo L1, evoluciona L2 y L3 en UserPersonas y poda átomos L1 antiguos (>20).
+        2. Analiza con Gemini si el mensaje aporta información significativa o una lección de estilo para Dalet.
+        3. Guarda el nuevo átomo L1, evoluciona L2 y L3 en UserPersonas, poda átomos L1 antiguos (>20)
+           y registra lecciones de auto-calibración en PersonaInsights si aplica.
         """
         if not user_message or not dalet_reply or not nlp_service:
             return
 
         clean_msg = user_message.strip()
-        # Filtros rápidos heurísticos (0 costo de tokens para mensajes triviales)
+        lower_msg = clean_msg.lower()
+
+        # Detectar si el mensaje contiene feedback directo sobre la actitud/tono de Dalet
+        tone_feedback_keywords = (
+            "grosera", "cruel", "arrogante", "pesada", "odiosa", "borde", "mala onda",
+            "hostil", "literal", "repetitiva", "cortante", "rude", "mean", "arrogant",
+        )
+        has_tone_feedback = any(kw in lower_msg for kw in tone_feedback_keywords)
+
+        # Filtros rápidos heurísticos (0 costo de tokens para mensajes triviales salvo que sea feedback de tono)
         words = clean_msg.split()
-        if len(words) < 4 or len(clean_msg) < 15:
+        if not has_tone_feedback and (len(words) < 4 or len(clean_msg) < 15):
             return
 
-        lower_msg = clean_msg.lower()
         trivial_phrases = (
             "hola", "buenos dias", "buenas noches", "buenas tardes", "adios", "chao",
             "jaja", "jajaja", "xd", "ok", "vale", "dale", "que tal", "como estas",
@@ -346,10 +381,11 @@ class MemoryService:
         if any(lower_msg == t for t in trivial_phrases):
             return
 
-        # Cooldown por usuario: máx 1 análisis de memoria cada 30 segundos por usuario
+        # Cooldown por usuario: máx 1 análisis cada 30s (o 5s si hay feedback explícito de tono)
         now = time.time()
         last_time = self._user_memory_cooldown.get(user_id, 0.0)
-        if (now - last_time) < 30.0:
+        cooldown_window = 5.0 if has_tone_feedback else 30.0
+        if (now - last_time) < cooldown_window:
             return
 
         self._user_memory_cooldown[user_id] = now
@@ -443,6 +479,20 @@ class MemoryService:
                         await self.repo.prune_old_user_memories(user_id, max_atoms=self.max_atoms_per_user)
 
                     logger.info(f"🧠 [MEMORY PYRAMID] L1/L2/L3 actualizado para {user_name} ({topic}): '{thought}'")
+
+                # 4. Registrar lección de auto-entrenamiento de personalidad (Approach B) si se detectó margen de mejora
+                style_lesson = (result.get("style_lesson") or "").strip()
+                critique = (result.get("critique") or "").strip()
+                if style_lesson and hasattr(self.repo, "add_persona_insight"):
+                    await self.repo.add_persona_insight(
+                        user_id=user_id,
+                        user_name=user_name,
+                        user_message=clean_msg[:200],
+                        dalet_reply=dalet_reply[:200],
+                        critique=critique,
+                        style_rule=style_lesson,
+                    )
+                    logger.info(f"✦ [PERSONA SELF-TRAINING] Nueva regla aprendida: '{style_lesson}' ({critique})")
             finally:
                 if close_client:
                     await http_client.aclose()

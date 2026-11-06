@@ -45,6 +45,7 @@ class DaletNLPChat(commands.Cog):
         self.reactive_sessions: TTLCache = TTLCache(maxsize=2000, ttl=7200)
         self.recent_user_messages: TTLCache = TTLCache(maxsize=5000, ttl=300)
         self.proactive_channels: TTLCache = TTLCache(maxsize=2000, ttl=7200)
+        self.reaction_cooldowns: TTLCache = TTLCache(maxsize=2000, ttl=3600)
 
     async def cog_load(self):
         try:
@@ -538,6 +539,8 @@ class DaletNLPChat(commands.Cog):
                     server_lang = "en"
 
             is_proactive_turn = trigger_type == "proactive"
+            # Cooldown de reacciones con emoji (180s por canal) para no saturar con emojis seguidos
+            can_react = time.time() >= self.reaction_cooldowns.get(message.channel.id, 0.0)
 
             # Generar respuesta con protección de timeout estricto (máx 25s)
             # En modo proactivo evitamos mostrar "Dalet está escribiendo..." antes de saber
@@ -558,7 +561,7 @@ class DaletNLPChat(commands.Cog):
                                     active_room_users=active_users,
                                     is_reactive=is_reactive,
                                     language=server_lang,
-                                    allow_reactions=True,
+                                    allow_reactions=can_react,
                                     is_proactive=False,
                                 ),
                                 timeout=25.0
@@ -576,7 +579,7 @@ class DaletNLPChat(commands.Cog):
                                 active_room_users=active_users,
                                 is_reactive=is_reactive,
                                 language=server_lang,
-                                allow_reactions=True,
+                                allow_reactions=can_react,
                                 is_proactive=is_proactive_turn,
                             ),
                             timeout=20.0
@@ -601,7 +604,7 @@ class DaletNLPChat(commands.Cog):
                                 active_room_users=active_users,
                                 is_reactive=is_reactive,
                                 language=server_lang,
-                                allow_reactions=True,
+                                allow_reactions=can_react,
                                 is_proactive=is_proactive_turn,
                             ),
                             timeout=20.0
@@ -616,10 +619,11 @@ class DaletNLPChat(commands.Cog):
             from services.nlp_service import NLPService
             reply, reaction_emoji = NLPService.extract_reaction(raw_reply or "")
 
-            # 1. Aplicar reacción con emoji si Dalet decidió reaccionar al mensaje
-            if reaction_emoji:
+            # 1. Aplicar reacción con emoji si Dalet decidió reaccionar al mensaje (respetando cooldown)
+            if reaction_emoji and can_react:
                 try:
                     await message.add_reaction(reaction_emoji)
+                    self.reaction_cooldowns[message.channel.id] = time.time() + 180.0
                     self.consecutive_429s = 0
                     self.bot.global_consecutive_429s = 0
                 except discord.HTTPException as e:

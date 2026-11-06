@@ -137,6 +137,20 @@ class UserRepository(BaseRepository):
         """
         await self.execute(personas_query)
 
+        insights_query = """
+            CREATE TABLE IF NOT EXISTS PersonaInsights (
+                InsightID INTEGER PRIMARY KEY AUTOINCREMENT,
+                UserID INTEGER,
+                UserName TEXT,
+                UserMessage TEXT,
+                DaletReply TEXT,
+                Critique TEXT,
+                StyleRule TEXT NOT NULL,
+                CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        await self.execute(insights_query)
+
         try:
             rows = await self.fetch_all("PRAGMA table_info(UserMemories)")
             existing_cols = {row[1] for row in rows} if rows else set()
@@ -149,6 +163,87 @@ class UserRepository(BaseRepository):
                     await self.execute(f"ALTER TABLE UserMemories ADD COLUMN {col} TEXT")
                 except Exception:
                     pass
+
+    async def add_persona_insight(
+        self,
+        user_id: int,
+        user_name: str,
+        user_message: str,
+        dalet_reply: str,
+        critique: str,
+        style_rule: str,
+    ):
+        """Guarda una regla de auto-calibración de personalidad aprendida por Dalet tras una conversación."""
+        if not style_rule or not style_rule.strip():
+            return None
+        res = await self.execute(
+            """
+            INSERT INTO PersonaInsights (UserID, UserName, UserMessage, DaletReply, Critique, StyleRule, CreatedAt)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """,
+            user_id,
+            user_name,
+            (user_message or "")[:200],
+            (dalet_reply or "")[:200],
+            (critique or "")[:250],
+            style_rule.strip()[:250],
+        )
+        # Podar insights antiguos más allá de los 30 más recientes para mantener la tabla ligera
+        try:
+            await self.execute(
+                """
+                DELETE FROM PersonaInsights
+                WHERE InsightID NOT IN (
+                    SELECT InsightID FROM PersonaInsights
+                    ORDER BY CreatedAt DESC, InsightID DESC
+                    LIMIT 30
+                )
+                """
+            )
+        except Exception:
+            pass
+        self._cache.pop("persona_insights", None)
+        return res
+
+    async def get_recent_persona_insights(self, limit: int = 4) -> list[dict]:
+        """Obtiene las reglas de estilo y auto-calibración más recientes aprendidas por Dalet."""
+        async def _fetch(lim):
+            query = """
+                SELECT InsightID, UserID, UserName, UserMessage, DaletReply, Critique, StyleRule, CreatedAt
+                FROM PersonaInsights
+                ORDER BY CreatedAt DESC, InsightID DESC
+                LIMIT ?
+            """
+            rows = await self.fetch_all(query, lim)
+            if not rows:
+                return []
+            results = []
+            for row in rows:
+                if hasattr(row, "get"):
+                    results.append({
+                        "id": row.get("InsightID") or row.get("id"),
+                        "user_id": row.get("UserID") or row.get("user_id"),
+                        "user_name": row.get("UserName") or row.get("user_name") or "",
+                        "user_message": row.get("UserMessage") or row.get("user_message") or "",
+                        "dalet_reply": row.get("DaletReply") or row.get("dalet_reply") or "",
+                        "critique": row.get("Critique") or row.get("critique") or "",
+                        "style_rule": row.get("StyleRule") or row.get("style_rule") or "",
+                        "created_at": str(row.get("CreatedAt") or row.get("created_at") or ""),
+                    })
+                else:
+                    results.append({
+                        "id": row[0] if len(row) > 0 else None,
+                        "user_id": row[1] if len(row) > 1 else None,
+                        "user_name": row[2] if len(row) > 2 and row[2] else "",
+                        "user_message": row[3] if len(row) > 3 and row[3] else "",
+                        "dalet_reply": row[4] if len(row) > 4 and row[4] else "",
+                        "critique": row[5] if len(row) > 5 and row[5] else "",
+                        "style_rule": row[6] if len(row) > 6 and row[6] else "",
+                        "created_at": str(row[7]) if len(row) > 7 and row[7] else "",
+                    })
+            return results
+
+        return await self._get_cached("persona_insights", _fetch, limit)
 
     async def get_user_persona(self, user_id: int) -> dict | None:
         """Obtiene las capas superiores de la pirámide semántica (L3 Persona y L2 Scenario) del usuario."""

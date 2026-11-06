@@ -248,6 +248,7 @@ class DashboardService:
             ("ModActions", "Auditoría de infracciones y acciones automáticas", "mod_actions"),
             ("Feedbacks", "Buzón de sugerencias y comentarios de la comunidad", "feedbacks"),
             ("Reminders", "Recordatorios programados por los usuarios", "reminders"),
+            ("PersonaInsights", "Reglas de auto-calibración de personalidad aprendidas por Dalet", "insights"),
         ]
 
         table_stats = []
@@ -350,10 +351,42 @@ class DashboardService:
         except Exception as e:
             logger.debug(f"UserPersonas query fallback: {e}")
 
+        # Consultar también PersonaInsights (Auto-entrenamiento de personalidad)
+        insights = []
+        try:
+            i_where = ""
+            i_params: list = []
+            if search:
+                i_where = "WHERE UserName LIKE ? OR StyleRule LIKE ? OR Critique LIKE ? OR UserMessage LIKE ?"
+                like_term = f"%{search}%"
+                i_params = [like_term, like_term, like_term, like_term]
+            i_query = f"""
+                SELECT InsightID, UserID, UserName, UserMessage, DaletReply, Critique, StyleRule, CreatedAt
+                FROM PersonaInsights
+                {i_where}
+                ORDER BY CreatedAt DESC, InsightID DESC
+                LIMIT 15
+            """
+            i_rows = cls._execute_query(i_query, tuple(i_params))
+            for ir in i_rows:
+                insights.append({
+                    "id": ir.get("InsightID"),
+                    "user_id": str(ir.get("UserID", "")),
+                    "user_name": ir.get("UserName") or "Usuario",
+                    "user_message": ir.get("UserMessage") or "",
+                    "dalet_reply": ir.get("DaletReply") or "",
+                    "critique": ir.get("Critique") or "",
+                    "style_rule": ir.get("StyleRule") or "",
+                    "created_at": str(ir.get("CreatedAt") or ""),
+                })
+        except Exception as e:
+            logger.debug(f"PersonaInsights query fallback: {e}")
+
         return {
             "total": total,
             "limit": limit,
             "offset": offset,
+            "insights": insights,
             "personas": personas,
             "memories": memories
         }
