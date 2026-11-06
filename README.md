@@ -53,8 +53,8 @@ Evaluates a player's top 50/100 plays through mathematical heuristics:
 - **Dalet's Verdict**: A sharp, 2-line AI roast dissecting player imbalances and choke habits.
 
 ### Core Cards
-- **`/recent` (`d.recent` / `d.or`)**: High-density recent play card with mods, stars, detailed hits `[300/100/50/Miss]`, PP, combo, and technical map stats (`AR`, `OD`, `HP`, `CS`, `BPM`, `Length`).
-- **`/top` (`d.top`)**: Top 5 ranked scores with country badges and clean formatting.
+- **`/recent` (`d.rs` / `d.rp` / `d.recent` / `d.or`)**: High-density recent play card with filters (`last`, `best` in 24h, `pass` only, `+mods`), stars, detailed hits `[300/100/50/Miss]`, PP, combo, and technical map stats (`AR`, `OD`, `HP`, `CS`, `BPM`, `Length`).
+- **`/top` (`d.top` / `d.rb`)**: Top 5 ranked scores with sorting/filter modes (`pp`, `recent` / *Recent Best*, `acc`, `+mods`), country badges, and clean formatting.
 - **`/op` (`d.op`)**: Full user profile overview, global/country rank, progress bar, and grade counts (`SS`, `S`, `A`).
 - **`/compare`**: Direct head-to-head comparison between two players displaying PP differentials and stat leads.
 
@@ -64,14 +64,15 @@ Evaluates a player's top 50/100 plays through mathematical heuristics:
 
 Dalet features a distinctive persona providing direct, witty, and contextual dialogue rather than generic assistant responses.
 
-### L0–L3 Semantic Pyramid & TypeSafe Jev Routing
+### L0–L3 Semantic Pyramid, `PersonaInsights` & TypeSafe Jev Routing
 - **System 1 Cognitive Gating**: Uses **TypeSafe Jev** to evaluate in milliseconds whether an incoming message requires deep memory retrieval, classify social sentiment, and gate background reflection — saving over 75% of unnecessary LLM calls.
-- **4-Tier Memory Hierarchy**:
+- **4-Tier Memory Hierarchy & Self-Calibration**:
   - **L0 (Working Buffer)**: Immediate in-RAM channel context with strict speaker attribution.
-  - **L1 (Episodic Memory)**: Specific interactions (`UserMessage` + `DaletThought`) ranked by exponential time decay and importance.
-  - **L2 (Social Graph)**: Cross-user relationship dynamics and inside jokes (`user_a` ↔ `user_b`).
+  - **L1 (Episodic Memory)**: Specific interactions (`UserMessage` + `DaletThought`) with strict relevance gating, ranked by exponential time decay and importance.
+  - **L2 (Social Graph)**: Cross-user relationship dynamics and inside jokes (`user_a` ↔ `user_b`) with a 14-day temporal decay window to keep social context fresh.
   - **L3 (Semantic Dossier)**: Consolidated psychological profile per user, automatically synthesized as episodes accumulate.
-- **Proactive Mode & Native Emoji Reactions**: When `/proactive` is enabled in a channel, Dalet evaluates conversations every few meaningful messages and autonomously chooses whether to drop a 1-line quip, react with an emoji (`[REACTION: 💀]`), or stay silent (`[PASS]`).
+  - **Self-Calibration (`PersonaInsights`)**: Single-pass background distillation that continuously refines Dalet's conversational timing, sarcasm balance, and social awareness per guild without extra LLM calls.
+- **Proactive Mode & Native Emoji Reactions**: When `/proactive` is enabled in a channel, Dalet evaluates conversations every few meaningful messages and autonomously chooses whether to drop a 1-line quip, react with an emoji (`[REACTION: 💀]`, subject to a 180s per-channel cooldown), or stay silent (`[PASS]`).
 
 ### Multi-LLM Routing
 - **Dynamic Language Selection**: Adapts replies between English and Spanish based on guild settings.

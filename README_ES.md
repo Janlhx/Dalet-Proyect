@@ -53,8 +53,8 @@ Evalúa los mejores 50 a 100 puntajes de un jugador mediante heurísticas estad�
 - **Veredicto de Dalet**: Un roast sarcástico y directo de 2 líneas que desglosa debilidades y manías del jugador.
 
 ### Tarjetas Principales
-- **`/recent` (`d.recent` / `d.or`)**: Tarjeta densa de jugada reciente con mods, estrellas, impactos detallados `[300/100/50/Miss]`, PP, combo y estadísticas del mapa (`AR`, `OD`, `HP`, `CS`, `BPM`, `Tiempo`).
-- **`/top` (`d.top`)**: Las 5 mejores jugadas registradas con banderas de país y formato pulido.
+- **`/recent` (`d.rs` / `d.rp` / `d.recent` / `d.or`)**: Tarjeta densa de jugada reciente con filtros (`last`, `best` en 24h, `pass`, `+mods`), estrellas, impactos detallados `[300/100/50/Miss]`, PP, combo y estadísticas del mapa (`AR`, `OD`, `HP`, `CS`, `BPM`, `Tiempo`).
+- **`/top` (`d.top` / `d.rb`)**: Las 5 mejores jugadas registradas con filtros de ordenamiento (`pp`, `recent` / *Recent Best*, `acc`, `+mods`), banderas de país y formato pulido.
 - **`/op` (`d.op`)**: Perfil completo de osu!, rango global y nacional, barra de progreso y conteo de notas (`SS`, `S`, `A`).
 - **`/compare`**: Duelo cara a cara directo entre dos jugadores comparando diferenciales de PP y ventajas de estadísticas.
 
@@ -64,14 +64,15 @@ Evalúa los mejores 50 a 100 puntajes de un jugador mediante heurísticas estad�
 
 Dalet cuenta con una personalidad distintiva: rápida, cínica, conversacional y mordaz, alejándose de los asistentes complacientes genéricos.
 
-### Pirámide Semántica de Memoria (L0–L3) & TypeSafe Jev
+### Pirámide Semántica de Memoria (L0–L3), `PersonaInsights` & TypeSafe Jev
 - **Enrutamiento Cognitivo (System 1)**: Utiliza **TypeSafe Jev** para clasificar en milisegundos si un mensaje amerita recuperar memoria profunda, calcular la emoción/tono social y decidir si guardar nuevos recuerdos, ahorrando más del 75% de llamadas innecesarias a LLMs pesados.
-- **4 Capas de Memoria Jerárquica**:
+- **4 Capas de Memoria Jerárquica y Auto-Calibración**:
   - **L0 (Working Buffer)**: Contexto inmediato del canal en RAM con atribución estricta de hablantes.
-  - **L1 (Episodic Memory)**: Recuerdos específicos (`UserMessage` + `DaletThought`) puntuados con decaimiento temporal exponencial e importancia.
-  - **L2 (Social Graph)**: Relaciones y dinámicas cruzadas entre miembros del servidor (`user_a` ↔ `user_b`).
+  - **L1 (Episodic Memory)**: Recuerdos específicos (`UserMessage` + `DaletThought`) con gating estricto de relevancia, puntuados con decaimiento temporal exponencial e importancia.
+  - **L2 (Social Graph)**: Relaciones y dinámicas cruzadas entre miembros del servidor (`user_a` ↔ `user_b`) con decaimiento temporal de 14 días para mantener fresco el contexto social.
   - **L3 (Semantic Dossier)**: Perfil psicológico consolidado de cada usuario actualizado automáticamente al acumular episodios.
-- **Modo Proactivo y Reacciones Nativas**: Con `/proactive` activado en un canal, Dalet evalúa la conversación cada cierto número de mensajes significativos y decide autónomamente si meter cizaña (1 línea), reaccionar con un emoji al mensaje (`[REACTION: 💀]`), o guardar silencio (`[PASS]`).
+  - **Auto-Calibración (`PersonaInsights`)**: Destilación *Single-Pass* en segundo plano que calibra continuamente el timing conversacional, el balance de sarcasmo y el tacto social de Dalet sin llamadas extra al LLM.
+- **Modo Proactivo y Reacciones Nativas**: Con `/proactive` activado en un canal, Dalet evalúa la conversación cada cierto número de mensajes significativos y decide autónomamente si meter cizaña (1 línea), reaccionar con un emoji al mensaje (`[REACTION: 💀]`, sujeto a un cooldown de 180s por canal), o guardar silencio (`[PASS]`).
 
 ---
 

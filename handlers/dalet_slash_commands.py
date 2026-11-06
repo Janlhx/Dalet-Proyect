@@ -394,7 +394,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 sort_by=filter,
                 mods_filter=mods,
             )
-            chart_file = OsuPresenter.generate_pp_chart(user.get("username", uname), best, lang=server_lang)
+            chart_file = OsuPresenter.generate_pp_chart(user.get("username", uname), filtered_best, lang=server_lang)
             if chart_file:
                 embed.set_image(url="attachment://pp_distribution.png")
                 await interaction.followup.send(embed=embed, file=chart_file)

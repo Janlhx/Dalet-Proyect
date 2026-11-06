@@ -27,7 +27,7 @@ SLASH_CATEGORIES_ES = {
         "commands": [
             ("/op",               "Perfil general, rango y PP"),
             ("/skills",           "Radar de habilidades y veredicto"),
-            ("/recent",           "Última jugada (`last`, `best`, `pass`, `+mods`)"),
+            ("/recent",           "Última jugada (`last` / `d.rs`, `best`, `pass` / `d.rp`, `+mods`)"),
             ("/top",              "Top 5 plays (`pp`, `recent` / `d.rb`, `acc`, `+mods`)"),
             ("/compare",          "Comparativa entre 2 jugadores"),
             ("/rank",             "Ranking del servidor"),
@@ -37,9 +37,9 @@ SLASH_CATEGORIES_ES = {
     "IA & Chat": {
         "color": discord.Color.from_rgb(139, 92, 246),  # #8B5CF6 Violeta Amatista
         "card_desc": "Charla, resúmenes y lore.\n`@Dalet` `/resumir` `/lore`",
-        "subtitle": "Conversación con Dalet, memoria del canal y búsqueda web.",
+        "subtitle": "Conversación con Dalet, memoria piramidal (L0–L3), auto-calibración (PersonaInsights) y búsqueda web.",
         "commands": [
-            ("@Dalet / Dalet",    "Habla con Dalet o pídele buscar algo"),
+            ("@Dalet / Dalet",    "Habla con Dalet (memoria L0–L3 + `PersonaInsights`) o busca en la web"),
             ("/resumir",          "Resumen rápido de lo hablado en el canal"),
             ("/lore",             "Busca momentos o temas pasados del chat"),
             ("/proactive",        "`Admin` Activa respuestas espontáneas en el canal"),
@@ -111,7 +111,7 @@ SLASH_CATEGORIES_EN = {
         "commands": [
             ("/op",               "Profile card, rank, and PP"),
             ("/skills",           "5D skill radar and Dalet's verdict"),
-            ("/recent",           "Recent play (`last`, `best`, `pass`, `+mods`)"),
+            ("/recent",           "Recent play (`last` / `d.rs`, `best`, `pass` / `d.rp`, `+mods`)"),
             ("/top",              "Top 5 scores (`pp`, `recent` / `d.rb`, `acc`, `+mods`)"),
             ("/compare",          "Compare 2 players head-to-head"),
             ("/rank",             "Server osu! leaderboard"),
@@ -121,9 +121,9 @@ SLASH_CATEGORIES_EN = {
     "AI & Chat": {
         "color": discord.Color.from_rgb(139, 92, 246),  # #8B5CF6 Amethyst Violet
         "card_desc": "Chat, digests & channel lore.\n`@Dalet` `/resumir` `/lore`",
-        "subtitle": "Chat with Dalet, channel memory, and web search.",
+        "subtitle": "Chat with Dalet, pyramid memory (L0–L3), self-calibration (PersonaInsights), and web search.",
         "commands": [
-            ("@Dalet / Dalet",    "Chat with Dalet or ask her to search the web"),
+            ("@Dalet / Dalet",    "Chat with Dalet (L0–L3 memory + `PersonaInsights`) or search the web"),
             ("/resumir",          "Quick summary of recent channel chat"),
             ("/lore",             "Search past topics and server moments"),
             ("/proactive",        "`Admin` Toggle spontaneous replies in this channel"),

@@ -307,7 +307,7 @@ class OsuHandler(commands.Cog, name="osu!"):
             )
 
             # Gráfico de distribución de PP
-            chart_file = OsuPresenter.generate_pp_chart(username, best, lang=server_lang)
+            chart_file = OsuPresenter.generate_pp_chart(username, filtered_best, lang=server_lang)
             if chart_file:
                 embed.set_image(url="attachment://pp_distribution.png")
                 await ctx.send(embed=embed, file=chart_file)

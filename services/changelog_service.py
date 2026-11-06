@@ -15,8 +15,35 @@ class ChangelogService:
     BASE_VERSION = "v4.0"
     # Commit base del hito v4.0 (Pirámide Semántica L0-L3, DeepSeek Web Search/Fetch, Proactive AI & SHA-256 Guard)
     BASE_MILESTONE_COMMIT = "4815b25"
-    FALLBACK_PATCH = 0
+    FALLBACK_PATCH = 4
     REPO_URL = "https://github.com/Janlhx/Dalet-Proyect"
+
+    _FALLBACK_COMMITS = [
+        ("42e78ed", "feat(persona,chat): add PersonaInsights self-calibration and 180s reaction cooldown", "✦"),
+        ("f4c84ec", "feat(osu,memory): add /top & /recent filters (d.rb, d.rp) and selective memory with 14d L2 decay", "✦"),
+        ("v4.0.0", "feat(v4): integrate DeepSeek native Web Search & Fetch, overhaul /proactive & emoji reactions, and redesign /help", "✦"),
+        ("4815b25", "feat(memory): implement L0-L3 Semantic Pyramid memory architecture and dashboard view", "✦"),
+        ("a4dbb6a", "feat(resumen): overhaul /resumir with discord live history, dual tone styles, and structured tl;dr embeds", "✦"),
+        ("13e2ace", "fix(moderation): resolve single channel id parsing bug and calibrate duplicate flood thresholds", "▪"),
+    ]
+
+    _MILESTONES_ES = {
+        "v4": (
+            "Hito v4.0: Pirámide L0–L3, Auto-Calibración PersonaInsights, Filtros osu! & DeepSeek Web",
+            "▫ **Memoria Híbrida (L0–L3) & PersonaInsights**: Gating estricto `L1`, decaimiento temporal `L2` (14d), auto-entrenamiento conversacional (`PersonaInsights`) enrutado por TypeSafe Jev en sub-50ms.\n"
+            "▫ **Filtros Avanzados de osu! (`d.rb` / `d.rp`)**: Soporte completo de filtros en `/top` (`pp`, `recent` / `d.rb`, `acc`, `+mods`) y `/recent` (`last` / `d.rs`, `best`, `pass` / `d.rp`, `+mods`).\n"
+            "▫ **DeepSeek Web Search/Fetch & IA Proactiva**: Búsqueda/lectura web autónoma (`/v1/tools`), reacciones nativas con cooldown de 180s y blacklist SHA-256 a `0ms`."
+        )
+    }
+
+    _MILESTONES_EN = {
+        "v4": (
+            "Milestone v4.0: L0–L3 Pyramid, PersonaInsights Self-Calibration, osu! Filters & DeepSeek Web",
+            "▫ **Hybrid Memory (L0–L3) & PersonaInsights**: Strict `L1` gating, 14-day `L2` social decay, and conversational self-training (`PersonaInsights`) gated by TypeSafe Jev in sub-50ms.\n"
+            "▫ **Advanced osu! Score Filters (`d.rb` / `d.rp`)**: Full filter parity across `/top` (`pp`, `recent` / `d.rb`, `acc`, `+mods`) and `/recent` (`last` / `d.rs`, `best`, `pass` / `d.rp`, `+mods`).\n"
+            "▫ **DeepSeek Web Search/Fetch & Proactive AI**: Autonomous web search/fetch (`/v1/tools`), native reactions with 180s cooldown, and 0ms SHA-256 image blacklist."
+        )
+    }
 
     _cached_version: str | None = None
     _cached_commits: list[dict] | None = None
@@ -107,24 +134,16 @@ class ChangelogService:
     @classmethod
     def _get_fallback_commits(cls) -> list[dict]:
         """Commits de respaldo si el entorno de ejecución no tiene acceso al binario de git."""
-        raw_fallback = [
-            ("v4.0.3", "feat(osu,memory): add recent best/pass/acc/mod filters to /recent & /top and strict relevance gating for memory", "✦"),
-            ("v4.0.0", "feat(v4): integrate DeepSeek native Web Search & Fetch, overhaul /proactive & emoji reactions, and redesign /help", "✦"),
-            ("4815b25", "feat(memory): implement L0-L3 Semantic Pyramid memory architecture and dashboard view", "✦"),
-            ("a4dbb6a", "feat(resumen): overhaul /resumir with discord live history, dual tone styles, and structured tl;dr embeds", "✦"),
-            ("13e2ace", "fix(moderation): resolve single channel id parsing bug and calibrate duplicate flood thresholds", "▪"),
-            ("476f4a8", "feat(admin): add d.memories and d.dbtables for database inspection", "✦"),
-        ]
         return [
             {
                 "hash": h,
                 "url": f"{cls.REPO_URL}/commit/{h}",
                 "message": msg,
-                "date": "2026-10-18",
+                "date": "2026-11-05",
                 "glyph": glyph,
                 "category": "update",
             }
-            for h, msg, glyph in raw_fallback
+            for h, msg, glyph in cls._FALLBACK_COMMITS
         ]
 
     @classmethod
@@ -146,20 +165,14 @@ class ChangelogService:
 
         # Sección del Hito Mayor (v4.0)
         if is_es:
-            milestone_title = f"{DaletAtoms.GLYPH_POINTER} Hito {cls.BASE_VERSION}: DeepSeek Web Search/Fetch, Pirámide L0–L3 & IA Proactiva"
-            milestone_desc = (
-                f"{DaletAtoms.GLYPH_SUB} **DeepSeek Web Search & Fetch**: Búsqueda web en vivo (`/v1/tools/search`) y lectura de URLs (`/v1/tools/fetch`) autónomas sin depender de Gemini.\n"
-                f"{DaletAtoms.GLYPH_SUB} **Pirámide Semántica (L0–L3) + TypeSafe Jev**: Memoria jerárquica (Episodios, Grafo Social y Dossier) enrutada en sub-50ms.\n"
-                f"{DaletAtoms.GLYPH_SUB} **IA Proactiva, Reply Nativo & Seguridad**: Modo observadora autónoma en `/proactive`, reacciones con emojis, reply visual (`╭─`) y blacklist SHA-256 a `0ms`."
-            )
+            m_title, m_desc = cls._MILESTONES_ES["v4"]
+            milestone_title = f"{DaletAtoms.GLYPH_POINTER} {m_title}"
+            milestone_desc = m_desc
             commits_header = f"{DaletAtoms.GLYPH_POINTER} Últimos Cambios (Git Commits)"
         else:
-            milestone_title = f"{DaletAtoms.GLYPH_POINTER} Milestone {cls.BASE_VERSION}: DeepSeek Web Search/Fetch, L0–L3 Pyramid & Proactive AI"
-            milestone_desc = (
-                f"{DaletAtoms.GLYPH_SUB} **DeepSeek Web Search & Fetch**: Autonomous live web search (`/v1/tools/search`) and URL reading (`/v1/tools/fetch`) without Gemini dependency.\n"
-                f"{DaletAtoms.GLYPH_SUB} **L0–L3 Semantic Pyramid + TypeSafe Jev**: Hierarchical memory (Episodes, Social Graph & Dossier) gated in sub-50ms.\n"
-                f"{DaletAtoms.GLYPH_SUB} **Proactive AI, Native Reply & Security**: Autonomous observer framing in `/proactive`, emoji reactions, visual reply (`╭─`), and 0ms SHA-256 image blacklist."
-            )
+            m_title, m_desc = cls._MILESTONES_EN["v4"]
+            milestone_title = f"{DaletAtoms.GLYPH_POINTER} {m_title}"
+            milestone_desc = m_desc
             commits_header = f"{DaletAtoms.GLYPH_POINTER} Recent Commits & Patches"
 
         embed.add_field(name=milestone_title, value=milestone_desc, inline=False)

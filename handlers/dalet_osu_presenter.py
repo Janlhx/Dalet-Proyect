@@ -216,7 +216,8 @@ class OsuPresenter:
             if mode_filter == "pass" and not passed:
                 continue
             s_copy = dict(s)
-            s_copy["_recent_index"] = idx + 1
+            if "_recent_index" not in s_copy:
+                s_copy["_recent_index"] = idx + 1
             filtered.append(s_copy)
 
         if mode_filter == "best":
@@ -333,10 +334,25 @@ class OsuPresenter:
         country_code = user_data.get("country", {}).get("code", "").upper() if user_data else ""
         flag_md = f"`[{country_code}]` " if country_code else ""
 
-        # Indicador de estado si falló el mapa
+        # Indicador de estado y porcentaje de progreso si falló el mapa
         passed = play.get("passed", True)
-        fail_txt = t("osu.failed", lang)
-        rank_badge = f"` {rank} `" if passed else f"` {rank} ({fail_txt}) `"
+        is_failed = (passed is False) or (rank == "F")
+        if is_failed:
+            rank = "F"
+            total_objects = (
+                (beatmap.get("count_circles", 0) or 0)
+                + (beatmap.get("count_sliders", 0) or 0)
+                + (beatmap.get("count_spinners", 0) or 0)
+            )
+            total_hits = (c300 or 0) + (c100 or 0) + (c50 or 0) + (miss or 0)
+            if total_objects > 0:
+                completion_pct = min(100.0, (total_hits / total_objects) * 100.0)
+                rank_badge = f"` {rank} ({completion_pct:.1f}%) `"
+            else:
+                fail_txt = t("osu.failed", lang)
+                rank_badge = f"` {rank} ({fail_txt}) `"
+        else:
+            rank_badge = f"` {rank} `"
 
         filter_clean = (filter_by or "last").lower().strip()
         if filter_clean == "best":
@@ -351,6 +367,15 @@ class OsuPresenter:
             clean_mod_tag = str(mods_filter).upper().replace("+", "").strip()
             author_text += f" · +{clean_mod_tag}"
 
+        recent_idx = play.get("_recent_index")
+        has_active_filter = (filter_clean != "last") or bool(mods_filter and str(mods_filter).strip())
+        try_segment = ""
+        if recent_idx and (int(recent_idx) > 1 or has_active_filter):
+            try_word = "Intento" if (lang or "en").lower().startswith("es") else "Try"
+            try_label = f"{try_word} #{int(recent_idx)}"
+            author_text += f" · {try_label}"
+            try_segment = f" │ `{try_label}`"
+
         embed = discord.Embed(
             color=DaletAtoms.get_grade_color(rank)
         )
@@ -363,7 +388,7 @@ class OsuPresenter:
         # Encabezado del mapa
         embed.description = (
             f"{flag_md}**[{artist} - {title} [{version}]]({map_url})**\n"
-            f"**{mods}** │ ` {stars:.2f}★ ` │ {rank_badge} │ {rel_time}"
+            f"**{mods}** │ ` {stars:.2f}★ ` │ {rank_badge}{try_segment} │ {rel_time}"
         )
 
         # Sección 1: Rendimiento

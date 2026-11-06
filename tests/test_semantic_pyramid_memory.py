@@ -223,6 +223,67 @@ def test_osu_top_and_recent_filters():
 
     session_best = OsuPresenter.filter_recent_scores(recent_scores, filter_by="best")
     assert session_best[0]["pp"] == 410.0
+    assert session_best[0]["_recent_index"] == 3
+
+
+def test_build_recent_card_fail_progress_and_attempt_indicator():
+    """Verifica el cálculo de % de progreso en fallos (F) y el indicador de intento (#N) en build_recent_card."""
+    from handlers.dalet_osu_presenter import OsuPresenter
+
+    failed_play = {
+        "rank": "F",
+        "passed": False,
+        "accuracy": 0.912,
+        "pp": None,
+        "max_combo": 210,
+        "mods": ["HD", "DT"],
+        "_recent_index": 3,
+        "created_at": "2026-11-05T12:00:00Z",
+        "statistics": {
+            "count_300": 120,
+            "count_100": 8,
+            "count_50": 0,
+            "count_miss": 1,
+        },
+        "beatmap": {
+            "id": 123456,
+            "version": "Insane",
+            "difficulty_rating": 6.5,
+            "max_combo": 400,
+            "count_circles": 140,
+            "count_sliders": 60,
+            "count_spinners": 1,
+        },
+        "beatmapset": {
+            "title": "Blue Zenith",
+            "artist": "xi",
+        },
+    }
+
+    embed_en = OsuPresenter.build_recent_card(
+        username="Cookiezi",
+        mode="osu",
+        play=failed_play,
+        lang="en",
+        filter_by="last",
+    )
+    # 129 hits / 201 total objects = 64.179% -> 64.2%
+    assert "F (64.2%)" in embed_en.description
+    assert "Try #3" in embed_en.description
+    assert "Try #3" in embed_en.author.name
+
+    embed_es = OsuPresenter.build_recent_card(
+        username="Cookiezi",
+        mode="osu",
+        play=failed_play,
+        lang="es",
+        filter_by="best",
+        mods_filter="HDDT",
+    )
+    assert "F (64.2%)" in embed_es.description
+    assert "Intento #3" in embed_es.description
+    assert "Intento #3" in embed_es.author.name
+
 
 
 @pytest.mark.asyncio
