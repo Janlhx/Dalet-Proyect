@@ -194,6 +194,29 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     # osu!
     # ------------------------------------------------------------------
 
+    async def _sync_slash_snapshot(self, discord_id: int, queried_username: str, user_data: dict, mode: str = "osu"):
+        """Sincroniza silenciosamente las estadísticas del perfil del usuario para mantener el ranking y progreso al día."""
+        try:
+            linked = await self.bot.osu_repo.get_linked_username(discord_id)
+            if not linked or linked.lower() != queried_username.lower():
+                return
+
+            stats = user_data.get("statistics", {}) or {}
+            pp = float(stats.get("pp", 0.0) or 0.0)
+            gr = stats.get("global_rank")
+            cr = stats.get("country_rank")
+            acc = float(stats.get("hit_accuracy", 0.0) or 0.0)
+            mode_clean = (mode or user_data.get("playmode", "osu") or "osu").lower().strip()
+
+            await self.bot.osu_repo.update_cached_stats(
+                discord_id, user_data["username"], pp, gr, cr, acc, mode=mode_clean
+            )
+            await self.bot.analytics_repo.record_osu_snapshot(
+                discord_id, pp, gr, cr, acc, mode_clean
+            )
+        except Exception as e:
+            logger.debug(f"[SlashSnapshot] Error no crítico: {e}")
+
     @app_commands.command(name="op", description="Displays full osu! profile, rank, and stats for a player.")
     @app_commands.describe(
         username="osu! username (or leave empty for your linked account)",
@@ -216,7 +239,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 uname = await self.bot.osu_repo.get_linked_username(interaction.user.id)
             if not uname:
                 return await interaction.followup.send(
-                    "❌ no tienes cuenta vinculada. usa `/link` primero.",
+                    f"{DaletAtoms.GLYPH_CROSS} no tienes cuenta vinculada. usa `/link` primero.",
                     ephemeral=True
                 )
             server_lang = "en"
@@ -225,9 +248,10 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             user = await self.bot.osu_service.get_user(uname, mode)
             embed = OsuPresenter.build_profile_card(user, mode, lang=server_lang)
             await interaction.followup.send(embed=embed)
+            await self._sync_slash_snapshot(interaction.user.id, uname, user, mode=mode)
         except Exception as e:
             logger.error(f"Error en /op: {e}")
-            await interaction.followup.send("⚠️ error obteniendo el perfil.", ephemeral=True)
+            await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} error obteniendo el perfil.", ephemeral=True)
 
     @app_commands.command(name="link", description="Links your Discord account to your osu! profile.")
     @app_commands.describe(username="Your osu! username")
@@ -237,25 +261,153 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             user_data = await self.bot.osu_service.get_user(username)
             if not user_data or "statistics" not in user_data:
                 return await interaction.followup.send(
-                    f"❌ no encontré a '{username}' en osu!.", ephemeral=True
+                    f"{DaletAtoms.GLYPH_CROSS} no encontré a '{username}' en osu!.", ephemeral=True
                 )
-            stats = user_data.get("statistics", {})
+            stats = user_data.get("statistics", {}) or {}
+            pp = float(stats.get("pp", 0.0) or 0.0)
+            gr = stats.get("global_rank")
+            cr = stats.get("country_rank")
+            acc = float(stats.get("hit_accuracy", 0.0) or 0.0)
+            mode = (user_data.get("playmode") or "osu").lower().strip()
+
             await self.bot.osu_repo.link_account(
                 interaction.user.id,
                 user_data["username"],
                 user_data["id"],
-                user_data.get("playmode", "osu"),
-                stats.get("pp", 0.0),
-                stats.get("global_rank"),
-                stats.get("country_rank"),
-                stats.get("hit_accuracy", 0.0),
+                mode,
+                pp,
+                gr,
+                cr,
+                acc,
             )
+
+            try:
+                await self.bot.analytics_repo.record_osu_snapshot(
+                    interaction.user.id,
+                    pp,
+                    gr,
+                    cr,
+                    acc,
+                    mode,
+                )
+            except Exception:
+                pass
+
             await interaction.followup.send(
-                f"{DaletAtoms.GLYPH_VERDICT} vinculado con **{user_data['username']}**.", ephemeral=True
+                f"{DaletAtoms.GLYPH_CHECK} vinculado con éxito a **{user_data['username']}**.", ephemeral=True
             )
         except Exception as e:
             logger.error(f"Error en /link: {e}")
-            await interaction.followup.send(f"{DaletAtoms.GLYPH_POINTER} error al vincular.", ephemeral=True)
+            await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} error al vincular.", ephemeral=True)
+
+    @app_commands.command(name="unlink", description="Unlinks your osu! account from Dalet.")
+    async def slash_unlink(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        try:
+            await self.bot.osu_repo.unlink_account(interaction.user.id)
+            await interaction.followup.send(
+                f"{DaletAtoms.GLYPH_CHECK} vinculación con osu! eliminada.", ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Error en /unlink: {e}")
+            await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} error al desvincular.", ephemeral=True)
+
+    @app_commands.command(name="progress", description="Displays your historical PP progress chart over time.")
+    @app_commands.describe(user="Server member to view progress for (default: yourself)")
+    async def slash_progress(self, interaction: discord.Interaction, user: discord.Member = None):
+        await interaction.response.defer()
+        target_member = user or interaction.user
+        server_lang = "en"
+        if interaction.guild:
+            try:
+                server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
+            except Exception:
+                server_lang = "en"
+
+        try:
+            history = await self.bot.analytics_repo.get_osu_progress(target_member.id, mode="osu", limit=30)
+            if not history or len(history) < 2:
+                return await interaction.followup.send(
+                    f"{DaletAtoms.GLYPH_POINTER} {t('osu.progress_need_snapshots', server_lang)}"
+                )
+
+            loop = asyncio.get_running_loop()
+            chart_file = await loop.run_in_executor(
+                None, OsuPresenter.generate_progress_chart, target_member.display_name, history, server_lang
+            )
+
+            username = await self.bot.osu_repo.get_linked_username(target_member.id)
+            display_name = username or target_member.display_name
+            embed = discord.Embed(
+                title=f"✦ {t('osu.progress_title', server_lang, username=display_name, mode='Standard')}",
+                color=DaletAtoms.COLOR_PRIMARY
+            )
+
+            first_pp = float(history[-1]["pp"] or 0.0)
+            last_pp  = float(history[0]["pp"] or 0.0)
+            delta    = last_pp - first_pp
+            delta_str = f"+{delta:.1f}pp" if delta >= 0 else f"{delta:.1f}pp"
+
+            embed.add_field(
+                name=f"{DaletAtoms.GLYPH_POINTER} {t('osu.progress_summary', server_lang)}",
+                value=(
+                    f"{DaletAtoms.GLYPH_POINTER} **{t('osu.progress_current_pp', server_lang)}**: `{last_pp:,.1f}pp`\n"
+                    f"{DaletAtoms.GLYPH_POINTER} **{t('osu.progress_change', server_lang)}**: `{delta_str}`\n"
+                    f"{DaletAtoms.GLYPH_POINTER} **{t('osu.progress_snapshots', server_lang)}**: `{len(history)}`"
+                ),
+                inline=False
+            )
+
+            if chart_file:
+                embed.set_image(url="attachment://progress.png")
+                await interaction.followup.send(embed=embed, file=chart_file)
+            else:
+                await interaction.followup.send(embed=embed)
+        except Exception as e:
+            logger.error(f"Error en /progress: {e}")
+            await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} error generando el gráfico de progreso.", ephemeral=True)
+
+    @app_commands.command(name="firsts", description="Displays global #1 scores for a player.")
+    @app_commands.describe(
+        username="osu! username (or leave empty for your linked account)",
+        mode="Game mode (default: osu)"
+    )
+    @app_commands.choices(mode=[
+        app_commands.Choice(name="osu!standard", value="osu"),
+        app_commands.Choice(name="osu!taiko",    value="taiko"),
+        app_commands.Choice(name="osu!catch",    value="fruits"),
+        app_commands.Choice(name="osu!mania",    value="mania"),
+    ])
+    async def slash_firsts(
+        self, interaction: discord.Interaction,
+        username: str = None, mode: str = "osu"
+    ):
+        await interaction.response.defer()
+        try:
+            uname = username
+            if not uname:
+                uname = await self.bot.osu_repo.get_linked_username(interaction.user.id)
+            if not uname:
+                return await interaction.followup.send(
+                    f"{DaletAtoms.GLYPH_CROSS} no tienes cuenta vinculada.", ephemeral=True
+                )
+            server_lang = "en"
+            if interaction.guild:
+                server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
+
+            user = await self.bot.osu_service.get_user(uname, mode)
+            firsts = await self.bot.osu_service.get_user_firsts(user["id"], mode, limit=10)
+            if not firsts:
+                return await interaction.followup.send(
+                    f"{DaletAtoms.GLYPH_POINTER} {t('osu.firsts_none', server_lang, username=uname, mode=_mode_title(mode))}"
+                )
+
+            await self.bot.osu_service.enrich_scores_with_attributes(firsts[:10], mode=mode)
+            embed = OsuPresenter.build_firsts_card(user.get("username", uname), firsts, user_data=user, mode=mode, lang=server_lang)
+            await interaction.followup.send(embed=embed)
+        except Exception as e:
+            logger.error(f"Error en /firsts: {e}")
+            await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} error obteniendo #1s globales.", ephemeral=True)
 
     @app_commands.command(name="recent", description="Displays your most recent osu! play with optional session-best, pass-only, or mod filters.")
     @app_commands.describe(
@@ -407,7 +559,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.command(name="skills", description="5-dimension osu! skill radar (Aim, Speed, Acc, Stamina, Reading) with Dalet's verdict.")
     @app_commands.describe(
         username="osu! username (or leave empty for your linked account)",
-        mode="Game mode (default: osu)"
+        mode="Game mode (default: osu)",
+        mods="Optional mods filter (e.g. DT, HDDT, HR, NM)"
     )
     @app_commands.choices(mode=[
         app_commands.Choice(name="osu!standard", value="osu"),
@@ -417,7 +570,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     ])
     async def slash_skills(
         self, interaction: discord.Interaction,
-        username: str = None, mode: str = "osu"
+        username: str = None, mode: str = "osu", mods: str = None
     ):
         await interaction.response.defer()
         try:
@@ -426,14 +579,14 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 uname = await self.bot.osu_repo.get_linked_username(interaction.user.id)
             if not uname:
                 return await interaction.followup.send(
-                    "❌ no tienes cuenta vinculada. usa `/link` primero o especifica un usuario.",
+                    f"{DaletAtoms.GLYPH_POINTER} no tienes cuenta vinculada. usa `/link` primero o especifica un usuario.",
                     ephemeral=True
                 )
 
             user = await self.bot.osu_service.get_user(uname, mode)
             best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=mode, limit=100)
             if not best:
-                return await interaction.followup.send(f"**{uname}** no tiene mejores jugadas registradas en {mode}.")
+                return await interaction.followup.send(f"{DaletAtoms.GLYPH_POINTER} **{uname}** no tiene mejores jugadas registradas en {mode}.")
 
             server_lang = "en"
             if interaction.guild_id:
@@ -442,7 +595,16 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 except Exception:
                     server_lang = "en"
 
-            skills_data = OsuAnalyzer.calculate_skills(best, mode=mode, lang=server_lang)
+            target_scores = best
+            if mods and mods.strip():
+                target_scores = OsuPresenter.filter_and_sort_top_scores(best, sort_by="pp", mods_filter=mods)
+                if not target_scores:
+                    return await interaction.followup.send(
+                        f"{DaletAtoms.GLYPH_POINTER} {t('osu.top_none_filtered', server_lang, username=uname, mode=mode)}"
+                    )
+
+            await self.bot.osu_service.enrich_scores_with_attributes(target_scores[:15], mode=mode)
+            skills_data = OsuAnalyzer.calculate_skills(target_scores, mode=mode, lang=server_lang)
 
             dominant = skills_data.get("dominant_skill", "Aim")
             weakest = skills_data.get("weakest_skill", "Stamina")
@@ -544,21 +706,33 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 fallback_default = f"Mucho número inflado en {dominant}, pero en {weakest} das pena ajena." if is_es else f"Over-inflated numbers in {dominant}, but your {weakest} is embarrassing."
                 roast_text = fallback_roasts.get(weakest, fallback_default)
 
-            embed = OsuPresenter.build_skills_card(user, skills_data, roast_text=roast_text, mode=mode, lang=server_lang)
+            embed = OsuPresenter.build_skills_card(
+                user, skills_data, roast_text=roast_text, mode=mode, lang=server_lang, mods_filter=mods
+            )
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /skills: {e}")
-            await interaction.followup.send("⚠️ error calculando las habilidades.", ephemeral=True)
+            await interaction.followup.send(f"{DaletAtoms.GLYPH_POINTER} error calculando las habilidades.", ephemeral=True)
 
     @app_commands.command(name="rank", description="Server osu! leaderboard for linked members.")
-    async def slash_rank(self, interaction: discord.Interaction):
+    @app_commands.describe(mode="Game mode for leaderboard (default: osu!)")
+    @app_commands.choices(mode=[
+        app_commands.Choice(name="osu!standard", value="osu"),
+        app_commands.Choice(name="osu!taiko",    value="taiko"),
+        app_commands.Choice(name="osu!catch",    value="fruits"),
+        app_commands.Choice(name="osu!mania",    value="mania"),
+    ])
+    async def slash_rank(self, interaction: discord.Interaction, mode: str = "osu"):
         await interaction.response.defer()
         server_lang = "en"
         if interaction.guild_id:
-            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+            try:
+                server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+            except Exception:
+                server_lang = "en"
         try:
             guild_member_ids = {str(m.id) for m in interaction.guild.members if not m.bot}
-            all_rows = await self.bot.osu_repo.get_ranking(limit=200)
+            all_rows = await self.bot.osu_repo.get_ranking(mode=mode, limit=500)
 
             def _get_val(r, *keys, default=""):
                 if isinstance(r, dict):
@@ -580,28 +754,36 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 uid = str(_get_val(row, "UserID", "userid", 0, default=""))
                 if uid and uid in guild_member_ids:
                     server_rows.append(row)
-                    if len(server_rows) >= 10:
+                    if len(server_rows) >= 15:
                         break
 
             if not server_rows:
-                return await interaction.followup.send(t("rank.empty", server_lang))
+                return await interaction.followup.send(
+                    f"{DaletAtoms.GLYPH_POINTER} {t('rank.empty', server_lang)}"
+                )
+
             medals = ["✦", "◈", "◇"]
             lines = []
             for i, row in enumerate(server_rows):
                 medal = medals[i] if i < 3 else f"`{i+1}.`"
-                name = _get_val(row, "UserName", "username", "osuusername", 1, default="??")
-                pp = float(_get_val(row, "PP", "pp", 2, default=0) or 0)
-                acc = float(_get_val(row, "Accuracy", "accuracy", 3, default=0) or 0)
-                lines.append(f"{medal} **{name}** — {pp:,.0f}pp • {acc:.2f}%")
+                osu_name = _get_val(row, "OsuUsername", "osuusername", "UserName", "username", 1, default="??")
+                pp   = float(_get_val(row, "PP", "pp", 5, default=0) or 0)
+                acc  = float(_get_val(row, "Accuracy", "accuracy", 8, default=0) or 0)
+                gr   = _get_val(row, "GlobalRank", "globalrank", 6, default=None)
+                gr_str = f" (#{int(gr):,})" if gr else ""
+                lines.append(f"{medal} **{osu_name}** — `{pp:,.0f}pp` • `{acc:.2f}%`{gr_str}")
+
             embed = discord.Embed(
-                title=f"{DaletAtoms.EMOJI_DALET} {t('rank.title', server_lang)}",
+                title=f"✦ {t('rank.title', server_lang)} — {_mode_title(mode)}",
                 description="\n".join(lines),
                 color=DaletAtoms.COLOR_PRIMARY
             )
+            footer_txt = f"{len(server_rows)} jugadores vinculados en este servidor" if server_lang.startswith("es") else f"{len(server_rows)} linked players in this server"
+            embed.set_footer(text=footer_txt)
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /rank: {e}")
-            await interaction.followup.send(t("rank.error", server_lang), ephemeral=True)
+            await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} {t('rank.error', server_lang)}", ephemeral=True)
 
     @app_commands.command(name="compare", description="Compares osu! profiles head-to-head with in-depth stats and skill breakdown.")
     @app_commands.describe(
@@ -640,7 +822,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             linked_name = await self.bot.osu_repo.get_linked_username(interaction.user.id)
             if not linked_name:
                 return await interaction.response.send_message(
-                    f"❌ {t('osu.compare_need_link', server_lang)}",
+                    f"{DaletAtoms.GLYPH_POINTER} {t('osu.compare_need_link', server_lang)}",
                     ephemeral=True
                 )
             u1_name = linked_name
@@ -654,23 +836,71 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             )
 
             b1, b2 = await asyncio.gather(
-                self.bot.osu_service.get_user_best_scores(u1["id"], mode=mode_str, limit=50),
-                self.bot.osu_service.get_user_best_scores(u2["id"], mode=mode_str, limit=50),
+                self.bot.osu_service.get_user_best_scores(u1["id"], mode=mode_str, limit=100),
+                self.bot.osu_service.get_user_best_scores(u2["id"], mode=mode_str, limit=100),
                 return_exceptions=True
             )
             b1_list = b1 if isinstance(b1, list) else []
             b2_list = b2 if isinstance(b2, list) else []
 
+            await asyncio.gather(
+                self.bot.osu_service.enrich_scores_with_attributes(b1_list[:12], mode=mode_str),
+                self.bot.osu_service.enrich_scores_with_attributes(b2_list[:12], mode=mode_str),
+                return_exceptions=True
+            )
+
             skills1 = OsuAnalyzer.calculate_skills(b1_list, mode=mode_str, lang=server_lang)
             skills2 = OsuAnalyzer.calculate_skills(b2_list, mode=mode_str, lang=server_lang)
+            common_maps = OsuAnalyzer.find_common_top_maps(b1_list, b2_list, limit=3)
+
+            verdict_text = None
+            try:
+                pp1 = float((u1.get("statistics") or {}).get("pp") or 0.0)
+                pp2 = float((u2.get("statistics") or {}).get("pp") or 0.0)
+                dom1 = skills1.get("dominant_skill", "Aim")
+                dom2 = skills2.get("dominant_skill", "Aim")
+                cw1 = common_maps.get("wins1", 0)
+                cw2 = common_maps.get("wins2", 0)
+                tot_c = common_maps.get("total_common", 0)
+                is_es = server_lang.startswith("es")
+                if is_es:
+                    cmp_prompt = (
+                        f"ROL: Eres Dalet, analista mordaz de osu! ({mode_str}).\n"
+                        f"TAREA: Escribe un veredicto de duelo (MÁX 2 ORACIONES CORTAS, 25-35 palabras) entre {u1.get('username', u1_name)} ({pp1:.0f}pp, fuerte en {dom1}) "
+                        f"y {u2.get('username', u2_name)} ({pp2:.0f}pp, fuerte en {dom2}). "
+                        f"Mapas en común en su Top: {tot_c} ({cw1} a {cw2}). Di quién domina y por qué con sarcasmo ingenioso sin ser cruel."
+                    )
+                    sys_ov = "Eres Dalet. Da un veredicto técnico y sarcástico de 1-2 oraciones sobre este duelo de osu!."
+                else:
+                    cmp_prompt = (
+                        f"ROLE: You are Dalet, sharp osu! analyst ({mode_str}).\n"
+                        f"TASK: Write a 1-2 sentence duel verdict (25-35 words) comparing {u1.get('username', u1_name)} ({pp1:.0f}pp, best at {dom1}) "
+                        f"vs {u2.get('username', u2_name)} ({pp2:.0f}pp, best at {dom2}). "
+                        f"Shared Top Maps: {tot_c} ({cw1}-{cw2}). Declare who takes the crown with witty dry humor."
+                    )
+                    sys_ov = "You are Dalet. Give a sharp 1-2 sentence technical verdict on this osu! duel."
+                verdict_text = await self.bot.nlp_service.generate_reply(
+                    cmp_prompt, "Compare Verdict", u1_name,
+                    max_tokens_override=280,
+                    system_prompt_override=sys_ov,
+                    language=server_lang,
+                )
+            except Exception:
+                verdict_text = None
 
             embed = OsuPresenter.build_compare_card(
-                u1, u2, skills1=skills1, skills2=skills2, mode=mode_str, lang=server_lang
+                u1, u2,
+                skills1=skills1,
+                skills2=skills2,
+                mode=mode_str,
+                lang=server_lang,
+                common_maps_data=common_maps,
+                verdict_text=verdict_text,
             )
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /compare: {e}")
-            await interaction.followup.send("⚠️ error comparando perfiles.", ephemeral=True)
+            await interaction.followup.send(f"{DaletAtoms.GLYPH_POINTER} error comparando perfiles.", ephemeral=True)
 
 
     # ------------------------------------------------------------------

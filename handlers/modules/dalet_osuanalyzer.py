@@ -128,6 +128,27 @@ class OsuAnalyzer:
             count_spinners = int(bm.get('count_spinners', 0) or 0)
             total_objects = count_circles + count_sliders + count_spinners
 
+            stats_obj = p.get('statistics', {}) or {}
+            hits_sum = (
+                int(stats_obj.get('count_300', 0) or 0)
+                + int(stats_obj.get('count_100', 0) or 0)
+                + int(stats_obj.get('count_50', 0) or 0)
+                + int(stats_obj.get('count_miss', 0) or 0)
+            )
+            if total_objects == 0 and hits_sum > 0:
+                total_objects = hits_sum
+                count_circles = int(total_objects * 0.68)
+                count_sliders = max(0, total_objects - count_circles)
+            elif total_objects == 0:
+                total_objects = max(250, int(p.get('max_combo', 0) or 250))
+                count_circles = int(total_objects * 0.68)
+                count_sliders = max(0, total_objects - count_circles)
+
+            if not bm.get('hit_length') and not bm.get('total_length'):
+                drain = max(65.0, float(total_objects) / 4.5)
+            elif not bm.get('hit_length') and bm.get('total_length'):
+                drain = float(bm.get('total_length', 120.0) or 120.0) * 0.88
+
             is_dt = any(m in ['DT', 'NC'] for m in mods)
             is_hr = 'HR' in mods
             is_ez = 'EZ' in mods
@@ -512,14 +533,21 @@ class OsuAnalyzer:
                 if secondary and secondary in skills_def and raw_weights.get(secondary, 0.0) >= 0.70:
                     raw_weights[secondary] = max(raw_weights.get(secondary, 0.9), 1.05)
 
-            # --- NORMALIZACIÓN ANCLADA AL STAR RATING ---
+            # --- NORMALIZACIÓN ANCLADA AL STAR RATING + PP REAL (OsuAnalyzer v2) ---
             max_raw = max(raw_weights.values()) if raw_weights else 1.0
-            max_raw = max(0.001, max_raw)
+            norm_ref = max(1.06, max_raw * 0.92)
+
+            if pp_val and pp_val > 0:
+                pp_equiv_sr = (float(pp_val) / 22.0) ** 0.52
+                pp_equiv_sr = min(eff_sr * 1.12, max(eff_sr * 0.82, pp_equiv_sr))
+                anchored_sr = (eff_sr * 0.72) + (pp_equiv_sr * 0.28)
+            else:
+                anchored_sr = eff_sr
 
             scores = {}
             for skill in skills_def:
-                rel_ratio = raw_weights.get(skill, 0.50) / max_raw
-                scores[skill] = round(eff_sr * rel_ratio * exec_factor, 2)
+                rel_ratio = min(1.08, raw_weights.get(skill, 0.50) / norm_ref)
+                scores[skill] = round(anchored_sr * rel_ratio * exec_factor, 2)
 
             # --- COMPUERTA DE ELEGIBILIDAD POR HABILIDAD (COMPETENCY ELIGIBILITY GATE) ---
             # Un mapa solo puede ser elegido para evaluar y representar una habilidad si físicamente
@@ -645,11 +673,23 @@ class OsuAnalyzer:
 
         skills_result = {}
         for skill in skills_def:
-            # Filtrar EXCLUSIVAMENTE jugadas cualificadas para esta habilidad
+            # Filtrar jugadas cualificadas para esta habilidad; si hay < 3, complementar suavemente con las mejores secundarias (factor 0.90)
             qualifying_plays = [p for p in scored_plays if skill in p.get('eligible_skills', set())]
+            if len(qualifying_plays) < 3 and scored_plays:
+                existing_ids = {id(p) for p in qualifying_plays}
+                fallback_candidates = sorted(
+                    [p for p in scored_plays if id(p) not in existing_ids],
+                    key=lambda x: x['scores'].get(skill, 0.0),
+                    reverse=True,
+                )
+                for fb in fallback_candidates[: (3 - len(qualifying_plays))]:
+                    fb_copy = dict(fb)
+                    fb_scores = dict(fb['scores'])
+                    fb_scores[skill] = round(fb_scores.get(skill, 0.0) * 0.90, 2)
+                    fb_copy['scores'] = fb_scores
+                    qualifying_plays.append(fb_copy)
 
             if not qualifying_plays:
-                # El jugador no tiene suficientes jugadas registradas en su top que pongan a prueba esta disciplina
                 tier_uncalibrated = t("osu.tier_unranked", lang)
                 skills_result[skill] = {
                     'points': 0.0,
@@ -664,11 +704,12 @@ class OsuAnalyzer:
             sorted_by_skill = sorted(qualifying_plays, key=lambda x: x['scores'].get(skill, 0.0), reverse=True)
             top_3 = sorted_by_skill[:3]
 
-            # Muestrear hasta las 10 mejores jugadas CUALIFICADAS con decaimiento (0.85^i)
-            # sin rellenar artificialmente con mapas descalificados
-            sample = sorted_by_skill[:min(10, len(sorted_by_skill))]
-            weights = [0.85 ** i for i in range(len(sample))]
+            # Muestrear hasta las 15 mejores jugadas con decaimiento suave (0.88^i) y factor de consistencia anti-fluke
+            sample = sorted_by_skill[:min(15, len(sorted_by_skill))]
+            weights = [0.88 ** i for i in range(len(sample))]
             weighted_stars = sum(sample[i]['scores'].get(skill, 0.0) * weights[i] for i in range(len(sample))) / max(0.001, sum(weights))
+            if len(sample) < 4:
+                weighted_stars *= (0.84 + 0.04 * len(sample))
 
             pts = OsuAnalyzer.score_to_points(weighted_stars)
             tier_glyph, tier_name = OsuAnalyzer.get_tier_info(pts, lang=lang)
@@ -723,6 +764,94 @@ class OsuAnalyzer:
         skills_result['overall_tier_glyph'] = ov_glyph
         skills_result['overall_tier_name'] = ov_tier
         return skills_result
+
+    @staticmethod
+    def find_common_top_maps(scores1: list, scores2: list, limit: int = 3) -> dict:
+        """
+        Cruza los Top Plays de dos jugadores por beatmap_id y devuelve estadísticas de duelos directos (Snipes/Rivalry).
+        """
+        if not scores1 or not scores2:
+            return {"total_common": 0, "wins1": 0, "wins2": 0, "ties": 0, "maps": []}
+
+        map1_by_id = {}
+        for idx, s in enumerate(scores1, 1):
+            bm = s.get("beatmap") or {}
+            bid = bm.get("id") or s.get("beatmap_id")
+            if bid and bid not in map1_by_id:
+                map1_by_id[int(bid)] = (idx, s)
+
+        common_duels = []
+        wins1 = 0
+        wins2 = 0
+        ties = 0
+
+        for idx2, s2 in enumerate(scores2, 1):
+            bm2 = s2.get("beatmap") or {}
+            bid = bm2.get("id") or s2.get("beatmap_id")
+            if not bid or int(bid) not in map1_by_id:
+                continue
+
+            idx1, s1 = map1_by_id[int(bid)]
+            bms = s1.get("beatmapset") or s2.get("beatmapset") or {}
+            bm = s1.get("beatmap") or bm2
+
+            pp1 = float(s1.get("pp") or 0.0)
+            pp2 = float(s2.get("pp") or 0.0)
+            acc1 = float(s1.get("accuracy") or 0.0) * 100.0
+            acc2 = float(s2.get("accuracy") or 0.0) * 100.0
+            if acc1 > 100.0:
+                acc1 /= 100.0
+            if acc2 > 100.0:
+                acc2 /= 100.0
+
+            mods1 = [m if isinstance(m, str) else m.get("acronym", "") for m in (s1.get("mods") or [])]
+            mods2 = [m if isinstance(m, str) else m.get("acronym", "") for m in (s2.get("mods") or [])]
+            mods1_str = "+" + "".join(m for m in mods1 if m and m != "CL") if any(m for m in mods1 if m != "CL") else "+NM"
+            mods2_str = "+" + "".join(m for m in mods2 if m and m != "CL") if any(m for m in mods2 if m != "CL") else "+NM"
+
+            if pp1 > pp2 + 0.05:
+                winner = 1
+                wins1 += 1
+            elif pp2 > pp1 + 0.05:
+                winner = 2
+                wins2 += 1
+            elif acc1 > acc2:
+                winner = 1
+                wins1 += 1
+            elif acc2 > acc1:
+                winner = 2
+                wins2 += 1
+            else:
+                winner = 0
+                ties += 1
+
+            common_duels.append({
+                "beatmap_id": int(bid),
+                "title": bms.get("title") or "Unknown",
+                "version": bm.get("version") or "Normal",
+                "top_idx1": idx1,
+                "top_idx2": idx2,
+                "pp1": round(pp1, 1),
+                "pp2": round(pp2, 1),
+                "acc1": round(acc1, 2),
+                "acc2": round(acc2, 2),
+                "mods1": mods1_str,
+                "mods2": mods2_str,
+                "rank1": str(s1.get("rank") or "?").upper(),
+                "rank2": str(s2.get("rank") or "?").upper(),
+                "winner": winner,
+                "avg_pp": (pp1 + pp2) / 2.0,
+            })
+
+        common_duels.sort(key=lambda d: d["avg_pp"], reverse=True)
+        return {
+            "total_common": len(common_duels),
+            "wins1": wins1,
+            "wins2": wins2,
+            "ties": ties,
+            "maps": common_duels[:limit],
+        }
+
 
 async def setup(bot):
     pass

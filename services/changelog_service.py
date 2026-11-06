@@ -15,10 +15,11 @@ class ChangelogService:
     BASE_VERSION = "v4.0"
     # Commit base del hito v4.0 (Pirámide Semántica L0-L3, DeepSeek Web Search/Fetch, Proactive AI & SHA-256 Guard)
     BASE_MILESTONE_COMMIT = "4815b25"
-    FALLBACK_PATCH = 4
+    FALLBACK_PATCH = 5
     REPO_URL = "https://github.com/Janlhx/Dalet-Proyect"
 
     _FALLBACK_COMMITS = [
+        ("HEAD", "feat(osu): overhaul legacy commands data accuracy, add /progress, /firsts, /unlink, and shared map duels", "✦"),
         ("42e78ed", "feat(persona,chat): add PersonaInsights self-calibration and 180s reaction cooldown", "✦"),
         ("f4c84ec", "feat(osu,memory): add /top & /recent filters (d.rb, d.rp) and selective memory with 14d L2 decay", "✦"),
         ("v4.0.0", "feat(v4): integrate DeepSeek native Web Search & Fetch, overhaul /proactive & emoji reactions, and redesign /help", "✦"),
@@ -29,19 +30,19 @@ class ChangelogService:
 
     _MILESTONES_ES = {
         "v4": (
-            "Hito v4.0: Pirámide L0–L3, Auto-Calibración PersonaInsights, Filtros osu! & DeepSeek Web",
-            "▫ **Memoria Híbrida (L0–L3) & PersonaInsights**: Gating estricto `L1`, decaimiento temporal `L2` (14d), auto-entrenamiento conversacional (`PersonaInsights`) enrutado por TypeSafe Jev en sub-50ms.\n"
-            "▫ **Filtros Avanzados de osu! (`d.rb` / `d.rp`)**: Soporte completo de filtros en `/top` (`pp`, `recent` / `d.rb`, `acc`, `+mods`) y `/recent` (`last` / `d.rs`, `best`, `pass` / `d.rp`, `+mods`).\n"
-            "▫ **DeepSeek Web Search/Fetch & IA Proactiva**: Búsqueda/lectura web autónoma (`/v1/tools`), reacciones nativas con cooldown de 180s y blacklist SHA-256 a `0ms`."
+            "Hito v4.0: Modernización Integral de osu!, Pirámide L0–L3, Auto-Calibración & DeepSeek Web",
+            "▫ **Exactitud Total en Comandos de osu! (Spec-003)**: Sincronización continua de PP/Accuracy en `/rank`, snapshots automáticos, soporte de `Peak Rank` (`rank_highest`), nuevos comandos `/progress`, `/firsts` y `/unlink` con 0 emojis.\n"
+            "▫ **Radar 5D & Duelo Head-to-Head (Spec-002)**: Algoritmo de habilidades v2 con anclaje a PP (`anchored_sr`), filtro de mods (`/skills +mods`), mapas en común en `/compare` y veredicto mordaz con IA.\n"
+            "▫ **Memoria Híbrida (L0–L3) & PersonaInsights**: Gating léxico estricto `L1`, decaimiento temporal `L2` (14d) y auto-entrenamiento conversacional (`PersonaInsights`) en segundo plano."
         )
     }
 
     _MILESTONES_EN = {
         "v4": (
-            "Milestone v4.0: L0–L3 Pyramid, PersonaInsights Self-Calibration, osu! Filters & DeepSeek Web",
-            "▫ **Hybrid Memory (L0–L3) & PersonaInsights**: Strict `L1` gating, 14-day `L2` social decay, and conversational self-training (`PersonaInsights`) gated by TypeSafe Jev in sub-50ms.\n"
-            "▫ **Advanced osu! Score Filters (`d.rb` / `d.rp`)**: Full filter parity across `/top` (`pp`, `recent` / `d.rb`, `acc`, `+mods`) and `/recent` (`last` / `d.rs`, `best`, `pass` / `d.rp`, `+mods`).\n"
-            "▫ **DeepSeek Web Search/Fetch & Proactive AI**: Autonomous web search/fetch (`/v1/tools`), native reactions with 180s cooldown, and 0ms SHA-256 image blacklist."
+            "Milestone v4.0: Complete osu! Overhaul, L0–L3 Pyramid, PersonaInsights & DeepSeek Web",
+            "▫ **Data Accuracy & osu! Suite Overhaul (Spec-003)**: Continuous PP/Accuracy sync in `/rank`, auto-snapshots, `Peak Rank` support, new `/progress`, `/firsts`, and `/unlink` commands with zero emojis.\n"
+            "▫ **5D Radar & Head-to-Head Duels (Spec-002)**: Skill algorithm v2 with PP anchoring (`anchored_sr`), mod filtering (`/skills +mods`), shared top map cross-matching in `/compare`, and AI duel verdicts.\n"
+            "▫ **Hybrid Memory (L0–L3) & PersonaInsights**: Strict `L1` lexical gating, 14-day `L2` social decay, and background conversational distillation (`PersonaInsights`)."
         )
     }
 

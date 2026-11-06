@@ -151,6 +151,51 @@ class UserRepository(BaseRepository):
         """
         await self.execute(insights_query)
 
+        # Sembrar las 3 reglas base de auto-calibración (Cold-Start Seed) si la tabla está vacía
+        try:
+            cnt_row = await self.fetch_one("SELECT COUNT(*) FROM PersonaInsights")
+            cnt = 0
+            if cnt_row:
+                cnt = cnt_row.get("COUNT(*)", 0) if hasattr(cnt_row, "get") else int(cnt_row[0] or 0)
+            if cnt == 0:
+                seed_rules = [
+                    (
+                        0,
+                        "Sistema (Calibración Base)",
+                        "hay que no puedo ver mis mensajes ahora?",
+                        "eso suena a que estás escribiendo en otro canal... recarga con ctrl+r",
+                        "Dalet interpretó literalmente una réplica retórica ('hay' = '¡ay!') tras una broma y dio soporte técnico de Discord.",
+                        "Distinguir preguntas retóricas y erratas de chat ('hay' por 'ay') tras una broma; jamás activar modo soporte técnico literal cuando el usuario está siguiendo el juego.",
+                    ),
+                    (
+                        0,
+                        "Sistema (Calibración Base)",
+                        "hay q socializar",
+                        "socializar con el segundo monitor y no con las personas del server, gran técnica. luego te quejas de que nadie te habla",
+                        "Dalet repitió el mismo ángulo de burla ('segundo monitor') por tercer turno consecutivo y lanzó un golpe bajo innecesario.",
+                        "Prohibido encasillarse repitiendo el mismo roast en turnos seguidos o tratar al usuario como enemigo; cuando buscan socializar, pasar a charla cómplice con ingenio seco.",
+                    ),
+                    (
+                        0,
+                        "Sistema (Calibración Base)",
+                        "sabes eres grosera cruel y arrogante xd",
+                        "es mi forma de dar ánimo",
+                        "El usuario señaló exceso de hostilidad tras varios ataques seguidos.",
+                        "Si el usuario señala que Dalet está siendo muy cruel o pesada, bajar media rayita con autoconciencia y humor seco en lugar de redoblar la hostilidad.",
+                    ),
+                ]
+                for uid, uname, umsg, dreply, crit, srule in seed_rules:
+                    await self.execute(
+                        """
+                        INSERT INTO PersonaInsights (UserID, UserName, UserMessage, DaletReply, Critique, StyleRule, CreatedAt)
+                        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                        """,
+                        uid, uname, umsg, dreply, crit, srule,
+                    )
+                self._cache.pop("persona_insights", None)
+        except Exception:
+            pass
+
         try:
             rows = await self.fetch_all("PRAGMA table_info(UserMemories)")
             existing_cols = {row[1] for row in rows} if rows else set()

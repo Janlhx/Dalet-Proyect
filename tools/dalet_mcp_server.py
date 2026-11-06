@@ -16,6 +16,12 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ROOT_DIR / ".env")
+except Exception:
+    pass
+
 
 def _query_local_or_turso(sql: str, params: tuple = ()) -> list[dict]:
     """Ejecuta una consulta de solo lectura usando DashboardService o SQLite local como fallback."""
@@ -85,7 +91,72 @@ TOOLS = [
 ]
 
 
+def _ensure_local_persona_insights_seed():
+    """Garantiza que la tabla PersonaInsights exista y tenga las 3 reglas base en SQLite local si está vacía."""
+    db_path = ROOT_DIR / "dalet_memory.db"
+    if not db_path.exists():
+        return
+    try:
+        conn = sqlite3.connect(str(db_path))
+        cur = conn.cursor()
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS PersonaInsights (
+                InsightID INTEGER PRIMARY KEY AUTOINCREMENT,
+                UserID INTEGER,
+                UserName TEXT,
+                UserMessage TEXT,
+                DaletReply TEXT,
+                Critique TEXT,
+                StyleRule TEXT NOT NULL,
+                CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        cur.execute("SELECT COUNT(*) FROM PersonaInsights")
+        cnt = cur.fetchone()[0] or 0
+        if cnt == 0:
+            seed_rules = [
+                (
+                    0,
+                    "Sistema (Calibración Base)",
+                    "hay que no puedo ver mis mensajes ahora?",
+                    "eso suena a que estás escribiendo en otro canal... recarga con ctrl+r",
+                    "Dalet interpretó literalmente una réplica retórica ('hay' = '¡ay!') tras una broma y dio soporte técnico de Discord.",
+                    "Distinguir preguntas retóricas y erratas de chat ('hay' por 'ay') tras una broma; jamás activar modo soporte técnico literal cuando el usuario está siguiendo el juego.",
+                ),
+                (
+                    0,
+                    "Sistema (Calibración Base)",
+                    "hay q socializar",
+                    "socializar con el segundo monitor y no con las personas del server, gran técnica. luego te quejas de que nadie te habla",
+                    "Dalet repitió el mismo ángulo de burla ('segundo monitor') por tercer turno consecutivo y lanzó un golpe bajo innecesario.",
+                    "Prohibido encasillarse repitiendo el mismo roast en turnos seguidos o tratar al usuario como enemigo; cuando buscan socializar, pasar a charla cómplice con ingenio seco.",
+                ),
+                (
+                    0,
+                    "Sistema (Calibración Base)",
+                    "sabes eres grosera cruel y arrogante xd",
+                    "es mi forma de dar ánimo",
+                    "El usuario señaló exceso de hostilidad tras varios ataques seguidos.",
+                    "Si el usuario señala que Dalet está siendo muy cruel o pesada, bajar media rayita con autoconciencia y humor seco en lugar de redoblar la hostilidad.",
+                ),
+            ]
+            cur.executemany(
+                """
+                INSERT INTO PersonaInsights (UserID, UserName, UserMessage, DaletReply, Critique, StyleRule, CreatedAt)
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                seed_rules,
+            )
+            conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+
 def _handle_tool_call(name: str, args: dict) -> dict:
+    _ensure_local_persona_insights_seed()
     if name == "dalet_db_health":
         try:
             from services.dashboard_service import DashboardService

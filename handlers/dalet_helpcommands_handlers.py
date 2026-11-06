@@ -29,9 +29,13 @@ SLASH_CATEGORIES_ES = {
             ("/skills",           "Radar de habilidades y veredicto"),
             ("/recent",           "Última jugada (`last` / `d.rs`, `best`, `pass` / `d.rp`, `+mods`)"),
             ("/top",              "Top 5 plays (`pp`, `recent` / `d.rb`, `acc`, `+mods`)"),
-            ("/compare",          "Comparativa entre 2 jugadores"),
-            ("/rank",             "Ranking del servidor"),
+            ("/skills",           "Radar de habilidades 5D y veredicto con IA (`+mods`)"),
+            ("/compare",          "Comparativa profunda y duelo de mapas en común"),
+            ("/progress",         "Gráfico histórico de progreso de PP (`d.prog`)"),
+            ("/firsts",           "Récords #1 globales del jugador (`d.op1s`)"),
+            ("/rank",             "Ranking osu! del servidor filtrable por modo"),
             ("/link",             "Vincular tu cuenta de osu!"),
+            ("/unlink",           "Desvincular tu cuenta de osu!"),
         ]
     },
     "IA & Chat": {
@@ -110,12 +114,15 @@ SLASH_CATEGORIES_EN = {
         "subtitle": "Stats and comparisons across all 4 game modes.",
         "commands": [
             ("/op",               "Profile card, rank, and PP"),
-            ("/skills",           "5D skill radar and Dalet's verdict"),
             ("/recent",           "Recent play (`last` / `d.rs`, `best`, `pass` / `d.rp`, `+mods`)"),
             ("/top",              "Top 5 scores (`pp`, `recent` / `d.rb`, `acc`, `+mods`)"),
-            ("/compare",          "Compare 2 players head-to-head"),
-            ("/rank",             "Server osu! leaderboard"),
+            ("/skills",           "5D skill radar and Dalet's verdict (`+mods`)"),
+            ("/compare",          "Head-to-head comparison and shared top map duels"),
+            ("/progress",         "Historical PP progress chart (`d.prog`)"),
+            ("/firsts",           "Global #1 scores for a player (`d.op1s`)"),
+            ("/rank",             "Server osu! leaderboard filterable by mode"),
             ("/link",             "Link your osu! account"),
+            ("/unlink",           "Unlink your osu! account"),
         ]
     },
     "AI & Chat": {

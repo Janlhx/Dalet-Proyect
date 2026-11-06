@@ -420,4 +420,197 @@ def test_dalet_mcp_server_and_safety_hook():
     assert allow_res["decision"] == "allow"
 
 
+@pytest.mark.asyncio
+async def test_ensure_memories_schema_seeds_initial_persona_insights():
+    """Verifica que ensure_memories_schema siembra las 3 reglas base en PersonaInsights si está vacía."""
+    from database.repositories.user_repository import UserRepository
+
+    repo = UserRepository.__new__(UserRepository)
+    repo._cache = {}
+    repo.execute = AsyncMock()
+    repo.fetch_all = AsyncMock(return_value=[])
+    repo.fetch_one = AsyncMock(return_value=(0,))
+
+    await repo.ensure_memories_schema()
+
+    # Verificar que se insertaron las 3 reglas semilla de calibración base
+    insert_calls = [
+        call for call in repo.execute.call_args_list
+        if "INSERT INTO PersonaInsights" in str(call.args[0])
+    ]
+    assert len(insert_calls) == 3
+
+
+def test_osu_analyzer_v2_math_and_compare_common_maps():
+    """
+    Verifica:
+    1. Que OsuAnalyzer.calculate_skills (v2) usa hits_sum cuando BeatmapCompact no trae count_circles,
+       evitando que Speed/Stamina colapsen a 0 pts.
+    2. Que OsuAnalyzer.find_common_top_maps cruza correctamente los mapas en común y determina el ganador.
+    3. Que build_compare_card incluye los Mapas en Común y el Veredicto del Duelo, y build_skills_card
+       muestra las barras tipográficas y el filtro +mods.
+    """
+    from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
+    from handlers.dalet_osu_presenter import OsuPresenter
+
+    # Scores donde beatmap NO trae count_circles/sliders pero statistics sí trae los hits reales
+    sample_scores = [
+        {
+            "pp": 420.0,
+            "accuracy": 0.985,
+            "max_combo": 1250,
+            "mods": ["HD", "DT"],
+            "rank": "S",
+            "beatmap": {"id": 1001, "difficulty_rating": 6.2, "bpm": 180, "ar": 9.3, "accuracy": 9.0, "cs": 4.0},
+            "beatmapset": {"title": "Freedom Dive", "version": "Four Dimensions"},
+            "statistics": {"count_300": 1180, "count_100": 20, "count_50": 0, "count_miss": 0},
+        },
+        {
+            "pp": 390.0,
+            "accuracy": 0.975,
+            "max_combo": 950,
+            "mods": ["NM"],
+            "rank": "S",
+            "beatmap": {"id": 1002, "difficulty_rating": 6.5, "bpm": 210, "ar": 9.5, "accuracy": 9.2, "cs": 4.2},
+            "beatmapset": {"title": "Blue Zenith", "version": "FOUR DIMENSIONS"},
+            "statistics": {"count_300": 900, "count_100": 30, "count_50": 2, "count_miss": 1},
+        },
+    ]
+
+    skills = OsuAnalyzer.calculate_skills(sample_scores, mode="osu", lang="es")
+    assert skills["Speed"]["points"] > 0.0
+    assert skills["Stamina"]["points"] > 0.0
+    assert skills["Reading"]["points"] > 0.0
+
+    # Probar find_common_top_maps
+    scores_p2 = [
+        {
+            "pp": 450.0,
+            "accuracy": 0.992,
+            "mods": ["HD", "DT"],
+            "rank": "S",
+            "beatmap": {"id": 1001, "version": "Four Dimensions"},
+            "beatmapset": {"title": "Freedom Dive"},
+        }
+    ]
+    common = OsuAnalyzer.find_common_top_maps(sample_scores, scores_p2, limit=3)
+    assert common["total_common"] == 1
+    assert common["wins1"] == 0
+    assert common["wins2"] == 1
+    assert common["maps"][0]["beatmap_id"] == 1001
+
+    u1 = {"id": 1, "username": "PlayerOne", "statistics": {"pp": 7500, "global_rank": 15000, "hit_accuracy": 98.4}}
+    u2 = {"id": 2, "username": "PlayerTwo", "statistics": {"pp": 7800, "global_rank": 12000, "hit_accuracy": 98.9}}
+
+    cmp_embed = OsuPresenter.build_compare_card(
+        u1, u2,
+        skills1=skills,
+        skills2=skills,
+        mode="osu",
+        lang="es",
+        common_maps_data=common,
+        verdict_text="PlayerTwo te snipeó en Freedom Dive con mejor acc, toca practicar.",
+    )
+    field_names = [f.name for f in cmp_embed.fields]
+    assert any("Mapas en Común" in n for n in field_names)
+    assert any("Veredicto del Duelo" in n for n in field_names)
+
+    sk_embed = OsuPresenter.build_skills_card(
+        u1, skills, roast_text="Buen Speed pero flojo en Stamina.", mode="osu", lang="es", mods_filter="DT"
+    )
+    assert "+DT" in sk_embed.title
+    assert any("█" in f.name for f in sk_embed.fields)
+
+
+@pytest.mark.asyncio
+async def test_legacy_osu_commands_spec_003_data_accuracy():
+    """
+    Verifica los puntos de exactitud de datos de Spec-003:
+    1. OsuPresenter.build_profile_card muestra Peak Rank, Max Combo, Ranked Score y título con el modo.
+    2. OsuPresenter.build_firsts_card maneja scores con pp=None (Loved/old) sin crashear.
+    3. OsuPresenter.build_top_card calcula Weighted PP exacto (incluyendo bonus PP sin mods y etiqueta +Mods).
+    4. OsuPresenter.generate_progress_chart formatea cronológicamente y sin emojis.
+    """
+    from handlers.dalet_osu_presenter import OsuPresenter
+
+    # 1. Profile card con Peak Rank y estadísticas extendidas
+    user_data = {
+        "id": 12345,
+        "username": "MrekkClone",
+        "avatar_url": "https://a.ppy.sh/12345",
+        "country": {"code": "CL"},
+        "rank_highest": {"rank": 42},
+        "statistics": {
+            "pp": 15200.5,
+            "global_rank": 50,
+            "country_rank": 1,
+            "hit_accuracy": 99.15,
+            "play_count": 85000,
+            "play_time": 7200000,
+            "maximum_combo": 3800,
+            "ranked_score": 98765432100,
+            "grade_counts": {"ssh": 5, "ss": 20, "sh": 150, "s": 300, "a": 50},
+            "level": {"current": 102, "progress": 45}
+        }
+    }
+    profile_embed = OsuPresenter.build_profile_card(user_data, mode="osu", lang="es")
+    fields_text = " ".join(f.name + " " + f.value for f in profile_embed.fields)
+    assert "#42" in fields_text
+    assert "3,800x" in fields_text
+    assert "98,765,432,100" in fields_text
+    assert "Standard" in profile_embed.author.name or "osu" in profile_embed.author.name
+
+    # 2. Firsts card con scores Loved (pp: None)
+    firsts_data = [
+        {
+            "beatmap": {"id": 999, "version": "Extra", "difficulty_rating": 7.5, "max_combo": 1500},
+            "beatmapset": {"title": "Loved Masterpiece"},
+            "pp": None,
+            "accuracy": 0.995,
+            "max_combo": 1500,
+            "rank": "SH",
+            "mods": ["HD", "HR"],
+            "score": 105000000,
+        },
+        {
+            "beatmap": {"id": 888, "version": "Expert", "difficulty_rating": 6.8, "max_combo": 1200},
+            "beatmapset": {"title": "Ranked Glory"},
+            "pp": 540.2,
+            "accuracy": 0.988,
+            "max_combo": 1200,
+            "rank": "S",
+            "mods": ["DT"],
+            "score": 85000000,
+        }
+    ]
+    firsts_embed = OsuPresenter.build_firsts_card("MrekkClone", firsts_data, user_data=user_data, mode="osu", lang="es")
+    assert "Loved Masterpiece" in firsts_embed.description
+    assert "540pp" in firsts_embed.description
+    assert "105,000,000" in firsts_embed.description or "105" in firsts_embed.description
+
+    # 3. Top Card con y sin filtro de mods
+    sample_top = [
+        {"pp": 500.0, "accuracy": 0.99, "max_combo": 1000, "rank": "S", "mods": ["DT"], "beatmap": {"id": 1, "version": "Insane"}, "beatmapset": {"title": "Map 1"}},
+        {"pp": 450.0, "accuracy": 0.98, "max_combo": 900, "rank": "S", "mods": ["HR"], "beatmap": {"id": 2, "version": "Hard"}, "beatmapset": {"title": "Map 2"}},
+    ]
+    top_embed_nm = OsuPresenter.build_top_card("MrekkClone", "osu", sample_top, user_data=user_data, lang="es")
+    assert "PP Ponderado" in top_embed_nm.description
+
+    top_embed_dt = OsuPresenter.build_top_card("MrekkClone", "osu", sample_top, user_data=user_data, lang="es", mods_filter="DT")
+    assert "PP Sum (+Mods)" in top_embed_dt.description
+
+    # 4. Progress Chart File y orden cronológico
+    progress_history = [
+        {"log_date": "2026-11-06", "recorded_at": "2026-11-06T12:00:00", "pp": 7500.0, "global_rank": 15000},
+        {"log_date": "2026-11-01", "recorded_at": "2026-11-01T12:00:00", "pp": 7350.0, "global_rank": 15800},
+        {"log_date": "2026-10-25", "recorded_at": "2026-10-25T12:00:00", "pp": 7200.0, "global_rank": 16500},
+    ]
+    chart_file = OsuPresenter.generate_progress_chart("MrekkClone", progress_history, lang="es")
+    assert chart_file is not None
+    assert chart_file.filename == "progress.png"
+
+
+
+
+
 

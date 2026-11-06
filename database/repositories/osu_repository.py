@@ -30,20 +30,41 @@ class OsuRepository(BaseRepository):
         query = "DELETE FROM OsuAccounts WHERE UserID = ?"
         return await self.execute(query, user_id)
 
-    async def get_ranking(self, limit: int = 10) -> list[dict]:
+    async def update_cached_stats(self, user_id: int, osu_username: str, pp: float, global_rank: int, country_rank: int, accuracy: float, mode: str = "osu"):
+        """Actualiza las estadísticas cacheadas de un usuario en OsuAccounts sin alterar su PlayMode preferido si no coincide."""
+        query = """
+            UPDATE OsuAccounts
+            SET OsuUsername = ?,
+                PP = ?,
+                GlobalRank = ?,
+                CountryRank = ?,
+                Accuracy = ?
+            WHERE UserID = ? AND (PlayMode = ? OR PlayMode IS NULL)
+        """
+        return await self.execute(query, osu_username, pp, global_rank, country_rank, accuracy, user_id, mode)
+
+    async def get_ranking(self, mode: str = "osu", limit: int = 500) -> list[dict]:
+        """Obtiene las cuentas vinculadas ordenadas por PP descendente para el ranking del servidor."""
+        mode_clean = (mode or "osu").lower().strip()
         query = """
             SELECT 
-                u.UserID,
+                oa.UserID,
                 u.UserName,
+                oa.OsuUsername,
+                oa.OsuUserID,
+                oa.PlayMode,
                 oa.PP,
+                oa.GlobalRank,
+                oa.CountryRank,
                 oa.Accuracy,
                 RANK() OVER (ORDER BY oa.PP DESC) AS CalculatedRank
             FROM OsuAccounts oa
-            JOIN Users u ON oa.UserID = u.UserID
-            WHERE oa.PP > 0
+            LEFT JOIN Users u ON oa.UserID = u.UserID
+            WHERE oa.PP > 0 AND (LOWER(oa.PlayMode) = ? OR (oa.PlayMode IS NULL AND ? = 'osu'))
+            ORDER BY oa.PP DESC
             LIMIT ?
         """
-        raw_rows = await self.fetch_all(query, limit)
+        raw_rows = await self.fetch_all(query, mode_clean, mode_clean, limit)
         results = []
         for r in raw_rows:
             if isinstance(r, dict):
@@ -61,8 +82,13 @@ class OsuRepository(BaseRepository):
                     results.append({
                         "UserID": r[0] if len(r) > 0 else None,
                         "UserName": r[1] if len(r) > 1 else None,
-                        "PP": r[2] if len(r) > 2 else 0,
-                        "Accuracy": r[3] if len(r) > 3 else 0,
+                        "OsuUsername": r[2] if len(r) > 2 else (r[1] if len(r) > 1 else None),
+                        "OsuUserID": r[3] if len(r) > 3 else None,
+                        "PlayMode": r[4] if len(r) > 4 else mode_clean,
+                        "PP": r[5] if len(r) > 5 else 0,
+                        "GlobalRank": r[6] if len(r) > 6 else None,
+                        "CountryRank": r[7] if len(r) > 7 else None,
+                        "Accuracy": r[8] if len(r) > 8 else 0,
                     })
         return results
 

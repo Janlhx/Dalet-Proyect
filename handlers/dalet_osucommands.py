@@ -85,31 +85,30 @@ class OsuHandler(commands.Cog, name="osu!"):
                 return None, None, None, None
         return username, mode, filter_by, mods_filter
 
-    async def _maybe_snapshot(self, discord_id: int, queried_username: str, user_data: dict):
-        """Actualiza estadísticas y snapshot diario si el usuario consultó su propia cuenta."""
+    async def _maybe_snapshot(self, discord_id: int, queried_username: str, user_data: dict, mode: str = "osu"):
+        """Actualiza estadísticas cacheadas y snapshot diario si el usuario consultó su propia cuenta."""
         try:
             linked = await self.repo.get_linked_username(discord_id)
             if not linked or linked.lower() != queried_username.lower():
                 return
 
-            stats = user_data.get("statistics", {})
-            pp           = stats.get("pp", 0.0)
+            stats = user_data.get("statistics", {}) or {}
+            pp           = float(stats.get("pp", 0.0) or 0.0)
             global_rank  = stats.get("global_rank")
             country_rank = stats.get("country_rank")
-            accuracy     = stats.get("hit_accuracy", 0.0)
-            play_mode    = user_data.get("playmode", "osu")
+            accuracy     = float(stats.get("hit_accuracy", 0.0) or 0.0)
+            queried_mode = (mode or user_data.get("playmode", "osu") or "osu").lower().strip()
 
-            # Actualizar cuenta vinculada
-            await self.repo.link_account(
-                discord_id, user_data["username"], user_data["id"],
-                play_mode, pp, global_rank, country_rank, accuracy
+            # Actualizar estadísticas cacheadas (no pisa PlayMode si consultó un modo secundario)
+            await self.repo.update_cached_stats(
+                discord_id, user_data["username"], pp, global_rank, country_rank, accuracy, mode=queried_mode
             )
 
-            # Snapshot con cooldown de 5 min
+            # Snapshot con cooldown de 3 min
             now = time.time()
-            if now - self._snap_cooldowns.get(discord_id, 0) >= 300:
+            if now - self._snap_cooldowns.get(discord_id, 0) >= 180:
                 await self.bot.analytics_repo.record_osu_snapshot(
-                    discord_id, pp, global_rank, country_rank, accuracy, play_mode
+                    discord_id, pp, global_rank, country_rank, accuracy, queried_mode
                 )
                 self._snap_cooldowns[discord_id] = now
 
@@ -128,48 +127,54 @@ class OsuHandler(commands.Cog, name="osu!"):
                 user_data = await self.osu.get_user(osu_username)
 
             if not user_data or "statistics" not in user_data:
-                return await ctx.send(f"❌ no encontré a '{osu_username}' en osu!.")
+                return await ctx.send(f"{DaletAtoms.GLYPH_CROSS} no encontré a '{osu_username}' en osu!.")
 
-            stats = user_data.get("statistics", {})
+            stats = user_data.get("statistics", {}) or {}
+            pp = float(stats.get("pp", 0.0) or 0.0)
+            gr = stats.get("global_rank")
+            cr = stats.get("country_rank")
+            acc = float(stats.get("hit_accuracy", 0.0) or 0.0)
+            mode = (user_data.get("playmode") or "osu").lower().strip()
+
             await self.repo.link_account(
                 ctx.author.id,
                 user_data["username"],
                 user_data["id"],
-                user_data.get("playmode", "osu"),
-                stats.get("pp", 0.0),
-                stats.get("global_rank"),
-                stats.get("country_rank"),
-                stats.get("hit_accuracy", 0.0),
+                mode,
+                pp,
+                gr,
+                cr,
+                acc,
             )
 
-            # Primer snapshot
+            # Primer snapshot inmediato en Analytics
             try:
                 await self.bot.analytics_repo.record_osu_snapshot(
                     ctx.author.id,
-                    stats.get("pp", 0.0),
-                    stats.get("global_rank"),
-                    stats.get("country_rank"),
-                    stats.get("hit_accuracy", 0.0),
-                    user_data.get("playmode", "osu"),
+                    pp,
+                    gr,
+                    cr,
+                    acc,
+                    mode,
                 )
             except Exception:
                 pass
 
-            await ctx.send(f"✅ vinculado con **{user_data['username']}**.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CHECK} cuenta vinculada con éxito a **{user_data['username']}**.")
 
         except Exception as e:
             logger.error(f"Error en link: {e}")
-            await ctx.send("❌ error al vincular la cuenta.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} error al vincular la cuenta.")
 
     @commands.command(name="unlink")
     async def unlink(self, ctx):
         """Desvincula tu cuenta de osu!."""
         try:
             await self.repo.unlink_account(ctx.author.id)
-            await ctx.send("✅ vinculación con osu! eliminada.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CHECK} vinculación con osu! eliminada.")
         except Exception as e:
             logger.error(f"Error en unlink: {e}")
-            await ctx.send("❌ error al desvincular.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} error al desvincular.")
 
     # ------------------------------------------------------------------
     # d.op — Perfil
@@ -192,11 +197,11 @@ class OsuHandler(commands.Cog, name="osu!"):
 
             embed = OsuPresenter.build_profile_card(user, mode, lang=server_lang)
             await ctx.send(embed=embed)
-            await self._maybe_snapshot(ctx.author.id, username, user)
+            await self._maybe_snapshot(ctx.author.id, username, user, mode=mode)
 
         except Exception as e:
             logger.error(f"Error en op para {username}: {e}")
-            await ctx.send(f"⚠️ no pude obtener el perfil de '{username}'.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} no pude obtener el perfil de '{username}'.")
 
     # ------------------------------------------------------------------
     # d.orecent / d.or / d.rs / d.rp — Jugadas recientes con filtros
@@ -352,11 +357,11 @@ class OsuHandler(commands.Cog, name="osu!"):
         elif len(players) == 1:
             linked_name = await self.repo.get_linked_username(ctx.author.id)
             if not linked_name:
-                return await ctx.send(f"❌ {t('osu.compare_need_link', server_lang)}")
+                return await ctx.send(f"{DaletAtoms.GLYPH_POINTER} {t('osu.compare_need_link', server_lang)}")
             u1_name = linked_name
             u2_name = players[0]
         else:
-            return await ctx.send("❌ Uso: `d.compare [usuario1] <usuario2> [-modo]`")
+            return await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Uso: `d.compare [usuario1] <usuario2> [-modo]`")
 
         try:
             async with ctx.typing():
@@ -366,23 +371,71 @@ class OsuHandler(commands.Cog, name="osu!"):
                 )
 
                 b1, b2 = await asyncio.gather(
-                    self.osu.get_user_best_scores(u1_data["id"], mode=mode, limit=50),
-                    self.osu.get_user_best_scores(u2_data["id"], mode=mode, limit=50),
+                    self.osu.get_user_best_scores(u1_data["id"], mode=mode, limit=100),
+                    self.osu.get_user_best_scores(u2_data["id"], mode=mode, limit=100),
                     return_exceptions=True
                 )
                 b1_list = b1 if isinstance(b1, list) else []
                 b2_list = b2 if isinstance(b2, list) else []
 
+                await asyncio.gather(
+                    self.osu.enrich_scores_with_attributes(b1_list[:12], mode=mode),
+                    self.osu.enrich_scores_with_attributes(b2_list[:12], mode=mode),
+                    return_exceptions=True
+                )
+
                 skills1 = OsuAnalyzer.calculate_skills(b1_list, mode=mode, lang=server_lang)
                 skills2 = OsuAnalyzer.calculate_skills(b2_list, mode=mode, lang=server_lang)
+                common_maps = OsuAnalyzer.find_common_top_maps(b1_list, b2_list, limit=3)
+
+                verdict_text = None
+                try:
+                    pp1 = float((u1_data.get("statistics") or {}).get("pp") or 0.0)
+                    pp2 = float((u2_data.get("statistics") or {}).get("pp") or 0.0)
+                    dom1 = skills1.get("dominant_skill", "Aim")
+                    dom2 = skills2.get("dominant_skill", "Aim")
+                    cw1 = common_maps.get("wins1", 0)
+                    cw2 = common_maps.get("wins2", 0)
+                    tot_c = common_maps.get("total_common", 0)
+                    is_es = server_lang.startswith("es")
+                    if is_es:
+                        cmp_prompt = (
+                            f"ROL: Eres Dalet, analista mordaz de osu! ({mode}).\n"
+                            f"TAREA: Escribe un veredicto de duelo (MÁX 2 ORACIONES CORTAS, 25-35 palabras) entre {u1_data.get('username', u1_name)} ({pp1:.0f}pp, fuerte en {dom1}) "
+                            f"y {u2_data.get('username', u2_name)} ({pp2:.0f}pp, fuerte en {dom2}). "
+                            f"Mapas en común en su Top: {tot_c} ({cw1} a {cw2}). Di quién domina y por qué con sarcasmo ingenioso sin ser cruel."
+                        )
+                        sys_ov = "Eres Dalet. Da un veredicto técnico y sarcástico de 1-2 oraciones sobre este duelo de osu!."
+                    else:
+                        cmp_prompt = (
+                            f"ROLE: You are Dalet, sharp osu! analyst ({mode}).\n"
+                            f"TASK: Write a 1-2 sentence duel verdict (25-35 words) comparing {u1_data.get('username', u1_name)} ({pp1:.0f}pp, best at {dom1}) "
+                            f"vs {u2_data.get('username', u2_name)} ({pp2:.0f}pp, best at {dom2}). "
+                            f"Shared Top Maps: {tot_c} ({cw1}-{cw2}). Declare who takes the crown with witty dry humor."
+                        )
+                        sys_ov = "You are Dalet. Give a sharp 1-2 sentence technical verdict on this osu! duel."
+                    verdict_text = await self.bot.nlp_service.generate_reply(
+                        cmp_prompt, "Compare Verdict", u1_name,
+                        max_tokens_override=280,
+                        system_prompt_override=sys_ov,
+                        language=server_lang,
+                    )
+                except Exception:
+                    verdict_text = None
 
                 embed = OsuPresenter.build_compare_card(
-                    u1_data, u2_data, skills1=skills1, skills2=skills2, mode=mode, lang=server_lang
+                    u1_data, u2_data,
+                    skills1=skills1,
+                    skills2=skills2,
+                    mode=mode,
+                    lang=server_lang,
+                    common_maps_data=common_maps,
+                    verdict_text=verdict_text,
                 )
             await ctx.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en compare: {e}")
-            await ctx.send("⚠️ error comparando perfiles.")
+            await ctx.send(f"{DaletAtoms.GLYPH_POINTER} error comparando perfiles.")
 
     # ------------------------------------------------------------------
     # d.rank — Ranking del servidor
@@ -397,10 +450,17 @@ class OsuHandler(commands.Cog, name="osu!"):
                 if part.startswith("-") and part[1:].lower() in VALID_MODES:
                     mode = part[1:].lower()
 
+        server_lang = "en"
+        if ctx.guild:
+            try:
+                server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
+            except Exception:
+                server_lang = "en"
+
         try:
             async with ctx.typing():
                 guild_member_ids = {str(m.id) for m in ctx.guild.members if not m.bot}
-                all_rows = await self.repo.get_ranking(limit=200)
+                all_rows = await self.repo.get_ranking(mode=mode, limit=500)
 
                 def _get_val(r, *keys, default=""):
                     if isinstance(r, dict):
@@ -427,12 +487,11 @@ class OsuHandler(commands.Cog, name="osu!"):
 
             if not server_rows:
                 return await ctx.send(
-                    "nadie en este servidor tiene cuenta vinculada todavía. "
-                    "usa `d.link <usuario>` para entrar al ranking."
+                    f"{DaletAtoms.GLYPH_POINTER} {t('rank.empty', server_lang)}"
                 )
 
             embed = discord.Embed(
-                title=f"{DaletAtoms.EMOJI_DALET} Ranking osu! del Servidor — {mode.upper()}",
+                title=f"✦ Ranking osu! del Servidor — {_mode_title(mode)}",
                 color=DaletAtoms.COLOR_PRIMARY
             )
 
@@ -440,18 +499,21 @@ class OsuHandler(commands.Cog, name="osu!"):
             medals = ["✦", "◈", "◇"]
             for i, row in enumerate(server_rows):
                 medal = medals[i] if i < 3 else f"`{i+1}.`"
-                name  = _get_val(row, "UserName", "username", "osuusername", 1, default="??")
-                pp    = float(_get_val(row, "PP", "pp", 2, default=0) or 0)
-                acc   = float(_get_val(row, "Accuracy", "accuracy", 3, default=0) or 0)
-                lines.append(f"{medal} **{name}** — {pp:,.0f}pp • {acc:.2f}%")
+                osu_name = _get_val(row, "OsuUsername", "osuusername", "UserName", "username", 1, default="??")
+                pp   = float(_get_val(row, "PP", "pp", 5, default=0) or 0)
+                acc  = float(_get_val(row, "Accuracy", "accuracy", 8, default=0) or 0)
+                gr   = _get_val(row, "GlobalRank", "globalrank", 6, default=None)
+                gr_str = f" (#{int(gr):,})" if gr else ""
+                lines.append(f"{medal} **{osu_name}** — `{pp:,.0f}pp` • `{acc:.2f}%`{gr_str}")
 
             embed.description = "\n".join(lines)
-            embed.set_footer(text=f"{len(server_rows)} jugadores vinculados en este servidor")
+            footer_txt = f"{len(server_rows)} jugadores vinculados en este servidor" if server_lang.startswith("es") else f"{len(server_rows)} linked players in this server"
+            embed.set_footer(text=footer_txt)
             await ctx.send(embed=embed)
 
         except Exception as e:
             logger.error(f"Error en rank: {e}")
-            await ctx.send("⚠️ error obteniendo el ranking.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} {t('rank.error', server_lang)}")
 
     # ------------------------------------------------------------------
     # d.progress — Gráfico de progreso de PP
@@ -462,41 +524,46 @@ class OsuHandler(commands.Cog, name="osu!"):
         """Muestra tu gráfico de progreso de PP a lo largo del tiempo."""
         member = member or ctx.author
 
+        server_lang = "en"
+        if ctx.guild:
+            try:
+                server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
+            except Exception:
+                server_lang = "en"
+
         try:
             async with ctx.typing():
-                history = await self.bot.analytics_repo.get_osu_progress(member.id, limit=30)
+                history = await self.bot.analytics_repo.get_osu_progress(member.id, mode="osu", limit=30)
 
             if not history or len(history) < 2:
                 return await ctx.send(
-                    "necesito al menos 2 snapshots para hacer el gráfico. "
-                    "usa `d.op` regularmente para que vaya registrando tu progreso."
+                    f"{DaletAtoms.GLYPH_POINTER} {t('osu.progress_need_snapshots', server_lang)}"
                 )
 
             loop = asyncio.get_running_loop()
             chart_file = await loop.run_in_executor(
-                None, OsuPresenter.generate_progress_chart, member.display_name, history
+                None, OsuPresenter.generate_progress_chart, member.display_name, history, server_lang
             )
 
             username = await self.repo.get_linked_username(member.id)
+            display_name = username or member.display_name
             embed = discord.Embed(
-                title=f"📈 Progreso de PP — {username or member.display_name}",
-                color=0x40C074
+                title=f"✦ {t('osu.progress_title', server_lang, username=display_name, mode='Standard')}",
+                color=DaletAtoms.COLOR_PRIMARY
             )
 
-            # Delta de PP
-            first_pp = history[-1]["pp"]
-            last_pp  = history[0]["pp"]
+            # Delta de PP cronológico: history[0] es el más reciente, history[-1] el más antiguo
+            first_pp = float(history[-1]["pp"] or 0.0)
+            last_pp  = float(history[0]["pp"] or 0.0)
             delta    = last_pp - first_pp
-            delta_str = f"+{delta:.0f}pp" if delta >= 0 else f"{delta:.0f}pp"
-            color_delta = 0x40C074 if delta >= 0 else 0xE94560
+            delta_str = f"+{delta:.1f}pp" if delta >= 0 else f"{delta:.1f}pp"
 
-            embed.color = color_delta
             embed.add_field(
-                name="Resumen",
+                name=f"{DaletAtoms.GLYPH_POINTER} {t('osu.progress_summary', server_lang)}",
                 value=(
-                    f"PP actual: **{last_pp:,.0f}pp**\n"
-                    f"Cambio total: **{delta_str}**\n"
-                    f"Snapshots: **{len(history)}**"
+                    f"{DaletAtoms.GLYPH_POINTER} **{t('osu.progress_current_pp', server_lang)}**: `{last_pp:,.1f}pp`\n"
+                    f"{DaletAtoms.GLYPH_POINTER} **{t('osu.progress_change', server_lang)}**: `{delta_str}`\n"
+                    f"{DaletAtoms.GLYPH_POINTER} **{t('osu.progress_snapshots', server_lang)}**: `{len(history)}`"
                 ),
                 inline=False
             )
@@ -509,10 +576,10 @@ class OsuHandler(commands.Cog, name="osu!"):
 
         except Exception as e:
             logger.error(f"Error en progress: {e}")
-            await ctx.send("⚠️ error generando el gráfico de progreso.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} error generando el gráfico de progreso.")
 
     # ------------------------------------------------------------------
-    # d.op1s — #1s del usuario (bonus)
+    # d.op1s — #1s del usuario
     # ------------------------------------------------------------------
 
     @commands.command(name="op1s", aliases=["firsts"])
@@ -522,37 +589,30 @@ class OsuHandler(commands.Cog, name="osu!"):
         if not username:
             return
 
+        server_lang = "en"
+        if ctx.guild:
+            try:
+                server_lang = await self.bot.admin_repo.get_server_language(ctx.guild.id)
+            except Exception:
+                server_lang = "en"
+
         try:
             async with ctx.typing():
                 user   = await self.osu.get_user(username, mode)
                 firsts = await self.osu.get_user_firsts(user["id"], mode, limit=10)
 
             if not firsts:
-                return await ctx.send(f"**{username}** no tiene #1 globales en {mode}.")
+                return await ctx.send(
+                    f"{DaletAtoms.GLYPH_POINTER} {t('osu.firsts_none', server_lang, username=username, mode=_mode_title(mode))}"
+                )
 
             await self.osu.enrich_scores_with_attributes(firsts[:10], mode=mode)
-
-            lines = []
-            for s in firsts[:10]:
-                bmap  = s.get("beatmap", {})
-                bset  = s.get("beatmapset", {})
-                pp    = s.get("pp", 0)
-                mods  = OsuPresenter.format_mods(s.get("mods", []))
-                title = bset.get("title", "??")[:35]
-                stars = s.get("official_sr") or s.get("beatmap_attributes", {}).get("star_rating") or bmap.get("difficulty_rating", 0)
-                lines.append(f"{DaletAtoms.EMOJI_DALET} **{title}** {stars:.1f}★ {mods} — **{pp:.0f}pp**")
-
-            embed = discord.Embed(
-                title=f"{DaletAtoms.EMOJI_DALET} #1s Globales — {username}",
-                description="\n".join(lines),
-                color=DaletAtoms.COLOR_PRIMARY
-            )
-            embed.set_thumbnail(url=user.get("avatar_url", ""))
+            embed = OsuPresenter.build_firsts_card(user.get("username", username), firsts, user_data=user, mode=mode, lang=server_lang)
             await ctx.send(embed=embed)
 
         except Exception as e:
             logger.error(f"Error en op1s: {e}")
-            await ctx.send(f"⚠️ error obteniendo los #1s de '{username}'.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} error obteniendo los #1s de '{username}'.")
 
     # ------------------------------------------------------------------
     # d.skills / d.skill — Desglose de habilidades osu! (Skill Breakdown)
@@ -561,7 +621,7 @@ class OsuHandler(commands.Cog, name="osu!"):
     @commands.command(name="skills", aliases=["skill", "osk", "oa", "oc", "osuAnalyze"])
     async def osu_skills(self, ctx, *, args: str = None):
         """Desglose de habilidades (Aim, Speed, Acc, Stamina, Reading) con veredicto de Dalet."""
-        username, mode = await self._parse_args(ctx, args)
+        username, mode, _, mods_filter = await self._parse_osu_filter_args(ctx, args, default_filter="pp")
         if not username:
             return
 
@@ -571,7 +631,7 @@ class OsuHandler(commands.Cog, name="osu!"):
                 best = await self.osu.get_user_best_scores(user["id"], mode, limit=100)
 
             if not best:
-                return await ctx.send(f"**{username}** no tiene mejores jugadas registradas en {mode}.")
+                return await ctx.send(f"{DaletAtoms.GLYPH_POINTER} **{username}** no tiene mejores jugadas registradas en {mode}.")
 
             server_lang = "en"
             if ctx.guild:
@@ -580,8 +640,18 @@ class OsuHandler(commands.Cog, name="osu!"):
                 except Exception:
                     server_lang = "en"
 
+            target_scores = best
+            if mods_filter:
+                target_scores = OsuPresenter.filter_and_sort_top_scores(best, sort_by="pp", mods_filter=mods_filter)
+                if not target_scores:
+                    return await ctx.send(
+                        f"{DaletAtoms.GLYPH_POINTER} {t('osu.top_none_filtered', server_lang, username=username, mode=mode)}"
+                    )
+
+            await self.osu.enrich_scores_with_attributes(target_scores[:15], mode=mode)
+
             # 1. Calcular habilidades ponderadas según el modo
-            skills_data = OsuAnalyzer.calculate_skills(best, mode=mode, lang=server_lang)
+            skills_data = OsuAnalyzer.calculate_skills(target_scores, mode=mode, lang=server_lang)
 
             # 2. Generar roast/veredicto ultra conciso con Dalet (micro-prompt)
             dominant = skills_data.get("dominant_skill", "Aim")
@@ -684,13 +754,15 @@ class OsuHandler(commands.Cog, name="osu!"):
                 fallback_default = f"Mucho número inflado en {dominant}, pero en {weakest} das pena ajena." if is_es else f"Over-inflated numbers in {dominant}, but your {weakest} is embarrassing."
                 roast_text = fallback_roasts.get(weakest, fallback_default)
 
-            embed = OsuPresenter.build_skills_card(user, skills_data, roast_text=roast_text, mode=mode, lang=server_lang)
+            embed = OsuPresenter.build_skills_card(
+                user, skills_data, roast_text=roast_text, mode=mode, lang=server_lang, mods_filter=mods_filter
+            )
             await ctx.send(embed=embed)
             await self._maybe_snapshot(ctx.author.id, username, user)
 
         except Exception as e:
             logger.error(f"Error en d.skills para {username}: {e}", exc_info=True)
-            await ctx.send("⚠️ error calculando el desglose de habilidades.")
+            await ctx.send(f"{DaletAtoms.GLYPH_POINTER} error calculando el desglose de habilidades.")
 
 
 async def setup(bot):

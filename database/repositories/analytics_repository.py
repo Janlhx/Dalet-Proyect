@@ -87,45 +87,52 @@ class AnalyticsRepository:
     ):
         """Guarda un snapshot del perfil osu! del jugador en SQLite."""
         today = datetime.date.today().isoformat()
+        mode_clean = (play_mode or "osu").lower().strip()
         
         query = """
-            INSERT INTO OsuHistory (UserID, LogDate, PP, GlobalRank, CountryRank, Accuracy, PlayMode)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO OsuHistory (UserID, LogDate, PP, GlobalRank, CountryRank, Accuracy, PlayMode, RecordedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(UserID, LogDate) DO UPDATE SET
                 PP = excluded.PP,
                 GlobalRank = excluded.GlobalRank,
                 CountryRank = excluded.CountryRank,
                 Accuracy = excluded.Accuracy,
-                PlayMode = excluded.PlayMode
+                PlayMode = excluded.PlayMode,
+                RecordedAt = CURRENT_TIMESTAMP
         """
-        await SQLiteManager.execute(query, user_id, today, pp, global_rank, country_rank, accuracy, play_mode)
+        await SQLiteManager.execute(query, user_id, today, pp, global_rank, country_rank, accuracy, mode_clean)
 
-    async def get_osu_progress(self, user_id: int, limit: int = 10):
-        """Obtiene el historial de PP de un jugador desde SQLite."""
-        # Nota: SQLite no tiene la función LAG de la misma forma exacta que Postgres 
-        # en versiones muy viejas, pero la mayoría soportan Window Functions ahora.
-        # Si no, simplemente traemos los datos y calculamos en Python.
+    async def get_osu_progress(self, user_id: int, mode: str = "osu", limit: int = 30):
+        """Obtiene el historial cronológico de PP de un jugador filtrado por modo de juego."""
+        mode_clean = (mode or "osu").lower().strip()
         query = """
-            SELECT RecordedAt, PP, GlobalRank
+            SELECT LogDate, RecordedAt, PP, GlobalRank, Accuracy, PlayMode
             FROM OsuHistory
-            WHERE UserID = ?
-            ORDER BY RecordedAt DESC
+            WHERE UserID = ? AND (LOWER(PlayMode) = ? OR (PlayMode IS NULL AND ? = 'osu'))
+            ORDER BY LogDate DESC, RecordedAt DESC
             LIMIT ?
         """
-        rows = await SQLiteManager.fetch_all(query, user_id, limit)
-        # Adaptar formato de Row a list/dict si es necesario
+        rows = await SQLiteManager.fetch_all(query, user_id, mode_clean, mode_clean, limit)
         results = []
         for i, row in enumerate(rows):
-            pp = row['PP']
-            # Calcular pp_change comparando con el siguiente (que es más viejo en el tiempo)
+            pp = row['PP'] if 'PP' in row.keys() else row[2]
+            glob_rank = row['GlobalRank'] if 'GlobalRank' in row.keys() else row[3]
+            log_date = row['LogDate'] if 'LogDate' in row.keys() else row[0]
+            rec_at = row['RecordedAt'] if 'RecordedAt' in row.keys() else row[1]
+            acc = row['Accuracy'] if 'Accuracy' in row.keys() else (row[4] if len(row) > 4 else 0.0)
+            
+            # Calcular pp_change comparando con el siguiente (que es el día anterior en el tiempo)
             pp_change = 0.0
             if i + 1 < len(rows):
-                pp_change = pp - rows[i+1]['PP']
+                prev_pp = rows[i+1]['PP'] if 'PP' in rows[i+1].keys() else rows[i+1][2]
+                pp_change = (pp or 0.0) - (prev_pp or 0.0)
             
             results.append({
-                'recorded_at': row['RecordedAt'],
-                'pp': pp,
-                'global_rank': row['GlobalRank'],
+                'log_date': log_date,
+                'recorded_at': rec_at or log_date,
+                'pp': pp or 0.0,
+                'global_rank': glob_rank,
+                'accuracy': acc or 0.0,
                 'pp_change': pp_change
             })
         return results

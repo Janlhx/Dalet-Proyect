@@ -44,7 +44,7 @@ Dalet combina inteligencia artificial conversacional avanzada con telemetría de
 Dalet cuenta con una capa de presentación completa basada en el Sistema de Diseño Atómico de Dalet ([docs/08_DESIGN_SYSTEM.md](docs/08_DESIGN_SYSTEM.md)), compatible con Bancho Classic y osu!(lazer):
 
 ### Desglose de Habilidades (`/skills` / `d.skills`)
-Evalúa los mejores 50 a 100 puntajes de un jugador mediante heurísticas estadísticas:
+Evalúa los mejores 50 a 100 puntajes de un jugador mediante heurísticas estadísticas con anclaje a PP y filtro de mods (`/skills +mods`):
 - **Aim**: Circle Size (CS), velocidad angular de saltos y dificultad geométrica.
 - **Speed**: Escala de BPM efectivo (1.5x con DoubleTime) y densidad de ráfagas rápidas.
 - **Accuracy**: Overall Difficulty (OD), distribución de impactos ($300$ vs $100$/$50$) y multiplicadores de precisión estricta.
@@ -54,9 +54,13 @@ Evalúa los mejores 50 a 100 puntajes de un jugador mediante heurísticas estad�
 
 ### Tarjetas Principales
 - **`/recent` (`d.rs` / `d.rp` / `d.recent` / `d.or`)**: Tarjeta densa de jugada reciente con filtros (`last`, `best` en 24h, `pass`, `+mods`), estrellas, impactos detallados `[300/100/50/Miss]`, PP, combo y estadísticas del mapa (`AR`, `OD`, `HP`, `CS`, `BPM`, `Tiempo`).
-- **`/top` (`d.top` / `d.rb`)**: Las 5 mejores jugadas registradas con filtros de ordenamiento (`pp`, `recent` / *Recent Best*, `acc`, `+mods`), banderas de país y formato pulido.
-- **`/op` (`d.op`)**: Perfil completo de osu!, rango global y nacional, barra de progreso y conteo de notas (`SS`, `S`, `A`).
-- **`/compare`**: Duelo cara a cara directo entre dos jugadores comparando diferenciales de PP y ventajas de estadísticas.
+- **`/top` (`d.top` / `d.rb`)**: Las 5 mejores jugadas registradas con filtros de ordenamiento (`pp`, `recent` / *Recent Best*, `acc`, `+mods`), banderas de país y PP Ponderado matemáticamente verificado.
+- **`/op` (`d.op`)**: Perfil completo de osu! con **Récord Máximo Histórico** (`Peak Rank #N`), rango global/nacional, **Combo Máximo**, **Ranked Score**, barra de progreso y conteo de récords (`SS`, `S`, `A`).
+- **`/compare`**: Duelo cara a cara entre dos jugadores con estadísticas comparadas, **duelo de mapas en común en el Top** y veredicto con IA.
+- **`/progress` (`d.prog`)**: Gráfico histórico de progreso de PP a lo largo del tiempo con diseño tipográfico y sin emojis.
+- **`/firsts` (`d.op1s`)**: Vitrina de récords #1 globales del jugador con enlaces a los mapas, precisión, mods y soporte para mapas Loved.
+- **`/rank` (`d.rank`)**: Ranking del servidor filtrable por modo con sincronización en tiempo real.
+- **`/link` & `/unlink`**: Vinculación y desvinculación de cuenta con snapshots iniciales automáticos.
 
 ---
 

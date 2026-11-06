@@ -44,7 +44,7 @@ Dalet combines conversational AI with rhythm game telemetry, proactive content s
 Dalet features a complete presentation layer built on the Dalet Atomic Design System ([docs/08_DESIGN_SYSTEM.md](docs/08_DESIGN_SYSTEM.md)), extracting both Bancho Classic and Lazer score formats:
 
 ### Skill Breakdown (`/skills` / `d.skills`)
-Evaluates a player's top 50/100 plays through mathematical heuristics:
+Evaluates a player's top 50/100 plays through mathematical heuristics with PP anchoring and mod filtering (`/skills +mods`):
 - **Aim**: Circle Size (CS), jump velocity, and spatial pattern difficulty.
 - **Speed**: Effective BPM scaling (1.5x with DoubleTime) and high-density burst analysis.
 - **Accuracy**: Overall Difficulty (OD), hit distribution ($300$s vs $100$s/$50$s), and strict timing mod multipliers.
@@ -54,9 +54,13 @@ Evaluates a player's top 50/100 plays through mathematical heuristics:
 
 ### Core Cards
 - **`/recent` (`d.rs` / `d.rp` / `d.recent` / `d.or`)**: High-density recent play card with filters (`last`, `best` in 24h, `pass` only, `+mods`), stars, detailed hits `[300/100/50/Miss]`, PP, combo, and technical map stats (`AR`, `OD`, `HP`, `CS`, `BPM`, `Length`).
-- **`/top` (`d.top` / `d.rb`)**: Top 5 ranked scores with sorting/filter modes (`pp`, `recent` / *Recent Best*, `acc`, `+mods`), country badges, and clean formatting.
-- **`/op` (`d.op`)**: Full user profile overview, global/country rank, progress bar, and grade counts (`SS`, `S`, `A`).
-- **`/compare`**: Direct head-to-head comparison between two players displaying PP differentials and stat leads.
+- **`/top` (`d.top` / `d.rb`)**: Top 5 ranked scores with sorting/filter modes (`pp`, `recent` / *Recent Best*, `acc`, `+mods`), country badges, and mathematically verified Weighted PP.
+- **`/op` (`d.op`)**: Full user profile overview with **Peak Rank** (`#N`), global/country rank, **Max Combo**, **Ranked Score**, progress bar, and grade counts (`SS`, `S`, `A`).
+- **`/compare`**: Direct head-to-head comparison between two players displaying PP differentials, stat leads, **shared top map duels**, and Dalet's AI duel verdict.
+- **`/progress` (`d.prog`)**: Historical PP progress chart tracking growth over time with clean typographic styling and zero emojis.
+- **`/firsts` (`d.op1s`)**: Global #1 scores showcase displaying ranks, accuracy, mods, and beatmap links (with graceful Loved map support).
+- **`/rank` (`d.rank`)**: Server leaderboard with live PP/accuracy sync and mode filtering.
+- **`/link` & `/unlink`**: Link or unlink your osu! account with automatic initial snapshots.
 
 ---
 
