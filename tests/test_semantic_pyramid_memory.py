@@ -369,3 +369,55 @@ async def test_persona_self_training_insight_distillation_and_injection():
     assert "No repetir el mismo chiste del segundo monitor" in ctx
 
 
+def test_dalet_mcp_server_and_safety_hook():
+    """Verifica el servidor MCP propio de Dalet (JSON-RPC) y el Hook de seguridad PreToolUse."""
+    import subprocess
+    import sys
+
+    # 1. Probar tools/list y tools/call (dalet_graph_stats) en tools/dalet_mcp_server.py
+    mcp_reqs = "\n".join([
+        json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize"}),
+        json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}),
+        json.dumps({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "dalet_graph_stats", "arguments": {}}}),
+    ]) + "\n"
+
+    proc = subprocess.run(
+        [sys.executable, "tools/dalet_mcp_server.py"],
+        input=mcp_reqs,
+        text=True,
+        capture_output=True,
+        timeout=10,
+    )
+    assert proc.returncode == 0
+    lines = [json.loads(line) for line in proc.stdout.strip().splitlines() if line.strip()]
+    assert len(lines) == 3
+    assert lines[0]["result"]["serverInfo"]["name"] == "dalet-brain-mcp"
+    tool_names = [t["name"] for t in lines[1]["result"]["tools"]]
+    assert "dalet_db_health" in tool_names
+    assert "dalet_inspect_persona_insights" in tool_names
+    assert "dalet_inspect_user_pyramid" in tool_names
+    assert "dalet_graph_stats" in tool_names
+
+    # 2. Probar que tools/dalet_hook_guard.py bloquea git push --force pero permite pytest
+    deny_proc = subprocess.run(
+        [sys.executable, "tools/dalet_hook_guard.py"],
+        input=json.dumps({"toolCall": {"name": "run_command", "args": {"CommandLine": "git push origin main --force"}}}),
+        text=True,
+        capture_output=True,
+        timeout=5,
+    )
+    deny_res = json.loads(deny_proc.stdout.strip())
+    assert deny_res["decision"] == "deny"
+
+    allow_proc = subprocess.run(
+        [sys.executable, "tools/dalet_hook_guard.py"],
+        input=json.dumps({"toolCall": {"name": "run_command", "args": {"CommandLine": "pytest -v"}}}),
+        text=True,
+        capture_output=True,
+        timeout=5,
+    )
+    allow_res = json.loads(allow_proc.stdout.strip())
+    assert allow_res["decision"] == "allow"
+
+
+
