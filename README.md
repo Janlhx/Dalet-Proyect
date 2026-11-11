@@ -160,16 +160,19 @@ Dalet includes a built-in real-time monitoring web dashboard hosted on the appli
 
 Dalet supports both native Discord Slash Commands (`/`) and the traditional `d.` prefix:
 
-### osu! Commands
+### osu! Commands (Bancho, Akatsuki & Gatari)
 | Command | Type | Description |
 | :--- | :--- | :--- |
-| `/skills [user] [mode]` | Slash / `d.skills` | 5-dimension skill breakdown (Aim, Speed, Acc, Stamina, Reading) with AI verdict |
-| `/recent [user] [mode] [filter] [mods]` | Slash / `d.rs`, `d.rp`, `d.or` | Displays latest play with filters (`last`, `best` in 24h, `pass` only, `+mods`) |
-| `/top [user] [mode] [filter] [mods]` | Slash / `d.top`, `d.rb` | Shows top 5 scores sorted by `pp`, `recent` (*Recent Best*), `acc`, or `+mods` |
-| `/op [user] [mode]` | Slash / `d.op` | Displays complete osu! profile, rank, accuracy, and grade history |
-| `/compare <user>` | Slash | Compares stats head-to-head against another player |
-| `/link <username>` | Slash / `d.link` | Links your Discord account to your osu! profile |
-| `d.unlink` | Prefix | Unlinks your osu! account |
+| `/skills [user] [mode] [mods] [server]` | Slash / `d.skills` | 5-dimension skill breakdown (`Aim`, `Speed`, `Acc`, `Stamina`, `Reading`) with level-aware AI verdict (`APEX`, `ALL-ROUNDER`, `SPECIALIST`) |
+| `/recent [user] [mode] [filter] [mods] [server]` | Slash / `d.rs`, `d.rsm`, `d.rp`, `d.or` | Displays latest play with filters (`last`, `best` in 24h, `pass` only, `+mods`, `-aka`, `-rx`, `-gatari`) |
+| `/top [user] [mode] [filter] [mods] [server]` | Slash / `d.top`, `d.topm`, `d.rb` | Shows top 5 scores sorted by `pp`, `recent` (*Recent Best*), `acc`, `+mods`, or server (`-aka`, `-rx`, `-gatari`) |
+| `/op [user] [mode] [server]` | Slash / `d.op`, `d.opm`, `d.opt`, `d.opc` | Displays complete osu! profile, rank, peak rank, accuracy, and grade history |
+| `/compare <user1> [user2] [mode] [server]` | Slash / `d.compare` | Compares stats head-to-head with shared top map duels and AI duel verdict |
+| `/progress [user]` | Slash / `d.prog` | Displays historical PP progress chart and delta |
+| `/firsts [user] [mode] [server]` | Slash / `d.op1s` | Displays global #1 scores for a player |
+| `/rank [mode]` | Slash / `d.rank` | Displays the server osu! leaderboard filterable by mode |
+| `/link <username> [server]` | Slash / `d.link` | Links your Discord account to your osu! profile per server (`-bancho`, `-aka`, `-rx`, `-gatari`) |
+| `/unlink [server]` | Slash / `d.unlink` | Unlinks your osu! account (specific server or all) |
 
 ### Conversational AI & Social
 | Command | Type | Description |

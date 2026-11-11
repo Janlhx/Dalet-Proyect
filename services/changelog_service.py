@@ -15,34 +15,34 @@ class ChangelogService:
     BASE_VERSION = "v4.0"
     # Commit base del hito v4.0 (Pirámide Semántica L0-L3, DeepSeek Web Search/Fetch, Proactive AI & SHA-256 Guard)
     BASE_MILESTONE_COMMIT = "4815b25"
-    FALLBACK_PATCH = 5
+    FALLBACK_PATCH = 6
     REPO_URL = "https://github.com/Janlhx/Dalet-Proyect"
 
     _FALLBACK_COMMITS = [
-        ("HEAD", "feat(osu): overhaul legacy commands data accuracy, add /progress, /firsts, /unlink, and shared map duels", "✦"),
+        ("HEAD", "feat(osu,ux): add Akatsuki/Gatari multi-server support, user language cascade, spacious cards, and adaptive verdicts", "✦"),
+        ("0458106", "feat(osu): overhaul legacy commands data accuracy, add /progress, /firsts, /unlink, and skills v2", "✦"),
         ("42e78ed", "feat(persona,chat): add PersonaInsights self-calibration and 180s reaction cooldown", "✦"),
         ("f4c84ec", "feat(osu,memory): add /top & /recent filters (d.rb, d.rp) and selective memory with 14d L2 decay", "✦"),
         ("v4.0.0", "feat(v4): integrate DeepSeek native Web Search & Fetch, overhaul /proactive & emoji reactions, and redesign /help", "✦"),
         ("4815b25", "feat(memory): implement L0-L3 Semantic Pyramid memory architecture and dashboard view", "✦"),
         ("a4dbb6a", "feat(resumen): overhaul /resumir with discord live history, dual tone styles, and structured tl;dr embeds", "✦"),
-        ("13e2ace", "fix(moderation): resolve single channel id parsing bug and calibrate duplicate flood thresholds", "▪"),
     ]
 
     _MILESTONES_ES = {
         "v4": (
-            "Hito v4.0: Modernización Integral de osu!, Pirámide L0–L3, Auto-Calibración & DeepSeek Web",
-            "▫ **Exactitud Total en Comandos de osu! (Spec-003)**: Sincronización continua de PP/Accuracy en `/rank`, snapshots automáticos, soporte de `Peak Rank` (`rank_highest`), nuevos comandos `/progress`, `/firsts` y `/unlink` con 0 emojis.\n"
-            "▫ **Radar 5D & Duelo Head-to-Head (Spec-002)**: Algoritmo de habilidades v2 con anclaje a PP (`anchored_sr`), filtro de mods (`/skills +mods`), mapas en común en `/compare` y veredicto mordaz con IA.\n"
-            "▫ **Memoria Híbrida (L0–L3) & PersonaInsights**: Gating léxico estricto `L1`, decaimiento temporal `L2` (14d) y auto-entrenamiento conversacional (`PersonaInsights`) en segundo plano."
+            "Hito v4.0: Multi-Servidor osu! (Bancho, Akatsuki & Gatari), Cascada de Idioma & Pirámide L0–L3",
+            "▫ **Soporte Multi-Servidor & Prefijos Bathbot/owo (Spec-004)**: Soporte completo para `Bancho`, `Akatsuki` (Vanilla/Relax/Autopilot) y `Gatari`, vinculación independiente por servidor (`/link`, `d.link -aka -rx -gatari`) y atajos rápidos (`d.opm`, `d.rsm`, `d.topm`).\n"
+            "▫ **Tarjetas Espaciadas, Veredictos Conscientes de Nivel & Cascada de Idioma**: Tarjetas con aire visual y enlaces clickables, arquetipos `APEX_TITAN` / `ALL_ROUNDER` / `SPECIALIST` / `RISING_GRINDER` en `/skills`, e idioma híbrido `Usuario > Servidor > Default` (`/language`, `d.lang`).\n"
+            "▫ **Exactitud Total en osu! & Pirámide L0–L3 (Spec-001..003)**: Radar 5D anclado a PP, duelos de mapas en común en `/compare`, `/progress`, `/firsts`, y memoria `L0–L3` con `PersonaInsights`."
         )
     }
 
     _MILESTONES_EN = {
         "v4": (
-            "Milestone v4.0: Complete osu! Overhaul, L0–L3 Pyramid, PersonaInsights & DeepSeek Web",
-            "▫ **Data Accuracy & osu! Suite Overhaul (Spec-003)**: Continuous PP/Accuracy sync in `/rank`, auto-snapshots, `Peak Rank` support, new `/progress`, `/firsts`, and `/unlink` commands with zero emojis.\n"
-            "▫ **5D Radar & Head-to-Head Duels (Spec-002)**: Skill algorithm v2 with PP anchoring (`anchored_sr`), mod filtering (`/skills +mods`), shared top map cross-matching in `/compare`, and AI duel verdicts.\n"
-            "▫ **Hybrid Memory (L0–L3) & PersonaInsights**: Strict `L1` lexical gating, 14-day `L2` social decay, and background conversational distillation (`PersonaInsights`)."
+            "Milestone v4.0: Multi-Server osu! (Bancho, Akatsuki & Gatari), Language Cascade & L0–L3 Pyramid",
+            "▫ **Multi-Server Support & Bathbot/owo Prefix Ergonomics (Spec-004)**: Full support for `Bancho`, `Akatsuki` (Vanilla/Relax/Autopilot), and `Gatari`, per-server account linking (`/link`, `d.link -aka -rx -gatari`), and mode shortcuts (`d.opm`, `d.rsm`, `d.topm`).\n"
+            "▫ **Spacious Cards, Level-Aware Verdicts & Language Cascade**: Spacious clickable cards, `APEX_TITAN` / `ALL_ROUNDER` / `SPECIALIST` / `RISING_GRINDER` archetypes in `/skills`, and `User > Server > Default` language cascade (`/language`, `d.lang`).\n"
+            "▫ **osu! Data Accuracy & L0–L3 Pyramid (Spec-001..003)**: PP-anchored 5D radar, shared top map duels in `/compare`, `/progress`, `/firsts`, and `L0–L3` memory with `PersonaInsights`."
         )
     }
 

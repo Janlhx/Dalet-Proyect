@@ -33,10 +33,12 @@ def _format_acc(acc: float) -> str:
     val = acc * 100 if acc <= 1.0 else acc
     return f"{val:.2f}%"
 
-def _get_country_flag(country_code: str) -> str:
+def _get_country_flag(country_code: str, plain: bool = False) -> str:
     """Formatea el código ISO de país (ej. 'CO', 'US') como etiqueta tipográfica sin emojis."""
     if not country_code or len(country_code) != 2:
         return ""
+    if plain:
+        return f"[{country_code.upper()}]"
     return f"`[{country_code.upper()}]`"
 
 def _mode_title(mode: str) -> str:
@@ -46,7 +48,31 @@ def _mode_title(mode: str) -> str:
         "fruits": "Catch the Beat",
         "mania": "Mania"
     }
-    return modes.get(mode.lower(), mode.capitalize())
+    return modes.get((mode or "osu").lower(), str(mode).capitalize())
+
+def _server_title(server: str) -> str:
+    mapping = {
+        "bancho": "Bancho Server",
+        "akatsuki": "Akatsuki (Vanilla)",
+        "akatsuki_rx": "Akatsuki (Relax)",
+        "akatsuki_ap": "Akatsuki (Autopilot)",
+        "gatari": "Gatari Server",
+    }
+    return mapping.get((server or "bancho").lower().strip(), "Bancho Server")
+
+def _profile_url(user_data: dict, mode: str = "osu", fallback_username: str = "") -> str:
+    if isinstance(user_data, dict):
+        if user_data.get("profile_url"):
+            return user_data["profile_url"]
+        srv = (user_data.get("_server") or "bancho").lower()
+        uid = user_data.get("id") or fallback_username
+        if srv.startswith("akatsuki"):
+            return f"https://akatsuki.gg/u/{uid}"
+        if srv == "gatari":
+            return f"https://osu.gatari.pw/u/{uid}"
+        if uid:
+            return f"https://osu.ppy.sh/users/{uid}/{mode}"
+    return "https://osu.ppy.sh"
 
 def _get_skill_glyph(skill_name: str) -> str:
     """Retorna el glifo tipográfico correspondiente a cada habilidad de osu! sin emojis."""
@@ -116,6 +142,8 @@ class OsuPresenter:
 
     format_mods = staticmethod(_format_mods)
     format_acc = staticmethod(_format_acc)
+    mode_title = staticmethod(_mode_title)
+    server_title = staticmethod(_server_title)
 
     @staticmethod
     def _extract_score(play: dict) -> str:
@@ -382,13 +410,14 @@ class OsuPresenter:
         embed.set_author(
             name=author_text,
             icon_url=user_data.get("avatar_url") if user_data else None,
-            url=f"https://osu.ppy.sh/users/{user_data.get('id', username)}/{mode}" if user_data else None
+            url=_profile_url(user_data, mode=mode, fallback_username=username) if user_data else None
         )
 
-        # Encabezado del mapa
+        # Encabezado del mapa con respiración visual
         embed.description = (
             f"{flag_md}**[{artist} - {title} [{version}]]({map_url})**\n"
-            f"**{mods}** │ ` {stars:.2f}★ ` │ {rank_badge}{try_segment} │ {rel_time}"
+            f"**{mods}** │ ` {stars:.2f}★ ` │ {rank_badge}{try_segment} │ {rel_time}\n"
+            f"───────────────────────────────────"
         )
 
         # Sección 1: Rendimiento
@@ -417,8 +446,8 @@ class OsuPresenter:
         embed.add_field(
             name=f"{DaletAtoms.GLYPH_AIM} {t('osu.map', lang)}",
             value=(
-                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.length', lang)}**: `{length_str}` │ **BPM**: `{bpm:.0f}`\n"
-                f"{DaletAtoms.GLYPH_POINTER} `AR {ar}` · `OD {od}` · `HP {hp}` · `CS {cs}`"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.length', lang)}**: `{length_str}`  │  **BPM**: `{bpm:.0f}`\n"
+                f"{DaletAtoms.GLYPH_POINTER} `AR {ar}`  ·  `OD {od}`  ·  `HP {hp}`  ·  `CS {cs}`"
             ),
             inline=False
         )
@@ -429,7 +458,8 @@ class OsuPresenter:
         if thumb_url:
             embed.set_thumbnail(url=thumb_url)
 
-        DaletMolecules.add_standard_footer(embed, context_text="Bancho Server")
+        srv_name = _server_title(play.get("_server") or (user_data.get("_server") if user_data else "bancho"))
+        DaletMolecules.add_standard_footer(embed, context_text=srv_name)
         return embed
 
     @staticmethod
@@ -486,7 +516,7 @@ class OsuPresenter:
 
         embed = discord.Embed(
             title=title_str,
-            url=f"https://osu.ppy.sh/users/{user_id}/{actual_mode}" if user_id else "https://osu.ppy.sh",
+            url=_profile_url(actual_user, mode=actual_mode, fallback_username=username),
             color=DaletAtoms.COLOR_PRIMARY
         )
         if avatar_url:
@@ -498,8 +528,8 @@ class OsuPresenter:
         lbl_acc = t("osu.accuracy", actual_lang)
 
         desc_lines = [
-            f"{DaletAtoms.GLYPH_POINTER} **{lbl_raw_pp}**: `{pp_real:,.0f}pp` │ **{lbl_weighted_pp}**: `{weighted_pp:,.0f}pp` │ **Rank**: `{rank_str}`",
-            f"{DaletAtoms.GLYPH_POINTER} **{lbl_analyzed}**: `{len(actual_scores)}` │ **{lbl_acc}**: `{acc_global:.2f}%`"
+            f"{DaletAtoms.GLYPH_POINTER} **{lbl_raw_pp}**: `{pp_real:,.0f}pp`  │  **{lbl_weighted_pp}**: `{weighted_pp:,.0f}pp`  │  **Rank**: `{rank_str}`",
+            f"{DaletAtoms.GLYPH_POINTER} **{lbl_analyzed}**: `{len(actual_scores)}`  │  **{lbl_acc}**: `{acc_global:.2f}%`\n───────────────────────────────────"
         ]
         embed.description = "\n".join(desc_lines)
 
@@ -534,7 +564,7 @@ class OsuPresenter:
             time_suffix = f" · {rel_time}" if rel_time else ""
 
             header = f"`#{orig_rank}` {badge} **[{title} [{ver}]]({map_link})**{time_suffix}"
-            stats_line = f"└─ **{pp:.1f}pp** │ `{acc}` │ `{combo_str}` │ `{miss_str}` │ **{mods_str}** │ `{sr:.2f}★`"
+            stats_line = f"└─ **{pp:.1f}pp**  │  `{acc}`  │  `{combo_str}`  │  `{miss_str}`  │  **{mods_str}**  │  `{sr:.2f}★`"
             play_lines.append(f"{header}\n{stats_line}")
 
         if play_lines:
@@ -553,11 +583,12 @@ class OsuPresenter:
 
             embed.add_field(
                 name=f"{DaletAtoms.GLYPH_STAR} {header_label}",
-                value="\n".join(play_lines),
+                value="\n\n".join(play_lines),
                 inline=False
             )
 
-        DaletMolecules.add_standard_footer(embed, context_text="Bancho Server")
+        srv_name = _server_title(actual_user.get("_server") if isinstance(actual_user, dict) else "bancho")
+        DaletMolecules.add_standard_footer(embed, context_text=srv_name)
         return embed
 
     @staticmethod
@@ -719,23 +750,27 @@ class OsuPresenter:
 
     @staticmethod
     def build_profile_card(user_data: dict, mode: str = "osu", lang: str = "en") -> discord.Embed:
-        """Construye la tarjeta de perfil osu! limpia, enriquecida y fiel a la API v2."""
+        """Construye la tarjeta de perfil osu! limpia, enriquecida y fiel a la API v2 y servidores privados."""
         username = user_data.get("username", "Desconocido")
         user_id = user_data.get("id", 0)
         stats = user_data.get("statistics", {}) or {}
         country = user_data.get("country", {}) or {}
+        country_code = country.get("code") or user_data.get("country_code", "")
+        srv_key = user_data.get("_server", "bancho")
+        srv_label = _server_title(srv_key)
 
         rank_val = stats.get("global_rank") or 9999999
         color = DaletAtoms.get_rank_color(rank_val)
-        flag = _get_country_flag(country.get("code", ""))
+        flag = _get_country_flag(country_code, plain=True)
+        flag_prefix = f"{flag} " if flag else ""
 
         embed = discord.Embed(
             color=color
         )
         embed.set_author(
-            name=f"{flag} " + t("osu.profile_author", lang, username=username, mode=_mode_title(mode)),
+            name=f"{flag_prefix}" + t("osu.profile_author", lang, username=username, mode=_mode_title(mode)),
             icon_url=user_data.get("avatar_url"),
-            url=f"https://osu.ppy.sh/users/{user_id}/{mode}"
+            url=_profile_url(user_data, mode=mode, fallback_username=username)
         )
 
         if user_data.get("avatar_url"):
@@ -758,7 +793,7 @@ class OsuPresenter:
         perf_lines = [
             f"{DaletAtoms.GLYPH_POINTER} **PP**: `{pp:,.2f}pp`",
             f"{DaletAtoms.GLYPH_POINTER} **{t('osu.global_rank', lang)}**: `{gr_str}`",
-            f"{DaletAtoms.GLYPH_POINTER} **{t('osu.country_rank', lang, code=country.get('code', '??'))}**: `{cr_str}`",
+            f"{DaletAtoms.GLYPH_POINTER} **{t('osu.country_rank', lang, code=country_code or '??')}**: `{cr_str}`",
             f"{DaletAtoms.GLYPH_POINTER} **{t('osu.peak_rank', lang)}**: `{peak_str}`",
         ]
         embed.add_field(
@@ -791,10 +826,8 @@ class OsuPresenter:
         ranked_score = stats.get("ranked_score", 0) or 0
 
         act_lines = [
-            f"{DaletAtoms.GLYPH_POINTER} **{t('osu.plays', lang)}**: `{play_count:,}`",
-            f"{DaletAtoms.GLYPH_POINTER} **{t('osu.play_time', lang)}**: `{play_time_hours:,}h`",
-            f"{DaletAtoms.GLYPH_POINTER} **{t('osu.max_combo', lang)}**: `{max_combo:,}x`",
-            f"{DaletAtoms.GLYPH_POINTER} **{t('osu.ranked_score', lang)}**: `{ranked_score:,}`",
+            f"{DaletAtoms.GLYPH_POINTER} **{t('osu.plays', lang)}**: `{play_count:,}` │ **{t('osu.play_time', lang)}**: `{play_time_hours:,}h`",
+            f"{DaletAtoms.GLYPH_POINTER} **{t('osu.max_combo', lang)}**: `{max_combo:,}x` │ **{t('osu.ranked_score', lang)}**: `{ranked_score:,}`",
         ]
         embed.add_field(
             name=f"{DaletAtoms.GLYPH_SPEED} {t('osu.activity', lang)}",
@@ -814,7 +847,7 @@ class OsuPresenter:
             inline=False
         )
 
-        DaletMolecules.add_standard_footer(embed, context_text=f"ID: {user_id} {DaletAtoms.GLYPH_PIPE} Bancho Server")
+        DaletMolecules.add_standard_footer(embed, context_text=f"ID: {user_id} {DaletAtoms.GLYPH_PIPE} {srv_label}")
         return embed
 
     @staticmethod
@@ -826,10 +859,11 @@ class OsuPresenter:
         lang: str = "en"
     ) -> discord.Embed:
         """Construye una tarjeta elegante con los récords #1 globales del jugador sin emojis."""
-        user_id = user_data.get("id") if user_data else 0
         avatar_url = user_data.get("avatar_url") if user_data else None
-        country = user_data.get("country", {}).get("code", "") if user_data else ""
-        flag = _get_country_flag(country)
+        country = (user_data.get("country", {}).get("code", "") or user_data.get("country_code", "")) if user_data else ""
+        flag = _get_country_flag(country, plain=True)
+        srv_key = user_data.get("_server", "bancho") if user_data else "bancho"
+        srv_label = _server_title(srv_key)
 
         title_str = f"✦ {t('osu.firsts_title', lang, username=username, mode=_mode_title(mode))}"
         if flag:
@@ -837,7 +871,7 @@ class OsuPresenter:
 
         embed = discord.Embed(
             title=title_str,
-            url=f"https://osu.ppy.sh/users/{user_id}/{mode}" if user_id else "https://osu.ppy.sh",
+            url=_profile_url(user_data, mode=mode, fallback_username=username),
             color=DaletAtoms.COLOR_PRIMARY
         )
         if avatar_url:
@@ -877,8 +911,8 @@ class OsuPresenter:
             stats_line = f"└─ {pp_disp} │ `{acc}` │ `{combo_str}` │ **{mods_str}** │ `{sr:.2f}★`"
             play_lines.append(f"{header}\n{stats_line}")
 
-        embed.description = "\n".join(play_lines)
-        DaletMolecules.add_standard_footer(embed, context_text=f"Total: {len(firsts)} #1s {DaletAtoms.GLYPH_PIPE} osu! {_mode_title(mode)}")
+        embed.description = "\n\n".join(play_lines)
+        DaletMolecules.add_standard_footer(embed, context_text=f"Total: {len(firsts)} #1s {DaletAtoms.GLYPH_PIPE} osu! {_mode_title(mode)} {DaletAtoms.GLYPH_PIPE} {srv_label}")
         return embed
 
     @staticmethod
@@ -1087,7 +1121,7 @@ class OsuPresenter:
                     f"└─ `{u1_name[:8]}`: **{dm['pp1']:.0f}pp** (`{dm['acc1']:.1f}%` {dm['mods1']}) │ "
                     f"`{u2_name[:8]}`: **{dm['pp2']:.0f}pp** (`{dm['acc2']:.1f}%` {dm['mods2']})"
                 )
-            embed.add_field(name=c_title, value="\n".join(duel_lines), inline=False)
+            embed.add_field(name=c_title, value="\n\n".join(duel_lines), inline=False)
 
         combo_winner = u1_name[:10] if mc1 > mc2 else (u2_name[:10] if mc2 > mc1 else "=")
         play_winner = u1_name[:10] if pc1 > pc2 else (u2_name[:10] if pc2 > pc1 else "=")
@@ -1121,7 +1155,9 @@ class OsuPresenter:
         if fav_avatar:
             embed.set_thumbnail(url=fav_avatar)
 
-        DaletMolecules.add_standard_footer(embed, context_text=f"Modo: {mode_name} {DaletAtoms.GLYPH_PIPE} Dalet Compare")
+        srv_key = user1_data.get("_server", "bancho")
+        srv_label = _server_title(srv_key)
+        DaletMolecules.add_standard_footer(embed, context_text=f"Modo: {mode_name} {DaletAtoms.GLYPH_PIPE} {srv_label}")
         return embed
 
 
@@ -1138,13 +1174,15 @@ class OsuPresenter:
         username = user_data.get("username", "Jugador")
         user_id = user_data.get("id", 0)
         stats = user_data.get("statistics", {})
+        srv_key = user_data.get("_server", "bancho")
+        srv_label = _server_title(srv_key)
 
         pp = stats.get("pp", 0) or 0
         rank = stats.get("global_rank", 0) or 0
         unranked_txt = t("osu.unranked", lang)
         rank_str = f"#{rank:,}" if rank else unranked_txt
-        country = user_data.get("country_code", "")
-        flag = _get_country_flag(country)
+        country = user_data.get("country_code") or user_data.get("country", {}).get("code", "")
+        flag = _get_country_flag(country, plain=True)
         avatar_url = user_data.get("avatar_url", "")
 
         dominant = skills_data.get("dominant_skill", "N/A")
@@ -1156,8 +1194,8 @@ class OsuPresenter:
             mod_tag = f" · +{clean_mod}"
 
         embed = discord.Embed(
-            title=f"✦ Skill Breakdown ({_mode_title(mode)}{mod_tag}) — {username} {flag}",
-            url=f"https://osu.ppy.sh/users/{user_id}/{mode}",
+            title=f"✦ Skill Breakdown ({_mode_title(mode)}{mod_tag}) — {username} {flag}".strip(),
+            url=_profile_url(user_data, mode=mode, fallback_username=username),
             color=DaletAtoms.COLOR_PRIMARY
         )
         if avatar_url:
@@ -1177,7 +1215,8 @@ class OsuPresenter:
 
         desc_lines = [
             f"{DaletAtoms.GLYPH_POINTER} **{lbl_overall}**: `{ov_pts:.1f} pts` {ov_glyph} `[{ov_tier}]` │ **PP**: `{pp:,.0f}` │ **Rank**: `{rank_str}`",
-            f"{DaletAtoms.GLYPH_POINTER} **{lbl_strength}**: `{dominant}` (`{dom_pts:.1f} pts`) │ **{lbl_weakness}**: `{weakest}` (`{weak_pts:.1f} pts`)"
+            f"{DaletAtoms.GLYPH_POINTER} **{lbl_strength}**: `{dominant}` (`{dom_pts:.1f} pts`) │ **{lbl_weakness}**: `{weakest}` (`{weak_pts:.1f} pts`)",
+            "`──────────────────────────────────────────`"
         ]
         embed.description = "\n".join(desc_lines)
 
@@ -1240,7 +1279,7 @@ class OsuPresenter:
                 inline=False
             )
 
-        DaletMolecules.add_standard_footer(embed, context_text=f"ID: {user_id} • osu! {_mode_title(mode)}")
+        DaletMolecules.add_standard_footer(embed, context_text=f"ID: {user_id} {DaletAtoms.GLYPH_PIPE} osu! {_mode_title(mode)} {DaletAtoms.GLYPH_PIPE} {srv_label}")
         return embed
 
 

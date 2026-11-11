@@ -610,6 +610,164 @@ async def test_legacy_osu_commands_spec_003_data_accuracy():
     assert chart_file.filename == "progress.png"
 
 
+def test_spec_004_multiserver_normalizers_and_bitmask():
+    """
+    Verifica la decodificación de mods bitmask, parseo de song_name y normalización
+    de perfiles/scores de Akatsuki (Vanilla/Relax) y Gatari al esquema Bancho v2.
+    """
+    from services.osu_service import decode_mods_bitmask, parse_song_name, OsuService
+
+    # 1. Bitmask decoding (HDDT = 8 + 64 = 72; HDNC = 8 + 64 + 512 = 584 -> ['HD', 'NC']; RX = 128)
+    assert decode_mods_bitmask(72) == ["HD", "DT"]
+    assert decode_mods_bitmask(584) == ["HD", "NC"]
+    assert "RX" in decode_mods_bitmask(128 + 64)
+
+    # 2. Song name parser
+    artist, title, version = parse_song_name("xi - Freedom Dive [Four Dimensions]")
+    assert artist == "xi"
+    assert title == "Freedom Dive"
+    assert version == "Four Dimensions"
+
+    # 3. Private score normalizer (Akatsuki / Gatari -> Bancho v2 schema)
+    aka_raw_score = {
+        "id": 999111,
+        "pp": 1150.5,
+        "accuracy": 99.2,
+        "max_combo": 1850,
+        "mods": 72,  # HDDT
+        "rank": "SH",
+        "completed": 3,
+        "time": "2026-11-10T15:00:00Z",
+        "count_300": 1200,
+        "count_100": 10,
+        "count_50": 0,
+        "count_miss": 0,
+        "beatmap": {
+            "beatmap_id": 777888,
+            "beatmapset_id": 333444,
+            "song_name": "Kano - Stella-rium [Celestial]",
+            "difficulty": 6.4,
+            "max_combo": 1850,
+            "hit_length": 210,
+        },
+    }
+    norm_score = OsuService._normalize_private_score(aka_raw_score, server="akatsuki_rx")
+    assert norm_score["pp"] == 1150.5
+    assert abs(norm_score["accuracy"] - 0.992) < 1e-4
+    assert norm_score["mods"] == ["HD", "DT", "RX"]
+    assert norm_score["beatmapset"]["title"] == "Stella-rium"
+    assert norm_score["beatmap"]["version"] == "Celestial"
+
+
+def test_spec_004_level_aware_skill_verdict_archetypes():
+    """
+    Verifica que OsuAnalyzer.build_skill_verdict_context clasifique con precisión:
+    - APEX_TITAN para jugadores Top #1-#250 (reconociendo su nivel élite sin roasts absurdos)
+    - ALL_ROUNDER cuando todas sus habilidades están equilibradas (spread <= 8.0)
+    - SPECIALIST cuando domina una habilidad por >= 15.0 pts
+    - RISING_GRINDER para perfiles intermedios
+    """
+    from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
+
+    # 1. APEX_TITAN (Top #1 Global)
+    mrekk_user = {"username": "mrekk", "statistics": {"global_rank": 1, "pp": 29500.0}}
+    mrekk_skills = {
+        "dominant_skill": "Aim",
+        "weakest_skill": "Stamina",
+        "overall_skill_points": 98.5,
+        "overall_tier_name": "Grandmaster",
+        "Aim": {"points": 100.0, "tier_name": "Grandmaster"},
+        "Speed": {"points": 99.0, "tier_name": "Grandmaster"},
+        "Accuracy": {"points": 97.5, "tier_name": "Grandmaster"},
+        "Stamina": {"points": 95.0, "tier_name": "Grandmaster"},
+        "Reading": {"points": 98.0, "tier_name": "Grandmaster"},
+    }
+    ctx_titan = OsuAnalyzer.build_skill_verdict_context("mrekk", mrekk_user, mrekk_skills, mode="osu", lang="es")
+    assert ctx_titan["archetype"] == "APEX_TITAN"
+    assert "#1" in ctx_titan["micro_prompt"]
+    assert "pasaste el juego" in ctx_titan["fallback_text"]
+
+    # 2. ALL_ROUNDER (Spread <= 8.0 pts, rango #4500)
+    allrounder_user = {"username": "BalancedPlayer", "statistics": {"global_rank": 4500, "pp": 9200.0}}
+    allrounder_skills = {
+        "dominant_skill": "Accuracy",
+        "weakest_skill": "Speed",
+        "overall_skill_points": 65.0,
+        "overall_tier_name": "Diamond",
+        "Aim": {"points": 66.0, "tier_name": "Diamond"},
+        "Speed": {"points": 62.0, "tier_name": "Diamond"},
+        "Accuracy": {"points": 68.0, "tier_name": "Diamond"},
+        "Stamina": {"points": 64.0, "tier_name": "Diamond"},
+        "Reading": {"points": 65.0, "tier_name": "Diamond"},
+    }
+    ctx_ar = OsuAnalyzer.build_skill_verdict_context("BalancedPlayer", allrounder_user, allrounder_skills, mode="osu", lang="es")
+    assert ctx_ar["archetype"] == "ALL_ROUNDER"
+    assert "all-rounder" in ctx_ar["fallback_text"].lower() or "equilibrado" in ctx_ar["micro_prompt"].lower()
+
+    # 3. SPECIALIST (Spread >= 15.0 pts)
+    spec_user = {"username": "DTFarmer", "statistics": {"global_rank": 12000, "pp": 7400.0}}
+    spec_skills = {
+        "dominant_skill": "Speed",
+        "weakest_skill": "Stamina",
+        "overall_skill_points": 58.0,
+        "overall_tier_name": "Platinum",
+        "Aim": {"points": 64.0, "tier_name": "Diamond"},
+        "Speed": {"points": 75.0, "tier_name": "Master"},
+        "Accuracy": {"points": 52.0, "tier_name": "Platinum"},
+        "Stamina": {"points": 45.0, "tier_name": "Gold"},
+        "Reading": {"points": 54.0, "tier_name": "Platinum"},
+    }
+    ctx_spec = OsuAnalyzer.build_skill_verdict_context("DTFarmer", spec_user, spec_skills, mode="osu", lang="es")
+    assert ctx_spec["archetype"] == "SPECIALIST"
+
+
+@pytest.mark.asyncio
+async def test_spec_004_plain_country_flag_spacious_cards_and_language_cascade():
+    """
+    Verifica:
+    1. En build_profile_card, el author.name muestra '[CO]' limpio SIN backticks literales (`[CO]`).
+    2. OsuPresenter.mode_title y OsuPresenter.server_title funcionan como métodos públicos (arreglando d.rank / /rank).
+    3. build_top_card y build_firsts_card separan cada mapa con doble salto de línea ('\\n\\n').
+    4. AdminRepository.resolve_language aplica la cascada Usuario > Servidor > Default en O(1).
+    """
+    from handlers.dalet_osu_presenter import OsuPresenter
+    from database.repositories.admin_repository import AdminRepository
+
+    assert OsuPresenter.mode_title("mania") == "Mania"
+    assert OsuPresenter.server_title("akatsuki_rx") == "Akatsuki (Relax)"
+
+    user_data = {
+        "id": 999,
+        "username": "Litxe",
+        "country": {"code": "CO"},
+        "_server": "akatsuki_rx",
+        "statistics": {"pp": 10500.0, "global_rank": 800, "country_rank": 10, "hit_accuracy": 99.1},
+    }
+    prof = OsuPresenter.build_profile_card(user_data, mode="osu", lang="es")
+    assert prof.author.name.startswith("[CO] ")
+    assert "`[CO]`" not in prof.author.name
+    assert "Akatsuki (Relax)" in prof.footer.text
+
+    top_scores = [
+        {"pp": 500.0, "accuracy": 0.99, "max_combo": 1000, "rank": "S", "mods": ["DT"], "beatmap": {"id": 1, "version": "Insane"}, "beatmapset": {"title": "Map One"}},
+        {"pp": 480.0, "accuracy": 0.98, "max_combo": 900, "rank": "S", "mods": ["HD"], "beatmap": {"id": 2, "version": "Extra"}, "beatmapset": {"title": "Map Two"}},
+    ]
+    top_card = OsuPresenter.build_top_card("Litxe", "osu", top_scores, user_data=user_data, lang="es")
+    assert "\n\n" in top_card.fields[0].value
+
+    # Cascada de idioma en O(1)
+    repo = AdminRepository()
+    repo._lang_cache[100] = "en"
+    repo._user_lang_cache[555] = "es"
+    repo._user_lang_cache[556] = None
+
+    # Usuario 555 tiene preferencia personal 'es' aunque el servidor 100 esté en 'en'
+    assert await repo.resolve_language(user_id=555, server_id=100) == "es"
+    # Usuario 556 tiene auto (None) -> hereda 'en' del servidor 100
+    assert await repo.resolve_language(user_id=556, server_id=100) == "en"
+
+
+
 
 
 

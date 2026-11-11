@@ -22,20 +22,19 @@ BANNER_FILE_PATH = "assets/bannersito.png"
 SLASH_CATEGORIES_ES = {
     "osu!": {
         "color": discord.Color.from_rgb(255, 94, 158),  # #FF5E9E Rosa osu!
-        "card_desc": "Perfil, plays y radar 5D.\n`/op` `/recent` `/top`",
-        "subtitle": "Estadísticas y comparativas para los 4 modos de juego.",
+        "card_desc": "Bancho, Akatsuki & Gatari.\n`/op` `/recent` `/top`",
+        "subtitle": "Estadísticas multi-servidor (Bancho, Akatsuki Vanilla/Relax, Gatari) y 4 modos (`-std`, `-mania`, `-taiko`, `-ctb`).",
         "commands": [
-            ("/op",               "Perfil general, rango y PP"),
-            ("/skills",           "Radar de habilidades y veredicto"),
-            ("/recent",           "Última jugada (`last` / `d.rs`, `best`, `pass` / `d.rp`, `+mods`)"),
-            ("/top",              "Top 5 plays (`pp`, `recent` / `d.rb`, `acc`, `+mods`)"),
-            ("/skills",           "Radar de habilidades 5D y veredicto con IA (`+mods`)"),
-            ("/compare",          "Comparativa profunda y duelo de mapas en común"),
+            ("/op",               "Perfil general, rango y PP (`d.op`, `d.opm`, `d.opt`, `d.opc`, `-aka`, `-rx`, `-gatari`)"),
+            ("/recent",           "Última jugada (`d.rs`, `d.rsm`, `d.rp`, `best`, `pass`, `+mods`, `-aka`, `-rx`, `-gatari`)"),
+            ("/top",              "Top 5 plays (`d.top`, `d.topm`, `d.rb`, `acc`, `+mods`, `-aka`, `-rx`, `-gatari`)"),
+            ("/skills",           "Radar 5D y veredicto consciente de nivel (`APEX`, `ALL-ROUNDER`, `SPECIALIST`, `+mods`)"),
+            ("/compare",          "Comparativa Head-to-Head y duelo de mapas en común (`d.compare`, `-aka`, `-rx`, `-gatari`)"),
             ("/progress",         "Gráfico histórico de progreso de PP (`d.prog`)"),
-            ("/firsts",           "Récords #1 globales del jugador (`d.op1s`)"),
-            ("/rank",             "Ranking osu! del servidor filtrable por modo"),
-            ("/link",             "Vincular tu cuenta de osu!"),
-            ("/unlink",           "Desvincular tu cuenta de osu!"),
+            ("/firsts",           "Récords #1 globales del jugador (`d.op1s`, `-aka`, `-rx`, `-gatari`)"),
+            ("/rank",             "Ranking osu! del servidor filtrable por modo (`d.rank -mania`)"),
+            ("/link",             "Vincular cuenta por servidor (`d.link <user> [-aka|-rx|-gatari]`)"),
+            ("/unlink",           "Desvincular tu cuenta de osu! (`d.unlink [-aka|-rx|-gatari|all]`)"),
         ]
     },
     "IA & Chat": {
@@ -94,14 +93,14 @@ SLASH_CATEGORIES_ES = {
     "Admin": {
         "color": discord.Color.from_rgb(244, 63, 94),   # #F43F5E Carmesí Admin
         "card_desc": "Idioma, bienvenida y canales.\n`/language` `/lock`",
-        "subtitle": "Ajustes generales del servidor.",
+        "subtitle": "Preferencia de idioma personal o ajustes generales del servidor.",
         "commands": [
-            ("/language",         "Cambiar idioma (`es` / `en`)"),
-            ("/setname",          "Cambiar el apodo al que responde Dalet"),
-            ("/setwelcome",       "Definir canal de bienvenidas"),
-            ("/removewelcome",    "Desactivar mensajes de bienvenida"),
-            ("/lock",             "Bloquear comandos de Dalet en este canal"),
-            ("/unlock",           "Desbloquear comandos en este canal"),
+            ("/language",         "Cambiar tu idioma personal (`d.lang es|en|auto`) o el del servidor (`Admin`)"),
+            ("/setname",          "`Admin` Cambiar el apodo al que responde Dalet"),
+            ("/setwelcome",       "`Admin` Definir canal de bienvenidas"),
+            ("/removewelcome",    "`Admin` Desactivar mensajes de bienvenida"),
+            ("/lock",             "`Admin` Bloquear comandos de Dalet en este canal"),
+            ("/unlock",           "`Admin` Desbloquear comandos en este canal"),
         ]
     },
 }
@@ -110,19 +109,19 @@ SLASH_CATEGORIES_ES = {
 SLASH_CATEGORIES_EN = {
     "osu!": {
         "color": discord.Color.from_rgb(255, 94, 158),  # #FF5E9E osu! Pink
-        "card_desc": "Profiles, plays & 5D radar.\n`/op` `/recent` `/top`",
-        "subtitle": "Stats and comparisons across all 4 game modes.",
+        "card_desc": "Bancho, Akatsuki & Gatari.\n`/op` `/recent` `/top`",
+        "subtitle": "Multi-server stats (Bancho, Akatsuki Vanilla/Relax, Gatari) across all 4 game modes (`-std`, `-mania`, `-taiko`, `-ctb`).",
         "commands": [
-            ("/op",               "Profile card, rank, and PP"),
-            ("/recent",           "Recent play (`last` / `d.rs`, `best`, `pass` / `d.rp`, `+mods`)"),
-            ("/top",              "Top 5 scores (`pp`, `recent` / `d.rb`, `acc`, `+mods`)"),
-            ("/skills",           "5D skill radar and Dalet's verdict (`+mods`)"),
-            ("/compare",          "Head-to-head comparison and shared top map duels"),
+            ("/op",               "Profile card, rank, and PP (`d.op`, `d.opm`, `d.opt`, `d.opc`, `-aka`, `-rx`, `-gatari`)"),
+            ("/recent",           "Recent play (`d.rs`, `d.rsm`, `d.rp`, `best`, `pass`, `+mods`, `-aka`, `-rx`, `-gatari`)"),
+            ("/top",              "Top 5 scores (`d.top`, `d.topm`, `d.rb`, `acc`, `+mods`, `-aka`, `-rx`, `-gatari`)"),
+            ("/skills",           "5D skill radar and level-aware verdict (`APEX`, `ALL-ROUNDER`, `SPECIALIST`, `+mods`)"),
+            ("/compare",          "Head-to-head comparison and shared top map duels (`d.compare`, `-aka`, `-rx`, `-gatari`)"),
             ("/progress",         "Historical PP progress chart (`d.prog`)"),
-            ("/firsts",           "Global #1 scores for a player (`d.op1s`)"),
-            ("/rank",             "Server osu! leaderboard filterable by mode"),
-            ("/link",             "Link your osu! account"),
-            ("/unlink",           "Unlink your osu! account"),
+            ("/firsts",           "Global #1 scores for a player (`d.op1s`, `-aka`, `-rx`, `-gatari`)"),
+            ("/rank",             "Server osu! leaderboard filterable by mode (`d.rank -mania`)"),
+            ("/link",             "Link your osu! account per server (`d.link <user> [-aka|-rx|-gatari]`)"),
+            ("/unlink",           "Unlink your osu! account (`d.unlink [-aka|-rx|-gatari|all]`)"),
         ]
     },
     "AI & Chat": {
@@ -181,14 +180,14 @@ SLASH_CATEGORIES_EN = {
     "Admin": {
         "color": discord.Color.from_rgb(244, 63, 94),   # #F43F5E Admin Crimson
         "card_desc": "Language, welcome & locks.\n`/language` `/lock`",
-        "subtitle": "General server settings.",
+        "subtitle": "Personal language preference and general server settings.",
         "commands": [
-            ("/language",         "Change bot language (`es` / `en`)"),
-            ("/setname",          "Change the nickname Dalet responds to"),
-            ("/setwelcome",       "Set the welcome message channel"),
-            ("/removewelcome",    "Disable welcome messages"),
-            ("/lock",             "Lock Dalet commands in this channel"),
-            ("/unlock",           "Unlock commands in this channel"),
+            ("/language",         "Set your personal language (`d.lang es|en|auto`) or server default (`Admin`)"),
+            ("/setname",          "`Admin` Change the nickname Dalet responds to"),
+            ("/setwelcome",       "`Admin` Set the welcome message channel"),
+            ("/removewelcome",    "`Admin` Disable welcome messages"),
+            ("/lock",             "`Admin` Lock Dalet commands in this channel"),
+            ("/unlock",           "`Admin` Unlock commands in this channel"),
         ]
     },
 }
@@ -270,7 +269,6 @@ class HelpPaginator(View):
         self.pages = pages
         self.index = 0
         self.lang = lang
-        # Configurar etiquetas de botones según idioma
         if lang == "es":
             self.previous_button.label = "Anterior"
             self.home_button.label = "Portada"
@@ -282,7 +280,6 @@ class HelpPaginator(View):
             self.goto_button.label = "Go to..."
             self.next_button.label = "Next"
 
-        # Añadir select menu dinámico
         self.select = CategorySelect(self, category_names, lang=lang)
         self.add_item(self.select)
         self.update_buttons()
@@ -331,17 +328,14 @@ class HelpPaginator(View):
             item.disabled = True
 
 
-# ─── Help Command ─────────────────────────────────────────────────────────────
-
 # ─── Constructor de páginas de ayuda ─────────────────────────────────────────
 
 def build_help_pages(bot, user, server_lang: str = "en") -> tuple[list[discord.Embed], list[str]]:
-    """Construye las páginas del menú de ayuda según el idioma del servidor."""
+    """Construye las páginas del menú de ayuda según el idioma efectivo."""
     categories = SLASH_CATEGORIES_ES if server_lang == "es" else SLASH_CATEGORIES_EN
     pages = []
     category_names = []
 
-    # 1. Páginas de slash commands por categoría
     for cat_name, cat_data in categories.items():
         category_names.append(cat_name)
         embed = discord.Embed(
@@ -367,7 +361,6 @@ def build_help_pages(bot, user, server_lang: str = "en") -> tuple[list[discord.E
         )
         pages.append(embed)
 
-    # 2. Portada en cuadrícula 3x2 (inline=True)
     version = DaletAtoms.VERSION
     if server_lang == "es":
         portada_desc = (
@@ -414,8 +407,9 @@ class CustomHelpCommand(commands.HelpCommand):
     async def send_bot_help(self, mapping):
         ctx = self.context
         server_lang = "en"
-        if ctx.guild and hasattr(ctx.bot, "admin_repo"):
-            server_lang = await ctx.bot.admin_repo.get_server_language(ctx.guild.id)
+        if hasattr(ctx.bot, "admin_repo"):
+            guild_id = ctx.guild.id if ctx.guild else None
+            server_lang = await ctx.bot.admin_repo.resolve_language(ctx.author.id, guild_id, default="en")
 
         pages, category_names = build_help_pages(ctx.bot, ctx.author, server_lang=server_lang)
         view = HelpPaginator(pages, category_names, lang=server_lang)
@@ -430,7 +424,6 @@ class CustomHelpCommand(commands.HelpCommand):
             if ctx.bot.user and ctx.bot.user.avatar:
                 pages[0].set_thumbnail(url=ctx.bot.user.avatar.url)
             await ctx.send(embed=pages[0], view=view)
-
 
 
 async def setup(bot):

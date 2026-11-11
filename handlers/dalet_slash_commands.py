@@ -22,6 +22,14 @@ from handlers.dalet_helpcommands_handlers import build_help_pages, HelpPaginator
 
 logger = logging.getLogger("dalet.handlers.slash")
 
+OSU_SERVER_CHOICES = [
+    app_commands.Choice(name="Bancho (Official)",    value="bancho"),
+    app_commands.Choice(name="Akatsuki (Vanilla)",   value="akatsuki"),
+    app_commands.Choice(name="Akatsuki (Relax)",     value="akatsuki_rx"),
+    app_commands.Choice(name="Akatsuki (Autopilot)", value="akatsuki_ap"),
+    app_commands.Choice(name="Gatari",               value="gatari"),
+]
+
 
 class SlashCommands(commands.Cog, name="Slash Commands"):
     """Versiones slash (/) de los comandos principales de Dalet."""
@@ -29,6 +37,15 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self._ai_slash_cooldowns: dict[str, float] = {}
+
+    async def _resolve_lang(self, interaction: discord.Interaction) -> str:
+        """Resuelve el idioma efectivo en O(1) con cascada Usuario > Servidor > Default."""
+        try:
+            return await self.bot.admin_repo.resolve_language(
+                interaction.user.id, interaction.guild_id, default="en"
+            )
+        except Exception:
+            return "en"
 
     def _check_cooldown(self, key: str, duration_sec: float) -> float | None:
         """Devuelve los segundos restantes si la acción está en cooldown, o None si puede proceder."""
@@ -54,9 +71,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.describe(user="User to inspect (defaults to yourself)")
     async def slash_stats(self, interaction: discord.Interaction, user: discord.Member = None):
         member = user or interaction.user
-        server_lang = "en"
-        if interaction.guild_id:
-            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+        server_lang = await self._resolve_lang(interaction)
         await interaction.response.defer()
         try:
             stats = await self.bot.user_repo.get_user_social_stats(member.id)
@@ -71,9 +86,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.describe(user="Member to inspect")
     async def slash_userinfo(self, interaction: discord.Interaction, user: discord.Member = None):
         member = user or interaction.user
-        server_lang = "en"
-        if interaction.guild_id:
-            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+        server_lang = await self._resolve_lang(interaction)
         desc = (
             f"• {DaletAtoms.bold(t('userinfo.id', server_lang))}: {DaletAtoms.code(member.id)}\n"
             f"• {DaletAtoms.bold(t('userinfo.created', server_lang))}: {format_dt(member.created_at, 'D')}\n"
@@ -87,9 +100,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.command(name="serverinfo", description="Displays information about the current server.")
     async def slash_serverinfo(self, interaction: discord.Interaction):
         g = interaction.guild
-        server_lang = "en"
-        if interaction.guild_id:
-            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+        server_lang = await self._resolve_lang(interaction)
         desc = (
             f"• {DaletAtoms.bold(t('serverinfo.members', server_lang))}: {DaletAtoms.code(g.member_count)}\n"
             f"• {DaletAtoms.bold(t('serverinfo.owner', server_lang))}: {g.owner.mention}\n"
@@ -102,9 +113,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
 
     @app_commands.command(name="info", description="Displays Dalet's profile card, version, and information.")
     async def slash_info(self, interaction: discord.Interaction):
-        server_lang = "en"
-        if interaction.guild_id:
-            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+        server_lang = await self._resolve_lang(interaction)
 
         tagline = t("info.tagline", server_lang)
         lbl_creator = t("info.creator", server_lang)
@@ -136,9 +145,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
 
     @app_commands.command(name="changelog", description="Displays version release notes, major milestones, and recent commits.")
     async def slash_changelog(self, interaction: discord.Interaction):
-        server_lang = "en"
-        if interaction.guild_id:
-            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+        server_lang = await self._resolve_lang(interaction)
 
         custom = getattr(self.bot, "custom_changelog", None)
         from services.changelog_service import ChangelogService
@@ -151,9 +158,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
 
     @app_commands.command(name="help", description="Displays an interactive categorized command guide.")
     async def slash_help(self, interaction: discord.Interaction):
-        server_lang = "en"
-        if interaction.guild_id:
-            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+        server_lang = await self._resolve_lang(interaction)
         pages, category_names = build_help_pages(self.bot, interaction.user, server_lang=server_lang)
         view = HelpPaginator(pages, category_names, lang=server_lang)
         await interaction.response.send_message(embed=pages[0], view=view, ephemeral=True)
@@ -162,9 +167,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.describe(message="Feedback, suggestion, or bug report to deliver")
     async def slash_feedback(self, interaction: discord.Interaction, message: str):
         await interaction.response.defer(ephemeral=True)
-        server_lang = "en"
-        if interaction.guild_id:
-            server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
+        server_lang = await self._resolve_lang(interaction)
 
         # Anti-spam Cooldown (5 minutos)
         cooldown_remaining = await FeedbackService.check_user_cooldown(interaction.user.id)
@@ -194,10 +197,12 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     # osu!
     # ------------------------------------------------------------------
 
-    async def _sync_slash_snapshot(self, discord_id: int, queried_username: str, user_data: dict, mode: str = "osu"):
-        """Sincroniza silenciosamente las estadísticas del perfil del usuario para mantener el ranking y progreso al día."""
+    async def _sync_slash_snapshot(self, discord_id: int, queried_username: str, user_data: dict, mode: str = "osu", server: str = "bancho"):
+        """Sincroniza silenciosamente las estadísticas del perfil del usuario en Bancho para mantener el ranking y progreso al día."""
+        if server != "bancho":
+            return
         try:
-            linked = await self.bot.osu_repo.get_linked_username(discord_id)
+            linked = await self.bot.osu_repo.get_linked_username(discord_id, server="bancho")
             if not linked or linked.lower() != queried_username.lower():
                 return
 
@@ -220,48 +225,55 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.command(name="op", description="Displays full osu! profile, rank, and stats for a player.")
     @app_commands.describe(
         username="osu! username (or leave empty for your linked account)",
-        mode="Game mode (default: osu)"
+        mode="Game mode (default: osu)",
+        server="osu! server (Bancho, Akatsuki, Akatsuki Relax, Gatari)"
     )
-    @app_commands.choices(mode=[
-        app_commands.Choice(name="osu!standard", value="osu"),
-        app_commands.Choice(name="osu!taiko",    value="taiko"),
-        app_commands.Choice(name="osu!catch",    value="fruits"),
-        app_commands.Choice(name="osu!mania",    value="mania"),
-    ])
+    @app_commands.choices(
+        mode=[
+            app_commands.Choice(name="osu!standard", value="osu"),
+            app_commands.Choice(name="osu!taiko",    value="taiko"),
+            app_commands.Choice(name="osu!catch",    value="fruits"),
+            app_commands.Choice(name="osu!mania",    value="mania"),
+        ],
+        server=OSU_SERVER_CHOICES,
+    )
     async def slash_op(
         self, interaction: discord.Interaction,
-        username: str = None, mode: str = "osu"
+        username: str = None, mode: str = "osu", server: str = "bancho"
     ):
         await interaction.response.defer()
         try:
             uname = username
             if not uname:
-                uname = await self.bot.osu_repo.get_linked_username(interaction.user.id)
+                uname = await self.bot.osu_repo.get_linked_username(interaction.user.id, server=server)
             if not uname:
                 return await interaction.followup.send(
                     f"{DaletAtoms.GLYPH_CROSS} no tienes cuenta vinculada. usa `/link` primero.",
                     ephemeral=True
                 )
-            server_lang = "en"
-            if interaction.guild:
-                server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
-            user = await self.bot.osu_service.get_user(uname, mode)
+            server_lang = await self._resolve_lang(interaction)
+            user = await self.bot.osu_service.get_user(uname, mode, server=server)
             embed = OsuPresenter.build_profile_card(user, mode, lang=server_lang)
             await interaction.followup.send(embed=embed)
-            await self._sync_slash_snapshot(interaction.user.id, uname, user, mode=mode)
+            await self._sync_slash_snapshot(interaction.user.id, uname, user, mode=mode, server=server)
         except Exception as e:
             logger.error(f"Error en /op: {e}")
             await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} error obteniendo el perfil.", ephemeral=True)
 
-    @app_commands.command(name="link", description="Links your Discord account to your osu! profile.")
-    @app_commands.describe(username="Your osu! username")
-    async def slash_link(self, interaction: discord.Interaction, username: str):
+    @app_commands.command(name="link", description="Links your Discord account to your osu! profile (Bancho, Akatsuki, or Gatari).")
+    @app_commands.describe(
+        username="Your osu! username",
+        server="osu! server (default: Bancho)"
+    )
+    @app_commands.choices(server=OSU_SERVER_CHOICES)
+    async def slash_link(self, interaction: discord.Interaction, username: str, server: str = "bancho"):
         await interaction.response.defer(ephemeral=True)
         try:
-            user_data = await self.bot.osu_service.get_user(username)
+            user_data = await self.bot.osu_service.get_user(username, server=server)
             if not user_data or "statistics" not in user_data:
+                srv_label = OsuPresenter.server_title(server)
                 return await interaction.followup.send(
-                    f"{DaletAtoms.GLYPH_CROSS} no encontré a '{username}' en osu!.", ephemeral=True
+                    f"{DaletAtoms.GLYPH_CROSS} no encontré a '{username}' en **{srv_label}**.", ephemeral=True
                 )
             stats = user_data.get("statistics", {}) or {}
             pp = float(stats.get("pp", 0.0) or 0.0)
@@ -279,32 +291,37 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 gr,
                 cr,
                 acc,
+                server=server,
             )
 
-            try:
-                await self.bot.analytics_repo.record_osu_snapshot(
-                    interaction.user.id,
-                    pp,
-                    gr,
-                    cr,
-                    acc,
-                    mode,
-                )
-            except Exception:
-                pass
+            if server == "bancho":
+                try:
+                    await self.bot.analytics_repo.record_osu_snapshot(
+                        interaction.user.id,
+                        pp,
+                        gr,
+                        cr,
+                        acc,
+                        mode,
+                    )
+                except Exception:
+                    pass
 
+            srv_label = OsuPresenter.server_title(server)
             await interaction.followup.send(
-                f"{DaletAtoms.GLYPH_CHECK} vinculado con éxito a **{user_data['username']}**.", ephemeral=True
+                f"{DaletAtoms.GLYPH_CHECK} vinculado con éxito a **{user_data['username']}** (`{srv_label}`).", ephemeral=True
             )
         except Exception as e:
             logger.error(f"Error en /link: {e}")
             await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} error al vincular.", ephemeral=True)
 
     @app_commands.command(name="unlink", description="Unlinks your osu! account from Dalet.")
-    async def slash_unlink(self, interaction: discord.Interaction):
+    @app_commands.describe(server="Optional: unlink only a specific osu! server (leave empty to unlink all)")
+    @app_commands.choices(server=OSU_SERVER_CHOICES)
+    async def slash_unlink(self, interaction: discord.Interaction, server: str = None):
         await interaction.response.defer(ephemeral=True)
         try:
-            await self.bot.osu_repo.unlink_account(interaction.user.id)
+            await self.bot.osu_repo.unlink_account(interaction.user.id, server=server)
             await interaction.followup.send(
                 f"{DaletAtoms.GLYPH_CHECK} vinculación con osu! eliminada.", ephemeral=True
             )
@@ -317,12 +334,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     async def slash_progress(self, interaction: discord.Interaction, user: discord.Member = None):
         await interaction.response.defer()
         target_member = user or interaction.user
-        server_lang = "en"
-        if interaction.guild:
-            try:
-                server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
-            except Exception:
-                server_lang = "en"
+        server_lang = await self._resolve_lang(interaction)
 
         try:
             history = await self.bot.analytics_repo.get_osu_progress(target_member.id, mode="osu", limit=30)
@@ -370,36 +382,38 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.command(name="firsts", description="Displays global #1 scores for a player.")
     @app_commands.describe(
         username="osu! username (or leave empty for your linked account)",
-        mode="Game mode (default: osu)"
+        mode="Game mode (default: osu)",
+        server="osu! server (default: Bancho)"
     )
-    @app_commands.choices(mode=[
-        app_commands.Choice(name="osu!standard", value="osu"),
-        app_commands.Choice(name="osu!taiko",    value="taiko"),
-        app_commands.Choice(name="osu!catch",    value="fruits"),
-        app_commands.Choice(name="osu!mania",    value="mania"),
-    ])
+    @app_commands.choices(
+        mode=[
+            app_commands.Choice(name="osu!standard", value="osu"),
+            app_commands.Choice(name="osu!taiko",    value="taiko"),
+            app_commands.Choice(name="osu!catch",    value="fruits"),
+            app_commands.Choice(name="osu!mania",    value="mania"),
+        ],
+        server=OSU_SERVER_CHOICES,
+    )
     async def slash_firsts(
         self, interaction: discord.Interaction,
-        username: str = None, mode: str = "osu"
+        username: str = None, mode: str = "osu", server: str = "bancho"
     ):
         await interaction.response.defer()
         try:
             uname = username
             if not uname:
-                uname = await self.bot.osu_repo.get_linked_username(interaction.user.id)
+                uname = await self.bot.osu_repo.get_linked_username(interaction.user.id, server=server)
             if not uname:
                 return await interaction.followup.send(
                     f"{DaletAtoms.GLYPH_CROSS} no tienes cuenta vinculada.", ephemeral=True
                 )
-            server_lang = "en"
-            if interaction.guild:
-                server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
+            server_lang = await self._resolve_lang(interaction)
 
-            user = await self.bot.osu_service.get_user(uname, mode)
-            firsts = await self.bot.osu_service.get_user_firsts(user["id"], mode, limit=10)
+            user = await self.bot.osu_service.get_user(uname, mode, server=server)
+            firsts = await self.bot.osu_service.get_user_firsts(user["id"], mode, limit=10, server=server)
             if not firsts:
                 return await interaction.followup.send(
-                    f"{DaletAtoms.GLYPH_POINTER} {t('osu.firsts_none', server_lang, username=uname, mode=_mode_title(mode))}"
+                    f"{DaletAtoms.GLYPH_POINTER} {t('osu.firsts_none', server_lang, username=uname, mode=OsuPresenter.mode_title(mode))}"
                 )
 
             await self.bot.osu_service.enrich_scores_with_attributes(firsts[:10], mode=mode)
@@ -414,7 +428,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         username="osu! username (or leave empty for your linked account)",
         mode="Game mode",
         filter="Filter recent plays: last play, best play in last 24h, or last pass without fails",
-        mods="Filter by mods (e.g. DT, HDDT, HR, NM)"
+        mods="Filter by mods (e.g. DT, HDDT, HR, NM)",
+        server="osu! server (Bancho, Akatsuki, Akatsuki Relax, Gatari)"
     )
     @app_commands.choices(
         mode=[
@@ -428,6 +443,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             app_commands.Choice(name="Recent Best (Best in 24h)",    value="best"),
             app_commands.Choice(name="Last Pass (Ignore Fails)",     value="pass"),
         ],
+        server=OSU_SERVER_CHOICES,
     )
     async def slash_recent(
         self,
@@ -436,24 +452,23 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         mode: str = "osu",
         filter: str = "last",
         mods: str = None,
+        server: str = "bancho",
     ):
         await interaction.response.defer()
         uname = username
         if not uname:
-            uname = await self.bot.osu_repo.get_linked_username(interaction.user.id)
+            uname = await self.bot.osu_repo.get_linked_username(interaction.user.id, server=server)
         if not uname:
             return await interaction.followup.send(
                 f"{DaletAtoms.GLYPH_POINTER} no tienes cuenta vinculada.", ephemeral=True
             )
         try:
-            server_lang = "en"
-            if interaction.guild:
-                server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
-            user = await self.bot.osu_service.get_user(uname, mode)
+            server_lang = await self._resolve_lang(interaction)
+            user = await self.bot.osu_service.get_user(uname, mode, server=server)
             fetch_limit = 50 if (filter != "last" or mods) else 1
             include_fails = 0 if filter == "pass" else 1
             recent = await self.bot.osu_service.get_user_recent_scores(
-                user["id"], mode, limit=fetch_limit, include_fails=include_fails
+                user["id"], mode, limit=fetch_limit, include_fails=include_fails, server=server
             )
             if not recent:
                 return await interaction.followup.send(
@@ -488,7 +503,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         username="osu! username (or leave empty for your linked account)",
         mode="Game mode",
         filter="Sort order: Highest PP (default), Recent Best (newest in top 100), or Highest Accuracy",
-        mods="Filter top 100 plays by mods (e.g. DT, HDDT, HR, NM)"
+        mods="Filter top 100 plays by mods (e.g. DT, HDDT, HR, NM)",
+        server="osu! server (Bancho, Akatsuki, Akatsuki Relax, Gatari)"
     )
     @app_commands.choices(
         mode=[
@@ -502,6 +518,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             app_commands.Choice(name="Recent Best (Newest in Top 100)",  value="recent"),
             app_commands.Choice(name="Highest Accuracy",                 value="acc"),
         ],
+        server=OSU_SERVER_CHOICES,
     )
     async def slash_top(
         self,
@@ -510,21 +527,20 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         mode: str = "osu",
         filter: str = "pp",
         mods: str = None,
+        server: str = "bancho",
     ):
         await interaction.response.defer()
         uname = username
         if not uname:
-            uname = await self.bot.osu_repo.get_linked_username(interaction.user.id)
+            uname = await self.bot.osu_repo.get_linked_username(interaction.user.id, server=server)
         if not uname:
             return await interaction.followup.send(
                 f"{DaletAtoms.GLYPH_POINTER} no tienes cuenta vinculada.", ephemeral=True
             )
         try:
-            server_lang = "en"
-            if interaction.guild:
-                server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
-            user = await self.bot.osu_service.get_user(uname, mode)
-            best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=mode, limit=100)
+            server_lang = await self._resolve_lang(interaction)
+            user = await self.bot.osu_service.get_user(uname, mode, server=server)
+            best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=mode, limit=100, server=server)
             if not best:
                 return await interaction.followup.send(
                     f"{DaletAtoms.GLYPH_POINTER} **{uname}** no tiene top plays en {mode}."
@@ -560,40 +576,39 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.describe(
         username="osu! username (or leave empty for your linked account)",
         mode="Game mode (default: osu)",
-        mods="Optional mods filter (e.g. DT, HDDT, HR, NM)"
+        mods="Optional mods filter (e.g. DT, HDDT, HR, NM)",
+        server="osu! server (Bancho, Akatsuki, Akatsuki Relax, Gatari)"
     )
-    @app_commands.choices(mode=[
-        app_commands.Choice(name="osu!standard", value="osu"),
-        app_commands.Choice(name="osu!taiko",    value="taiko"),
-        app_commands.Choice(name="osu!catch",    value="fruits"),
-        app_commands.Choice(name="osu!mania",    value="mania"),
-    ])
+    @app_commands.choices(
+        mode=[
+            app_commands.Choice(name="osu!standard", value="osu"),
+            app_commands.Choice(name="osu!taiko",    value="taiko"),
+            app_commands.Choice(name="osu!catch",    value="fruits"),
+            app_commands.Choice(name="osu!mania",    value="mania"),
+        ],
+        server=OSU_SERVER_CHOICES,
+    )
     async def slash_skills(
         self, interaction: discord.Interaction,
-        username: str = None, mode: str = "osu", mods: str = None
+        username: str = None, mode: str = "osu", mods: str = None, server: str = "bancho"
     ):
         await interaction.response.defer()
         try:
             uname = username
             if not uname:
-                uname = await self.bot.osu_repo.get_linked_username(interaction.user.id)
+                uname = await self.bot.osu_repo.get_linked_username(interaction.user.id, server=server)
             if not uname:
                 return await interaction.followup.send(
                     f"{DaletAtoms.GLYPH_POINTER} no tienes cuenta vinculada. usa `/link` primero o especifica un usuario.",
                     ephemeral=True
                 )
 
-            user = await self.bot.osu_service.get_user(uname, mode)
-            best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=mode, limit=100)
+            user = await self.bot.osu_service.get_user(uname, mode, server=server)
+            best = await self.bot.osu_service.get_user_best_scores(user["id"], mode=mode, limit=100, server=server)
             if not best:
                 return await interaction.followup.send(f"{DaletAtoms.GLYPH_POINTER} **{uname}** no tiene mejores jugadas registradas en {mode}.")
 
-            server_lang = "en"
-            if interaction.guild_id:
-                try:
-                    server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
-                except Exception:
-                    server_lang = "en"
+            server_lang = await self._resolve_lang(interaction)
 
             target_scores = best
             if mods and mods.strip():
@@ -606,71 +621,14 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             await self.bot.osu_service.enrich_scores_with_attributes(target_scores[:15], mode=mode)
             skills_data = OsuAnalyzer.calculate_skills(target_scores, mode=mode, lang=server_lang)
 
-            dominant = skills_data.get("dominant_skill", "Aim")
-            weakest = skills_data.get("weakest_skill", "Stamina")
-            overall = skills_data.get("overall_skill_stars", 0.0)
-            overall_pts = skills_data.get("overall_skill_points", 0.0)
-            overall_tier = skills_data.get("overall_tier_name", "Master")
-            dom_pts = skills_data.get(dominant, {}).get("points", 0.0)
-            dom_tier = skills_data.get(dominant, {}).get("tier_name", "")
-            weak_pts = skills_data.get(weakest, {}).get("points", 0.0)
-            weak_tier = skills_data.get(weakest, {}).get("tier_name", "")
-            stats = user.get("statistics", {})
-            gr = stats.get("global_rank") or "N/A"
-
-            is_es = server_lang == "es"
-            if is_es:
-                micro_prompt = (
-                    f"ROL: Eres Dalet, una bot cínica, técnica y experta en osu! ({mode}).\n"
-                    f"TAREA: Haz un roast o veredicto técnico contundente (MÁXIMO 2 ORACIONES, 25-35 palabras) sobre el perfil de {uname}:\n"
-                    f"- Modo: {mode}\n"
-                    f"- Habilidad dominante: {dominant} ({dom_pts} pts [{dom_tier}])\n"
-                    f"- Habilidad más débil: {weakest} ({weak_pts} pts [{weak_tier}])\n"
-                    f"- Puntuación de Maestría General: {overall_pts} pts [{overall_tier}]\n"
-                    f"- Rank global: #{gr}\n"
-                    f"REGLAS: Búrlate con sarcasmo de su debilidad en {weakest} comparado con su {dominant}. Ve directo al grano sin introducciones. Cero rodeos. IDIOMA: Español."
-                )
-                system_override = "Eres Dalet, una IA sarcástica y experta en osu!. Da un veredicto técnico contundente en 1 o 2 oraciones cortas. Ve directo al grano, sin explicaciones previas ni rodeos."
-                fallback_roasts = {
-                    "Speed": "Mucho DT farmeado en mapas cortos, pero ponle una ráfaga rápida y se te traba el cerebro.",
-                    "Stamina": "Aguantas maratones eternos de relleno, lástima que ante una ráfaga veloz te derritas.",
-                    "Aim": "Metes buen acc en ritmos planos, pero te mueven los círculos dos milímetros y ya estás tirando miss.",
-                    "Accuracy": "Mucho combo y estrellitas infladas, pero ese acc parece que tocas con guantes de boxeo.",
-                    "Reading": "Buen reading en mapas lentos, pero te suben el scroll y ni te enteras de qué nota fallaste.",
-                    "Patterning": "Te sabes el ritmo de memoria, pero te cambian dos colores de tambor seguidos y te da un colapso mental.",
-                    "Agility": "Muy rápido corriendo en línea recta, pero te piden un cambio brusco de dirección y el plato vuela al vacío.",
-                    "Precision": "Cazas frutas gigantes como si nada, pero achican el plato medio pixel y las gotas caen como lluvia.",
-                    "Chordjack": "Mucho spam de teclas sueltas, pero te tiran tres acordes densos simultáneos y se te apagan los dedos.",
-                    "LN": "Mucha pose apretando notas largas estáticas, pero te sueltan un fideo con inverse y tus dedos entran en cortocircuito.",
-                    "Stream": "Muy cómodo con acordes estáticos, pero te meten una escalera fluida a 200 BPM y pareces una lavadora rota.",
-                    "Tech": "Mucho spam de acordes planos, pero te meten dos bursts técnicos o un minijack veloz y se te cruzan los dedos."
-                }
-            else:
-                micro_prompt = (
-                    f"ROLE: You are Dalet, a cynical, witty, and sharp osu! expert ({mode}).\n"
-                    f"TASK: Write a biting technical roast (MAX 2 SHORT SENTENCES, 25-35 words) about {uname}'s profile in English:\n"
-                    f"- Mode: {mode}\n"
-                    f"- Dominant skill: {dominant} ({dom_pts} pts [{dom_tier}])\n"
-                    f"- Weakest skill: {weakest} ({weak_pts} pts [{weak_tier}])\n"
-                    f"- Overall Mastery Score: {overall_pts} pts [{overall_tier}]\n"
-                    f"- Global rank: #{gr}\n"
-                    f"RULES: Mock their weak {weakest} compared to their {dominant} with dry sarcasm. Be direct with no intro. No filler. LANGUAGE: English."
-                )
-                system_override = "You are Dalet, a sarcastic and witty osu! expert. Give a sharp, punchy technical verdict in 1-2 short sentences. Be direct, no fluff or preliminary reasoning."
-                fallback_roasts = {
-                    "Speed": "Lots of DT farmed on short maps, but throw you a fast burst and your hands fall apart.",
-                    "Stamina": "You can endure endless marathon filler, too bad you melt the second any speed burst hits.",
-                    "Aim": "Decent accuracy on flat rhythms, but move the circles two millimeters and you're already dropping misses.",
-                    "Accuracy": "Inflated star rating and combo, but with that accuracy you might as well be tapping with boxing gloves.",
-                    "Reading": "Decent reading on slow maps, but bump the scroll speed and you won't even know which note you choked.",
-                    "Patterning": "You memorize the beat fine, but throw two alternating drum colors your way and your brain short-circuits.",
-                    "Agility": "Fast sprinting in a straight line, but ask for a sharp direction snap and your plate flies into the void.",
-                    "Precision": "Catching giant fruits is easy, but shrink the plate half a pixel and droplets pour past you like rain.",
-                    "Chordjack": "Plenty of single-key spam, but throw dense chords at you and your fingers freeze instantly.",
-                    "LN": "Holding down static long notes is easy, but throw in inverse noodles and your release timing completely vanishes.",
-                    "Stream": "Comfortable with static chords, but throw a fluid 200 BPM stream at you and you sound like a broken washing machine.",
-                    "Tech": "Fine tapping flat patterns, but throw two technical bursts or a quick minijack and your fingers cross instantly."
-                }
+            verdict_ctx = OsuAnalyzer.build_skill_verdict_context(
+                user.get("username", uname),
+                user,
+                skills_data,
+                mode=mode,
+                lang=server_lang,
+                server=server,
+            )
 
             def _is_valid_roast(txt: str) -> bool:
                 if not txt or not isinstance(txt, str):
@@ -694,17 +652,18 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             roast_text = None
             try:
                 roast_text = await self.bot.nlp_service.generate_reply(
-                    micro_prompt, "Skill Roast", uname,
+                    verdict_ctx["micro_prompt"],
+                    "Skill Verdict",
+                    user.get("username", uname),
                     max_tokens_override=350,
-                    system_prompt_override=system_override,
-                    language=server_lang
+                    system_prompt_override=verdict_ctx["system_override"],
+                    language=server_lang,
                 )
             except Exception as nlp_err:
-                logger.warning(f"No se pudo generar roast para slash skills ({uname}): {nlp_err}")
+                logger.warning(f"No se pudo generar veredicto para slash skills ({uname}): {nlp_err}")
 
             if not _is_valid_roast(roast_text):
-                fallback_default = f"Mucho número inflado en {dominant}, pero en {weakest} das pena ajena." if is_es else f"Over-inflated numbers in {dominant}, but your {weakest} is embarrassing."
-                roast_text = fallback_roasts.get(weakest, fallback_default)
+                roast_text = verdict_ctx["fallback_text"]
 
             embed = OsuPresenter.build_skills_card(
                 user, skills_data, roast_text=roast_text, mode=mode, lang=server_lang, mods_filter=mods
@@ -724,12 +683,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     ])
     async def slash_rank(self, interaction: discord.Interaction, mode: str = "osu"):
         await interaction.response.defer()
-        server_lang = "en"
-        if interaction.guild_id:
-            try:
-                server_lang = await self.bot.admin_repo.get_server_language(interaction.guild_id)
-            except Exception:
-                server_lang = "en"
+        server_lang = await self._resolve_lang(interaction)
         try:
             guild_member_ids = {str(m.id) for m in interaction.guild.members if not m.bot}
             all_rows = await self.bot.osu_repo.get_ranking(mode=mode, limit=500)
@@ -765,21 +719,22 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             medals = ["✦", "◈", "◇"]
             lines = []
             for i, row in enumerate(server_rows):
-                medal = medals[i] if i < 3 else f"`{i+1}.`"
+                medal = medals[i] if i < 3 else f"`#{i+1}`"
                 osu_name = _get_val(row, "OsuUsername", "osuusername", "UserName", "username", 1, default="??")
                 pp   = float(_get_val(row, "PP", "pp", 5, default=0) or 0)
                 acc  = float(_get_val(row, "Accuracy", "accuracy", 8, default=0) or 0)
                 gr   = _get_val(row, "GlobalRank", "globalrank", 6, default=None)
-                gr_str = f" (#{int(gr):,})" if gr else ""
-                lines.append(f"{medal} **{osu_name}** — `{pp:,.0f}pp` • `{acc:.2f}%`{gr_str}")
+                gr_str = f" │ `#{int(gr):,}`" if gr else ""
+                lines.append(f"{medal} **{osu_name}** — **{pp:,.0f}pp** │ `{acc:.2f}%`{gr_str}")
 
+            mode_label = OsuPresenter.mode_title(mode)
             embed = discord.Embed(
-                title=f"✦ {t('rank.title', server_lang)} — {_mode_title(mode)}",
-                description="\n".join(lines),
+                title=f"✦ {t('rank.title', server_lang)} — {mode_label}",
+                description="\n\n".join(lines),
                 color=DaletAtoms.COLOR_PRIMARY
             )
             footer_txt = f"{len(server_rows)} jugadores vinculados en este servidor" if server_lang.startswith("es") else f"{len(server_rows)} linked players in this server"
-            embed.set_footer(text=footer_txt)
+            embed.set_footer(text=f"{footer_txt} {DaletAtoms.GLYPH_PIPE} osu! {mode_label}")
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /rank: {e}")
@@ -789,27 +744,27 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.describe(
         player1="First player (or leave player2 empty to compare against your linked account)",
         player2="Second player (optional, compares against yourself if omitted)",
-        mode="Game mode (default: osu!)"
+        mode="Game mode (default: osu!)",
+        server="osu! server (Bancho, Akatsuki, Akatsuki Relax, Gatari)"
     )
-    @app_commands.choices(mode=[
-        app_commands.Choice(name="osu! (Standard)", value="osu"),
-        app_commands.Choice(name="osu!taiko", value="taiko"),
-        app_commands.Choice(name="osu!catch", value="fruits"),
-        app_commands.Choice(name="osu!mania", value="mania"),
-    ])
+    @app_commands.choices(
+        mode=[
+            app_commands.Choice(name="osu! (Standard)", value="osu"),
+            app_commands.Choice(name="osu!taiko", value="taiko"),
+            app_commands.Choice(name="osu!catch", value="fruits"),
+            app_commands.Choice(name="osu!mania", value="mania"),
+        ],
+        server=OSU_SERVER_CHOICES,
+    )
     async def slash_compare(
         self,
         interaction: discord.Interaction,
         player1: str,
         player2: str = None,
-        mode: app_commands.Choice[str] = None
+        mode: app_commands.Choice[str] = None,
+        server: str = "bancho",
     ):
-        server_lang = "en"
-        if interaction.guild:
-            try:
-                server_lang = await self.bot.admin_repo.get_server_language(interaction.guild.id)
-            except Exception:
-                server_lang = "en"
+        server_lang = await self._resolve_lang(interaction)
 
         mode_str = mode.value if mode else "osu"
         p1 = player1.strip()
@@ -819,7 +774,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             u1_name = p1
             u2_name = p2
         else:
-            linked_name = await self.bot.osu_repo.get_linked_username(interaction.user.id)
+            linked_name = await self.bot.osu_repo.get_linked_username(interaction.user.id, server=server)
             if not linked_name:
                 return await interaction.response.send_message(
                     f"{DaletAtoms.GLYPH_POINTER} {t('osu.compare_need_link', server_lang)}",
@@ -831,13 +786,13 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         await interaction.response.defer()
         try:
             u1, u2 = await asyncio.gather(
-                self.bot.osu_service.get_user(u1_name, mode_str),
-                self.bot.osu_service.get_user(u2_name, mode_str),
+                self.bot.osu_service.get_user(u1_name, mode_str, server=server),
+                self.bot.osu_service.get_user(u2_name, mode_str, server=server),
             )
 
             b1, b2 = await asyncio.gather(
-                self.bot.osu_service.get_user_best_scores(u1["id"], mode=mode_str, limit=100),
-                self.bot.osu_service.get_user_best_scores(u2["id"], mode=mode_str, limit=100),
+                self.bot.osu_service.get_user_best_scores(u1["id"], mode=mode_str, limit=100, server=server),
+                self.bot.osu_service.get_user_best_scores(u2["id"], mode=mode_str, limit=100, server=server),
                 return_exceptions=True
             )
             b1_list = b1 if isinstance(b1, list) else []
@@ -1228,40 +1183,80 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             await interaction.response.send_message(t("admin.setname_error", server_lang), ephemeral=True)
 
     # ------------------------------------------------------------------
-    # Admin: Idioma del servidor (English / Español)
+    # Idioma (Personal por Usuario o General del Servidor)
     # ------------------------------------------------------------------
 
-    @app_commands.command(name="language", description="[ADMIN] Configures or displays the server language.")
-    @app_commands.describe(language="Choose server language (en: English, es: Español)")
-    @app_commands.choices(language=[
-        app_commands.Choice(name="English (Default)", value="en"),
-        app_commands.Choice(name="Español", value="es"),
-    ])
-    @app_commands.checks.has_permissions(administrator=True)
-    async def slash_language(self, interaction: discord.Interaction, language: str = None):
-        if not interaction.guild_id:
-            return await interaction.response.send_message("❌ This command can only be used in a server.", ephemeral=True)
-
+    @app_commands.command(name="language", description="Configures your personal language preference or the server default language.")
+    @app_commands.describe(
+        language="Choose language: English, Español, or Auto (follow server default)",
+        scope="Apply to your personal profile (default) or the entire server (Admin only)"
+    )
+    @app_commands.choices(
+        language=[
+            app_commands.Choice(name="Español", value="es"),
+            app_commands.Choice(name="English", value="en"),
+            app_commands.Choice(name="Auto (Follow Server Default)", value="auto"),
+        ],
+        scope=[
+            app_commands.Choice(name="Personal (Only for me)", value="user"),
+            app_commands.Choice(name="Server Default (Admin only)", value="server"),
+        ],
+    )
+    async def slash_language(
+        self,
+        interaction: discord.Interaction,
+        language: str = None,
+        scope: str = "user",
+    ):
+        effective_lang = await self._resolve_lang(interaction)
         if not language:
-            current = await self.bot.admin_repo.get_server_language(interaction.guild_id)
-            lang_name = "English" if current == "en" else "Español"
+            user_pref = await self.bot.admin_repo.get_user_language(interaction.user.id)
+            srv_pref = await self.bot.admin_repo.get_server_language(interaction.guild_id) if interaction.guild_id else "en"
+            u_str = user_pref.upper() if user_pref else f"AUTO ({srv_pref.upper()})"
             return await interaction.response.send_message(
-                f"{DaletAtoms.GLYPH_POINTER} Current server language is **{lang_name}** (`{current}`).\n"
-                f"{DaletAtoms.GLYPH_SUB} Use `/language [language]` to change it.",
+                f"{DaletAtoms.GLYPH_POINTER} Personal language: **{u_str}** │ Server default: **{srv_pref.upper()}**.\n"
+                f"{DaletAtoms.GLYPH_SUB} Use `/language [language] [scope]` or `d.lang es|en|auto` to change it.",
                 ephemeral=True
             )
 
-        await self.bot.admin_repo.set_server_language(interaction.guild_id, language)
-        if language == "es":
-            await interaction.response.send_message(
-                f"{DaletAtoms.EMOJI_DALET} Idioma del servidor actualizado a **Español**. Dalet responderá y mostrará estadísticas en español.",
+        if scope == "server":
+            if not interaction.guild_id or not interaction.user.guild_permissions.administrator:
+                return await interaction.response.send_message(
+                    f"{DaletAtoms.GLYPH_CROSS} You need Administrator permissions to change the server default language.",
+                    ephemeral=True
+                )
+            srv_code = "en" if language == "auto" else language
+            await self.bot.admin_repo.set_server_language(
+                interaction.guild_id, srv_code, interaction.guild.name if interaction.guild else None
+            )
+            if srv_code == "es":
+                return await interaction.response.send_message(
+                    f"{DaletAtoms.EMOJI_DALET} Idioma del servidor actualizado a **Español**. Dalet responderá y mostrará estadísticas en español por defecto.",
+                    ephemeral=False
+                )
+            return await interaction.response.send_message(
+                f"{DaletAtoms.EMOJI_DALET} Server language updated to **English**. Dalet will now chat and format statistics in English by default.",
                 ephemeral=False
             )
+
+        # Scope = user (cualquier usuario puede elegir su idioma personal)
+        await self.bot.admin_repo.set_user_language(
+            interaction.user.id,
+            None if language == "auto" else language,
+            str(interaction.user),
+        )
+        new_eff = await self._resolve_lang(interaction)
+        if language == "auto":
+            msg = (
+                f"{DaletAtoms.GLYPH_CHECK} Tu idioma personal ahora sigue el del servidor (**{new_eff.upper()}**)."
+                if new_eff.startswith("es") else
+                f"{DaletAtoms.GLYPH_CHECK} Your personal language now follows the server default (**{new_eff.upper()}**)."
+            )
+        elif language == "es":
+            msg = f"{DaletAtoms.GLYPH_CHECK} Tu idioma personal ha sido actualizado a **Español**."
         else:
-            await interaction.response.send_message(
-                f"{DaletAtoms.EMOJI_DALET} Server language updated to **English**. Dalet will now chat and format statistics in English.",
-                ephemeral=False
-            )
+            msg = f"{DaletAtoms.GLYPH_CHECK} Your personal language has been set to **English**."
+        await interaction.response.send_message(msg, ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

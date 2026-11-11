@@ -852,6 +852,185 @@ class OsuAnalyzer:
             "maps": common_duels[:limit],
         }
 
+    @staticmethod
+    def build_skill_verdict_context(
+        username: str,
+        user_data: dict,
+        skills_data: dict,
+        mode: str = "osu",
+        lang: str = "en",
+        server: str = "bancho",
+    ) -> tuple[str, str, str, str]:
+        """
+        Evalúa el arquetipo real del jugador (APEX_TITAN, ALL_ROUNDER, SPECIALIST, RISING_GRINDER)
+        considerando su rango global, PP, spread entre habilidades y servidor, y devuelve:
+        (archetype, micro_prompt, system_override, fallback_text)
+        """
+        stats = (user_data or {}).get("statistics") or {}
+        gr_raw = stats.get("global_rank")
+        gr = int(gr_raw) if gr_raw else 0
+        pp = float(stats.get("pp") or 0.0)
+
+        dominant = skills_data.get("dominant_skill", "Aim")
+        weakest = skills_data.get("weakest_skill", "Stamina")
+        overall_pts = float(skills_data.get("overall_skill_points") or 0.0)
+        overall_tier = skills_data.get("overall_tier_name", "Master")
+
+        dom_pts = float((skills_data.get(dominant) or {}).get("points") or 0.0)
+        dom_tier = (skills_data.get(dominant) or {}).get("tier_name", "")
+        weak_pts = float((skills_data.get(weakest) or {}).get("points") or 0.0)
+        weak_tier = (skills_data.get(weakest) or {}).get("tier_name", "")
+
+        spread = max(0.0, dom_pts - weak_pts)
+        is_es = (lang or "en").lower().startswith("es")
+        srv_label = {
+            "bancho": "Bancho",
+            "akatsuki": "Akatsuki",
+            "akatsuki_rx": "Akatsuki Relax",
+            "akatsuki_ap": "Akatsuki Autopilot",
+            "gatari": "Gatari",
+        }.get((server or "bancho").lower(), "Bancho")
+
+        # Clasificación de Arquetipo con conciencia real de nivel y obviedades
+        is_apex = (0 < gr <= 2500) or overall_pts >= 88.0 or pp >= 11500
+        is_all_rounder = spread <= 8.0 and overall_pts >= 45.0
+        is_specialist = spread >= 15.0
+
+        if is_apex:
+            archetype = "APEX_TITAN"
+        elif is_all_rounder:
+            archetype = "ALL_ROUNDER"
+        elif is_specialist:
+            archetype = "SPECIALIST"
+        else:
+            archetype = "RISING_GRINDER"
+
+        gr_str = f"#{gr:,}" if gr > 0 else "Unranked"
+
+        if is_es:
+            if archetype == "APEX_TITAN":
+                if 0 < gr <= 100 or pp >= 16000 or overall_pts >= 95.0:
+                    context_rule = (
+                        f"CONCIENCIA DE NIVEL: {username} es literalmente un monstruo de la cima mundial ({gr_str}, {pp:,.0f}pp, {overall_pts:.1f} pts en {srv_label}). "
+                        f"NO digas que es malo ni que da pena; reconoce con ironía y respeto que hasta su habilidad 'más baja' ({weakest}: {weak_pts:.1f} pts) humilla al 99.9% del juego, destacando su brutal {dominant} ({dom_pts:.1f} pts)."
+                    )
+                    fallback = (
+                        f"Con {pp:,.0f}pp y un {dominant} de {dom_pts:.1f} pts ya te pasaste el juego; "
+                        f"llamar 'punto débil' a tu {weakest} ({weak_pts:.1f} pts) sería faltarle el respeto al resto de mortales."
+                    )
+                else:
+                    context_rule = (
+                        f"CONCIENCIA DE NIVEL: {username} es un jugador de élite ({gr_str}, {pp:,.0f}pp en {srv_label}). "
+                        f"Reconoce su nivelazo en {dominant} ({dom_pts:.1f} pts) y señala con humor afilado qué le falta en {weakest} ({weak_pts:.1f} pts) para terminar de coronarse."
+                    )
+                    fallback = (
+                        f"Nivelazo de élite con ese {dominant} en {dom_pts:.1f} pts ({gr_str}); "
+                        f"si le metieras el mismo cariño a {weakest} ({weak_pts:.1f} pts) ya estarías peleando aún más arriba."
+                    )
+            elif archetype == "ALL_ROUNDER":
+                context_rule = (
+                    f"CONCIENCIA DE NIVEL: {username} es un ALL-ROUNDER súper equilibrado (solo {spread:.1f} pts de diferencia entre su {dominant} de {dom_pts:.1f} pts y su {weakest} de {weak_pts:.1f} pts). "
+                    f"Destaca que es rarísimo ver un perfil tan balanceado sin huecos graves, y dile con ingenio qué empujón en {dominant} o {weakest} lo hará despegar."
+                )
+                fallback = (
+                    f"Un all-rounder de manual: apenas {spread:.1f} pts separan tu {dominant} ({dom_pts:.1f}) de tu {weakest} ({weak_pts:.1f}), "
+                    f"así que tienes base de sobra para pushear techos más altos sin sufrir."
+                )
+            elif archetype == "SPECIALIST":
+                context_rule = (
+                    f"CONCIENCIA DE NIVEL: {username} es un ESPECIALISTA puro en {dominant} ({dom_pts:.1f} pts), sacándole +{spread:.1f} pts de ventaja a su {weakest} ({weak_pts:.1f} pts). "
+                    f"Halaga su especialidad letal en {dominant}, pero tírale una puya ingeniosa sobre cómo sufre cuando lo sacan a mapas de {weakest}."
+                )
+                fallback = (
+                    f"Especialista total en {dominant} ({dom_pts:.1f} pts): en tu terreno eres letal, "
+                    f"pero te sacan a un mapa de {weakest} ({weak_pts:.1f} pts) y se nota el contraste de +{spread:.1f} pts."
+                )
+            else:
+                context_rule = (
+                    f"CONCIENCIA DE NIVEL: {username} ({gr_str}, {pp:,.0f}pp en {srv_label}) tiene buenas bases en {dominant} ({dom_pts:.1f} pts [{dom_tier}]) y margen claro de mejora en {weakest} ({weak_pts:.1f} pts [{weak_tier}]). "
+                    f"Haz un diagnóstico realista e ingenioso: reconoce lo que hace bien en {dominant} y dile qué pulir en {weakest} para seguir subiendo."
+                )
+                fallback = (
+                    f"Tu {dominant} ({dom_pts:.1f} pts) ya tira bastante bien del carro, "
+                    f"pero pulir ese {weakest} ({weak_pts:.1f} pts) es lo que te va a dar el próximo salto de nivel."
+                )
+
+            micro_prompt = (
+                f"ROL: Eres Dalet, analista experta, aguda y realista de osu! ({mode} en {srv_label}).\n"
+                f"DATOS DE {username}: Rank {gr_str} ({pp:,.0f}pp) | General: {overall_pts:.1f} pts [{overall_tier}] | "
+                f"Fuerte: {dominant} ({dom_pts:.1f} pts) | Bajo: {weakest} ({weak_pts:.1f} pts) | Spread: {spread:.1f} pts.\n"
+                f"{context_rule}\n"
+                f"REGLAS: Escribe MÁXIMO 2 ORACIONES CORTAS (25-38 palabras). Sé natural, variada y precisa con sus datos reales. Cero introducciones. IDIOMA: Español."
+            )
+            system_override = (
+                "Eres Dalet, analista técnica e ingeniosa de osu!. Adapta tu tono al nivel real del jugador (respeto irónico si es top/élite, reconocimiento si es all-rounder o especialista, y consejo afilado para mejorar). 1-2 oraciones."
+            )
+        else:
+            if archetype == "APEX_TITAN":
+                if 0 < gr <= 100 or pp >= 16000 or overall_pts >= 95.0:
+                    context_rule = (
+                        f"LEVEL AWARENESS: {username} is literally a world-class monster ({gr_str}, {pp:,.0f}pp, {overall_pts:.1f} pts on {srv_label}). "
+                        f"Do NOT call them bad; acknowledge with dry wit that even their 'lowest' stat ({weakest}: {weak_pts:.1f} pts) outclasses 99.9% of players while praising their absurd {dominant} ({dom_pts:.1f} pts)."
+                    )
+                    fallback = (
+                        f"With {pp:,.0f}pp and {dom_pts:.1f} pts in {dominant}, you've basically beaten the game; "
+                        f"calling your {weakest} ({weak_pts:.1f} pts) a 'weakness' is just unfair to everyone else."
+                    )
+                else:
+                    context_rule = (
+                        f"LEVEL AWARENESS: {username} is an elite player ({gr_str}, {pp:,.0f}pp on {srv_label}). "
+                        f"Respect their heavy {dominant} ({dom_pts:.1f} pts) and point out with sharp wit how bringing up {weakest} ({weak_pts:.1f} pts) will push them even higher."
+                    )
+                    fallback = (
+                        f"Serious elite firepower with {dom_pts:.1f} pts in {dominant} ({gr_str}); "
+                        f"give your {weakest} ({weak_pts:.1f} pts) half that attention and you'll climb even faster."
+                    )
+            elif archetype == "ALL_ROUNDER":
+                context_rule = (
+                    f"LEVEL AWARENESS: {username} is a true ALL-ROUNDER (only a {spread:.1f} pt gap between {dominant} at {dom_pts:.1f} pts and {weakest} at {weak_pts:.1f} pts). "
+                    f"Praise how rare it is to see such a balanced toolkit with no glaring holes, and suggest how to push their ceiling next."
+                )
+                fallback = (
+                    f"A textbook all-rounder: only {spread:.1f} pts separate your {dominant} ({dom_pts:.1f}) from your {weakest} ({weak_pts:.1f}), "
+                    f"giving you a rock-solid foundation to push higher star ratings."
+                )
+            elif archetype == "SPECIALIST":
+                context_rule = (
+                    f"LEVEL AWARENESS: {username} is a pure {dominant} SPECIALIST ({dom_pts:.1f} pts), leading their {weakest} ({weak_pts:.1f} pts) by +{spread:.1f} pts. "
+                    f"Acknowledge their lethal {dominant} specialty while teasing the contrast when a map demands {weakest}."
+                )
+                fallback = (
+                    f"Deadly {dominant} specialist ({dom_pts:.1f} pts) in your comfort zone, "
+                    f"though that +{spread:.1f} pt gap over {weakest} ({weak_pts:.1f} pts) shows the second the map style shifts."
+                )
+            else:
+                context_rule = (
+                    f"LEVEL AWARENESS: {username} ({gr_str}, {pp:,.0f}pp on {srv_label}) has solid {dominant} ({dom_pts:.1f} pts [{dom_tier}]) and clear room to grow in {weakest} ({weak_pts:.1f} pts [{weak_tier}]). "
+                    f"Give a realistic, witty assessment: credit their {dominant} and point out how sharpening {weakest} will unlock more PP."
+                )
+                fallback = (
+                    f"Your {dominant} ({dom_pts:.1f} pts) is carrying nicely, "
+                    f"and rounding out that {weakest} ({weak_pts:.1f} pts) is your clearest ticket to the next rank tier."
+                )
+
+            micro_prompt = (
+                f"ROLE: You are Dalet, a sharp, realistic, and insightful osu! analyst ({mode} on {srv_label}).\n"
+                f"PLAYER DATA FOR {username}: Rank {gr_str} ({pp:,.0f}pp) | Overall: {overall_pts:.1f} pts [{overall_tier}] | "
+                f"Best: {dominant} ({dom_pts:.1f} pts) | Lowest: {weakest} ({weak_pts:.1f} pts) | Spread: {spread:.1f} pts.\n"
+                f"{context_rule}\n"
+                f"RULES: Write MAX 2 SHORT SENTENCES (25-38 words). Be natural, varied, and accurate to their real stats. No intro fluff. LANGUAGE: English."
+            )
+            system_override = (
+                "You are Dalet, a sharp technical osu! analyst. Match your tone to the player's actual level (ironic respect for top/elite players, credit for all-rounders/specialists, and actionable wit for grinders). 1-2 sentences."
+            )
+
+        return {
+            "archetype": archetype,
+            "micro_prompt": micro_prompt,
+            "system_override": system_override,
+            "fallback_text": fallback,
+        }
+
 
 async def setup(bot):
     pass

@@ -117,16 +117,19 @@ Dalet incluye una suite de moderación integrada y configurable para proteger se
 
 Dalet es compatible tanto con comandos de barra diagonal (`/`) de Discord como con el prefijo tradicional `d.`:
 
-### Comandos de osu!
+### Comandos de osu! (Bancho, Akatsuki & Gatari)
 | Comando | Tipo | Descripción |
 | :--- | :--- | :--- |
-| `/skills [usuario] [modo]` | Slash / `d.skills` | Desglose de habilidades 5D (Aim, Speed, Acc, Stamina, Reading) con veredicto IA |
-| `/recent [usuario] [modo] [filtro] [mods]` | Slash / `d.rs`, `d.rp`, `d.or` | Muestra tu jugada reciente con filtros (`last`, `best` 24h, `pass`, `+mods`) |
-| `/top [usuario] [modo] [filtro] [mods]` | Slash / `d.top`, `d.rb` | Muestra tu Top 5 ordenado por `pp`, `recent` (*Recent Best*), `acc` o `+mods` |
-| `/op [usuario] [modo]` | Slash / `d.op` | Muestra el perfil completo de osu!, rango, precisión e historial de notas |
-| `/compare <usuario>` | Slash | Compara estadísticas cara a cara contra otro jugador |
-| `/link <usuario>` | Slash / `d.link` | Vincula tu cuenta de Discord con tu perfil de osu! |
-| `d.unlink` | Prefijo | Desvincula tu cuenta de osu! |
+| `/skills [usuario] [modo] [mods] [server]` | Slash / `d.skills` | Desglose de habilidades 5D (Aim, Speed, Acc, Stamina, Reading) con veredicto consciente de nivel (`APEX`, `ALL-ROUNDER`, `SPECIALIST`) |
+| `/recent [usuario] [modo] [filtro] [mods] [server]` | Slash / `d.rs`, `d.rsm`, `d.rp`, `d.or` | Muestra tu jugada reciente con filtros (`last`, `best` 24h, `pass`, `+mods`, `-aka`, `-rx`, `-gatari`) |
+| `/top [usuario] [modo] [filtro] [mods] [server]` | Slash / `d.top`, `d.topm`, `d.rb` | Muestra tu Top 5 ordenado por `pp`, `recent` (*Recent Best*), `acc`, `+mods` o servidor (`-aka`, `-rx`, `-gatari`) |
+| `/op [usuario] [modo] [server]` | Slash / `d.op`, `d.opm`, `d.opt`, `d.opc` | Muestra el perfil completo de osu!, rango, Peak Rank, precisión e historial de notas |
+| `/compare <user1> [user2] [modo] [server]` | Slash / `d.compare` | Compara estadísticas cara a cara con duelo de mapas en común y veredicto IA |
+| `/progress [usuario]` | Slash / `d.prog` | Muestra el gráfico histórico de progreso de PP y delta |
+| `/firsts [usuario] [modo] [server]` | Slash / `d.op1s` | Muestra los récords #1 globales del jugador |
+| `/rank [modo]` | Slash / `d.rank` | Muestra el ranking osu! del servidor filtrable por modo |
+| `/link <usuario> [server]` | Slash / `d.link` | Vincula tu cuenta de Discord por servidor (`-bancho`, `-aka`, `-rx`, `-gatari`) |
+| `/unlink [server]` | Slash / `d.unlink` | Desvincula tu cuenta de osu! (servidor específico o todos) |
 
 ### IA Conversacional y Social
 | Comando | Tipo | Descripción |

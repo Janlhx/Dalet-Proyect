@@ -7,6 +7,7 @@ class AdminRepository(BaseRepository):
     """Repositorio para configuración administrativa de servidores, canales e idiomas."""
 
     _lang_cache: dict[int, str] = {}
+    _user_lang_cache: dict[int, str | None] = {}
     _name_cache: dict[int, str] = {}
     _mod_cache: dict[int, dict | None] = {}
 
@@ -108,6 +109,81 @@ class AdminRepository(BaseRepository):
             ON CONFLICT(ServerID) DO UPDATE SET Language = excluded.Language
         """
         return await self.execute(query, server_id, lang)
+
+    async def get_user_language(self, user_id: int) -> str | None:
+        """Obtiene el idioma personal ('en' o 'es') de un usuario con caché O(1) en memoria."""
+        if not user_id:
+            return None
+        if user_id in self._user_lang_cache:
+            return self._user_lang_cache[user_id]
+
+        # Asegurar columna Language en Users de forma idempotente (una sola vez)
+        if not getattr(self, "_migrated_user_lang", False):
+            try:
+                rows = await self.fetch_all("PRAGMA table_info(Users)")
+                existing_cols = {row[1] for row in rows} if rows else set()
+                if "Language" not in existing_cols:
+                    await self.execute("ALTER TABLE Users ADD COLUMN Language TEXT DEFAULT NULL")
+            except Exception:
+                pass
+            self._migrated_user_lang = True
+
+        query = "SELECT Language FROM Users WHERE UserID = ?"
+        result = await self.fetch_one(query, user_id)
+        lang = result[0] if result and result[0] in ("en", "es") else None
+        self._user_lang_cache[user_id] = lang
+        return lang
+
+    async def set_user_language(self, user_id: int, language: str | None, username: str = "User"):
+        """Establece o limpia ('auto') el idioma personal de un usuario."""
+        if language is None or str(language).lower().strip() in ("auto", "default", "server", "clear", "none"):
+            lang = None
+        else:
+            lang = "es" if str(language).lower().strip() in ("es", "spanish", "español") else "en"
+
+        self._user_lang_cache[user_id] = lang
+
+        if not getattr(self, "_migrated_user_lang", False):
+            try:
+                rows = await self.fetch_all("PRAGMA table_info(Users)")
+                existing_cols = {row[1] for row in rows} if rows else set()
+                if "Language" not in existing_cols:
+                    await self.execute("ALTER TABLE Users ADD COLUMN Language TEXT DEFAULT NULL")
+            except Exception:
+                pass
+            self._migrated_user_lang = True
+
+        query = """
+            INSERT INTO Users (UserID, UserName, Language)
+            VALUES (?, ?, ?)
+            ON CONFLICT(UserID) DO UPDATE SET Language = excluded.Language
+        """
+        return await self.execute(query, user_id, username or "User", lang)
+
+    async def resolve_language(self, user_id: int | None = None, server_id: int | None = None, default: str = "en") -> str:
+        """
+        Cascada híbrida O(1) para resolver el idioma activo:
+        1. Preferencia personal del usuario (si configuró /language personal).
+        2. Idioma del servidor (si está en un guild).
+        3. Default ('en').
+        """
+        if user_id:
+            try:
+                u_lang = await self.get_user_language(user_id)
+                if u_lang in ("en", "es"):
+                    return u_lang
+            except Exception:
+                pass
+
+        if server_id:
+            try:
+                s_lang = await self.get_server_language(server_id)
+                if s_lang in ("en", "es"):
+                    return s_lang
+            except Exception:
+                pass
+
+        return default
 
     async def _ensure_mod_columns(self):
         """Asegura de manera defensiva que las columnas de ModerationConfig existan en Turso."""
