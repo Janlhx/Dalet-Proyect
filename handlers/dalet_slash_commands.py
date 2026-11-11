@@ -16,6 +16,7 @@ from ui.atoms import DaletAtoms
 from ui.molecules import DaletMolecules
 from ui.locales import t
 from services.feedback_service import FeedbackService
+from services.osu_service import OsuUserNotFoundError
 from handlers.dalet_osu_presenter import OsuPresenter
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
 from handlers.dalet_helpcommands_handlers import build_help_pages, HelpPaginator
@@ -280,12 +281,12 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     @app_commands.choices(server=OSU_SERVER_CHOICES)
     async def slash_link(self, interaction: discord.Interaction, username: str, server: str = "bancho"):
         await interaction.response.defer(ephemeral=True)
+        srv_label = OsuPresenter.server_title(server)
         try:
             user_data = await self.bot.osu_service.get_user(username, server=server)
             if not user_data or "statistics" not in user_data:
-                srv_label = OsuPresenter.server_title(server)
                 return await interaction.followup.send(
-                    f"{DaletAtoms.GLYPH_CROSS} no encontré a '{username}' en **{srv_label}**.", ephemeral=True
+                    f"{DaletAtoms.GLYPH_CROSS} no encontré a `{username}` en **{srv_label}**.", ephemeral=True
                 )
             stats = user_data.get("statistics", {}) or {}
             pp = float(stats.get("pp", 0.0) or 0.0)
@@ -319,13 +320,16 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 except Exception:
                     pass
 
-            srv_label = OsuPresenter.server_title(server)
             await interaction.followup.send(
                 f"{DaletAtoms.GLYPH_CHECK} vinculado con éxito a **{user_data['username']}** (`{srv_label}`).", ephemeral=True
             )
+        except OsuUserNotFoundError:
+            await interaction.followup.send(
+                f"{DaletAtoms.GLYPH_CROSS} no encontré a `{username}` en **{srv_label}**.", ephemeral=True
+            )
         except Exception as e:
-            logger.error(f"Error en /link: {e}")
-            await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} error al vincular.", ephemeral=True)
+            logger.error(f"Error en /link ({server} / {username}): {e}", exc_info=True)
+            await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} error al vincular en **{srv_label}**.", ephemeral=True)
 
     @app_commands.command(name="unlink", description="Unlinks your osu! account from Dalet.")
     @app_commands.describe(server="Optional: unlink only a specific osu! server (leave empty to unlink all)")

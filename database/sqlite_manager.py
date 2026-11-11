@@ -38,6 +38,44 @@ class SQLiteManager:
     async def _initialize_schema(cls):
         """Crea las tablas si no existen. Se llama internamente con el lock activo."""
         queries = [
+            # Usuarios base (compatibilidad con FK de OsuAccounts / OsuServerLinks)
+            """
+            CREATE TABLE IF NOT EXISTS Users (
+                UserID INTEGER PRIMARY KEY,
+                UserName TEXT NOT NULL,
+                Language TEXT DEFAULT NULL
+            )
+            """,
+            # Cuentas principales de osu! (Bancho)
+            """
+            CREATE TABLE IF NOT EXISTS OsuAccounts (
+                UserID INTEGER PRIMARY KEY,
+                OsuUsername TEXT NOT NULL,
+                OsuUserID INTEGER,
+                PlayMode TEXT DEFAULT 'osu',
+                PP REAL,
+                GlobalRank INTEGER,
+                CountryRank INTEGER,
+                Accuracy REAL,
+                FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE CASCADE
+            )
+            """,
+            # Vinculaciones multi-servidor de osu! (Bancho, Akatsuki, Gatari)
+            """
+            CREATE TABLE IF NOT EXISTS OsuServerLinks (
+                UserID INTEGER NOT NULL,
+                OsuServer TEXT NOT NULL DEFAULT 'bancho',
+                OsuUsername TEXT NOT NULL,
+                OsuUserID INTEGER,
+                PlayMode TEXT DEFAULT 'osu',
+                PP REAL DEFAULT 0.0,
+                GlobalRank INTEGER,
+                CountryRank INTEGER,
+                Accuracy REAL DEFAULT 0.0,
+                UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (UserID, OsuServer)
+            )
+            """,
             # Mensajes — historial de chat para contexto de IA
             """
             CREATE TABLE IF NOT EXISTS Messages (

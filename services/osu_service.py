@@ -3,8 +3,13 @@ import time
 import logging
 import asyncio
 from datetime import datetime, timezone
+from urllib.parse import quote
 
 logger = logging.getLogger("dalet.services.osu")
+
+
+class OsuUserNotFoundError(ValueError):
+    """Se lanza cuando el jugador solicitado no existe en el servidor de osu! indicado."""
 
 MOD_BITFLAGS = [
     (1, "NF"),
@@ -149,7 +154,13 @@ class OsuService:
             return await self._get_akatsuki_user(username, mode=mode, rx=self._server_rx_flag(srv))
         if srv == "gatari":
             return await self._get_gatari_user(username, mode=mode)
-        data = await self._get(f"users/{username}/{mode}")
+        encoded_user = quote(str(username).strip(), safe="")
+        try:
+            data = await self._get(f"users/{encoded_user}/{mode}")
+        except httpx.HTTPStatusError as e:
+            if e.response is not None and e.response.status_code == 404:
+                raise OsuUserNotFoundError(f"Bancho user '{username}' not found") from e
+            raise
         if isinstance(data, dict):
             data["_server"] = "bancho"
         return data
@@ -160,20 +171,30 @@ class OsuService:
         if srv.startswith("akatsuki") or srv in ("rx", "ap"):
             return await self._get_akatsuki_user(str(user_id), mode=mode, rx=self._server_rx_flag(srv), by_id=True)
         if srv == "gatari":
-            return await self._get_gatari_user(str(user_id), mode=mode)
-        data = await self._get(f"users/{user_id}/{mode}", params={"key": "id"})
+            return await self._get_gatari_user(str(user_id), mode=mode, by_id=True)
+        try:
+            data = await self._get(f"users/{user_id}/{mode}", params={"key": "id"})
+        except httpx.HTTPStatusError as e:
+            if e.response is not None and e.response.status_code == 404:
+                raise OsuUserNotFoundError(f"Bancho user id '{user_id}' not found") from e
+            raise
         if isinstance(data, dict):
             data["_server"] = "bancho"
         return data
 
     async def _get_akatsuki_user(self, username_or_id: str, mode: str = "osu", rx: int = 0, by_id: bool = False) -> dict:
-        params = {"id": username_or_id} if (by_id or str(username_or_id).isdigit()) else {"name": username_or_id}
+        target = str(username_or_id).strip()
+        params = {"id": target} if (by_id or target.isdigit()) else {"name": target}
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get("https://akatsuki.gg/api/v1/users/full", params=params)
             if resp.status_code != 200 and "id" in params:
-                resp = await client.get("https://akatsuki.gg/api/v1/users/full", params={"name": username_or_id})
+                resp = await client.get("https://akatsuki.gg/api/v1/users/full", params={"name": target})
+            if resp.status_code == 404:
+                raise OsuUserNotFoundError(f"Akatsuki user '{target}' not found")
             resp.raise_for_status()
             raw = resp.json()
+        if not isinstance(raw, dict) or not raw.get("id"):
+            raise OsuUserNotFoundError(f"Akatsuki user '{target}' not found")
 
         uid = raw.get("id", 0)
         uname = raw.get("username", str(username_or_id))
@@ -220,21 +241,25 @@ class OsuService:
             },
         }
 
-    async def _get_gatari_user(self, username_or_id: str, mode: str = "osu") -> dict:
+    async def _get_gatari_user(self, username_or_id: str, mode: str = "osu", by_id: bool = False) -> dict:
+        target = str(username_or_id).strip()
         mode_int = self._mode_to_int(mode)
+        user_params = {"id": target} if by_id else {"u": target}
+        stats_params = {"id": target, "mode": mode_int} if by_id else {"u": target, "mode": mode_int}
         async with httpx.AsyncClient(timeout=15.0) as client:
             u_resp, s_resp = await asyncio.gather(
-                client.get("https://api.gatari.pw/users/get", params={"u": username_or_id}),
-                client.get("https://api.gatari.pw/user/stats", params={"u": username_or_id, "mode": mode_int}),
+                client.get("https://api.gatari.pw/users/get", params=user_params),
+                client.get("https://api.gatari.pw/user/stats", params=stats_params),
             )
+            if u_resp.status_code == 404:
+                raise OsuUserNotFoundError(f"Gatari user '{target}' not found")
             u_resp.raise_for_status()
-            s_resp.raise_for_status()
             u_json = u_resp.json()
-            s_json = s_resp.json()
+            s_json = s_resp.json() if s_resp.status_code == 200 else {}
 
         users_list = u_json.get("users") or []
         if not users_list:
-            raise ValueError(f"Gatari user '{username_or_id}' not found")
+            raise OsuUserNotFoundError(f"Gatari user '{target}' not found")
         u_raw = users_list[0]
         st = s_json.get("stats") or {}
 
@@ -448,6 +473,20 @@ class OsuService:
                         return [self._normalize_private_score(s, srv_tag) for s in scores]
             except Exception:
                 return []
+            return []
+        if srv == "gatari":
+            try:
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    resp = await client.get(
+                        "https://api.gatari.pw/user/scores/first",
+                        params={"id": user_id, "mode": mode_int, "l": min(limit, 20), "p": 1},
+                    )
+                    if resp.status_code == 200:
+                        scores = resp.json().get("scores") or []
+                        return [self._normalize_private_score(s, "gatari") for s in scores]
+            except Exception:
+                return []
+            return []
         return await self._get(
             f"users/{user_id}/scores/firsts",
             params={"mode": mode, "limit": limit}

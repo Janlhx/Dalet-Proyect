@@ -445,3 +445,147 @@ class TestSpec006LegacyCleanupAndGlyphs:
         sent_text = ctx.send.call_args.args[0]
         assert "<#12345>" in sent_text
         assert "<#67890>" in sent_text
+
+
+# ==============================================================================
+# 9. MULTI-SERVIDOR OSU! (d.link, /link, aislamiento OsuRepository & OsuService)
+# ==============================================================================
+
+class TestOsuMultiServerLinkingAndIsolation:
+    @pytest.mark.asyncio
+    async def test_osu_repository_sqlite_roundtrip_and_strict_server_isolation(self, tmp_path):
+        import aiosqlite
+        from database.repositories.osu_repository import OsuRepository
+
+        db_file = str(tmp_path / "test_osu_links.db")
+        conn = await aiosqlite.connect(db_file)
+        conn.row_factory = aiosqlite.Row
+
+        class LocalSQLiteOsuRepo(OsuRepository):
+            async def execute(self, query: str, *args):
+                cur = await conn.execute(query, args)
+                await conn.commit()
+                return cur
+
+            async def fetch_one(self, query: str, *args):
+                async with conn.execute(query, args) as cur:
+                    return await cur.fetchone()
+
+            async def fetch_all(self, query: str, *args):
+                async with conn.execute(query, args) as cur:
+                    return await cur.fetchall()
+
+        OsuRepository._server_links_cache.clear()
+        OsuRepository._schema_ensured = False
+        repo = LocalSQLiteOsuRepo()
+
+        try:
+            # Vincular Bancho + Akatsuki (Vanilla) + Gatari independientemente
+            await repo.link_account(111, "BanchoUser", 10, "osu", 5000.0, 12000, 300, 98.5, server="bancho")
+            await repo.link_account(111, "AkaUser", 20, "osu", 1200.0, 900, 40, 97.1, server="akatsuki")
+            await repo.link_account(111, "GatariUser", 30, "osu", 6500.0, 150, 12, 99.0, server="gatari")
+
+            assert await repo.get_linked_username(111, server="bancho") == "BanchoUser"
+            assert await repo.get_linked_username(111, server="akatsuki") == "AkaUser"
+            # Relax comparte la misma cuenta de Akatsuki si no hay override
+            assert await repo.get_linked_username(111, server="akatsuki_rx") == "AkaUser"
+            assert await repo.get_linked_username(111, server="gatari") == "GatariUser"
+
+            # Aislamiento estricto: un usuario con solo Bancho NO debe caer en Bancho al consultar Gatari ni Relax
+            await repo.link_account(222, "OnlyBancho", 99, "osu", 3000.0, 50000, 800, 96.0, server="bancho")
+            assert await repo.get_linked_username(222, server="gatari") is None
+            assert await repo.get_linked_username(222, server="akatsuki_rx") is None
+
+            # Unlink selectivo de Gatari no toca Bancho ni Akatsuki
+            await repo.unlink_account(111, server="gatari")
+            assert await repo.get_linked_username(111, server="gatari") is None
+            assert await repo.get_linked_username(111, server="bancho") == "BanchoUser"
+            assert await repo.get_linked_username(111, server="akatsuki") == "AkaUser"
+        finally:
+            OsuRepository._server_links_cache.clear()
+            OsuRepository._schema_ensured = False
+            await conn.close()
+
+    @pytest.mark.asyncio
+    async def test_osu_repository_link_account_raises_when_db_fails(self):
+        from database.repositories.osu_repository import OsuRepository
+
+        OsuRepository._server_links_cache.clear()
+        OsuRepository._schema_ensured = True
+
+        class FailingRepo(OsuRepository):
+            async def execute(self, query: str, *args):
+                return None
+
+        repo = FailingRepo()
+        with pytest.raises(RuntimeError):
+            await repo.link_account(333, "yiyi mano", 32569, "osu", 6537.0, 100, 5, 98.8, server="gatari")
+
+        assert (333, "gatari") not in OsuRepository._server_links_cache
+        OsuRepository._schema_ensured = False
+
+    @pytest.mark.asyncio
+    async def test_prefix_link_and_filter_flags_order_quotes_and_not_found(self):
+        from handlers.dalet_osucommands import OsuHandler
+        from services.osu_service import OsuUserNotFoundError
+
+        bot = MagicMock()
+        bot.admin_repo = MagicMock()
+        bot.admin_repo.resolve_language = AsyncMock(return_value="es")
+        bot.osu_service = MagicMock()
+        bot.osu_repo = MagicMock()
+        bot.osu_repo.link_account = AsyncMock(return_value=True)
+        bot.osu_repo.get_linked_accounts = AsyncMock(return_value={"gatari": "yiyi mano"})
+        bot.analytics_repo = MagicMock()
+
+        cog = OsuHandler(bot)
+        ctx = MagicMock()
+        ctx.author = MagicMock(id=444)
+        ctx.guild = MagicMock(id=555)
+        ctx.send = AsyncMock()
+        typing_cm = MagicMock()
+        typing_cm.__aenter__ = AsyncMock(return_value=None)
+        typing_cm.__aexit__ = AsyncMock(return_value=False)
+        ctx.typing = MagicMock(return_value=typing_cm)
+
+        # 1) d.link "yiyi mano" -gatari (comillas + espacios)
+        bot.osu_service.get_user = AsyncMock(return_value={
+            "id": 32569,
+            "username": "yiyi mano",
+            "playmode": "osu",
+            "statistics": {"pp": 6537.0, "global_rank": 150, "country_rank": 5, "hit_accuracy": 98.8},
+        })
+        await cog.link.callback(cog, ctx, args='"yiyi mano" -gatari')
+        bot.osu_service.get_user.assert_awaited_with("yiyi mano", mode="osu", server="gatari")
+        bot.osu_repo.link_account.assert_awaited_with(
+            444, "yiyi mano", 32569, "osu", 6537.0, 150, 5, 98.8, server="gatari"
+        )
+        assert "Gatari" in ctx.send.call_args.args[0]
+
+        # 2) d.link -rx -aka "yiyi mano" (el orden no debe degradar Relax a Vanilla)
+        ctx.send.reset_mock()
+        bot.osu_service.get_user.reset_mock()
+        await cog.link.callback(cog, ctx, args='-rx -aka "yiyi mano"')
+        bot.osu_service.get_user.assert_awaited_with("yiyi mano", mode="osu", server="akatsuki_rx")
+
+        # 3) Usuario no encontrado lanza mensaje claro sin AttributeError ni error genérico
+        ctx.send.reset_mock()
+        bot.osu_service.get_user = AsyncMock(side_effect=OsuUserNotFoundError("not found"))
+        await cog.link.callback(cog, ctx, args="nadie_existe_999 -gatari")
+        sent_nf = ctx.send.call_args.args[0]
+        assert "no encontré" in sent_nf
+        assert "Gatari" in sent_nf
+
+        # 4) d.link vacío muestra cuentas vinculadas
+        ctx.send.reset_mock()
+        await cog.link.callback(cog, ctx, args=None)
+        sent_empty = ctx.send.call_args.args[0]
+        assert "Gatari" in sent_empty
+        assert "yiyi mano" in sent_empty
+
+        # 5) _parse_osu_filter_args cuando falta vinculación en otro servidor indica flag exacto
+        ctx.send.reset_mock()
+        bot.osu_repo.get_linked_username = AsyncMock(return_value=None)
+        u, _, _, _, srv = await cog._parse_osu_filter_args(ctx, "-rx")
+        assert u is None and srv is None
+        assert "d.link <usuario> -rx" in ctx.send.call_args.args[0]

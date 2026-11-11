@@ -7,6 +7,7 @@ from discord.ext import commands
 
 from ui.atoms import DaletAtoms
 from ui.locales import t
+from services.osu_service import OsuUserNotFoundError
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
 from handlers.dalet_osu_presenter import OsuPresenter
 
@@ -25,9 +26,17 @@ MODE_FLAG_ALIASES = {
 SERVER_FLAG_ALIASES = {
     "bancho": "bancho", "official": "bancho",
     "akatsuki": "akatsuki", "aka": "akatsuki", "vn": "akatsuki",
-    "rx": "akatsuki_rx", "relax": "akatsuki_rx", "akatsuki_rx": "akatsuki_rx", "akarx": "akatsuki_rx",
-    "ap": "akatsuki_ap", "autopilot": "akatsuki_ap", "akatsuki_ap": "akatsuki_ap", "akaap": "akatsuki_ap",
+    "rx": "akatsuki_rx", "relax": "akatsuki_rx", "akatsuki_rx": "akatsuki_rx", "akarx": "akatsuki_rx", "aka-rx": "akatsuki_rx",
+    "ap": "akatsuki_ap", "autopilot": "akatsuki_ap", "akatsuki_ap": "akatsuki_ap", "akaap": "akatsuki_ap", "aka-ap": "akatsuki_ap",
     "gatari": "gatari", "gat": "gatari",
+}
+
+SERVER_PRIMARY_FLAG = {
+    "bancho": "",
+    "akatsuki": " -aka",
+    "akatsuki_rx": " -rx",
+    "akatsuki_ap": " -ap",
+    "gatari": " -gatari",
 }
 
 FILTER_FLAG_ALIASES = {
@@ -68,6 +77,20 @@ class OsuHandler(commands.Cog, name="osu!"):
         )
         return username, mode, server
 
+    @staticmethod
+    def _merge_server_flag(current_server: str, candidate_server: str) -> str:
+        """Evita que '-aka' degrade '-rx'/'-ap' a vanilla si se escriben en distinto orden (-rx -aka)."""
+        if candidate_server == "akatsuki" and current_server in ("akatsuki_rx", "akatsuki_ap"):
+            return current_server
+        return candidate_server
+
+    @staticmethod
+    def _clean_username_tokens(tokens: list[str]) -> str:
+        joined = " ".join(tokens).strip()
+        if len(joined) >= 2 and joined[0] == joined[-1] and joined[0] in ('"', "'", "`"):
+            joined = joined[1:-1].strip()
+        return joined
+
     async def _parse_osu_filter_args(
         self,
         ctx,
@@ -93,10 +116,11 @@ class OsuHandler(commands.Cog, name="osu!"):
             parts = args.split()
             for part in parts:
                 low = part.lower().strip()
-                if low.startswith("-") and low[1:] in SERVER_FLAG_ALIASES:
-                    server = SERVER_FLAG_ALIASES[low[1:]]
-                elif low.startswith("-") and low[1:] in MODE_FLAG_ALIASES:
-                    mode = MODE_FLAG_ALIASES[low[1:]]
+                stripped = low.lstrip("-")
+                if low.startswith("-") and stripped in SERVER_FLAG_ALIASES:
+                    server = self._merge_server_flag(server, SERVER_FLAG_ALIASES[stripped])
+                elif low.startswith("-") and stripped in MODE_FLAG_ALIASES:
+                    mode = MODE_FLAG_ALIASES[stripped]
                 elif low in FILTER_FLAG_ALIASES:
                     filter_by = FILTER_FLAG_ALIASES[low]
                 elif low.startswith("+") and len(low) >= 3:
@@ -104,19 +128,29 @@ class OsuHandler(commands.Cog, name="osu!"):
                 else:
                     user_tokens.append(part)
 
-        username = " ".join(user_tokens).strip() if user_tokens else None
+        username = self._clean_username_tokens(user_tokens) if user_tokens else None
         if not username:
             username = await self.repo.get_linked_username(ctx.author.id, server=server)
             if not username:
                 lang = await self._resolve_lang(ctx)
                 srv_title = OsuPresenter.server_title(server)
+                srv_flag = SERVER_PRIMARY_FLAG.get(server, "")
+                hint = ""
+                try:
+                    if hasattr(self.repo, "get_linked_accounts"):
+                        other = await self.repo.get_linked_accounts(ctx.author.id)
+                        if isinstance(other, dict) and other:
+                            labels = ", ".join(OsuPresenter.server_title(k) for k in other.keys())
+                            hint = f"\n{DaletAtoms.GLYPH_SUB} Vinculados: {labels}" if lang.startswith("es") else f"\n{DaletAtoms.GLYPH_SUB} Linked: {labels}"
+                except Exception:
+                    pass
                 if lang.startswith("es"):
                     await ctx.send(
-                        f"{DaletAtoms.GLYPH_POINTER} no tienes cuenta vinculada para **{srv_title}**. usa `d.link <usuario>` primero."
+                        f"{DaletAtoms.GLYPH_POINTER} no tienes cuenta vinculada para **{srv_title}**. usa `d.link <usuario>{srv_flag}` primero.{hint}"
                     )
                 else:
                     await ctx.send(
-                        f"{DaletAtoms.GLYPH_POINTER} you don't have a linked account for **{srv_title}**. use `d.link <username>` first."
+                        f"{DaletAtoms.GLYPH_POINTER} you don't have a linked account for **{srv_title}**. use `d.link <username>{srv_flag}` first.{hint}"
                     )
                 return None, None, None, None, None
         return username, mode, filter_by, mods_filter, server
@@ -223,14 +257,27 @@ class OsuHandler(commands.Cog, name="osu!"):
 
     @commands.command(name="link")
     async def link(self, ctx, *, args: str = None):
-        """Vincula tu cuenta de Discord con tu perfil de osu! (soporta -aka, -rx, -gatari, -modo)."""
+        """Vincula tu cuenta de Discord con tu perfil de osu! (soporta -aka, -rx, -ap, -gatari, -modo)."""
         lang = await self._resolve_lang(ctx)
         is_es = lang.startswith("es")
         if not args or not args.strip():
+            linked_summary = ""
+            try:
+                if hasattr(self.repo, "get_linked_accounts"):
+                    accounts = await self.repo.get_linked_accounts(ctx.author.id)
+                    if isinstance(accounts, dict) and accounts:
+                        rows_txt = "\n".join(
+                            f"{DaletAtoms.GLYPH_SUB} **{OsuPresenter.server_title(srv)}**: `{uname}`"
+                            for srv, uname in accounts.items()
+                        )
+                        hdr = "Cuentas vinculadas actualmente:" if is_es else "Currently linked accounts:"
+                        linked_summary = f"\n\n{hdr}\n{rows_txt}"
+            except Exception:
+                pass
             msg = (
-                f"{DaletAtoms.GLYPH_POINTER} Uso: `d.link <usuario> [-aka|-rx|-gatari] [-std|-mania|-taiko|-ctb]`"
+                f"{DaletAtoms.GLYPH_POINTER} Uso: `d.link <usuario> [-aka|-rx|-ap|-gatari] [-std|-mania|-taiko|-ctb]`{linked_summary}"
                 if is_es else
-                f"{DaletAtoms.GLYPH_POINTER} Usage: `d.link <username> [-aka|-rx|-gatari] [-std|-mania|-taiko|-ctb]`"
+                f"{DaletAtoms.GLYPH_POINTER} Usage: `d.link <username> [-aka|-rx|-ap|-gatari] [-std|-mania|-taiko|-ctb]`{linked_summary}"
             )
             return await ctx.send(msg)
 
@@ -239,24 +286,39 @@ class OsuHandler(commands.Cog, name="osu!"):
         user_tokens = []
         for part in args.split():
             low = part.lower().strip()
-            if low.startswith("-") and low[1:] in SERVER_FLAG_ALIASES:
-                server = SERVER_FLAG_ALIASES[low[1:]]
-            elif low.startswith("-") and low[1:] in MODE_FLAG_ALIASES:
-                mode = MODE_FLAG_ALIASES[low[1:]]
+            stripped = low.lstrip("-")
+            if low.startswith("-") and stripped in SERVER_FLAG_ALIASES:
+                server = self._merge_server_flag(server, SERVER_FLAG_ALIASES[stripped])
+            elif low.startswith("-") and stripped in MODE_FLAG_ALIASES:
+                mode = MODE_FLAG_ALIASES[stripped]
             else:
                 user_tokens.append(part)
 
-        osu_username = " ".join(user_tokens).strip()
+        osu_username = self._clean_username_tokens(user_tokens)
         if not osu_username:
-            return await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Especifica tu nombre de usuario de osu!.")
+            return await ctx.send(
+                f"{DaletAtoms.GLYPH_CROSS} Especifica tu nombre de usuario de osu! (ej: `d.link tu_nombre -gatari`)."
+                if is_es else
+                f"{DaletAtoms.GLYPH_CROSS} Specify your osu! username (e.g. `d.link your_name -gatari`)."
+            )
+        if osu_username.startswith("<@") and osu_username.endswith(">"):
+            return await ctx.send(
+                f"{DaletAtoms.GLYPH_CROSS} Escribe tu nombre de usuario de osu!, no una mención de Discord."
+                if is_es else
+                f"{DaletAtoms.GLYPH_CROSS} Enter your osu! username, not a Discord mention."
+            )
 
+        srv_label = OsuPresenter.server_title(server)
         try:
             async with ctx.typing():
                 user_data = await self.osu.get_user(osu_username, mode=mode or "osu", server=server)
 
             if not user_data or "statistics" not in user_data:
-                srv_label = OsuPresenter.server_title(server)
-                return await ctx.send(f"{DaletAtoms.GLYPH_CROSS} no encontré a '{osu_username}' en **{srv_label}**.")
+                return await ctx.send(
+                    f"{DaletAtoms.GLYPH_CROSS} no encontré a `{osu_username}` en **{srv_label}**."
+                    if is_es else
+                    f"{DaletAtoms.GLYPH_CROSS} couldn't find `{osu_username}` on **{srv_label}**."
+                )
 
             stats = user_data.get("statistics", {}) or {}
             pp = float(stats.get("pp", 0.0) or 0.0)
@@ -285,7 +347,6 @@ class OsuHandler(commands.Cog, name="osu!"):
                 except Exception:
                     pass
 
-            srv_label = OsuPresenter.server_title(server)
             mode_label = OsuPresenter.mode_title(resolved_mode)
             msg = (
                 f"{DaletAtoms.GLYPH_CHECK} cuenta vinculada con éxito a **{user_data['username']}** (`{srv_label}` · `{mode_label}`)."
@@ -294,9 +355,19 @@ class OsuHandler(commands.Cog, name="osu!"):
             )
             await ctx.send(msg)
 
+        except OsuUserNotFoundError:
+            await ctx.send(
+                f"{DaletAtoms.GLYPH_CROSS} no encontré a `{osu_username}` en **{srv_label}**."
+                if is_es else
+                f"{DaletAtoms.GLYPH_CROSS} couldn't find `{osu_username}` on **{srv_label}**."
+            )
         except Exception as e:
-            logger.error(f"Error en link: {e}")
-            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} error al vincular la cuenta.")
+            logger.error(f"Error en d.link ({server} / {osu_username}): {e}", exc_info=True)
+            await ctx.send(
+                f"{DaletAtoms.GLYPH_CROSS} error al vincular la cuenta en **{srv_label}**."
+                if is_es else
+                f"{DaletAtoms.GLYPH_CROSS} failed to link account on **{srv_label}**."
+            )
 
     @commands.command(name="unlink")
     async def unlink(self, ctx, *, args: str = None):
@@ -306,10 +377,12 @@ class OsuHandler(commands.Cog, name="osu!"):
         server = None
         if args:
             for part in args.split():
-                low = part.lower().strip().lstrip("-")
-                if low in SERVER_FLAG_ALIASES:
-                    server = SERVER_FLAG_ALIASES[low]
-                elif low == "all":
+                low = part.lower().strip()
+                stripped = low.lstrip("-")
+                if stripped in SERVER_FLAG_ALIASES:
+                    cand = SERVER_FLAG_ALIASES[stripped]
+                    server = self._merge_server_flag(server or "bancho", cand)
+                elif stripped == "all":
                     server = None
 
         try:
@@ -541,10 +614,11 @@ class OsuHandler(commands.Cog, name="osu!"):
         players = []
         for part in args:
             low = part.lower().strip()
-            if low.startswith("-") and low[1:] in SERVER_FLAG_ALIASES:
-                server = SERVER_FLAG_ALIASES[low[1:]]
-            elif low.startswith("-") and low[1:] in MODE_FLAG_ALIASES:
-                mode = MODE_FLAG_ALIASES[low[1:]]
+            stripped = low.lstrip("-")
+            if low.startswith("-") and stripped in SERVER_FLAG_ALIASES:
+                server = self._merge_server_flag(server, SERVER_FLAG_ALIASES[stripped])
+            elif low.startswith("-") and stripped in MODE_FLAG_ALIASES:
+                mode = MODE_FLAG_ALIASES[stripped]
             else:
                 players.append(part)
 

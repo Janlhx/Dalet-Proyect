@@ -4,11 +4,49 @@ class OsuRepository(BaseRepository):
     _server_links_cache: dict[tuple[int, str], str] = {}
     _schema_ensured: bool = False
 
+    @staticmethod
+    def _extract_col(row, key: str, idx: int = 0) -> str | None:
+        if row is None:
+            return None
+        if isinstance(row, dict):
+            val = row.get(key)
+            return str(val).strip() if val is not None else None
+        try:
+            if hasattr(row, "keys") and key in row.keys():
+                val = row[key]
+                return str(val).strip() if val is not None else None
+        except Exception:
+            pass
+        try:
+            val = row[idx]
+            return str(val).strip() if val is not None else None
+        except Exception:
+            return None
+
     async def _ensure_server_links_schema(self):
         if OsuRepository._schema_ensured:
             return
         try:
             await self.execute("""
+                CREATE TABLE IF NOT EXISTS Users (
+                    UserID INTEGER PRIMARY KEY,
+                    UserName TEXT NOT NULL,
+                    Language TEXT DEFAULT NULL
+                )
+            """)
+            await self.execute("""
+                CREATE TABLE IF NOT EXISTS OsuAccounts (
+                    UserID INTEGER PRIMARY KEY,
+                    OsuUsername TEXT NOT NULL,
+                    OsuUserID INTEGER,
+                    PlayMode TEXT DEFAULT 'osu',
+                    PP REAL,
+                    GlobalRank INTEGER,
+                    CountryRank INTEGER,
+                    Accuracy REAL
+                )
+            """)
+            res = await self.execute("""
                 CREATE TABLE IF NOT EXISTS OsuServerLinks (
                     UserID INTEGER NOT NULL,
                     OsuServer TEXT NOT NULL DEFAULT 'bancho',
@@ -23,50 +61,77 @@ class OsuRepository(BaseRepository):
                     PRIMARY KEY (UserID, OsuServer)
                 )
             """)
-            OsuRepository._schema_ensured = True
+            if res is not None:
+                OsuRepository._schema_ensured = True
         except Exception:
             pass
 
+    async def get_linked_accounts(self, user_id: int) -> dict[str, str]:
+        """Devuelve un mapa {server: osu_username} con todas las cuentas vinculadas del usuario."""
+        await self._ensure_server_links_schema()
+        linked: dict[str, str] = {}
+        rows = await self.fetch_all(
+            "SELECT OsuServer, OsuUsername FROM OsuServerLinks WHERE UserID = ?",
+            user_id,
+        )
+        for row in rows:
+            srv = self._extract_col(row, "OsuServer", 0)
+            uname = self._extract_col(row, "OsuUsername", 1)
+            if srv and uname:
+                linked[srv.lower()] = uname
+
+        legacy_row = await self.fetch_one(
+            "SELECT OsuUsername FROM OsuAccounts WHERE UserID = ? LIMIT 1",
+            user_id,
+        )
+        legacy_uname = self._extract_col(legacy_row, "OsuUsername", 0)
+        if legacy_uname and "bancho" not in linked:
+            linked["bancho"] = legacy_uname
+        return linked
+
     async def get_linked_username(self, user_id: int, server: str = "bancho"):
-        """Obtiene el nombre de usuario vinculado para el servidor de osu! indicado (con fallback a Bancho)."""
+        """Obtiene el nombre de usuario vinculado para el servidor de osu! indicado (aislado por servidor)."""
         srv = (server or "bancho").lower().strip()
         cache_key = (user_id, srv)
         if cache_key in self._server_links_cache:
             return self._server_links_cache[cache_key]
 
+        await self._ensure_server_links_schema()
+
         if srv != "bancho":
-            await self._ensure_server_links_schema()
-            # Para akatsuki_rx o akatsuki_ap también buscamos en 'akatsuki' si no hay entrada específica
             row = await self.fetch_one(
                 "SELECT OsuUsername FROM OsuServerLinks WHERE UserID = ? AND OsuServer = ? LIMIT 1",
                 user_id, srv
             )
-            if not row and srv.startswith("akatsuki"):
+            uname = self._extract_col(row, "OsuUsername", 0)
+            if not uname and srv.startswith("akatsuki"):
+                # Vanilla, Relax y Autopilot comparten cuenta en Akatsuki
                 row = await self.fetch_one(
-                    "SELECT OsuUsername FROM OsuServerLinks WHERE UserID = ? AND OsuServer LIKE 'akatsuki%' LIMIT 1",
+                    "SELECT OsuUsername FROM OsuServerLinks WHERE UserID = ? AND OsuServer LIKE 'akatsuki%' ORDER BY UpdatedAt DESC LIMIT 1",
                     user_id
                 )
-            if row and row[0]:
-                uname = str(row[0]).strip()
+                uname = self._extract_col(row, "OsuUsername", 0)
+            if uname:
                 self._server_links_cache[cache_key] = uname
                 return uname
+            return None
 
-        # Buscar en OsuAccounts (Bancho principal o fallback universal)
-        query = "SELECT OsuUsername FROM OsuAccounts WHERE UserID = ? LIMIT 1"
-        result = await self.fetch_one(query, user_id)
-        if result and result[0]:
-            uname = str(result[0]).strip()
-            if srv == "bancho":
-                self._server_links_cache[cache_key] = uname
-            return uname
-
-        # Si no tiene Bancho pero vinculó otro servidor en OsuServerLinks
-        await self._ensure_server_links_schema()
-        any_row = await self.fetch_one(
-            "SELECT OsuUsername FROM OsuServerLinks WHERE UserID = ? LIMIT 1",
+        # Bancho: consultar OsuServerLinks y hacer fallback a la tabla legacy OsuAccounts
+        bancho_row = await self.fetch_one(
+            "SELECT OsuUsername FROM OsuServerLinks WHERE UserID = ? AND OsuServer = 'bancho' LIMIT 1",
             user_id
         )
-        return str(any_row[0]).strip() if any_row and any_row[0] else None
+        uname = self._extract_col(bancho_row, "OsuUsername", 0)
+        if not uname:
+            legacy_row = await self.fetch_one(
+                "SELECT OsuUsername FROM OsuAccounts WHERE UserID = ? LIMIT 1",
+                user_id
+            )
+            uname = self._extract_col(legacy_row, "OsuUsername", 0)
+        if uname:
+            self._server_links_cache[cache_key] = uname
+            return uname
+        return None
 
     async def link_account(
         self,
@@ -81,13 +146,13 @@ class OsuRepository(BaseRepository):
         server: str = "bancho",
     ):
         srv = (server or "bancho").lower().strip()
-        # Asegurar usuario en Users
+        await self._ensure_server_links_schema()
+        # Asegurar fila en Users sin sobreescribir el nombre de Discord si ya existe
         await self.execute(
-            "INSERT INTO Users (UserID, UserName) VALUES (?, ?) ON CONFLICT(UserID) DO UPDATE SET UserName = excluded.UserName",
+            "INSERT INTO Users (UserID, UserName) VALUES (?, ?) ON CONFLICT(UserID) DO NOTHING",
             user_id, username
         )
-        await self._ensure_server_links_schema()
-        await self.execute(
+        res = await self.execute(
             """
             INSERT INTO OsuServerLinks (UserID, OsuServer, OsuUsername, OsuUserID, PlayMode, PP, GlobalRank, CountryRank, Accuracy, UpdatedAt)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -103,9 +168,16 @@ class OsuRepository(BaseRepository):
             """,
             user_id, srv, username, osu_id, mode, pp, global_rank, country_rank, accuracy
         )
-        self._server_links_cache[(user_id, srv)] = username
+        if res is None:
+            raise RuntimeError(f"Failed to persist osu! link for user_id={user_id} server={srv}")
 
-        # Si es Bancho (o si aún no tiene fila en OsuAccounts), sincronizar OsuAccounts
+        # Invalidad/actualizar caché de forma coherente
+        self._server_links_cache[(user_id, srv)] = username
+        if srv == "akatsuki":
+            for variant in ("akatsuki_rx", "akatsuki_ap"):
+                self._server_links_cache.pop((user_id, variant), None)
+
+        # Sincronizar OsuAccounts (ranking/snapshots) cuando es Bancho
         if srv == "bancho":
             query = """
                 INSERT INTO OsuAccounts (UserID, OsuUsername, OsuUserID, PlayMode, PP, GlobalRank, CountryRank, Accuracy)
@@ -119,7 +191,10 @@ class OsuRepository(BaseRepository):
                     CountryRank = excluded.CountryRank,
                     Accuracy = excluded.Accuracy
             """
-            return await self.execute(query, user_id, username, osu_id, mode, pp, global_rank, country_rank, accuracy)
+            bancho_res = await self.execute(query, user_id, username, osu_id, mode, pp, global_rank, country_rank, accuracy)
+            if bancho_res is None:
+                raise RuntimeError(f"Failed to persist Bancho account for user_id={user_id}")
+            return bancho_res
         return True
 
     async def unlink_account(self, user_id: int, server: str | None = None):
@@ -127,6 +202,9 @@ class OsuRepository(BaseRepository):
         if server and server.lower().strip() != "all":
             srv = server.lower().strip()
             self._server_links_cache.pop((user_id, srv), None)
+            if srv.startswith("akatsuki"):
+                for ak_var in ("akatsuki", "akatsuki_rx", "akatsuki_ap"):
+                    self._server_links_cache.pop((user_id, ak_var), None)
             await self.execute("DELETE FROM OsuServerLinks WHERE UserID = ? AND OsuServer = ?", user_id, srv)
             if srv == "bancho":
                 return await self.execute("DELETE FROM OsuAccounts WHERE UserID = ?", user_id)
