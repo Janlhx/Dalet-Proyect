@@ -294,3 +294,31 @@ class TestDaletHookGuard:
         )
         out = json.loads(proc.stdout.strip())
         assert out["decision"] == expected_decision
+
+
+# ==============================================================================
+# 7. INTEGRIDAD DE REGISTRO DE COGS Y PREFIJOS (handlers/*.py)
+# ==============================================================================
+
+class TestCogRegistrationIntegrity:
+    @pytest.mark.asyncio
+    async def test_adm_and_osu_cogs_load_without_command_collision(self):
+        import discord
+        from discord.ext import commands
+
+        intents = discord.Intents.default()
+        bot = commands.Bot(command_prefix=["D.", "d."], intents=intents, case_insensitive=True)
+        bot.user_repo = MagicMock()
+        bot.osu_repo = MagicMock()
+        bot.admin_repo = MagicMock()
+        bot.analytics_repo = MagicMock()
+        bot.osu_service = MagicMock()
+        bot.nlp_service = MagicMock()
+        bot.memory_service = MagicMock()
+
+        # Antes del fix, dalet_admcommands_handler colisionaba con dalet_osucommands en `lang`/`language`
+        await bot.load_extension("handlers.dalet_admcommands_handler")
+        await bot.load_extension("handlers.dalet_osucommands")
+
+        for cmd_name in ("link", "unlink", "lang", "language", "idioma", "op", "top", "recent", "rs", "skills", "rank", "compare", "firsts", "progress"):
+            assert bot.get_command(cmd_name) is not None, f"Falta registrar el comando d.{cmd_name}"
