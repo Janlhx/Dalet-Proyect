@@ -236,6 +236,20 @@ class DashboardService:
 
         return []
 
+    ALLOWED_DASHBOARD_TABLES = frozenset({
+        "Users",
+        "UserPersonas",
+        "UserMemories",
+        "Messages",
+        "ModerationConfig",
+        "ModActions",
+        "Feedbacks",
+        "Reminders",
+        "PersonaInsights",
+        "OsuAccounts",
+        "OsuServerLinks",
+    })
+
     @classmethod
     def get_database_overview(cls) -> dict:
         """Obtiene métricas y conteo de filas de todas las tablas de la base de datos."""
@@ -254,6 +268,8 @@ class DashboardService:
         table_stats = []
         total_rows = 0
         for table_name, description, slug in tables:
+            if table_name not in cls.ALLOWED_DASHBOARD_TABLES:
+                continue
             count = 0
             try:
                 res = cls._execute_query(f"SELECT COUNT(*) as cnt FROM {table_name}")
@@ -289,6 +305,7 @@ class DashboardService:
         """Obtiene la Pirámide Semántica (UserPersonas L3/L2 y UserMemories L1) con filtro de búsqueda."""
         limit = min(max(1, limit), 100)
         offset = max(0, offset)
+        search = (search or "").strip()[:100]
 
         where_clause = ""
         params: list = []

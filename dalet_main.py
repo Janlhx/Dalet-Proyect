@@ -1,6 +1,7 @@
 import asyncio
 from discord.ext import commands
 import os
+import hmac
 import discord
 from dotenv import load_dotenv
 from flask import Flask, jsonify, Response, request
@@ -46,9 +47,16 @@ def validate_environment() -> None:
         sys.exit(1)
 
 
+def _check_secret_constant_time(candidate: str, expected: str) -> bool:
+    """Compara dos secretos en tiempo constante usando hmac.compare_digest."""
+    if not candidate or not expected:
+        return False
+    return hmac.compare_digest(candidate.encode("utf-8"), expected.encode("utf-8"))
+
+
 def require_dashboard_auth(f):
     """
-    Protege endpoints sensibles de telemetría y feedbacks.
+    Protege endpoints sensibles de telemetría, memorias y feedbacks en tiempo constante.
     Permite acceso si:
     - DASHBOARD_SECRET no está configurado (modo desarrollo local).
     - Se envía cabecera 'Authorization: Bearer <secret>' o 'X-Dashboard-Secret: <secret>'.
@@ -56,21 +64,22 @@ def require_dashboard_auth(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not DASHBOARD_SECRET:
+        active_secret = (DASHBOARD_SECRET or "").strip()
+        if not active_secret:
             return f(*args, **kwargs)
 
         auth_header = request.headers.get("Authorization", "").strip()
         if auth_header.startswith("Bearer "):
             token = auth_header.split(" ", 1)[1].strip()
-            if token == DASHBOARD_SECRET:
+            if _check_secret_constant_time(token, active_secret):
                 return f(*args, **kwargs)
 
         custom_header = request.headers.get("X-Dashboard-Secret", "").strip()
-        if custom_header == DASHBOARD_SECRET:
+        if _check_secret_constant_time(custom_header, active_secret):
             return f(*args, **kwargs)
 
         query_key = request.args.get("key", "").strip()
-        if query_key == DASHBOARD_SECRET:
+        if _check_secret_constant_time(query_key, active_secret):
             return f(*args, **kwargs)
 
         return jsonify({
@@ -82,6 +91,18 @@ def require_dashboard_auth(f):
 
 # --- Servidor Web (Dashboard & Health Check) ---
 app = Flask(__name__)
+
+
+@app.after_request
+def apply_security_headers(response):
+    """Inyecta cabeceras HTTP de seguridad estándar (OWASP) en todas las respuestas."""
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+    if request.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return response
 
 @app.route('/')
 @app.route('/dashboard')

@@ -19,8 +19,10 @@ import httpx
 import logging
 import asyncio
 import hashlib
+import ipaddress
 import json
 import time
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 from database.repositories.user_repository import UserRepository
 from database.sqlite_manager import SQLiteManager
@@ -28,6 +30,67 @@ from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TELEMETRY_BACKUP_PATH = os.path.join(BASE_DIR, "data", "ai_telemetry.json")
+
+_BLOCKED_HOSTNAMES = {
+    "localhost",
+    "localhost.localdomain",
+    "ip6-localhost",
+    "ip6-loopback",
+    "metadata.google.internal",
+    "metadata.goog",
+    "instance-data",
+    "0.0.0.0",
+}
+
+
+def is_safe_public_url(target_url: str) -> tuple[bool, str]:
+    """
+    Valida que una URL sea HTTP/HTTPS pública y bloquea vectores de SSRF:
+    - Esquemas distintos de http/https (file://, javascript:, data:, ftp://)
+    - Credenciales embebidas (user:pass@host)
+    - Hostnames locales o internos (localhost, .internal, .local, metadata.google.internal)
+    - Direcciones IP privadas, loopback (127.0.0.1, ::1), link-local (169.254.169.254), multicast o reservadas
+    """
+    raw = (target_url or "").strip()
+    if not raw or len(raw) > 8192:
+        return False, "URL vacía o demasiado larga."
+
+    try:
+        parsed = urlparse(raw)
+    except Exception:
+        return False, "Formato de URL inválido."
+
+    if parsed.scheme.lower() not in ("http", "https"):
+        return False, "URL inválida. Solo se permiten esquemas http:// o https://."
+
+    if parsed.username or parsed.password:
+        return False, "No se permiten credenciales embebidas en la URL."
+
+    hostname = (parsed.hostname or "").strip().lower().rstrip(".")
+    if not hostname:
+        return False, "La URL no contiene un dominio válido."
+
+    if hostname in _BLOCKED_HOSTNAMES or hostname.endswith((".local", ".internal", ".localhost", ".lan", ".home.arpa")):
+        return False, "Acceso bloqueado a hostnames internos o locales (protección SSRF)."
+
+    # Si el hostname es una dirección IP literal (IPv4 o IPv6), verificar que sea global/pública
+    try:
+        ip_obj = ipaddress.ip_address(hostname)
+        if (
+            ip_obj.is_private
+            or ip_obj.is_loopback
+            or ip_obj.is_link_local
+            or ip_obj.is_multicast
+            or ip_obj.is_reserved
+            or ip_obj.is_unspecified
+        ):
+            return False, "Acceso bloqueado a direcciones IP privadas o de loopback (protección SSRF)."
+    except ValueError:
+        # No es IP literal; verificar que sea un dominio con al menos un punto (ej. example.com)
+        if "." not in hostname:
+            return False, "Dominio sin TLD público válido (protección SSRF)."
+
+    return True, raw
 logger = logging.getLogger("dalet.services.nlp")
 
 # Herramientas osu! expuestas a DeepSeek V3 vía Function Calling
@@ -1212,11 +1275,16 @@ class NLPService:
         return "openrouter"
 
 
-    async def generate_reply(
-        self, trigger: str, context: str, username: str,
-        bot_name: str = "Dalet", image_urls: list = None, is_reactive: bool = False, **kwargs
-    ):
-        # Sanitización de seguridad 1: Neutralizar delimitadores estructurales que intenten romper el XML/contexto
+    @staticmethod
+    def sanitize_prompt_input(trigger: str, context: str = "") -> tuple[str, str]:
+        """
+        Sanitiza entradas del usuario y del contexto de chat frente a:
+        1. Delimitadores estructurales XML / ChatML (</contexto_chat>, <|im_start|>, [SYSTEM]).
+        2. Intentos de Prompt Injection / Jailbreak bilingües (ES y EN).
+        """
+        clean_trigger = trigger or ""
+        clean_context = context or ""
+
         structural_delimiters = [
             r"</?contexto_chat>",
             r"</?system>",
@@ -1228,12 +1296,10 @@ class NLPService:
             r"\[/?SYS\]",
         ]
         for delim in structural_delimiters:
-            trigger = re.sub(delim, "", trigger, flags=re.IGNORECASE)
-            if context:
-                context = re.sub(delim, "", context, flags=re.IGNORECASE)
+            clean_trigger = re.sub(delim, "", clean_trigger, flags=re.IGNORECASE)
+            if clean_context:
+                clean_context = re.sub(delim, "", clean_context, flags=re.IGNORECASE)
 
-        # Sanitización de seguridad 2: Neutralizar intentos de prompt injection / jailbreak (ES y EN)
-        clean_trigger = trigger
         injection_patterns = [
             r"(?i)ignore\s+(all\s+)?(previous|prior)\s+instructions",
             r"(?i)ignora\s+(todas\s+)?(las\s+)?instrucciones(\s+(anteriores|previas))?",
@@ -1251,7 +1317,16 @@ class NLPService:
         ]
         for pat in injection_patterns:
             clean_trigger = re.sub(pat, "[intento de manipulación neutralizado]", clean_trigger)
-        trigger = clean_trigger
+            if clean_context:
+                clean_context = re.sub(pat, "[intento de manipulación neutralizado]", clean_context)
+
+        return clean_trigger, clean_context
+
+    async def generate_reply(
+        self, trigger: str, context: str, username: str,
+        bot_name: str = "Dalet", image_urls: list = None, is_reactive: bool = False, **kwargs
+    ):
+        trigger, context = self.sanitize_prompt_input(trigger, context)
 
         search_keywords = ("busca", "googlea", "noticias", "noticia", "precio", "resultado", "quién es", "quien es", "clima", "actualmente", "hoy en día", "partido", "http://", "https://")
         needs_web_search = any(kw in trigger.lower() for kw in search_keywords)
@@ -1529,14 +1604,16 @@ class NLPService:
     async def _execute_web_fetch(self, target_url: str) -> str:
         """
         Lee el contenido Markdown de una URL mediante la API nativa de DeepSeek (/v1/tools/fetch),
-        truncando el cuerpo a 2500 caracteres para proteger el presupuesto de tokens.
+        validando primero la URL contra vectores de SSRF y truncando el cuerpo a 2500 caracteres.
         """
+        is_safe, reason_or_url = is_safe_public_url(target_url)
+        if not is_safe:
+            return json.dumps({"error": reason_or_url})
+
         if not self.deepseek_api_key:
             return json.dumps({"error": "No hay clave de DeepSeek configurada para web_fetch."})
 
-        clean_url = (target_url or "").strip()
-        if not clean_url.startswith(("http://", "https://")):
-            return json.dumps({"error": "URL inválida. Debe comenzar con http:// o https://."})
+        clean_url = reason_or_url
 
         url = "https://api.deepseek.com/v1/tools/fetch"
         headers = {

@@ -15,11 +15,12 @@ class ChangelogService:
     BASE_VERSION = "v4.0"
     # Commit base del hito v4.0 (Pirámide Semántica L0-L3, DeepSeek Web Search/Fetch, Proactive AI & SHA-256 Guard)
     BASE_MILESTONE_COMMIT = "4815b25"
-    FALLBACK_PATCH = 6
+    FALLBACK_PATCH = 7
     REPO_URL = "https://github.com/Janlhx/Dalet-Proyect"
 
     _FALLBACK_COMMITS = [
-        ("HEAD", "feat(osu,ux): add Akatsuki/Gatari multi-server support, user language cascade, spacious cards, and adaptive verdicts", "✦"),
+        ("HEAD", "feat(security,tests): implement Spec-005 SSRF guard, constant-time auth, OWASP headers, and security test suite", "✦"),
+        ("74f88f7", "feat(osu,ux): add Akatsuki/Gatari multi-server support, user language cascade, spacious cards, and adaptive verdicts", "✦"),
         ("0458106", "feat(osu): overhaul legacy commands data accuracy, add /progress, /firsts, /unlink, and skills v2", "✦"),
         ("42e78ed", "feat(persona,chat): add PersonaInsights self-calibration and 180s reaction cooldown", "✦"),
         ("f4c84ec", "feat(osu,memory): add /top & /recent filters (d.rb, d.rp) and selective memory with 14d L2 decay", "✦"),
@@ -30,7 +31,8 @@ class ChangelogService:
 
     _MILESTONES_ES = {
         "v4": (
-            "Hito v4.0: Multi-Servidor osu! (Bancho, Akatsuki & Gatari), Cascada de Idioma & Pirámide L0–L3",
+            "Hito v4.0: Multi-Servidor osu!, Seguridad Endurecida & Pirámide L0–L3",
+            "▫ **Endurecimiento de Seguridad & Suite Automatizada (Spec-005)**: Guardia SSRF en `web_fetch`, comparación *constant-time* (`hmac.compare_digest`), cabeceras HTTP OWASP, allowlist/límites en Dashboard y suite `test_security_and_moderation.py`.\n"
             "▫ **Soporte Multi-Servidor & Prefijos Bathbot/owo (Spec-004)**: Soporte completo para `Bancho`, `Akatsuki` (Vanilla/Relax/Autopilot) y `Gatari`, vinculación independiente por servidor (`/link`, `d.link -aka -rx -gatari`) y atajos rápidos (`d.opm`, `d.rsm`, `d.topm`).\n"
             "▫ **Tarjetas Espaciadas, Veredictos Conscientes de Nivel & Cascada de Idioma**: Tarjetas con aire visual y enlaces clickables, arquetipos `APEX_TITAN` / `ALL_ROUNDER` / `SPECIALIST` / `RISING_GRINDER` en `/skills`, e idioma híbrido `Usuario > Servidor > Default` (`/language`, `d.lang`).\n"
             "▫ **Exactitud Total en osu! & Pirámide L0–L3 (Spec-001..003)**: Radar 5D anclado a PP, duelos de mapas en común en `/compare`, `/progress`, `/firsts`, y memoria `L0–L3` con `PersonaInsights`."
@@ -39,7 +41,8 @@ class ChangelogService:
 
     _MILESTONES_EN = {
         "v4": (
-            "Milestone v4.0: Multi-Server osu! (Bancho, Akatsuki & Gatari), Language Cascade & L0–L3 Pyramid",
+            "Milestone v4.0: Multi-Server osu!, Security Hardening & L0–L3 Pyramid",
+            "▫ **Security Hardening & Automated Test Suite (Spec-005)**: SSRF guard on `web_fetch`, constant-time auth (`hmac.compare_digest`), OWASP HTTP security headers, Dashboard allowlist/clamping, and `test_security_and_moderation.py`.\n"
             "▫ **Multi-Server Support & Bathbot/owo Prefix Ergonomics (Spec-004)**: Full support for `Bancho`, `Akatsuki` (Vanilla/Relax/Autopilot), and `Gatari`, per-server account linking (`/link`, `d.link -aka -rx -gatari`), and mode shortcuts (`d.opm`, `d.rsm`, `d.topm`).\n"
             "▫ **Spacious Cards, Level-Aware Verdicts & Language Cascade**: Spacious clickable cards, `APEX_TITAN` / `ALL_ROUNDER` / `SPECIALIST` / `RISING_GRINDER` archetypes in `/skills`, and `User > Server > Default` language cascade (`/language`, `d.lang`).\n"
             "▫ **osu! Data Accuracy & L0–L3 Pyramid (Spec-001..003)**: PP-anchored 5D radar, shared top map duels in `/compare`, `/progress`, `/firsts`, and `L0–L3` memory with `PersonaInsights`."
