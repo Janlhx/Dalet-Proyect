@@ -257,6 +257,108 @@ class TestRosuPPAndMapCard(unittest.TestCase):
         self.assertIn("720pp", pp_field)
         self.assertIn("960pp", pp_field)
 
+    def test_extract_beatmap_from_external_bot_embeds_and_map_compare_card(self):
+        import asyncio
+        from types import SimpleNamespace
+        from services.osu_service import OsuService
+
+        # Simula embed estilo Bathbot (beatmap URL en description y cover en thumbnail)
+        bathbot_msg = SimpleNamespace(
+            id=111,
+            content="",
+            embeds=[
+                SimpleNamespace(
+                    url="https://osu.ppy.sh/b/252002",
+                    author=SimpleNamespace(url="https://osu.ppy.sh/users/12345"),
+                    title="",
+                    description="**[Remote Control [Max Control!]](https://osu.ppy.sh/beatmapsets/51972#osu/252002)**",
+                    fields=[],
+                    footer=None,
+                    thumbnail=None,
+                    image=None,
+                )
+            ],
+        )
+        bid, _, mode = OsuService.extract_beatmap_from_message(bathbot_msg)
+        self.assertEqual(bid, 252002)
+
+        # Simula embed estilo owo (link en field.value sin emb.url)
+        owo_msg = SimpleNamespace(
+            id=222,
+            content="",
+            embeds=[
+                SimpleNamespace(
+                    url=None,
+                    author=None,
+                    title="Recent Play",
+                    description="Accuracy: 98.5%",
+                    fields=[SimpleNamespace(name="Map", value="[Song [Insane]](https://osu.ppy.sh/beatmapsets/39804#mania/777777)")],
+                    footer=None,
+                    thumbnail=None,
+                    image=None,
+                )
+            ],
+        )
+        bid2, bsid2, mode2 = OsuService.extract_beatmap_from_message(owo_msg)
+        self.assertEqual(bid2, 777777)
+        self.assertEqual(bsid2, 39804)
+        self.assertEqual(mode2, "mania")
+
+        # Cascada detect_beatmap_from_discord: Reply tiene prioridad sobre historial reciente
+        async def _fake_history(limit=25):
+            yield owo_msg
+
+        fake_channel = SimpleNamespace(id=555, history=_fake_history)
+        svc = OsuService(0, "")
+        det_bid, _, det_mode = asyncio.run(svc.detect_beatmap_from_discord(fake_channel, ref_message=bathbot_msg))
+        self.assertEqual(det_bid, 252002)
+
+        det_hist_bid, _, det_hist_mode = asyncio.run(svc.detect_beatmap_from_discord(fake_channel, ref_message=None))
+        self.assertEqual(det_hist_bid, 777777)
+        self.assertEqual(det_hist_mode, "mania")
+
+        # Normalización de estadísticas Lazer (great/ok/meh/miss)
+        lazer_stats = OsuService._normalize_score_stats({"great": 500, "ok": 12, "meh": 1, "miss": 2})
+        self.assertEqual(lazer_stats["count_300"], 500)
+        self.assertEqual(lazer_stats["count_100"], 12)
+        self.assertEqual(lazer_stats["count_miss"], 2)
+
+        # Renderizado de tarjeta build_map_compare_card (con mods + NM + if FC)
+        scores = [
+            {
+                "pp": 412.5,
+                "_pp_fc": 465.2,
+                "rank": "A",
+                "accuracy": 0.9812,
+                "max_combo": 512,
+                "total_score": 8900123,
+                "mods": ["HD", "DT"],
+                "statistics": {"count_300": 400, "count_100": 8, "count_50": 0, "count_miss": 2},
+                "beatmap_attributes": {"star_rating": 7.85},
+            },
+            {
+                "pp": 298.4,
+                "rank": "S",
+                "accuracy": 0.9920,
+                "max_combo": 700,
+                "total_score": 7200450,
+                "mods": [],
+                "statistics": {"count_300": 405, "count_100": 5, "count_50": 0, "count_miss": 0},
+                "beatmap_attributes": {"star_rating": 5.62},
+            },
+        ]
+        user_d = {"username": "Yiyi", "id": 99, "_server": "bancho"}
+        bm_d = {
+            "id": 252002, "version": "Max Control!", "difficulty_rating": 5.62, "bpm": 165, "total_length": 210, "max_combo": 700,
+            "beatmapset": {"title": "Remote Control", "artist": "Kagamine Rin/Len"},
+        }
+        cmp_embed = OsuPresenter.build_map_compare_card(user_d, bm_d, scores, mode="osu", lang="es")
+        self.assertIn("Remote Control", cmp_embed.description)
+        self.assertIn("412.50pp", cmp_embed.description)
+        self.assertIn("465pp FC", cmp_embed.description)
+        self.assertIn("+HDDT", cmp_embed.description)
+        self.assertIn("+NM", cmp_embed.description)
+
 
 if __name__ == '__main__':
     unittest.main()

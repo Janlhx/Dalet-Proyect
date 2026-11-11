@@ -88,6 +88,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "osu.map_objects": "Objects",
         "osu.map_pp_table": "PP Simulation (NM / Active Mods)",
         "osu.map_difficulty": "Difficulty & Rhythm",
+        "osu.map_compare_author": "Scores on Beatmap · {username} ({mode})",
+        "osu.map_compare_none": "No recorded scores found for **{username}** on this beatmap.",
+        "osu.map_compare_none_filtered": "No scores matching `+{mods}` found for **{username}** on this beatmap (other mod combinations exist).",
 
         # --- General Commands ---
         "general.latency_title": "Latency",
@@ -253,6 +256,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "osu.map_objects": "Objetos",
         "osu.map_pp_table": "Simulación de PP (Mods activos)",
         "osu.map_difficulty": "Dificultad & Ritmo",
+        "osu.map_compare_author": "Jugadas en el Mapa · {username} ({mode})",
+        "osu.map_compare_none": "No encontré jugadas guardadas de **{username}** en este beatmap.",
+        "osu.map_compare_none_filtered": "No encontré jugadas con `+{mods}` para **{username}** en este mapa (sí tiene con otros mods).",
 
         # --- General Commands ---
         "general.latency_title": "Latencia",

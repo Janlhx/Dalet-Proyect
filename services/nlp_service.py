@@ -346,7 +346,9 @@ YOUR REAL CAPABILITIES AND COMMANDS (When asked for):
     - `/recent [username] [mode]` (prefix `d.recent`, `d.rs`, `d.orecent`): Most recent score with accuracy, combo, misses, mods, and pp.
     - `/top [username] [mode]` (prefix `d.top`, `d.otop`): Top 5 best plays + visual PP distribution chart.
     - `/skills [username] [mode]` (prefix `d.skills`): 5-dimension skill radar (Aim, Speed, Acc, Stamina, Reading) + Dalet's sarcastic verdict.
-    - `/compare [player1] [player2] [mode]` (prefix `d.compare`): Head-to-head comparison between two players.
+    - `/map [query]` (prefix `d.m`, `d.map`): Beatmap technical card and 95/98/99/100% PP table (also reads embeds from other bots when replying or right after their messages).
+    - `/compare [user] [beatmap]` (prefix `d.c`, `d.compare`, `d.mapcompare`, `d.compareplay`): Compares your saved scores on a beatmap (detects Reply / recent channel embeds from Bathbot, owo, or Dalet).
+    - `/usercompare [player1] [player2] [mode]` (prefix `d.usercompare`, `d.vs`, `d.uc`): Head-to-head comparison between two players.
     - `/rank [mode]` (prefix `d.rank`): Server osu! leaderboard among linked members.
   - Utilities, Reminders & AI:
     - `/reminder add <time> [user] [message] [days] [timezone]`: Creates scheduled reminders (daily, weekly, or specific date) with pings.
@@ -471,7 +473,9 @@ TUS CAPACIDADES Y COMANDOS REALES (Para cuando pregunten por ellos):
     - `/recent [usuario] [modo]` (prefijos `d.recent`, `d.rs`, `d.orecent`): Jugada más reciente con mapa, combo, misses, mods y pp.
     - `/top [usuario] [modo]` (prefijos `d.top`, `d.otop`): Top 5 mejores jugadas + gráfico de distribución de pp.
     - `/skills [usuario] [modo]` (prefijo `d.skills`): Radar técnico de 5 dimensiones (Aim, Speed, Acc, Stamina, Reading) con veredicto mordaz de Dalet.
-    - `/compare [jugador1] [jugador2] [modo]` (prefijo `d.compare`): Comparativa cara a cara entre dos jugadores.
+    - `/map [búsqueda]` (prefijo `d.m`, `d.map`): Ficha técnica del mapa y tabla de PP 95/98/99/100% (también detecta mapas en Reply o mensajes de otros bots).
+    - `/compare [usuario] [mapa]` (prefijos `d.c`, `d.compare`, `d.mapcompare`, `d.compareplay`): Compara tus jugadas guardadas en un mapa (detecta Reply o embeds recientes de Bathbot, owo o Dalet).
+    - `/usercompare [jugador1] [jugador2] [modo]` (prefijos `d.usercompare`, `d.vs`, `d.uc`): Comparativa cara a cara entre dos jugadores.
     - `/rank [modo]` (prefijo `d.rank`): Tabla de clasificación de osu! del servidor entre usuarios vinculados.
   - Utilidad, Recordatorios e IA:
     - `/reminder add <hora> [usuario] [mensaje] [dias] [zona_horaria]`: Programa recordatorios (diarios, semanales o fecha específica) con menciones.

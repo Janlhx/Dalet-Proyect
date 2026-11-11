@@ -55,9 +55,10 @@ Evalúa los mejores 50 a 100 puntajes de un jugador mediante heurísticas estad�
 ### Tarjetas Principales
 - **`/recent` (`d.rs` / `d.rp` / `d.recent` / `d.or`)**: Tarjeta densa de jugada reciente con motor `rosu-pp` para PP real en fails (`passed_objects`), proyección `if FC`, filtros (`last`, `best` en 24h, `pass`, `+mods`), impactos `[300/100/50/Miss]`, combo y atributos del mapa escalados a mods (`AR`, `OD`, `HP`, `CS`, `BPM`, `Tiempo`).
 - **`/top` (`d.top` / `d.rb`)**: Las 5 mejores jugadas con `if FC` en cada choke/miss, filtros (`pp`, `recent` / *Recent Best*, `acc`, `+mods`), banderas y PP Ponderado matemáticamente verificado.
-- **`/map` (`d.m` / `d.map`)**: Ficha técnica de beatmap bajo invocación explícita con `SR`, `AR/OD/HP/CS`, `BPM`, conteo de objetos y tabla de PP (`95% / 98% / 99% / 100% SS`) con soporte de links, IDs, búsqueda, `+mods` o último mapa visto en el canal.
+- **`/map` (`d.m` / `d.map`)**: Ficha técnica de beatmap bajo invocación explícita con `SR`, `AR/OD/HP/CS`, `BPM`, conteo de objetos y tabla de PP (`95% / 98% / 99% / 100% SS`) con soporte de links, IDs, búsqueda, `+mods`, Reply o embeds recientes de otros bots.
 - **`/op` (`d.op`)**: Perfil completo de osu! con **Récord Máximo Histórico** (`Peak Rank #N`), rango global/nacional, **Combo Máximo**, **Ranked Score**, barra de progreso y conteo de récords (`SS`, `S`, `A`).
-- **`/compare`**: Duelo cara a cara entre dos jugadores con estadísticas comparadas, **duelo de mapas en común en el Top** y veredicto con IA.
+- **`/compare` (`d.c` / `d.compare` / `d.mapcompare` / `d.compareplay`)**: Compara tus mejores jugadas guardadas en un mapa (con mods o `+NM`), detectando automáticamente el mapa desde un Reply o embeds recientes de **Bathbot**, **owo** o **Dalet** con enriquecimiento `rosu-pp` (`if FC`).
+- **`/usercompare` (`d.usercompare` / `d.vs` / `d.uc`)**: Duelo cara a cara 1v1 entre dos jugadores con estadísticas comparadas, **duelo de mapas en común en el Top** y veredicto con IA.
 - **`/progress` (`d.prog`)**: Gráfico histórico de progreso de PP a lo largo del tiempo con diseño tipográfico y sin emojis.
 - **`/firsts` (`d.op1s`)**: Vitrina de récords #1 globales del jugador con enlaces a los mapas, precisión, mods y soporte para mapas Loved.
 - **`/rank` (`d.rank`)**: Ranking del servidor filtrable por modo con sincronización en tiempo real.
@@ -124,9 +125,10 @@ Dalet es compatible tanto con comandos de barra diagonal (`/`) de Discord como c
 | `/skills [usuario] [modo] [mods] [server]` | Slash / `d.skills` | Desglose de habilidades 5D (Aim, Speed, Acc, Stamina, Reading) con veredicto consciente de nivel (`APEX`, `ALL-ROUNDER`, `SPECIALIST`) |
 | `/recent [usuario] [modo] [filtro] [mods] [server]` | Slash / `d.rs`, `d.rsm`, `d.rp`, `d.or` | Muestra tu jugada reciente con PP en fails, `if FC` y filtros (`last`, `best` 24h, `pass`, `+mods`, `-aka`, `-rx`, `-gatari`) |
 | `/top [usuario] [modo] [filtro] [mods] [server]` | Slash / `d.top`, `d.topm`, `d.rb` | Muestra tu Top 5 con `if FC`, ordenado por `pp`, `recent` (*Recent Best*), `acc`, `+mods` o servidor |
-| `/map [búsqueda] [mods] [modo]` | Slash / `d.m`, `d.map`, `d.bm` | Info técnica de beatmap (`SR`, `AR/OD/HP/CS`, `BPM`) y tabla PP `95/98/99/100%` (link, ID, nombre o último mapa del canal) |
+| `/map [búsqueda] [mods] [modo]` | Slash / `d.m`, `d.map`, `d.bm` | Info técnica de beatmap (`SR`, `AR/OD/HP/CS`, `BPM`) y tabla PP `95/98/99/100%` (Reply, embeds, link o búsqueda) |
 | `/op [usuario] [modo] [server]` | Slash / `d.op`, `d.opm`, `d.opt`, `d.opc` | Muestra el perfil completo de osu!, rango, Peak Rank, precisión e historial de notas |
-| `/compare <user1> [user2] [modo] [server]` | Slash / `d.compare` | Compara estadísticas cara a cara con duelo de mapas en común y veredicto IA |
+| `/compare [usuario] [mapa] [mods] [server]` | Slash / `d.c`, `d.compare`, `d.mapcompare`, `d.compareplay` | Compara tus jugadas guardadas con mods o `+NM` en un mapa (lee Reply o embeds de Bathbot/owo/Dalet) |
+| `/usercompare <user1> [user2] [modo] [server]` | Slash / `d.usercompare`, `d.vs`, `d.uc` | Compara dos jugadores cara a cara con duelo de mapas en común y veredicto IA |
 | `/progress [usuario]` | Slash / `d.prog` | Muestra el gráfico histórico de progreso de PP y delta |
 | `/firsts [usuario] [modo] [server]` | Slash / `d.op1s` | Muestra los récords #1 globales del jugador |
 | `/rank [modo]` | Slash / `d.rank` | Muestra el ranking osu! del servidor filtrable por modo |

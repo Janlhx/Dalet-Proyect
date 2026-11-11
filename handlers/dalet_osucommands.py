@@ -611,12 +611,12 @@ class OsuHandler(commands.Cog, name="osu!"):
         await self._run_top(ctx, args, default_mode="osu", default_sort="recent")
 
     # ------------------------------------------------------------------
-    # d.compare — Comparar dos jugadores
+    # d.usercompare / d.vs — Comparar dos jugadores
     # ------------------------------------------------------------------
 
-    @commands.command(name="compare", aliases=["vs", "ocmp"])
-    async def osu_compare(self, ctx, *args):
-        """Compara perfiles de osu! frente a frente. Uso: d.compare [user1] <user2> [-modo] [-aka|-rx|-gatari]"""
+    @commands.command(name="usercompare", aliases=["vs", "ucompare", "uc", "ocmp"])
+    async def osu_usercompare(self, ctx, *args):
+        """Compara perfiles de osu! frente a frente. Uso: d.usercompare [user1] <user2> [-modo] [-aka|-rx|-gatari]"""
         mode = "osu"
         server = "bancho"
         players = []
@@ -642,7 +642,7 @@ class OsuHandler(commands.Cog, name="osu!"):
             u1_name = linked_name
             u2_name = players[0]
         else:
-            return await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Uso: `d.compare [usuario1] <usuario2> [-modo] [-aka|-rx|-gatari]`")
+            return await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Uso: `d.usercompare [usuario1] <usuario2> [-modo] [-aka|-rx|-gatari]` (o `d.vs`)")
 
         try:
             async with ctx.typing():
@@ -987,29 +987,84 @@ class OsuHandler(commands.Cog, name="osu!"):
             await ctx.send(f"{DaletAtoms.GLYPH_POINTER} error calculando el desglose de habilidades.")
 
     # ------------------------------------------------------------------
-    # d.m / d.map — Ficha técnica de beatmap + simulación PP (bajo invocación)
+    # d.m / d.map & d.c / d.compare — Ficha de beatmap + Compare por mapas (incluye Reply / otros bots)
     # ------------------------------------------------------------------
+
+    @staticmethod
+    async def _get_reply_message(ctx):
+        """Obtiene el mensaje al que se respondió (Reply) para extraer embeds de otros bots."""
+        ref = getattr(getattr(ctx, "message", None), "reference", None)
+        if not ref:
+            return None
+        resolved = getattr(ref, "resolved", None)
+        if resolved is not None and not isinstance(resolved, discord.DeletedReferencedMessage):
+            return resolved
+        msg_id = getattr(ref, "message_id", None)
+        if msg_id and getattr(ctx, "channel", None):
+            try:
+                return await ctx.channel.fetch_message(msg_id)
+            except Exception:
+                return None
+        return None
+
+    async def _detect_context_map_ref(self, ctx) -> tuple[int | None, int | None, str | None]:
+        """Detecta mapa en Reply -> Últimos 25 mensajes (Bathbot/owo/Dalet) -> Memoria de canal."""
+        ref_msg = await self._get_reply_message(ctx)
+        if hasattr(self.osu, "detect_beatmap_from_discord"):
+            return await self.osu.detect_beatmap_from_discord(
+                getattr(ctx, "channel", None),
+                ref_message=ref_msg,
+                skip_message_id=getattr(getattr(ctx, "message", None), "id", None),
+            )
+        cached = self.osu.get_channel_map(ctx.channel.id) if hasattr(self.osu, "get_channel_map") else None
+        if cached:
+            return cached[0], None, cached[1]
+        return None, None, None
+
+    @staticmethod
+    def _split_map_ref_and_user_args(raw_args: str | None) -> tuple[str | None, str | None]:
+        """Separa URL/ID de beatmap explícito de los argumentos de usuario/mods/servidor para d.c."""
+        if not raw_args:
+            return None, None
+        map_tokens: list[str] = []
+        rest_tokens: list[str] = []
+        for part in raw_args.split():
+            bid, bsid, _ = OsuService.parse_beatmap_reference(part)
+            # En d.c solo tratar un token como beatmap explícito si es URL de osu! o ID >= 4 dígitos
+            if bid and (not part.isdigit() or len(part) >= 4):
+                map_tokens.append(part)
+            elif bsid:
+                map_tokens.append(part)
+            else:
+                rest_tokens.append(part)
+        map_query = map_tokens[0] if map_tokens else None
+        remaining = " ".join(rest_tokens).strip() or None
+        return map_query, remaining
 
     @commands.command(name="m", aliases=["map", "beatmap", "bm"])
     async def osu_map(self, ctx, *, args: str = None):
-        """Muestra info detallada de un beatmap y tabla de PP (+mods, -modo, link/ID o búsqueda)."""
+        """Muestra info detallada de un beatmap y tabla de PP (+mods, -modo, Reply a otro bot, link/ID o búsqueda)."""
         server_lang = await self._resolve_lang(ctx)
         query_text, mods_list, mode_override = OsuService.parse_map_args(args)
 
         preferred_id = None
         fallback_mode = "osu"
-        if not query_text:
-            recent_ctx = self.osu.get_channel_map(ctx.channel.id) if hasattr(self.osu, "get_channel_map") else None
-            if not recent_ctx:
+        resolved_query = query_text or None
+        if not resolved_query:
+            det_bid, det_bsid, det_mode = await self._detect_context_map_ref(ctx)
+            if not det_bid and not det_bsid:
                 return await ctx.send(t("osu.map_no_recent", server_lang))
-            preferred_id, fallback_mode = recent_ctx
+            preferred_id = det_bid
+            if not preferred_id and det_bsid:
+                resolved_query = f"https://osu.ppy.sh/s/{det_bsid}"
+            fallback_mode = det_mode or "osu"
 
         mode_hint = mode_override or fallback_mode
 
         try:
             async with ctx.typing():
                 resolved = await self.osu.resolve_beatmap(
-                    query=query_text or None,
+                    query=resolved_query,
                     preferred_id=preferred_id,
                     mode_hint=mode_hint,
                 )
@@ -1036,6 +1091,83 @@ class OsuHandler(commands.Cog, name="osu!"):
         except Exception as e:
             logger.error(f"Error en d.m ({args}): {e}", exc_info=True)
             await ctx.send(f"{DaletAtoms.GLYPH_CROSS} error consultando el beatmap.")
+
+    @commands.command(name="c", aliases=["compare", "mapcompare", "compareplay", "sc", "scores"])
+    async def osu_map_compare(self, ctx, *, args: str = None):
+        """Compara tus jugadas (o las de otro jugador) en el último mapa del canal/Reply o un link de beatmap (d.c)."""
+        server_lang = await self._resolve_lang(ctx)
+        map_query, user_filter_args = self._split_map_ref_and_user_args(args)
+
+        det_bid, det_bsid, det_mode = (None, None, None)
+        if not map_query:
+            det_bid, det_bsid, det_mode = await self._detect_context_map_ref(ctx)
+            if not det_bid and not det_bsid:
+                return await ctx.send(t("osu.map_no_recent", server_lang))
+
+        default_mode = det_mode or "osu"
+        username, mode, _, mods_filter, server = await self._parse_osu_filter_args(
+            ctx, user_filter_args, default_filter="last", default_mode=default_mode
+        )
+        if not username:
+            return
+
+        resolved_query = map_query
+        if not resolved_query and not det_bid and det_bsid:
+            resolved_query = f"https://osu.ppy.sh/s/{det_bsid}"
+
+        try:
+            async with ctx.typing():
+                resolved = await self.osu.resolve_beatmap(
+                    query=resolved_query,
+                    preferred_id=det_bid,
+                    mode_hint=mode,
+                )
+                if not resolved or not resolved.get("beatmap"):
+                    return await ctx.send(t("osu.map_not_found", server_lang))
+
+                bm = resolved["beatmap"]
+                bm_id = int(bm.get("id") or 0)
+                has_explicit_mode = any(
+                    tok.lower().startswith("-") and tok.lower().lstrip("-") in MODE_FLAG_ALIASES
+                    for tok in (user_filter_args or "").split()
+                )
+                eff_mode = mode if has_explicit_mode else (det_mode or bm.get("mode") or mode)
+
+                user = await self.osu.get_user(username, eff_mode, server=server)
+                all_scores = await self.osu.get_user_beatmap_scores(
+                    bm_id, user["id"], mode=eff_mode, server=server, beatmap_data=bm
+                )
+                total_unfiltered = len(all_scores)
+                filtered_scores = (
+                    [s for s in all_scores if OsuPresenter.matches_mods(s, mods_filter)]
+                    if mods_filter
+                    else all_scores
+                )
+                target_scores = filtered_scores[:6]
+                if target_scores:
+                    await self.osu.enrich_scores_with_attributes(target_scores, mode=eff_mode)
+                    if hasattr(self.osu, "enrich_scores_with_pp"):
+                        await self.osu.enrich_scores_with_pp(target_scores, mode=eff_mode, max_maps=1)
+
+                if bm_id and hasattr(self.osu, "remember_channel_map"):
+                    self.osu.remember_channel_map(ctx.channel.id, bm_id, eff_mode)
+
+            embed = OsuPresenter.build_map_compare_card(
+                user,
+                bm,
+                target_scores,
+                mode=eff_mode,
+                mods_filter=mods_filter,
+                total_unfiltered=total_unfiltered,
+                lang=server_lang,
+            )
+            await ctx.send(embed=embed)
+
+        except OsuUserNotFoundError as e:
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} {e}")
+        except Exception as e:
+            logger.error(f"Error en d.c ({args}): {e}", exc_info=True)
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} error consultando tus jugadas en el beatmap.")
 
 
 async def setup(bot):

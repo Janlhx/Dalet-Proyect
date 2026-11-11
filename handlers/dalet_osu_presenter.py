@@ -1421,6 +1421,99 @@ class OsuPresenter:
         )
         return embed
 
+    @staticmethod
+    def build_map_compare_card(
+        user_data: dict,
+        beatmap_data: dict,
+        scores: list,
+        mode: str = "osu",
+        mods_filter: str | None = None,
+        total_unfiltered: int = 0,
+        lang: str = "en",
+    ) -> discord.Embed:
+        """Construye la tarjeta clásica >c / d.c con todas las mejores jugadas del jugador en ese mapa."""
+        u = user_data or {}
+        bm = beatmap_data or {}
+        bms = bm.get("beatmapset") or {}
+
+        username = u.get("username", "Jugador")
+        bm_id = int(bm.get("id") or 0)
+        title = bms.get("title") or bm.get("title") or "Desconocido"
+        artist = bms.get("artist") or bm.get("artist") or ""
+        version = bm.get("version") or "Normal"
+        map_url = f"https://osu.ppy.sh/b/{bm_id}" if bm_id else "https://osu.ppy.sh"
+
+        base_sr = float(bm.get("difficulty_rating") or 0.0)
+        base_bpm = float(bm.get("bpm") or 0.0)
+        raw_len = int(bm.get("total_length") or bm.get("hit_length") or 0)
+        length_str = DaletAtoms.format_duration(raw_len)
+
+        author_title = t("osu.map_compare_author", lang, username=username, mode=_mode_title(mode))
+        if mods_filter and str(mods_filter).strip():
+            clean_mod = str(mods_filter).upper().replace("+", "").strip()
+            author_title += f" · +{clean_mod}"
+
+        top_grade = str(scores[0].get("rank", "?")).upper() if scores else "?"
+        embed_color = DaletAtoms.get_grade_color(top_grade) if scores else DaletAtoms.COLOR_PRIMARY
+        embed = discord.Embed(color=embed_color)
+        embed.set_author(
+            name=author_title,
+            icon_url=u.get("avatar_url"),
+            url=_profile_url(u, mode=mode, fallback_username=username),
+        )
+
+        header_line = f"**[{artist} - {title} [{version}]]({map_url})**" if artist else f"**[{title} [{version}]]({map_url})**"
+        meta_line = f"`{base_sr:.2f}★` {DaletAtoms.GLYPH_PIPE} `BPM {base_bpm:.0f}` {DaletAtoms.GLYPH_PIPE} `{length_str}`"
+
+        if not scores:
+            if mods_filter and total_unfiltered > 0:
+                empty_msg = t("osu.map_compare_none_filtered", lang, username=username, mods=str(mods_filter).upper().replace("+", "").strip())
+            else:
+                empty_msg = t("osu.map_compare_none", lang, username=username)
+            embed.description = f"{header_line}\n{meta_line}\n───────────────────────────────────\n{DaletAtoms.GLYPH_POINTER} {empty_msg}"
+        else:
+            lines = []
+            for idx, s in enumerate(scores[:6], 1):
+                grade = str(s.get("rank", "?")).upper()
+                badge = DaletAtoms.GRADE_BADGES.get(grade, grade)
+                pp_disp = _format_play_pp(s, lang=lang, compact=True, decimals=2) or f"**{t('osu.no_pp', lang)}**"
+                acc = _format_acc(s.get("accuracy", 0.0))
+                mods_str = _format_mods(s.get("mods", []))
+                sr = s.get("official_sr") or (s.get("beatmap_attributes") or {}).get("star_rating") or _calc_effective_sr(bm, s.get("mods", []), mode=mode)
+
+                stats = s.get("statistics") or {}
+                c300 = int(stats.get("count_300") or 0)
+                c100 = int(stats.get("count_100") or 0)
+                c50 = int(stats.get("count_50") or 0)
+                misses = int(stats.get("count_miss") or 0)
+
+                max_c = int(s.get("max_combo") or 0)
+                bm_max = (s.get("beatmap") or {}).get("max_combo") or bm.get("max_combo") or ""
+                combo_str = f"{max_c:,}x/{int(bm_max):,}x" if bm_max else f"{max_c:,}x"
+                miss_str = f"{misses}m" if misses > 0 else "FC"
+                score_str = OsuPresenter._extract_score(s)
+
+                rel_time = DaletAtoms.parse_timestamp_relative(s.get("created_at", ""))
+                time_part = f" {DaletAtoms.GLYPH_PIPE} {rel_time}" if rel_time else ""
+
+                row1 = f"`#{idx}` {badge} {pp_disp} {DaletAtoms.GLYPH_PIPE} `{acc}` {DaletAtoms.GLYPH_PIPE} `{combo_str}` {DaletAtoms.GLYPH_PIPE} `{miss_str}` {DaletAtoms.GLYPH_PIPE} **{mods_str}** {DaletAtoms.GLYPH_PIPE} `{sr:.2f}★`"
+                row2 = f"└─ `{score_str}` {DaletAtoms.GLYPH_PIPE} `[{c300}/{c100}/{c50}/{misses}]`{time_part}"
+                lines.append(f"{row1}\n{row2}")
+
+            embed.description = f"{header_line}\n{meta_line}\n───────────────────────────────────\n\n" + "\n\n".join(lines)
+
+        covers = bms.get("covers", {})
+        thumb_url = covers.get("list") or covers.get("cover") or covers.get("card")
+        if thumb_url:
+            embed.set_thumbnail(url=thumb_url)
+
+        srv_label = _server_title((u.get("_server") or "bancho"))
+        DaletMolecules.add_standard_footer(
+            embed,
+            context_text=f"{srv_label} {DaletAtoms.GLYPH_PIPE} Map ID: {bm_id} {DaletAtoms.GLYPH_PIPE} d.m",
+        )
+        return embed
+
 
 async def setup(bot):
     pass

@@ -55,9 +55,10 @@ Evaluates a player's top 50/100 plays through mathematical heuristics with PP an
 ### Core Cards
 - **`/recent` (`d.rs` / `d.rp` / `d.recent` / `d.or`)**: High-density recent play card with `rosu-pp` Fail PP (`passed_objects`), inline `if FC` simulation, filters (`last`, `best` in 24h, `pass` only, `+mods`), detailed hits `[300/100/50/Miss]`, combo, and mod-adjusted map stats (`AR`, `OD`, `HP`, `CS`, `BPM`, `Length`).
 - **`/top` (`d.top` / `d.rb`)**: Top 5 ranked scores with inline `if FC` PP estimates on chokes, sorting/filter modes (`pp`, `recent` / *Recent Best*, `acc`, `+mods`), country badges, and mathematically verified Weighted PP.
-- **`/map` (`d.m` / `d.map`)**: Explicit beatmap info card showing mod-adjusted `SR`, `AR/OD/HP/CS`, `BPM`, object counts, and a `95% / 98% / 99% / 100% SS` PP table (supports links, IDs, text queries, `+mods`, or channel context fallback).
+- **`/map` (`d.m` / `d.map`)**: Explicit beatmap info card showing mod-adjusted `SR`, `AR/OD/HP/CS`, `BPM`, object counts, and a `95% / 98% / 99% / 100% SS` PP table (supports links, IDs, text queries, `+mods`, Reply, or scanning recent channel embeds from any bot).
 - **`/op` (`d.op`)**: Full user profile overview with **Peak Rank** (`#N`), global/country rank, **Max Combo**, **Ranked Score**, progress bar, and grade counts (`SS`, `S`, `A`).
-- **`/compare`**: Direct head-to-head comparison between two players displaying PP differentials, stat leads, **shared top map duels**, and Dalet's AI duel verdict.
+- **`/compare` (`d.c` / `d.compare` / `d.mapcompare` / `d.compareplay`)**: Compares your (or another player's) saved scores on a beatmap (with mods or `+NM`), detecting beatmaps directly from a Reply or recent channel embeds by **Bathbot**, **owo**, or **Dalet** (with `rosu-pp` Fail / `if FC` enrichment).
+- **`/usercompare` (`d.usercompare` / `d.vs` / `d.uc`)**: Direct head-to-head comparison between two players displaying PP differentials, stat leads, **shared top map duels**, and Dalet's AI duel verdict.
 - **`/progress` (`d.prog`)**: Historical PP progress chart tracking growth over time with clean typographic styling and zero emojis.
 - **`/firsts` (`d.op1s`)**: Global #1 scores showcase displaying ranks, accuracy, mods, and beatmap links (with graceful Loved map support).
 - **`/rank` (`d.rank`)**: Server leaderboard with live PP/accuracy sync and mode filtering.
@@ -167,9 +168,10 @@ Dalet supports both native Discord Slash Commands (`/`) and the traditional `d.`
 | `/skills [user] [mode] [mods] [server]` | Slash / `d.skills` | 5-dimension skill breakdown (`Aim`, `Speed`, `Acc`, `Stamina`, `Reading`) with level-aware AI verdict (`APEX`, `ALL-ROUNDER`, `SPECIALIST`) |
 | `/recent [user] [mode] [filter] [mods] [server]` | Slash / `d.rs`, `d.rsm`, `d.rp`, `d.or` | Displays latest play with Fail PP & `if FC` simulation, plus filters (`last`, `best` in 24h, `pass`, `+mods`, `-aka`, `-rx`, `-gatari`) |
 | `/top [user] [mode] [filter] [mods] [server]` | Slash / `d.top`, `d.topm`, `d.rb` | Shows top 5 scores with inline `if FC` PP, sorted by `pp`, `recent` (*Recent Best*), `acc`, `+mods`, or server |
-| `/map [query] [mods] [mode]` | Slash / `d.m`, `d.map`, `d.bm` | Beatmap technical stats (`SR`, `AR/OD/HP/CS`, `BPM`) and `95/98/99/100%` PP table (`+mods`, link/ID/query or last map in channel) |
+| `/map [query] [mods] [mode]` | Slash / `d.m`, `d.map`, `d.bm` | Beatmap technical stats (`SR`, `AR/OD/HP/CS`, `BPM`) and `95/98/99/100%` PP table (Reply, embeds, link/ID, or query) |
 | `/op [user] [mode] [server]` | Slash / `d.op`, `d.opm`, `d.opt`, `d.opc` | Displays complete osu! profile, rank, peak rank, accuracy, and grade history |
-| `/compare <user1> [user2] [mode] [server]` | Slash / `d.compare` | Compares stats head-to-head with shared top map duels and AI duel verdict |
+| `/compare [user] [beatmap] [mods] [server]` | Slash / `d.c`, `d.compare`, `d.mapcompare`, `d.compareplay` | Compares your saved mod/NM scores on a beatmap (detects Reply or Bathbot/owo/Dalet embeds in chat) |
+| `/usercompare <user1> [user2] [mode] [server]` | Slash / `d.usercompare`, `d.vs`, `d.uc` | Compares two players head-to-head with shared top map duels and AI verdict |
 | `/progress [user]` | Slash / `d.prog` | Displays historical PP progress chart and delta |
 | `/firsts [user] [mode] [server]` | Slash / `d.op1s` | Displays global #1 scores for a player |
 | `/rank [mode]` | Slash / `d.rank` | Displays the server osu! leaderboard filterable by mode |

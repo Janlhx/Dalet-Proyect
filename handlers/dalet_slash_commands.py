@@ -631,20 +631,28 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
 
         preferred_id = None
         fallback_mode = "osu"
-        if not q_clean:
-            recent_ctx = (
-                self.bot.osu_service.get_channel_map(interaction.channel_id)
-                if interaction.channel_id and hasattr(self.bot.osu_service, "get_channel_map")
-                else None
-            )
-            if not recent_ctx:
+        resolved_query = q_clean or None
+        if not resolved_query:
+            det_bid, det_bsid, det_mode = (None, None, None)
+            if hasattr(self.bot.osu_service, "detect_beatmap_from_discord"):
+                det_bid, det_bsid, det_mode = await self.bot.osu_service.detect_beatmap_from_discord(
+                    getattr(interaction, "channel", None)
+                )
+            elif interaction.channel_id and hasattr(self.bot.osu_service, "get_channel_map"):
+                cached = self.bot.osu_service.get_channel_map(interaction.channel_id)
+                if cached:
+                    det_bid, det_mode = cached[0], cached[1]
+            if not det_bid and not det_bsid:
                 return await interaction.followup.send(t("osu.map_no_recent", server_lang), ephemeral=True)
-            preferred_id, fallback_mode = recent_ctx
+            preferred_id = det_bid
+            if not preferred_id and det_bsid:
+                resolved_query = f"https://osu.ppy.sh/s/{det_bsid}"
+            fallback_mode = det_mode or "osu"
 
         mode_hint = mode_override or fallback_mode
         try:
             resolved = await self.bot.osu_service.resolve_beatmap(
-                query=q_clean or None,
+                query=resolved_query,
                 preferred_id=preferred_id,
                 mode_hint=mode_hint,
             )
@@ -839,7 +847,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             logger.error(f"Error en /rank: {e}")
             await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} {t('rank.error', server_lang)}", ephemeral=True)
 
-    @app_commands.command(name="compare", description="Compares osu! profiles head-to-head with in-depth stats and skill breakdown.")
+    @app_commands.command(name="usercompare", description="Compares two osu! profiles head-to-head with stats, shared maps, and skill breakdown.")
     @app_commands.describe(
         player1="First player (or leave player2 empty to compare against your linked account)",
         player2="Second player (optional, compares against yourself if omitted)",
@@ -855,7 +863,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         ],
         server=OSU_SERVER_CHOICES,
     )
-    async def slash_compare(
+    async def slash_usercompare(
         self,
         interaction: discord.Interaction,
         player1: str,
@@ -953,8 +961,113 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             )
             await interaction.followup.send(embed=embed)
         except Exception as e:
-            logger.error(f"Error en /compare: {e}")
+            logger.error(f"Error en /usercompare: {e}")
             await interaction.followup.send(f"{DaletAtoms.GLYPH_POINTER} error comparando perfiles.", ephemeral=True)
+
+    @app_commands.command(name="compare", description="Shows your (or another player's) saved scores on the latest map in chat or a given beatmap.")
+    @app_commands.describe(
+        username="osu! username (or leave empty for your linked account)",
+        beatmap="Optional beatmap URL, ID, or search (defaults to latest beatmap shown in this channel)",
+        mods="Optional mod filter (e.g. HDDT, HR, NM)",
+        mode="Optional game mode",
+        server="osu! server (Bancho, Akatsuki, Akatsuki Relax, Gatari)",
+    )
+    @app_commands.choices(
+        mode=[
+            app_commands.Choice(name="Auto / Beatmap Default", value="auto"),
+            app_commands.Choice(name="osu!standard", value="osu"),
+            app_commands.Choice(name="osu!taiko",    value="taiko"),
+            app_commands.Choice(name="osu!catch",    value="fruits"),
+            app_commands.Choice(name="osu!mania",    value="mania"),
+        ],
+        server=OSU_SERVER_CHOICES,
+    )
+    async def slash_map_compare(
+        self,
+        interaction: discord.Interaction,
+        username: str = None,
+        beatmap: str = None,
+        mods: str = None,
+        mode: str = "auto",
+        server: str = "bancho",
+    ):
+        await interaction.response.defer()
+        server_lang = await self._resolve_lang(interaction)
+
+        uname = username
+        if not uname:
+            uname = await self.bot.osu_repo.get_linked_username(interaction.user.id, server=server)
+        if not uname:
+            return await interaction.followup.send(
+                f"{DaletAtoms.GLYPH_POINTER} no tienes cuenta vinculada.", ephemeral=True
+            )
+
+        det_bid, det_bsid, det_mode = (None, None, None)
+        resolved_query = beatmap.strip() if (beatmap and beatmap.strip()) else None
+        if not resolved_query:
+            if hasattr(self.bot.osu_service, "detect_beatmap_from_discord"):
+                det_bid, det_bsid, det_mode = await self.bot.osu_service.detect_beatmap_from_discord(
+                    getattr(interaction, "channel", None)
+                )
+            elif interaction.channel_id and hasattr(self.bot.osu_service, "get_channel_map"):
+                cached = self.bot.osu_service.get_channel_map(interaction.channel_id)
+                if cached:
+                    det_bid, det_mode = cached[0], cached[1]
+            if not det_bid and not det_bsid:
+                return await interaction.followup.send(t("osu.map_no_recent", server_lang), ephemeral=True)
+            if not det_bid and det_bsid:
+                resolved_query = f"https://osu.ppy.sh/s/{det_bsid}"
+
+        mode_override = None if mode == "auto" else mode
+        mode_hint = mode_override or det_mode or "osu"
+
+        try:
+            resolved = await self.bot.osu_service.resolve_beatmap(
+                query=resolved_query,
+                preferred_id=det_bid,
+                mode_hint=mode_hint,
+            )
+            if not resolved or not resolved.get("beatmap"):
+                return await interaction.followup.send(t("osu.map_not_found", server_lang), ephemeral=True)
+
+            bm = resolved["beatmap"]
+            bm_id = int(bm.get("id") or 0)
+            eff_mode = mode_override or det_mode or bm.get("mode") or mode_hint
+
+            user = await self.bot.osu_service.get_user(uname, eff_mode, server=server)
+            all_scores = await self.bot.osu_service.get_user_beatmap_scores(
+                bm_id, user["id"], mode=eff_mode, server=server, beatmap_data=bm
+            )
+            total_unfiltered = len(all_scores)
+            filtered_scores = (
+                [s for s in all_scores if OsuPresenter.matches_mods(s, mods)]
+                if mods
+                else all_scores
+            )
+            target_scores = filtered_scores[:6]
+            if target_scores:
+                await self.bot.osu_service.enrich_scores_with_attributes(target_scores, mode=eff_mode)
+                if hasattr(self.bot.osu_service, "enrich_scores_with_pp"):
+                    await self.bot.osu_service.enrich_scores_with_pp(target_scores, mode=eff_mode, max_maps=1)
+
+            if bm_id and interaction.channel_id and hasattr(self.bot.osu_service, "remember_channel_map"):
+                self.bot.osu_service.remember_channel_map(interaction.channel_id, bm_id, eff_mode)
+
+            embed = OsuPresenter.build_map_compare_card(
+                user,
+                bm,
+                target_scores,
+                mode=eff_mode,
+                mods_filter=mods,
+                total_unfiltered=total_unfiltered,
+                lang=server_lang,
+            )
+            await interaction.followup.send(embed=embed)
+        except OsuUserNotFoundError as e:
+            await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} {e}", ephemeral=True)
+        except Exception as e:
+            logger.error(f"Error en /compare: {e}", exc_info=True)
+            await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} error consultando tus jugadas en el beatmap.", ephemeral=True)
 
 
     # ------------------------------------------------------------------

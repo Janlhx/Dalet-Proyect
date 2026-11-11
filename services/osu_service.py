@@ -768,7 +768,7 @@ class OsuService:
                 bm.convert(target_mode)
 
             mods = cls._clean_rosu_mods(score.get("mods", []))
-            stats = score.get("statistics") or {}
+            stats = cls._normalize_score_stats(score.get("statistics") or {})
             c300 = int(stats.get("count_300") or 0)
             c100 = int(stats.get("count_100") or 0)
             c50 = int(stats.get("count_50") or 0)
@@ -972,22 +972,52 @@ class OsuService:
             return {}
 
     @staticmethod
+    def _normalize_score_stats(stats: dict | None) -> dict:
+        """Normaliza estadísticas Lazer (great/ok/meh/miss) y Stable (count_300/...) a esquema unificado."""
+        s = dict(stats or {})
+        if "count_300" not in s and "great" in s:
+            s["count_300"] = int(s.get("great") or 0)
+        if "count_100" not in s and "ok" in s:
+            s["count_100"] = int(s.get("ok") or 0)
+        if "count_50" not in s and "meh" in s:
+            s["count_50"] = int(s.get("meh") or 0)
+        if "count_miss" not in s and "miss" in s:
+            s["count_miss"] = int(s.get("miss") or 0)
+        if "count_geki" not in s and "perfect" in s:
+            s["count_geki"] = int(s.get("perfect") or 0)
+        if "count_katu" not in s and "good" in s:
+            s["count_katu"] = int(s.get("good") or 0)
+        return s
+
+    @staticmethod
     def parse_beatmap_reference(text: str) -> tuple[int | None, int | None, str | None]:
-        """Extrae (beatmap_id, beatmapset_id, mode) desde URLs o IDs numéricos de osu!."""
+        """Extrae (beatmap_id, beatmapset_id, mode) desde URLs (Bancho/Akatsuki/Gatari) o IDs numéricos."""
         if not text:
             return None, None, None
-        s = text.strip()
-        # https://osu.ppy.sh/beatmapsets/12345#osu/67890
+        s = str(text).strip()
+        # https://osu.ppy.sh/beatmapsets/12345#osu/67890 (o akatsuki/gatari)
         m_full = re.search(r"beatmapsets/(\d+)(?:#(osu|taiko|fruits|mania)/(\d+))?", s, re.IGNORECASE)
         if m_full:
             set_id = int(m_full.group(1))
             mode = m_full.group(2).lower() if m_full.group(2) else None
             bm_id = int(m_full.group(3)) if m_full.group(3) else None
             return bm_id, set_id, mode
-        # https://osu.ppy.sh/b/67890 o /beatmaps/67890
-        m_bm = re.search(r"/(?:b|beatmaps)/(\d+)", s, re.IGNORECASE)
+        # https://osu.ppy.sh/b/67890, /beatmaps/67890, akatsuki.gg/b/67890, osu.gatari.pw/b/67890
+        m_bm = re.search(
+            r"(?:osu\.ppy\.sh|osu\.direct|akatsuki\.gg|osu\.gatari\.pw|ripple\.moe)/(?:b|beatmaps)/(\d+)",
+            s,
+            re.IGNORECASE,
+        )
         if m_bm:
             return int(m_bm.group(1)), None, None
+        # Fallback ruta genérica /b/<id> o /beatmaps/<id>
+        m_bm_gen = re.search(r"/(?:b|beatmaps)/(\d+)", s, re.IGNORECASE)
+        if m_bm_gen:
+            return int(m_bm_gen.group(1)), None, None
+        # https://assets.ppy.sh/beatmaps/12345/covers/...
+        m_cov = re.search(r"assets\.ppy\.sh/beatmaps/(\d+)", s, re.IGNORECASE)
+        if m_cov:
+            return None, int(m_cov.group(1)), None
         # https://osu.ppy.sh/s/12345
         m_set = re.search(r"/s/(\d+)", s, re.IGNORECASE)
         if m_set:
@@ -995,6 +1025,176 @@ class OsuService:
         if s.isdigit():
             return int(s), None, None
         return None, None, None
+
+    @classmethod
+    def extract_beatmap_from_message(cls, msg) -> tuple[int | None, int | None, str | None]:
+        """
+        Extrae (beatmap_id, beatmapset_id, mode) desde cualquier mensaje o embed de Discord
+        (Bathbot, owo, TinyBot, Dalet o enlaces directos de usuarios).
+        """
+        if msg is None:
+            return None, None, None
+
+        candidates: list[str] = []
+        embeds = getattr(msg, "embeds", None) or []
+        for emb in embeds:
+            if getattr(emb, "url", None):
+                candidates.append(str(emb.url))
+            author = getattr(emb, "author", None)
+            if author and getattr(author, "url", None):
+                candidates.append(str(author.url))
+            if getattr(emb, "title", None):
+                candidates.append(str(emb.title))
+            if getattr(emb, "description", None):
+                candidates.append(str(emb.description))
+            for fld in getattr(emb, "fields", None) or []:
+                if getattr(fld, "name", None):
+                    candidates.append(str(fld.name))
+                if getattr(fld, "value", None):
+                    candidates.append(str(fld.value))
+            footer = getattr(emb, "footer", None)
+            if footer and getattr(footer, "text", None):
+                candidates.append(str(footer.text))
+            thumb = getattr(emb, "thumbnail", None)
+            if thumb and getattr(thumb, "url", None):
+                candidates.append(str(thumb.url))
+            img = getattr(emb, "image", None)
+            if img and getattr(img, "url", None):
+                candidates.append(str(img.url))
+
+        content = getattr(msg, "content", None)
+        if content:
+            candidates.append(str(content))
+
+        fallback_set: tuple[int | None, int | None, str | None] | None = None
+        for text in candidates:
+            # No tratar un ID numérico suelto en prosa normal como beatmap ID si vino de texto libre
+            if text.strip().isdigit():
+                continue
+            bid, bsid, mode = cls.parse_beatmap_reference(text)
+            if bid:
+                return bid, bsid, mode
+            if bsid and fallback_set is None:
+                fallback_set = (None, bsid, mode)
+
+        return fallback_set or (None, None, None)
+
+    async def detect_beatmap_from_discord(
+        self,
+        channel,
+        ref_message=None,
+        skip_message_id: int | None = None,
+        history_limit: int = 25,
+    ) -> tuple[int | None, int | None, str | None]:
+        """
+        Cascada bajo demanda para detectar un beatmap en Discord sin escucha pasiva:
+        1) Mensaje respondido (Reply directo, ej. al recent play de Bathbot/owo/Dalet).
+        2) Escaneo de los últimos mensajes/embeds del canal.
+        3) Último mapa recordado en memoria del canal (get_channel_map).
+        """
+        if ref_message is not None:
+            bid, bsid, m_hint = self.extract_beatmap_from_message(ref_message)
+            if bid or bsid:
+                return bid, bsid, m_hint
+
+        if channel is not None and hasattr(channel, "history"):
+            try:
+                async for hist_msg in channel.history(limit=history_limit):
+                    if skip_message_id and getattr(hist_msg, "id", None) == skip_message_id:
+                        continue
+                    bid, bsid, m_hint = self.extract_beatmap_from_message(hist_msg)
+                    if bid or bsid:
+                        return bid, bsid, m_hint
+            except Exception as e:
+                logger.debug(f"No se pudo leer historial reciente del canal: {e}")
+
+        ch_id = getattr(channel, "id", None)
+        if ch_id:
+            cached = self.get_channel_map(ch_id)
+            if cached:
+                return cached[0], None, cached[1]
+
+        return None, None, None
+
+    async def get_user_beatmap_scores(
+        self,
+        beatmap_id: int,
+        user_id: int,
+        mode: str = "osu",
+        server: str = "bancho",
+        beatmap_data: dict | None = None,
+    ) -> list:
+        """
+        Obtiene todas las jugadas guardadas de un jugador en un beatmap específico
+        (Bancho v2 /all para todos los mods; Akatsuki/Gatari vía cruce best+recent).
+        """
+        if not beatmap_id or not user_id:
+            return []
+        bid = int(beatmap_id)
+        uid = int(user_id)
+        srv = (server or "bancho").lower().strip()
+        raw_scores: list[dict] = []
+
+        if srv == "bancho":
+            try:
+                res = await self._get(
+                    f"beatmaps/{bid}/scores/users/{uid}/all",
+                    params={"mode": mode},
+                )
+                raw_scores = res.get("scores") or [] if isinstance(res, dict) else []
+            except httpx.HTTPStatusError as e:
+                if e.response is not None and e.response.status_code in (404, 422):
+                    raw_scores = []
+                else:
+                    raise
+        else:
+            best_res, recent_res = await asyncio.gather(
+                self.get_user_best_scores(uid, mode=mode, limit=100, server=srv),
+                self.get_user_recent_scores(uid, mode=mode, limit=50, include_fails=1, server=srv),
+                return_exceptions=True,
+            )
+            seen_keys = set()
+            for batch in (best_res, recent_res):
+                if not isinstance(batch, list):
+                    continue
+                for s in batch:
+                    s_bm_id = int((s.get("beatmap") or {}).get("id") or 0)
+                    if s_bm_id != bid:
+                        continue
+                    mods_key = tuple(str(m) for m in (s.get("mods") or []))
+                    dedup_key = (
+                        int(s.get("classic_total_score") or s.get("total_score") or s.get("score") or 0),
+                        mods_key,
+                        str(s.get("created_at") or ""),
+                    )
+                    if dedup_key not in seen_keys:
+                        seen_keys.add(dedup_key)
+                        raw_scores.append(s)
+
+        bm_meta = beatmap_data or {}
+        bms_meta = bm_meta.get("beatmapset") or {}
+        normalized: list[dict] = []
+        for item in raw_scores:
+            s = dict(item)
+            s["statistics"] = self._normalize_score_stats(s.get("statistics"))
+            if "total_score" not in s and "legacy_total_score" in s:
+                s["total_score"] = s["legacy_total_score"]
+            if not s.get("beatmap") and bm_meta:
+                s["beatmap"] = bm_meta
+            if not s.get("beatmapset") and bms_meta:
+                s["beatmapset"] = bms_meta
+            s.setdefault("_server", srv)
+            normalized.append(s)
+
+        normalized.sort(
+            key=lambda x: (
+                1 if (x.get("passed", True) and str(x.get("rank", "")).upper() != "F") else 0,
+                float(x.get("pp") or 0.0),
+                int(x.get("classic_total_score") or x.get("total_score") or x.get("score") or 0),
+            ),
+            reverse=True,
+        )
+        return normalized
 
     async def resolve_beatmap(self, query: str | None = None, preferred_id: int | None = None, mode_hint: str = "osu") -> dict | None:
         """Resuelve un beatmap completo desde ID, URL de osu!, último mapa del canal o búsqueda en Bancho."""
