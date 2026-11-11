@@ -5,6 +5,7 @@ from discord.ext import commands
 
 from ui.atoms import DaletAtoms
 from ui.molecules import DaletMolecules
+from ui.locales import t
 from database.sqlite_manager import SQLiteManager
 
 logger = logging.getLogger("dalet.handlers.admin")
@@ -15,13 +16,20 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
         self.bot = bot
         self.repo = bot.user_repo
 
+    async def _resolve_lang(self, ctx) -> str:
+        guild_id = ctx.guild.id if getattr(ctx, "guild", None) else None
+        try:
+            return await self.bot.admin_repo.resolve_language(ctx.author.id, guild_id, default="en")
+        except Exception:
+            return "en"
+
     # --- Comandos de Gestión del Bot ---
 
     @commands.command(hidden=True)
     @commands.has_permissions(administrator=True)
     async def restart(self, ctx):
         """[ADMIN] Reinicia el bot (solo para administradores)."""
-        await ctx.send("Cerrando conexión... Render debería reiniciarme.")
+        await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Cerrando conexión... el contenedor debería reiniciarme.")
         await self.bot.close()
 
     @commands.command(name="sync", hidden=True)
@@ -35,22 +43,22 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
         """
         try:
             if mode.lower() == "global":
-                msg = await ctx.send("🌍 Sincronizando slash commands **globalmente**... (Discord puede tardar hasta 1 hora en propagar a los clientes)")
+                msg = await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Sincronizando slash commands **globalmente**... (Discord puede tardar hasta 1 hora)")
                 synced = await self.bot.tree.sync()
-                await msg.edit(content=f"✅ Sincronización global completada. **{len(synced)}** slash commands registrados.")
+                await msg.edit(content=f"{DaletAtoms.GLYPH_CHECK} Sincronización global completada. **{len(synced)}** slash commands registrados.")
             elif mode.lower() == "clear":
-                msg = await ctx.send("🧹 Limpiando slash commands de este servidor...")
+                msg = await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Limpiando slash commands de este servidor...")
                 self.bot.tree.clear_commands(guild=ctx.guild)
                 await self.bot.tree.sync(guild=ctx.guild)
-                await msg.edit(content="✅ Comandos del servidor limpiados.")
+                await msg.edit(content=f"{DaletAtoms.GLYPH_CHECK} Comandos del servidor limpiados.")
             else:
-                msg = await ctx.send("⚡ Sincronizando slash commands **instantáneamente en este servidor**...")
+                msg = await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Sincronizando slash commands **al instante en este servidor**...")
                 self.bot.tree.copy_global_to(guild=ctx.guild)
                 synced = await self.bot.tree.sync(guild=ctx.guild)
-                await msg.edit(content=f"✅ ¡Listo! **{len(synced)}** slash commands sincronizados al instante en **{ctx.guild.name}**.\nYa deberías verlos al escribir `/` (si no, presiona `Ctrl+R` en Discord para refrescar la app).")
+                await msg.edit(content=f"{DaletAtoms.GLYPH_CHECK} **{len(synced)}** slash commands sincronizados al instante en **{ctx.guild.name}**.")
         except Exception as e:
             logger.error(f"Error syncing commands: {e}")
-            await ctx.send(f"❌ Error al sincronizar: {e}")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Error al sincronizar: {e}")
 
 
     @commands.command(name="reload", hidden=True)
@@ -59,158 +67,113 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
         """[ADMIN] Recarga un módulo/handler (Cog)."""
         try:
             await self.bot.reload_extension(cog_name)
-            await ctx.send(f"✅ Módulo `{cog_name}` recargado exitosamente.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CHECK} Módulo `{cog_name}` recargado exitosamente.")
         except Exception as e:
             logger.error(f"Error reloading {cog_name}: {e}")
-            await ctx.send(f"❌ Error al recargar `{cog_name}`:\n```\n{traceback.format_exc()}\n```")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Error al recargar `{cog_name}`: `{e}`")
 
-    # --- Comandos de Base de Datos y Utilidad ---
-
-    @commands.command(name="memories", aliases=["recuerdos", "mymemories"])
-    async def view_user_memories(self, ctx):
-        """Muestra exclusivamente tus propios recuerdos y conclusiones cognitivas registradas por Dalet."""
-        target = ctx.author
-        try:
-            query = """
-                SELECT Topic as topic, Content as content, UserMessage as user_message, DaletThought as dalet_thought, Timestamp as timestamp
-                FROM UserMemories WHERE UserID = ? ORDER BY Timestamp DESC LIMIT 8
-            """
-            rows = await self.repo.fetch_all(query, target.id)
-            if not rows:
-                fallback_query = "SELECT Topic as topic, Content as content, Timestamp as timestamp FROM UserMemories WHERE UserID = ? ORDER BY Timestamp DESC LIMIT 8"
-                rows = await self.repo.fetch_all(fallback_query, target.id)
-
-            if not rows:
-                return await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Dalet todavía no ha registrado recuerdos cognitivos sobre ti.")
-
-            embed = discord.Embed(
-                title=f"{DaletAtoms.EMOJI_DALET} Recuerdos Cognitivos {DaletAtoms.GLYPH_PIPE} {target.display_name}",
-                description=f"Mostrando tus últimos **{len(rows)}** recuerdos almacenados en memoria:",
-                color=DaletAtoms.COLOR_PRIMARY
-            )
-            if target.display_avatar:
-                embed.set_thumbnail(url=target.display_avatar.url)
-
-            for i, r in enumerate(rows, 1):
-                topic = r.get("topic") or "general"
-                content = r.get("content") or "Sin resumen"
-                u_msg = r.get("user_message")
-                thought = r.get("dalet_thought")
-                ts = str(r.get("timestamp") or "")[:19]
-
-                field_lines = [f"{DaletAtoms.GLYPH_POINTER} **Tema:** `{topic}` {DaletAtoms.GLYPH_PIPE} `{ts}`", f"{DaletAtoms.GLYPH_SUB} **Conclusión:** {content}"]
-                if u_msg:
-                    field_lines.append(f"{DaletAtoms.GLYPH_SUB} **Tu mensaje:** *\"{u_msg[:120]}{'...' if len(u_msg) > 120 else ''}\"*")
-                if thought:
-                    field_lines.append(f"{DaletAtoms.GLYPH_SUB} **Pensamiento de Dalet:** *\"{thought[:150]}{'...' if len(thought) > 150 else ''}\"*")
-
-                embed.add_field(
-                    name=f"Recuerdo #{i}",
-                    value="\n".join(field_lines),
-                    inline=False
-                )
-
-            DaletMolecules.add_standard_footer(embed, context_text=f"Dalet {DaletAtoms.VERSION} {DaletAtoms.GLYPH_PIPE} Memoria Cognitiva Privada")
-            await ctx.send(embed=embed)
-        except Exception as e:
-            logger.error(f"Error consultando recuerdos: {e}")
-            await ctx.send(f"{DaletAtoms.GLYPH_POINTER} No se pudieron consultar tus recuerdos en este momento.")
+    # --- Comandos de Control del Servidor y Canal ---
 
     @commands.command(name="lock")
     @commands.has_permissions(administrator=True)
     async def lock_channel(self, ctx):
         """[ADMIN] Bloquea todos los comandos en este canal."""
+        lang = await self._resolve_lang(ctx)
         try:
             await self.bot.admin_repo.set_channel_lock(
                 ctx.channel.id, ctx.channel.name, ctx.guild.id, ctx.guild.name, True
             )
-            await ctx.send("🛑 **Canal Bloqueado.** Dalet ignorará todos los comandos aquí hasta que se use `d.unlock`.")
+            await ctx.send(t("admin.lock_success", lang, channel=ctx.channel.mention))
         except Exception as e:
             logger.error(f"Error in lock: {e}")
-            await ctx.send("❌ Error al bloquear el canal.")
+            await ctx.send(t("admin.lock_error", lang))
 
     @commands.command(name="unlock")
     @commands.has_permissions(administrator=True)
     async def unlock_channel(self, ctx):
         """[ADMIN] Desbloquea los comandos en este canal."""
+        lang = await self._resolve_lang(ctx)
         try:
             await self.bot.admin_repo.set_channel_lock(
                 ctx.channel.id, ctx.channel.name, ctx.guild.id, ctx.guild.name, False
             )
-            await ctx.send("🔓 **Canal Desbloqueado.** ¡Los comandos de Dalet ya están disponibles!")
+            await ctx.send(t("admin.unlock_success", lang, channel=ctx.channel.mention))
         except Exception as e:
             logger.error(f"Error in unlock: {e}")
-            await ctx.send("❌ Error al desbloquear el canal.")
+            await ctx.send(t("admin.unlock_error", lang))
 
     @commands.command(name="setname")
     @commands.has_permissions(administrator=True)
     async def set_bot_name(self, ctx, *, new_name: str):
-        """[ADMIN] Cambia mi nombre en este servidor (máx 25 caracteres)."""
-        if len(new_name) > 25:
-            return await ctx.send("❌ El nombre es demasiado largo. El máximo son 25 caracteres.")
-        
+        """[ADMIN] Cambia mi nombre en este servidor (máx 32 caracteres)."""
+        lang = await self._resolve_lang(ctx)
+        if len(new_name) > 32:
+            return await ctx.send(t("admin.name_too_long", lang))
+
         try:
             await self.bot.admin_repo.set_server_custom_name(ctx.guild.id, new_name)
-            await ctx.send(f"✅ ¡Entendido! En este servidor ahora respondo al nombre de **{new_name}**. (Y sigo siendo Dalet también).")
+            await ctx.send(t("admin.setname_success", lang, name=new_name))
         except Exception as e:
             logger.error(f"Error in setname: {e}")
-            await ctx.send("❌ Ocurrió un error al guardar mi nuevo nombre.")
+            await ctx.send(t("admin.setname_error", lang))
 
     @commands.command(name="setwelcome")
     @commands.has_permissions(administrator=True)
     async def set_welcome(self, ctx):
         """[ADMIN] Establece el canal actual para las bienvenidas y despedidas."""
+        lang = await self._resolve_lang(ctx)
         try:
             await self.bot.admin_repo.set_welcome_channel(ctx.guild.id, ctx.channel.id)
-            await ctx.send("🎉 **¡Canal establecido!** A partir de ahora, humillaré/saludaré a los que entren o salgan por este canal.")
+            await ctx.send(t("admin.setwelcome_success", lang, channel=ctx.channel.mention))
         except Exception as e:
             logger.error(f"Error setwelcome: {e}")
-            await ctx.send("❌ Error al configurar el canal de bienvenida.")
+            await ctx.send(t("admin.setwelcome_error", lang))
 
     @commands.command(name="removewelcome")
     @commands.has_permissions(administrator=True)
     async def remove_welcome(self, ctx):
         """[ADMIN] Desactiva las bienvenidas y despedidas en el servidor."""
+        lang = await self._resolve_lang(ctx)
         try:
             await self.bot.admin_repo.set_welcome_channel(ctx.guild.id, None)
-            await ctx.send("🔇 **Bienvenidas desactivadas.** Volveré a ignorar civilizadamente a la gente que entra y sale.")
+            await ctx.send(t("admin.removewelcome_success", lang))
         except Exception as e:
             logger.error(f"Error removewelcome: {e}")
-            await ctx.send("❌ Error al eliminar el canal de bienvenida.")
+            await ctx.send(t("admin.removewelcome_error", lang))
 
     @commands.command(name="cs", aliases=["channelstatus"])
     async def channel_status(self, ctx):
         """Muestra el estado de seguridad y IA del canal actual."""
+        lang = await self._resolve_lang(ctx)
         try:
             is_locked = await self.bot.admin_repo.is_channel_locked(ctx.channel.id)
-            # Reaprovechamos UserRepository para proactividad
             is_proactive = await self.bot.user_repo.is_channel_proactive(ctx.channel.id)
             is_reactive = await self.bot.user_repo.is_server_reactive(ctx.guild.id)
 
             status_embed = discord.Embed(
-                title=f"🛡️ Estado del Canal: #{ctx.channel.name}",
-                color=discord.Color.red() if is_locked else discord.Color.green()
+                title=t("admin.cs_title", lang, channel=ctx.channel.name),
+                color=DaletAtoms.COLOR_ERROR if is_locked else DaletAtoms.COLOR_SUCCESS
             )
             status_embed.add_field(
-                name="🔒 Comandos", 
-                value="⛔ **BLOQUEADOS** (Usa `d.unlock`)" if is_locked else "✅ **ACTIVOS**",
+                name=t("admin.cs_commands", lang),
+                value=t("admin.cs_blocked", lang) if is_locked else t("admin.cs_active", lang),
                 inline=False
             )
             status_embed.add_field(
-                name="🤖 IA Proactiva", 
-                value="✨ **ACTIVA**" if is_proactive else "🌑 **INACTIVA**",
+                name=t("admin.cs_proactive", lang),
+                value=t("admin.cs_on", lang) if is_proactive else t("admin.cs_off", lang),
                 inline=True
             )
             status_embed.add_field(
-                name="💬 IA Reactiva (Menciones)", 
-                value="✅ **ACTIVA**" if is_reactive else "❌ **INACTIVA**",
+                name=t("admin.cs_reactive", lang),
+                value=t("admin.cs_on", lang) if is_reactive else t("admin.cs_off", lang),
                 inline=True
             )
-            
+            DaletMolecules.add_standard_footer(status_embed, context_text="Dalet")
             await ctx.send(embed=status_embed)
         except Exception as e:
             logger.error(f"Error in channel_status: {e}")
-            await ctx.send("❌ Error al obtener el estado del canal.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Error obteniendo el estado del canal.")
 
     @commands.command(name="dbstats", hidden=True)
     @commands.has_permissions(administrator=True)
@@ -252,8 +215,8 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
             """)
 
             embed = discord.Embed(
-                title="📊 Analíticas (SQLite Local)",
-                color=discord.Color.purple()
+                title=f"{DaletAtoms.EMOJI_DALET} Analíticas (SQLite Local)",
+                color=DaletAtoms.COLOR_PURPLE
             )
 
             # Top comandos
@@ -264,7 +227,7 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
                 ])
             else:
                 cmd_text = "_Sin datos aún_"
-            embed.add_field(name="🏆 Top 5 Comandos", value=cmd_text, inline=False)
+            embed.add_field(name=f"{DaletAtoms.GLYPH_POINTER} Top 5 Comandos", value=cmd_text, inline=False)
 
             # IA hoy
             if ai_today:
@@ -274,7 +237,7 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
                 ])
             else:
                 ai_text = "_Sin interacciones hoy_"
-            embed.add_field(name="🤖 Respuestas IA (24h)", value=ai_text, inline=False)
+            embed.add_field(name=f"{DaletAtoms.GLYPH_POINTER} Respuestas IA (24h)", value=ai_text, inline=False)
 
             # Errores recientes
             if recent_errors:
@@ -283,15 +246,15 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
                     for r in recent_errors
                 ])
             else:
-                err_text = "✅ Sin errores recientes"
-            embed.add_field(name="⚠️ Errores (7 días)", value=err_text, inline=False)
+                err_text = f"{DaletAtoms.GLYPH_CHECK} Sin errores recientes"
+            embed.add_field(name=f"{DaletAtoms.GLYPH_POINTER} Errores (7 días)", value=err_text, inline=False)
 
-            embed.set_footer(text="Fuente: SQLite local · CommandUsage · AIInteractions · BotErrors")
+            embed.set_footer(text="Fuente: SQLite local │ CommandUsage │ AIInteractions │ BotErrors")
             await ctx.send(embed=embed)
 
         except Exception as e:
             logger.error(f"Error en dbstats: {e}")
-            await ctx.send(f"❌ Error al obtener estadísticas:\n```{e}```")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Error al obtener estadísticas:\n```{e}```")
 
     @commands.command(name="status", aliases=["setstatus"], hidden=True)
     @commands.is_owner()

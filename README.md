@@ -181,7 +181,7 @@ Dalet supports both native Discord Slash Commands (`/`) and the traditional `d.`
 | `/lore <topic>` | Slash / `d.lore` | Researches server history and chat archives with cynical commentary |
 | `/proactive` | Slash (Admin) | Enables or disables spontaneous AI interventions & emoji reactions in the channel |
 | `/reactive` | Slash (Admin) | Enables or disables AI replies when Dalet is mentioned |
-| `d.cs` | Prefix | Shows the current channel lock, reactive, and proactive AI state |
+| `/channelstatus` | Slash / `d.cs` | Shows the current channel lock, reactive, and proactive AI state |
 
 ### Profile & Server Utilities
 | Command | Type | Description |
@@ -192,7 +192,8 @@ Dalet supports both native Discord Slash Commands (`/`) and the traditional `d.`
 | `/help` | Slash / `d.help` | Interactive categorized command navigator and overview |
 | `/changelog` | Slash / `d.changelog` | Displays version release notes, major milestone, and recent commits |
 | `/info` | Slash / `d.info` | Displays Dalet's version, status, and system information |
-| `/ping` | Slash / `d.ms`, `d.ping` | Checks bot response and websocket latency in milliseconds |
+| `/ping` | Slash / `d.ping`, `d.ms` | Checks bot response and websocket latency in milliseconds |
+| `/say <message>` | Slash / `d.say` | Repeats a message with all user, role, and `@everyone` mentions disabled |
 | `/feedback <message>` | Slash / `d.feedback` | Privately sends feedback, suggestions, or bug reports directly to the developer |
 
 ### Reminders
@@ -225,7 +226,6 @@ Dalet supports both native Discord Slash Commands (`/`) and the traditional `d.`
 | `/setwelcome` / `d.setwelcome` | Administrator | Configures the welcome message channel |
 | `/removewelcome` / `d.removewelcome` | Administrator | Removes the welcome channel and disables greetings |
 | `/setname <name>` / `d.setname` | Administrator | Sets a custom bot nickname for this server |
-| `d.memories [user]` | Administrator | Inspects the user's memory pyramid (L3 Dossier, L2 Social & L1 Episodes) |
 | `d.dbtables` | Administrator | Checks table health and row counts in Turso Cloud / SQLite |
 | `d.sync [here/global/clear]` | Administrator | Synchronizes slash commands to the guild or globally |
 

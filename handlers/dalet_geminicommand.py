@@ -38,16 +38,17 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
                 added.append(ch)
 
             if added:
-                await ctx.send(f"✅ Canales añadidos al modo proactivo: {', '.join([ch.mention for ch in added])}")
+                await ctx.send(f"{DaletAtoms.GLYPH_CHECK} Canales añadidos al modo proactivo: {', '.join([ch.mention for ch in added])}")
         except Exception as e:
             logger.error(f"Error in proactive_add: {e}")
-            await ctx.send(f"❌ Error al añadir canales.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Error al añadir canales.")
 
     @proactive.command(name="remove")
     @commands.has_permissions(administrator=True)
     async def proactive_remove(self, ctx, *channels: discord.TextChannel):
-        """➖ Quita canales del modo proactivo. Uso: `d.proactive remove #canal1 #canal2`"""
-        if not channels: return await ctx.send("Menciona al menos un canal.")
+        """Quita canales del modo proactivo. Uso: `d.proactive remove #canal1 #canal2`"""
+        if not channels:
+            return await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Menciona al menos un canal.")
 
         removed = []
         try:
@@ -56,10 +57,10 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
                 removed.append(ch)
 
             if removed:
-                await ctx.send(f"Canales quitados del modo proactivo: {', '.join([ch.mention for ch in removed])}")
+                await ctx.send(f"{DaletAtoms.GLYPH_CHECK} Canales quitados del modo proactivo: {', '.join([ch.mention for ch in removed])}")
         except Exception as e:
             logger.error(f"Error in proactive_remove: {e}")
-            await ctx.send(f"❌ Error al quitar canales.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Error al quitar canales.")
 
     @proactive.command(name="list")
     async def proactive_list(self, ctx):
@@ -70,13 +71,17 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
                 ctx.guild.id
             )
             if rows:
-                mentions = ', '.join([f'<#{r[0]}>' for r in rows])
-                await ctx.send(f"Canales con IA proactiva: {mentions}")
-            else:
-                await ctx.send("No hay canales configurados para el modo proactivo.")
+                channel_ids = [
+                    r.get("ChannelID") if isinstance(r, dict) else r[0]
+                    for r in rows
+                ]
+                mentions = ', '.join([f'<#{cid}>' for cid in channel_ids if cid])
+                if mentions:
+                    return await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Canales con IA proactiva: {mentions}")
+            await ctx.send(f"{DaletAtoms.GLYPH_SUB} No hay canales configurados para el modo proactivo.")
         except Exception as e:
             logger.error(f"Error in proactive_list: {e}")
-            await ctx.send(f"❌ Error al listar canales.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Error al listar canales.")
 
     @proactive.command(name="clear")
     @commands.has_permissions(administrator=True)
@@ -87,10 +92,10 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
                 "UPDATE Channels SET IsProactive = 0 WHERE ServerID = ?",
                 ctx.guild.id
             )
-            await ctx.send("Modo proactivo desactivado en todos los canales.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CHECK} Modo proactivo desactivado en todos los canales.")
         except Exception as e:
             logger.error(f"Error in proactive_clear: {e}")
-            await ctx.send(f"❌ Error al limpiar la lista.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Error al limpiar la lista.")
 
     @proactive.command(name="debug")
     async def proactive_debug(self, ctx):
@@ -99,7 +104,7 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
             # Obtener el cog de NLP para acceder a sus variables internas
             nlp_cog = self.bot.get_cog("DaletNLPChat")
             if not nlp_cog:
-                return await ctx.send("❌ No se pudo encontrar el módulo de NLP.")
+                return await ctx.send(f"{DaletAtoms.GLYPH_CROSS} No se pudo encontrar el módulo de NLP.")
 
             now = time.time()
             time_since_last = now - nlp_cog.last_reply_time
@@ -201,13 +206,13 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
 
         except Exception as e:
             logger.error(f"Error in proactive_debug: {e}")
-            await ctx.send(f"❌ Error al obtener información de debug: {e}")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Error al obtener información de debug: {e}")
 
     @commands.group(name="reactive", invoke_without_command=True)
     @commands.has_permissions(administrator=True)
     async def reactive(self, ctx):
-        """💬 [ADMIN] Controla si Dalet responde cuando la mencionan en conversaciones."""
-        await ctx.send("Usa `d.reactive on/off/status` para controlar el modo reactivo.")
+        """[ADMIN] Controla si Dalet responde cuando la mencionan en conversaciones."""
+        await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Usa `d.reactive on/off/status` para controlar el modo reactivo.")
 
     @reactive.command(name="on")
     @commands.has_permissions(administrator=True)
@@ -215,10 +220,10 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
         """Activa la respuesta de Dalet a su nombre."""
         try:
             await self.repo.set_server_reactive(ctx.guild.id, ctx.guild.name, True)
-            await ctx.send("Modo Reactivo **Activado**. Dalet responderá cuando la llamen.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CHECK} Modo Reactivo **Activado**. Dalet responderá cuando la llamen.")
         except Exception as e:
             logger.error(f"Error in reactive_on: {e}")
-            await ctx.send(f"❌ Error al activar el modo reactivo.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Error al activar el modo reactivo.")
 
     @reactive.command(name="off")
     @commands.has_permissions(administrator=True)
@@ -226,10 +231,10 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
         """Desactiva la respuesta de Dalet a su nombre."""
         try:
             await self.repo.set_server_reactive(ctx.guild.id, ctx.guild.name, False)
-            await ctx.send("Modo Reactivo **Desactivado**.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CHECK} Modo Reactivo **Desactivado**.")
         except Exception as e:
             logger.error(f"Error in reactive_off: {e}")
-            await ctx.send(f"❌ Error al desactivar el modo reactivo.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Error al desactivar el modo reactivo.")
 
     @reactive.command(name="status")
     @commands.has_permissions(administrator=True)
@@ -237,11 +242,11 @@ class AIConfigCommands(commands.Cog, name="Configuración de IA"):
         """Muestra si el modo reactivo está activado o desactivado."""
         try:
             is_on = await self.repo.is_server_reactive(ctx.guild.id)
-            status = "🟢 **Activado**" if is_on else "🔴 **Desactivado**"
-            await ctx.send(f"El modo reactivo está {status}.")
+            status = f"{DaletAtoms.GLYPH_CHECK} **Activado**" if is_on else f"{DaletAtoms.GLYPH_CROSS} **Desactivado**"
+            await ctx.send(f"{DaletAtoms.GLYPH_POINTER} El modo reactivo está {status}.")
         except Exception as e:
             logger.error(f"Error in reactive_status: {e}")
-            await ctx.send(f"❌ Error al consultar el estado.")
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Error al consultar el estado.")
 
 async def setup(bot):
     await bot.add_cog(AIConfigCommands(bot))

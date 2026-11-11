@@ -116,7 +116,7 @@ class FeedbackService:
 
         try:
             embed = discord.Embed(
-                title="📬 Nuevo Feedback / New Feedback",
+                title=f"{DaletAtoms.EMOJI_DALET} Nuevo Feedback / New Feedback",
                 description=content,
                 color=DaletAtoms.COLOR_PRIMARY,
                 timestamp=discord.utils.utcnow()
@@ -140,7 +140,7 @@ class FeedbackService:
 
             dm_channel = await owner.create_dm()
             await dm_channel.send(
-                content=f"🔔 {owner.mention}, ¡has recibido un nuevo feedback de un usuario!",
+                content=f"{DaletAtoms.GLYPH_POINTER} {owner.mention}, ¡has recibido un nuevo feedback de un usuario!",
                 embed=embed
             )
             return True

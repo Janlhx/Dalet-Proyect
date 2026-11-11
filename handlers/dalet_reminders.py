@@ -305,19 +305,19 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
         try:
             pytz.timezone(timezone)
         except Exception:
-            err_msg = f"❌ Invalid timezone `{timezone}`. Valid examples: `America/Bogota`, `America/New_York`, `UTC`." if server_lang == "en" else f"❌ Zona horaria `{timezone}` inválida. Ejemplos válidos: `America/Bogota`, `America/Mexico_City`, `UTC`."
+            err_msg = f"{DaletAtoms.GLYPH_CROSS} Invalid timezone `{timezone}`. Valid examples: `America/Bogota`, `America/New_York`, `UTC`." if server_lang == "en" else f"{DaletAtoms.GLYPH_CROSS} Zona horaria `{timezone}` inválida. Ejemplos válidos: `America/Bogota`, `America/Mexico_City`, `UTC`."
             return await interaction.response.send_message(err_msg, ephemeral=True)
 
         # Validar y parsear hora
         parsed_time = parse_time(time)
         if not parsed_time:
-            err_msg = "❌ Invalid time format. Use formats like `23:00`, `11:00 PM` or `11pm`." if server_lang == "en" else "❌ Formato de hora inválido. Usa formatos como `23:00`, `11:00 PM` o `11pm`."
+            err_msg = f"{DaletAtoms.GLYPH_CROSS} Invalid time format. Use formats like `23:00`, `11:00 PM` or `11pm`." if server_lang == "en" else f"{DaletAtoms.GLYPH_CROSS} Formato de hora inválido. Usa formatos como `23:00`, `11:00 PM` o `11pm`."
             return await interaction.response.send_message(err_msg, ephemeral=True)
 
         # Validar y parsear días o fecha
         parsed_days = parse_days_or_date(days)
         if not parsed_days:
-            err_msg = "❌ Invalid days or date. Specify comma-separated days, `daily`, or a valid date (e.g., `15/07/2026`)." if server_lang == "en" else "❌ Días o fecha inválidos. Especifica días separados por comas, `daily` o una fecha válida (ej: `15/07/2026`)."
+            err_msg = f"{DaletAtoms.GLYPH_CROSS} Invalid days or date. Specify comma-separated days, `daily`, or a valid date (e.g., `15/07/2026`)." if server_lang == "en" else f"{DaletAtoms.GLYPH_CROSS} Días o fecha inválidos. Especifica días separados por comas, `daily` o una fecha válida (ej: `15/07/2026`)."
             return await interaction.response.send_message(err_msg, ephemeral=True)
 
         target_channel = channel or interaction.channel
@@ -363,7 +363,7 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
             
             await interaction.response.send_message(embed=embed)
         else:
-            fail_msg = "❌ An error occurred while saving the reminder." if server_lang == "en" else "❌ Ocurrió un error al guardar el recordatorio en la base de datos."
+            fail_msg = f"{DaletAtoms.GLYPH_CROSS} An error occurred while saving the reminder." if server_lang == "en" else f"{DaletAtoms.GLYPH_CROSS} Ocurrió un error al guardar el recordatorio en la base de datos."
             await interaction.response.send_message(fail_msg, ephemeral=True)
 
     @reminder_group.command(name="edit", description="Edits an existing scheduled reminder.")
@@ -394,10 +394,10 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
 
         reminder = await self.repo.get_reminder(id)
         if not reminder or reminder["ServerID"] != interaction.guild_id:
-            msg = f"❌ No reminder found with ID `#{id}` in this server." if server_lang == "en" else f"❌ No se encontró ningún recordatorio con el ID `#{id}` en este servidor."
+            msg = f"{DaletAtoms.GLYPH_CROSS} No reminder found with ID `#{id}` in this server." if server_lang == "en" else f"{DaletAtoms.GLYPH_CROSS} No se encontró ningún recordatorio con el ID `#{id}` en este servidor."
             return await interaction.response.send_message(msg, ephemeral=True)
         if reminder.get("CreatedBy") != interaction.user.id:
-            msg = "❌ You can only edit reminders that you created." if server_lang == "en" else "❌ Solo puedes editar recordatorios que tú hayas creado."
+            msg = f"{DaletAtoms.GLYPH_CROSS} You can only edit reminders that you created." if server_lang == "en" else f"{DaletAtoms.GLYPH_CROSS} Solo puedes editar recordatorios que tú hayas creado."
             return await interaction.response.send_message(msg, ephemeral=True)
 
         updates = {}
@@ -407,20 +407,20 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
                 pytz.timezone(timezone)
                 updates["Timezone"] = timezone
             except Exception:
-                msg = f"❌ Invalid timezone `{timezone}`." if server_lang == "en" else f"❌ Zona horaria `{timezone}` inválida."
+                msg = f"{DaletAtoms.GLYPH_CROSS} Invalid timezone `{timezone}`." if server_lang == "en" else f"{DaletAtoms.GLYPH_CROSS} Zona horaria `{timezone}` inválida."
                 return await interaction.response.send_message(msg, ephemeral=True)
 
         if time is not None:
             parsed_time = parse_time(time)
             if not parsed_time:
-                msg = "❌ Invalid time format." if server_lang == "en" else "❌ Formato de hora inválido."
+                msg = f"{DaletAtoms.GLYPH_CROSS} Invalid time format." if server_lang == "en" else f"{DaletAtoms.GLYPH_CROSS} Formato de hora inválido."
                 return await interaction.response.send_message(msg, ephemeral=True)
             updates["ReminderTime"] = parsed_time
 
         if days is not None:
             parsed_days = parse_days_or_date(days)
             if not parsed_days:
-                msg = "❌ Invalid days or date." if server_lang == "en" else "❌ Días o fecha inválidos."
+                msg = f"{DaletAtoms.GLYPH_CROSS} Invalid days or date." if server_lang == "en" else f"{DaletAtoms.GLYPH_CROSS} Días o fecha inválidos."
                 return await interaction.response.send_message(msg, ephemeral=True)
             updates["ReminderDays"] = parsed_days
 
@@ -437,7 +437,7 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
             updates["Pings"] = pings
 
         if not updates:
-            msg = "⚠️ You did not specify any fields to update." if server_lang == "en" else "⚠️ No especificaste ningún campo para modificar."
+            msg = f"{DaletAtoms.GLYPH_UP} You did not specify any fields to update." if server_lang == "en" else f"{DaletAtoms.GLYPH_UP} No especificaste ningún campo para modificar."
             return await interaction.response.send_message(msg, ephemeral=True)
 
         success = await self.repo.update_reminder(id, updates)
@@ -475,7 +475,7 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
             
             await interaction.response.send_message(embed=embed)
         else:
-            msg = "❌ An error occurred while updating the reminder." if server_lang == "en" else "❌ Ocurrió un error al actualizar el recordatorio en la base de datos."
+            msg = f"{DaletAtoms.GLYPH_CROSS} An error occurred while updating the reminder." if server_lang == "en" else f"{DaletAtoms.GLYPH_CROSS} Ocurrió un error al actualizar el recordatorio en la base de datos."
             await interaction.response.send_message(msg, ephemeral=True)
 
     @reminder_group.command(name="list", description="Lists the scheduled reminders you created in this server.")
@@ -555,18 +555,18 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
 
         reminder = await self.repo.get_reminder(id)
         if not reminder or reminder["ServerID"] != interaction.guild_id:
-            msg = f"❌ No reminder found with ID `#{id}` in this server." if server_lang == "en" else f"❌ No se encontró ningún recordatorio con el ID `#{id}` en este servidor."
+            msg = f"{DaletAtoms.GLYPH_CROSS} No reminder found with ID `#{id}` in this server." if server_lang == "en" else f"{DaletAtoms.GLYPH_CROSS} No se encontró ningún recordatorio con el ID `#{id}` en este servidor."
             return await interaction.response.send_message(msg, ephemeral=True)
         if reminder.get("CreatedBy") != interaction.user.id:
-            msg = "❌ You can only delete reminders that you created." if server_lang == "en" else "❌ Solo puedes eliminar recordatorios que tú hayas creado."
+            msg = f"{DaletAtoms.GLYPH_CROSS} You can only delete reminders that you created." if server_lang == "en" else f"{DaletAtoms.GLYPH_CROSS} Solo puedes eliminar recordatorios que tú hayas creado."
             return await interaction.response.send_message(msg, ephemeral=True)
 
         success = await self.repo.delete_reminder(id)
         if success:
-            msg = f"✅ Reminder `#{id}` deleted successfully." if server_lang == "en" else f"✅ Recordatorio `#{id}` eliminado con éxito."
+            msg = f"{DaletAtoms.GLYPH_CHECK} Reminder `#{id}` deleted successfully." if server_lang == "en" else f"{DaletAtoms.GLYPH_CHECK} Recordatorio `#{id}` eliminado con éxito."
             await interaction.response.send_message(msg)
         else:
-            msg = "❌ Error deleting the reminder." if server_lang == "en" else "❌ Error al eliminar el recordatorio de la base de datos."
+            msg = f"{DaletAtoms.GLYPH_CROSS} Error deleting the reminder." if server_lang == "en" else f"{DaletAtoms.GLYPH_CROSS} Error al eliminar el recordatorio de la base de datos."
             await interaction.response.send_message(msg, ephemeral=True)
 
     @reminder_group.command(name="toggle", description="Enables or disables a scheduled reminder by its ID.")
@@ -578,10 +578,10 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
 
         reminder = await self.repo.get_reminder(id)
         if not reminder or reminder["ServerID"] != interaction.guild_id:
-            msg = f"❌ No reminder found with ID `#{id}` in this server." if server_lang == "en" else f"❌ No se encontró ningún recordatorio con el ID `#{id}` en este servidor."
+            msg = f"{DaletAtoms.GLYPH_CROSS} No reminder found with ID `#{id}` in this server." if server_lang == "en" else f"{DaletAtoms.GLYPH_CROSS} No se encontró ningún recordatorio con el ID `#{id}` en este servidor."
             return await interaction.response.send_message(msg, ephemeral=True)
         if reminder.get("CreatedBy") != interaction.user.id:
-            msg = "❌ You can only modify reminders that you created." if server_lang == "en" else "❌ Solo puedes modificar recordatorios que tú hayas creado."
+            msg = f"{DaletAtoms.GLYPH_CROSS} You can only modify reminders that you created." if server_lang == "en" else f"{DaletAtoms.GLYPH_CROSS} Solo puedes modificar recordatorios que tú hayas creado."
             return await interaction.response.send_message(msg, ephemeral=True)
 
         new_state = await self.repo.toggle_reminder(id)
@@ -594,7 +594,7 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
                 msg = f"El recordatorio `#{id}` ha sido {status_str}."
             await interaction.response.send_message(msg)
         else:
-            msg = "❌ Error toggling reminder status." if server_lang == "en" else "❌ Error al cambiar el estado del recordatorio."
+            msg = f"{DaletAtoms.GLYPH_CROSS} Error toggling reminder status." if server_lang == "en" else f"{DaletAtoms.GLYPH_CROSS} Error al cambiar el estado del recordatorio."
             await interaction.response.send_message(msg, ephemeral=True)
 
     # Autocompletado para zona horaria y días/fechas

@@ -64,7 +64,19 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
     async def slash_ping(self, interaction: discord.Interaction):
         latency = round(self.bot.latency * 1000)
         await interaction.response.send_message(
-            f"🏓 response time: **{latency}ms**. don't rush me.", ephemeral=True
+            f"{DaletAtoms.GLYPH_POINTER} response time: **{latency}ms**. don't rush me.", ephemeral=True
+        )
+
+    @app_commands.command(name="say", description="Repeats your message with mentions safely disabled.")
+    @app_commands.describe(message="Text for Dalet to repeat")
+    async def slash_say(self, interaction: discord.Interaction, message: str):
+        clean_msg = message.strip()
+        if not clean_msg:
+            return await interaction.response.send_message(
+                f"{DaletAtoms.GLYPH_CROSS} Empty message.", ephemeral=True
+            )
+        await interaction.response.send_message(
+            clean_msg, allowed_mentions=discord.AllowedMentions.none()
         )
 
     @app_commands.command(name="stats", description="Displays your server social activity statistics.")
@@ -174,9 +186,9 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         if cooldown_remaining > 0:
             mins = max(1, (cooldown_remaining + 59) // 60)
             warning_msg = (
-                f"⏳ Has enviado una sugerencia recientemente. Para evitar saturación, por favor espera **{mins} minuto(s)** antes de enviar otra."
+                f"{DaletAtoms.GLYPH_POINTER} Has enviado una sugerencia recientemente. Para evitar saturación, por favor espera **{mins} minuto(s)** antes de enviar otra."
                 if server_lang == "es"
-                else f"⏳ You have submitted feedback recently. To prevent spam, please wait **{mins} minute(s)** before sending another."
+                else f"{DaletAtoms.GLYPH_POINTER} You have submitted feedback recently. To prevent spam, please wait **{mins} minute(s)** before sending another."
             )
             await interaction.followup.send(warning_msg, ephemeral=True)
             return
@@ -869,18 +881,19 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         cd_left = self._check_cooldown(f"lore:{interaction.user.id}", 10.0)
         if cd_left:
             return await interaction.response.send_message(
-                f"⏳ Calma, espera `{cd_left:.0f}s` antes de volver a investigar lore.",
+                f"{DaletAtoms.GLYPH_POINTER} Calma, espera `{cd_left:.0f}s` antes de volver a investigar lore.",
                 ephemeral=True
             )
 
         await interaction.response.defer()
+        lang = await self._resolve_lang(interaction)
         try:
             # Truncar query de búsqueda abusiva (máx 150 caracteres)
             clean_query = query.strip()[:150]
             resultados = await self.bot.user_repo.search_lore(clean_query, interaction.channel_id, limit=20)
             if not resultados:
                 return await interaction.followup.send(
-                    f"ni idea de qué es '{clean_query}'. ese lore te lo inventaste."
+                    f"{DaletAtoms.GLYPH_POINTER} ni idea de qué es '{clean_query}'. ese lore te lo inventaste."
                 )
 
             bot_name = "Dalet"
@@ -906,12 +919,15 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 + "\nResponde de forma sarcástica y directa, como quien revisó los archivos."
             )
             respuesta = await self.bot.nlp_service.generate_reply(
-                prompt, "", interaction.user.display_name, bot_name=bot_name, max_tokens=450
+                prompt, "", interaction.user.display_name, bot_name=bot_name, max_tokens=450, language=lang
             )
-            await interaction.followup.send(respuesta or "me dio pereza leer los archivos. inténtalo otra vez.")
+            await interaction.followup.send(
+                respuesta or f"{DaletAtoms.GLYPH_POINTER} me dio pereza leer los archivos. inténtalo otra vez.",
+                allowed_mentions=discord.AllowedMentions.none()
+            )
         except Exception as e:
             logger.error(f"Error en /lore: {e}")
-            await interaction.followup.send("error leyendo los archivos.", ephemeral=True)
+            await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} error leyendo los archivos.", ephemeral=True)
 
     @app_commands.command(name="resumir", description="Genera un resumen inteligente de la conversación reciente del canal.")
     @app_commands.describe(
@@ -928,7 +944,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         cd_left = self._check_cooldown(f"resumir:{interaction.channel_id}", 15.0)
         if cd_left:
             return await interaction.response.send_message(
-                f"⏳ Este canal ya fue resumido hace poco. Espera `{cd_left:.0f}s` antes de pedir otro resumen.",
+                f"{DaletAtoms.GLYPH_POINTER} Este canal ya fue resumido hace poco. Espera `{cd_left:.0f}s` antes de pedir otro resumen.",
                 ephemeral=True
             )
 
@@ -937,7 +953,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             clamped_limit = min(max(10, limit), 50)
             channel = interaction.channel
             if not channel or not hasattr(channel, "history"):
-                return await interaction.followup.send("❌ No se puede acceder al historial de este canal.", ephemeral=True)
+                return await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} No se puede acceder al historial de este canal.", ephemeral=True)
 
             raw_messages = []
             async for msg in channel.history(limit=clamped_limit + 5):
@@ -949,7 +965,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                     break
 
             if len(raw_messages) < 3:
-                return await interaction.followup.send("⚠️ No hay suficientes mensajes recientes para generar un resumen.", ephemeral=True)
+                return await interaction.followup.send(f"{DaletAtoms.GLYPH_POINTER} No hay suficientes mensajes recientes para generar un resumen.", ephemeral=True)
 
             # Invertir para leer en orden cronológico (antiguo -> reciente)
             raw_messages.reverse()
@@ -976,28 +992,28 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 system_prompt = (
                     "Eres Dalet, una chica aguda, observadora, ligeramente sarcástica y muy carismática de Discord. "
                     "Tu tarea es resumir la conversación reciente de este canal sin rodeos innecesarios. "
-                    "Sigue ESTRICTAMENTE esta estructura en Markdown:\n"
-                    "### 📌 En pocas palabras (TL;DR)\n"
+                    "Sigue ESTRICTAMENTE esta estructura en Markdown (sin emojis coloridos):\n"
+                    "### ▸ En pocas palabras (TL;DR)\n"
                     "(1 o 2 oraciones resumiendo el punto central de lo que pasó)\n\n"
-                    "### 💬 Temas clave\n"
-                    "• (Punto 1 claro)\n"
-                    "• (Punto 2 claro)\n"
-                    "• (Punto 3 claro si aplica)\n\n"
-                    "### 🎭 El veredicto de Dalet\n"
+                    "### ▫ Temas clave\n"
+                    "▫ (Punto 1 claro)\n"
+                    "▫ (Punto 2 claro)\n"
+                    "▫ (Punto 3 claro si aplica)\n\n"
+                    "### ✦ El veredicto de Dalet\n"
                     "(Un comentario ingenioso, con tu humor seco y personalidad sobre de qué estaban hablando)"
                 )
             else:
                 system_prompt = (
                     "Eres un asistente analítico y neutral especializado en síntesis de conversaciones. "
                     "Tu tarea es resumir objetivamente la conversación reciente de este canal. "
-                    "Sigue ESTRICTAMENTE esta estructura en Markdown:\n"
-                    "### 📌 En pocas palabras (TL;DR)\n"
+                    "Sigue ESTRICTAMENTE esta estructura en Markdown (sin emojis coloridos):\n"
+                    "### ▸ En pocas palabras (TL;DR)\n"
                     "(1 o 2 oraciones con el resumen ejecutivo central)\n\n"
-                    "### 💬 Temas clave\n"
-                    "• (Punto 1 objetivo)\n"
-                    "• (Punto 2 objetivo)\n"
-                    "• (Punto 3 objetivo si aplica)\n\n"
-                    "### 📋 Conclusión\n"
+                    "### ▫ Temas clave\n"
+                    "▫ (Punto 1 objetivo)\n"
+                    "▫ (Punto 2 objetivo)\n"
+                    "▫ (Punto 3 objetivo si aplica)\n\n"
+                    "### ✦ Conclusión\n"
                     "(Cierre analítico y neutral del estado de la conversación)"
                 )
 
@@ -1012,25 +1028,25 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             )
 
             if not resumen:
-                return await interaction.followup.send("❌ No pude generar el resumen esta vez.", ephemeral=True)
+                return await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} No pude generar el resumen esta vez.", ephemeral=True)
 
             color = DaletAtoms.COLOR_PRIMARY if estilo == "dalet" else DaletAtoms.COLOR_INFO
             estilo_label = "Modo Dalet" if estilo == "dalet" else "Modo Neutral"
             embed = discord.Embed(
-                title=f"📄 Resumen del Canal · {estilo_label}",
+                title=f"{DaletAtoms.EMOJI_DALET} Resumen del Canal │ {estilo_label}",
                 description=resumen,
                 color=color
             )
             ch_name = getattr(channel, "name", "chat")
             embed.set_author(
-                name=f"#{ch_name} • {len(raw_messages)} mensajes analizados",
+                name=f"#{ch_name} │ {len(raw_messages)} mensajes analizados",
                 icon_url=interaction.guild.icon.url if interaction.guild and interaction.guild.icon else None
             )
             DaletMolecules.add_standard_footer(embed, context_text="Resumen Inteligente con IA")
             await interaction.followup.send(embed=embed)
         except Exception as e:
             logger.error(f"Error en /resumir: {e}")
-            await interaction.followup.send("❌ Ocurrió un error al generar el resumen.", ephemeral=True)
+            await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} Ocurrió un error al generar el resumen.", ephemeral=True)
 
     # ------------------------------------------------------------------
     # Admin: Lock / Unlock
@@ -1097,7 +1113,7 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             )
         except Exception as e:
             logger.error(f"Error en /proactive: {e}")
-            await interaction.response.send_message("❌ Error", ephemeral=True)
+            await interaction.response.send_message(f"{DaletAtoms.GLYPH_CROSS} Error", ephemeral=True)
 
     @app_commands.command(name="reactive", description="[ADMIN] Enables or disables reactive AI replies to mentions in the server.")
     @app_commands.describe(enabled="True to enable, False to disable")
@@ -1117,7 +1133,44 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             )
         except Exception as e:
             logger.error(f"Error en /reactive: {e}")
-            await interaction.response.send_message("❌ Error", ephemeral=True)
+            await interaction.response.send_message(f"{DaletAtoms.GLYPH_CROSS} Error", ephemeral=True)
+
+    @app_commands.command(name="channelstatus", description="Displays security lock and AI status for the current channel.")
+    async def slash_channelstatus(self, interaction: discord.Interaction):
+        lang = await self._resolve_lang(interaction)
+        if not interaction.guild:
+            return await interaction.response.send_message(
+                f"{DaletAtoms.GLYPH_CROSS} Server only.", ephemeral=True
+            )
+        try:
+            is_locked = await self.bot.admin_repo.is_channel_locked(interaction.channel_id)
+            is_proactive = await self.bot.user_repo.is_channel_proactive(interaction.channel_id)
+            is_reactive = await self.bot.user_repo.is_server_reactive(interaction.guild_id)
+
+            embed = discord.Embed(
+                title=t("admin.cs_title", lang, channel=interaction.channel.name),
+                color=DaletAtoms.COLOR_ERROR if is_locked else DaletAtoms.COLOR_SUCCESS
+            )
+            embed.add_field(
+                name=t("admin.cs_commands", lang),
+                value=t("admin.cs_blocked", lang) if is_locked else t("admin.cs_active", lang),
+                inline=False
+            )
+            embed.add_field(
+                name=t("admin.cs_proactive", lang),
+                value=t("admin.cs_on", lang) if is_proactive else t("admin.cs_off", lang),
+                inline=True
+            )
+            embed.add_field(
+                name=t("admin.cs_reactive", lang),
+                value=t("admin.cs_on", lang) if is_reactive else t("admin.cs_off", lang),
+                inline=True
+            )
+            DaletMolecules.add_standard_footer(embed, context_text="Dalet")
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        except Exception as e:
+            logger.error(f"Error en /channelstatus: {e}")
+            await interaction.response.send_message(f"{DaletAtoms.GLYPH_CROSS} Error", ephemeral=True)
 
 
     # ------------------------------------------------------------------

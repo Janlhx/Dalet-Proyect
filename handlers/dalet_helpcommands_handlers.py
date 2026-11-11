@@ -59,7 +59,8 @@ SLASH_CATEGORIES_ES = {
             ("/stats",            "Actividad de mensajes de un usuario"),
             ("/userinfo",         "Datos y antigüedad de una cuenta"),
             ("/serverinfo",       "Información general del servidor"),
-            ("/ping",             "Latencia del bot en milisegundos"),
+            ("/ping",             "Latencia del bot en milisegundos (`d.ping`, `d.ms`)"),
+            ("/say",              "Repite un mensaje sin menciones (`d.say`)"),
             ("/feedback",         "Envía sugerencias o bugs en privado a Litxe"),
         ]
     },
@@ -101,6 +102,7 @@ SLASH_CATEGORIES_ES = {
             ("/removewelcome",    "`Admin` Desactivar mensajes de bienvenida"),
             ("/lock",             "`Admin` Bloquear comandos de Dalet en este canal"),
             ("/unlock",           "`Admin` Desbloquear comandos en este canal"),
+            ("/channelstatus",    "Ver estado de bloqueo e IA del canal (`d.cs`)"),
         ]
     },
 }
@@ -146,7 +148,8 @@ SLASH_CATEGORIES_EN = {
             ("/stats",            "Message activity for a member"),
             ("/userinfo",         "Account and join details"),
             ("/serverinfo",       "Server overview and member count"),
-            ("/ping",             "Bot latency in milliseconds"),
+            ("/ping",             "Bot latency in milliseconds (`d.ping`, `d.ms`)"),
+            ("/say",              "Echo a message without mentions (`d.say`)"),
             ("/feedback",         "Send private suggestions or bugs to Litxe"),
         ]
     },
@@ -188,6 +191,7 @@ SLASH_CATEGORIES_EN = {
             ("/removewelcome",    "`Admin` Disable welcome messages"),
             ("/lock",             "`Admin` Lock Dalet commands in this channel"),
             ("/unlock",           "`Admin` Unlock commands in this channel"),
+            ("/channelstatus",    "View lock and AI status for this channel (`d.cs`)"),
         ]
     },
 }

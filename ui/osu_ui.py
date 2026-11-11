@@ -19,7 +19,7 @@ class UniversalPaginator(discord.ui.View):
         
         # Página 1: Intro (ya viene en el embed base, pero aquí actualizamos contenido si es necesario)
         if self.index == 0:
-            self.embed.title = "📊 Reporte Dalet: Resumen & Intro"
+            self.embed.title = "✦ Reporte Dalet: Resumen & Intro"
             self.embed.description = self.pages[0]
             self.embed.clear_fields()
             # Añadir stats básicas de vuelta
@@ -27,13 +27,13 @@ class UniversalPaginator(discord.ui.View):
         
         # Página 2: Análisis (Diagnóstico)
         elif self.index == 1:
-            self.embed.title = "🧠 Reporte Dalet: Diagnóstico Profundo"
+            self.embed.title = "◈ Reporte Dalet: Diagnóstico Profundo"
             self.embed.description = self.pages[1]
             self.embed.clear_fields()
         
         # Página 3: Coaching (Plan de Acción)
         elif self.index == 2:
-            self.embed.title = "🎯 Reporte Dalet: Plan de Entrenamiento"
+            self.embed.title = "▸ Reporte Dalet: Plan de Entrenamiento"
             self.embed.description = self.pages[2]
             self.embed.clear_fields()
 
@@ -48,14 +48,14 @@ class UniversalPaginator(discord.ui.View):
         # Por ahora lo dejamos limpio o lo inyectamos desde el comando
         pass
 
-    @discord.ui.button(label="⬅️ Anterior", style=discord.ButtonStyle.grey)
+    @discord.ui.button(label="◂ Anterior", style=discord.ButtonStyle.grey)
     async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.index > 0:
             self.index -= 1
             await self.update_page(interaction)
         else: await interaction.response.defer()
 
-    @discord.ui.button(label="Siguiente ➡️", style=discord.ButtonStyle.grey)
+    @discord.ui.button(label="Siguiente ▸", style=discord.ButtonStyle.grey)
     async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.index < 2:
             self.index += 1

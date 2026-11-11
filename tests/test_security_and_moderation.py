@@ -322,3 +322,126 @@ class TestCogRegistrationIntegrity:
 
         for cmd_name in ("link", "unlink", "lang", "language", "idioma", "op", "top", "recent", "rs", "skills", "rank", "compare", "firsts", "progress"):
             assert bot.get_command(cmd_name) is not None, f"Falta registrar el comando d.{cmd_name}"
+
+
+# ==============================================================================
+# 8. SPEC-006: LIMPIEZA LEGACY, PARIDAD SLASH Y ESTÁNDAR DE GLIFOS
+# ==============================================================================
+
+class TestSpec006LegacyCleanupAndGlyphs:
+    def test_dalet_atoms_defines_glyphs_without_colorful_emojis(self):
+        import re
+        from ui.atoms import DaletAtoms
+
+        emoji_re = re.compile(r"[\U0001F300-\U0001FAFF]")
+        assert DaletAtoms.GLYPH_CHECK == "✓"
+        assert DaletAtoms.GLYPH_CROSS == "✕"
+        assert DaletAtoms.GLYPH_UP == "▲"
+        assert DaletAtoms.GLYPH_DOWN == "▼"
+
+        for token in (
+            DaletAtoms.EMOJI_SUCCESS,
+            DaletAtoms.EMOJI_WARNING,
+            DaletAtoms.EMOJI_ERROR,
+            DaletAtoms.EMOJI_INFO,
+            DaletAtoms.GLYPH_CHECK,
+            DaletAtoms.GLYPH_CROSS,
+        ):
+            assert not emoji_re.search(token), f"Token UI con emoji inesperado: {token!r}"
+
+    @pytest.mark.asyncio
+    async def test_say_commands_disable_all_mentions(self):
+        import discord
+        from handlers.dalet_commands_handlers import CommandsHandler
+        from handlers.dalet_slash_commands import SlashCommands
+
+        bot = MagicMock()
+        bot.user_repo = MagicMock()
+        bot.admin_repo = MagicMock()
+        bot.admin_repo.resolve_language = AsyncMock(return_value="es")
+
+        general = CommandsHandler(bot)
+        ctx = MagicMock()
+        ctx.send = AsyncMock()
+
+        await general.say.callback(general, ctx, mensaje="@everyone hola <@&123456>")
+        ctx.send.assert_awaited_once()
+        _, kwargs = ctx.send.call_args
+        am = kwargs.get("allowed_mentions")
+        assert isinstance(am, discord.AllowedMentions)
+        assert am.everyone is False and am.users is False and am.roles is False
+
+        slash_cog = SlashCommands(bot)
+        interaction = MagicMock()
+        interaction.response = MagicMock()
+        interaction.response.send_message = AsyncMock()
+
+        await slash_cog.slash_say.callback(slash_cog, interaction, message="@here test")
+        interaction.response.send_message.assert_awaited_once()
+        _, s_kwargs = interaction.response.send_message.call_args
+        s_am = s_kwargs.get("allowed_mentions")
+        assert isinstance(s_am, discord.AllowedMentions)
+        assert s_am.everyone is False and s_am.users is False and s_am.roles is False
+
+    @pytest.mark.asyncio
+    async def test_legacy_command_cleanup_and_parity(self):
+        import discord
+        from discord.ext import commands
+
+        intents = discord.Intents.default()
+        bot = commands.Bot(command_prefix=["D.", "d."], intents=intents, case_insensitive=True)
+        bot.user_repo = MagicMock()
+        bot.osu_repo = MagicMock()
+        bot.admin_repo = MagicMock()
+        bot.analytics_repo = MagicMock()
+        bot.osu_service = MagicMock()
+        bot.nlp_service = MagicMock()
+        bot.memory_service = MagicMock()
+
+        for ext in (
+            "handlers.dalet_commands_handlers",
+            "handlers.dalet_admcommands_handler",
+            "handlers.dalet_chatlogger",
+            "handlers.dalet_smartresume",
+            "handlers.dalet_slash_commands",
+        ):
+            await bot.load_extension(ext)
+
+        # Unificación d.ping (con alias d.ms)
+        ping_cmd = bot.get_command("ping")
+        assert ping_cmd is not None
+        assert bot.get_command("ms") is ping_cmd
+
+        # Paridad /say y /channelstatus
+        slash_names = {c.name for c in bot.tree.get_commands()}
+        assert "say" in slash_names
+        assert "channelstatus" in slash_names
+
+        # Retiro de comandos legacy obsoletos
+        for removed in ("memories", "recuerdos", "mymemories", "chatlog", "ver_resumenes", "resumenes"):
+            assert bot.get_command(removed) is None, f"El comando legacy d.{removed} debía haberse retirado"
+
+        # Preservar listener ChatLogger.on_message y d.resumir
+        chat_cog = bot.get_cog("Memoria Global")
+        assert chat_cog is not None
+        assert hasattr(chat_cog, "on_message")
+        assert bot.get_command("resumir") is not None
+
+    @pytest.mark.asyncio
+    async def test_proactive_list_handles_dict_rows(self):
+        from handlers.dalet_geminicommand import AIConfigCommands
+
+        bot = MagicMock()
+        bot.user_repo = MagicMock()
+        bot.user_repo.fetch_all = AsyncMock(return_value=[{"ChannelID": 12345}, {"ChannelID": 67890}])
+        cog = AIConfigCommands(bot)
+
+        ctx = MagicMock()
+        ctx.guild = MagicMock(id=999)
+        ctx.send = AsyncMock()
+
+        await cog.proactive_list.callback(cog, ctx)
+        ctx.send.assert_awaited_once()
+        sent_text = ctx.send.call_args.args[0]
+        assert "<#12345>" in sent_text
+        assert "<#67890>" in sent_text

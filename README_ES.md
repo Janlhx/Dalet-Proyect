@@ -138,7 +138,7 @@ Dalet es compatible tanto con comandos de barra diagonal (`/`) de Discord como c
 | `/lore <tema>` | Slash / `d.lore` | Investiga los archivos del servidor y genera crónicas mordaces |
 | `/proactive` | Slash (Admin) | Activa o desactiva intervenciones espontáneas y reacciones de Dalet en el canal |
 | `/reactive` | Slash (Admin) | Activa o desactiva las respuestas de Dalet cuando la mencionan |
-| `d.cs` | Prefijo | Muestra el estado actual del canal (bloqueo, modo reactivo y proactivo) |
+| `/channelstatus` | Slash / `d.cs` | Muestra el estado actual del canal (bloqueo, modo reactivo y proactivo) |
 
 ### Perfil y Utilidades del Servidor
 | Comando | Tipo | Descripción |
@@ -149,7 +149,8 @@ Dalet es compatible tanto con comandos de barra diagonal (`/`) de Discord como c
 | `/help` | Slash / `d.help` | Navegador interactivo y categorizado de ayuda |
 | `/changelog` | Slash / `d.changelog` | Muestra notas de versión, hito mayor y commits recientes de Git |
 | `/info` | Slash / `d.info` | Muestra versión, estado e información del sistema de Dalet |
-| `/ping` | Slash / `d.ms`, `d.ping` | Consulta la latencia de respuesta y websocket en milisegundos |
+| `/ping` | Slash / `d.ping`, `d.ms` | Consulta la latencia de respuesta y websocket en milisegundos |
+| `/say <mensaje>` | Slash / `d.say` | Repite un mensaje con todas las menciones deshabilitadas (`@everyone`, roles, usuarios) |
 | `/feedback <mensaje>` | Slash / `d.feedback` | Envía sugerencias, ideas o reportes de fallos de forma privada al creador |
 
 ### Recordatorios
@@ -182,7 +183,6 @@ Dalet es compatible tanto con comandos de barra diagonal (`/`) de Discord como c
 | `/setwelcome` / `d.setwelcome` | Administrador | Configura el canal de mensajes de bienvenida |
 | `/removewelcome` / `d.removewelcome` | Administrador | Elimina el canal de bienvenidas |
 | `/setname <nombre>` / `d.setname` | Administrador | Establece un apodo personalizado para Dalet en el servidor |
-| `d.memories [usuario]` | Administrador | Inspecciona la pirámide de memoria (L3 Dossier, L2 Social y L1 Episodios) |
 | `d.dbtables` | Administrador | Verifica el estado y conteo de filas de las tablas en Turso Cloud / SQLite |
 | `d.sync [here/global/clear]` | Administrador | Sincroniza comandos slash con el servidor o globalmente |
 

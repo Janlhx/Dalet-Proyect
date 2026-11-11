@@ -25,11 +25,11 @@ _SEVERITY_COLORS = {
 }
 _ACTION_LABELS   = {"notify": "Notificar", "timeout": "Timeout", "ban": "Ban"}
 _EXEMPT_MODULE_NAMES = {
-    "all": "🛡️ Todo el canal",
-    "flood": "🌊 Anti-Flood",
-    "images": "🖼️ Imágenes (IA Visión)",
-    "links": "🔗 Enlaces Adultos",
-    "scams": "🎣 Phishing & Scams",
+    "all": f"{DaletAtoms.EMOJI_DALET} Todo el canal",
+    "flood": f"{DaletAtoms.GLYPH_SUB} Anti-Flood",
+    "images": f"{DaletAtoms.GLYPH_SUB} Imágenes (IA Visión)",
+    "links": f"{DaletAtoms.GLYPH_SUB} Enlaces Adultos",
+    "scams": f"{DaletAtoms.GLYPH_SUB} Phishing & Scams",
 }
 
 
@@ -238,7 +238,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
 
         color = _SEVERITY_COLORS.get(result.severity, DaletAtoms.COLOR_WARNING)
         embed = discord.Embed(
-            title=f"🛡️ Auto-mod — {_SEVERITY_LABELS.get(result.severity, result.severity)}",
+            title=f"{DaletAtoms.EMOJI_DALET} Auto-mod — {_SEVERITY_LABELS.get(result.severity, result.severity)}",
             color=color,
         )
         embed.add_field(name="Usuario", value=f"{message.author.mention} (`{message.author}`)", inline=True)
@@ -249,7 +249,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
         embed.add_field(name="Acción", value=action_taken, inline=True)
 
         if is_spam:
-            embed.add_field(name="⚠️ Spam cross-canal", value="Detectado en múltiples canales", inline=False)
+            embed.add_field(name=f"{DaletAtoms.GLYPH_UP} Spam cross-canal", value="Detectado en múltiples canales", inline=False)
 
         if message.content:
             preview = message.content[:200]
@@ -259,11 +259,11 @@ class ModerationCog(commands.Cog, name="Moderación"):
 
         mention_prefix = ""
         if result.severity == "illegal":
-            mention_prefix = "🚨 **ALERTA CRÍTICA (@here)** — Se detectó y eliminó posible contenido ilegal. Revisión urgente requerida:"
+            mention_prefix = f"{DaletAtoms.GLYPH_UP} **ALERTA CRÍTICA (@here)** — Se detectó y eliminó posible contenido ilegal. Revisión urgente requerida:"
         elif result.severity == "flood":
-            mention_prefix = "⚠️ **ALERTA DE FLOOD (@here)** — Ráfaga rápida o spam de mensajes repetidos detectado:"
+            mention_prefix = f"{DaletAtoms.GLYPH_UP} **ALERTA DE FLOOD (@here)** — Ráfaga rápida o spam de mensajes repetidos detectado:"
         elif is_spam:
-            mention_prefix = "⚠️ **ALERTA DE SPAM (@here)** — Usuario detectado enviando spam en múltiples canales:"
+            mention_prefix = f"{DaletAtoms.GLYPH_UP} **ALERTA DE SPAM (@here)** — Usuario detectado enviando spam en múltiples canales:"
 
         try:
             await channel.send(content=mention_prefix or None, embed=embed)
@@ -325,7 +325,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
             log_channel_id=log_channel.id,
             enabled=True,
         )
-        await interaction.followup.send(f"✅ Canal de alertas de moderación actualizado a {log_channel.mention}.", ephemeral=True)
+        await interaction.followup.send(f"{DaletAtoms.GLYPH_CHECK} Canal de alertas de moderación actualizado a {log_channel.mention}.", ephemeral=True)
 
     @mod_group.command(name="action", description="Cambia la acción para contenido NSFW (notify, timeout o ban).")
     @app_commands.describe(action="Acción a aplicar al detectar contenido adulto.")
@@ -336,7 +336,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
             server_id=interaction.guild_id,
             action=action,
         )
-        await interaction.followup.send(f"✅ Acción por defecto para NSFW cambiada a: **{_ACTION_LABELS[action]}**.", ephemeral=True)
+        await interaction.followup.send(f"{DaletAtoms.GLYPH_CHECK} Acción por defecto para NSFW cambiada a: **{_ACTION_LABELS[action]}**.", ephemeral=True)
 
     @mod_group.command(name="timeout", description="Cambia la duración del timeout/aislamiento en minutos.")
     @app_commands.describe(minutes="Minutos de duración del timeout (1 a 10080).")
@@ -348,7 +348,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
             server_id=interaction.guild_id,
             timeout_minutes=minutes,
         )
-        await interaction.followup.send(f"✅ Duración de timeout actualizada a: **{minutes} minutos**.", ephemeral=True)
+        await interaction.followup.send(f"{DaletAtoms.GLYPH_CHECK} Duración de timeout actualizada a: **{minutes} minutos**.", ephemeral=True)
 
     @mod_group.command(name="toggle", description="Activa o desactiva módulos de moderación individualmente.")
     @app_commands.describe(
@@ -373,10 +373,10 @@ class ModerationCog(commands.Cog, name="Moderación"):
             }
 
         mod_map = {
-            "images": ("scan_images", "🖼️ Escaneo de imágenes (IA)"),
-            "flood": ("anti_flood", "🌊 Anti-Flood / Spam"),
-            "links": ("filter_links", "🔗 Filtro de Enlaces Adultos"),
-            "scams": ("filter_scams", "🎣 Anti-Phishing & Scams"),
+            "images": ("scan_images", "Escaneo de imágenes (IA)"),
+            "flood": ("anti_flood", "Anti-Flood / Spam"),
+            "links": ("filter_links", "Filtro de Enlaces Adultos"),
+            "scams": ("filter_scams", "Anti-Phishing & Scams"),
         }
         col_name, display_name = mod_map[module]
         new_val = (not cfg.get(col_name, True)) if enabled is None else enabled
@@ -386,13 +386,13 @@ class ModerationCog(commands.Cog, name="Moderación"):
             **{col_name: new_val}
         )
 
-        state_str = "🟢 **Activado**" if new_val else "🔴 **Desactivado**"
+        state_str = f"{DaletAtoms.GLYPH_CHECK} **Activado**" if new_val else f"{DaletAtoms.GLYPH_CROSS} **Desactivado**"
         embed = discord.Embed(
-            title=f"⚙️ Módulo {display_name}",
+            title=f"{DaletAtoms.GLYPH_POINTER} Módulo {display_name}",
             description=f"El módulo {display_name} ahora está {state_str}.",
             color=DaletAtoms.COLOR_SUCCESS if new_val else DaletAtoms.COLOR_WARNING,
         )
-        DaletMolecules.add_standard_footer(embed, context_text="Admin • /mod status para ver todos los módulos")
+        DaletMolecules.add_standard_footer(embed, context_text="Admin │ /mod status para ver todos los módulos")
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @mod_group.command(name="ignore", description="Gestiona canales y módulos específicos exentos de moderación.")
@@ -416,26 +416,26 @@ class ModerationCog(commands.Cog, name="Moderación"):
             cfg = await self.bot.admin_repo.get_moderation_config(server_id)
             ignored_map = cfg.get("ignored_channels_map", {}) if cfg else {}
             if not ignored_map:
-                return await interaction.followup.send("ℹ️ No hay canales exentos de moderación.", ephemeral=True)
+                return await interaction.followup.send(f"{DaletAtoms.GLYPH_SUB} No hay canales exentos de moderación.", ephemeral=True)
 
             lines = []
             for cid, mods in ignored_map.items():
                 ch = interaction.guild.get_channel(cid) or interaction.guild.get_thread(cid)
                 ch_str = ch.mention if ch else f"`#{cid}`"
                 badges = ", ".join(_EXEMPT_MODULE_NAMES.get(m, m) for m in sorted(mods))
-                lines.append(f"• {ch_str}: {badges}")
+                lines.append(f"{DaletAtoms.GLYPH_SUB} {ch_str}: {badges}")
 
             embed = discord.Embed(
-                title="🛡️ Canales y Módulos Exentos de Moderación",
+                title=f"{DaletAtoms.EMOJI_DALET} Canales y Módulos Exentos de Moderación",
                 description="Los siguientes canales tienen reglas exentas configuradas:\n\n" + "\n".join(lines),
                 color=DaletAtoms.COLOR_INFO,
             )
-            DaletMolecules.add_standard_footer(embed, context_text="Admin • Usa /mod ignore add o remove")
+            DaletMolecules.add_standard_footer(embed, context_text="Admin │ Usa /mod ignore add o remove")
             return await interaction.followup.send(embed=embed, ephemeral=True)
 
         target_ch = channel or interaction.channel
         if not hasattr(target_ch, "id"):
-            return await interaction.followup.send("❌ Debes especificar un canal o hilo válido.", ephemeral=True)
+            return await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} Debes especificar un canal o hilo válido.", ephemeral=True)
 
         if action == "add":
             updated_map = await self.bot.admin_repo.add_ignored_channel_module(server_id, target_ch.id, module)
@@ -443,7 +443,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
             mod_badges = ", ".join(_EXEMPT_MODULE_NAMES.get(m, m) for m in sorted(current_mods))
             module_desc = _EXEMPT_MODULE_NAMES.get(module, module)
             embed = discord.Embed(
-                title="🛡️ Exención Añadida en Canal",
+                title=f"{DaletAtoms.GLYPH_CHECK} Exención Añadida en Canal",
                 description=(
                     f"Se ha añadido la exención de **{module_desc}** en {target_ch.mention}.\n\n"
                     f"**Exenciones activas en este canal:** {mod_badges}\n"
@@ -451,7 +451,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
                 ),
                 color=DaletAtoms.COLOR_SUCCESS,
             )
-            DaletMolecules.add_standard_footer(embed, context_text="Admin • Usa /mod ignore list para ver todas")
+            DaletMolecules.add_standard_footer(embed, context_text="Admin │ Usa /mod ignore list para ver todas")
             return await interaction.followup.send(embed=embed, ephemeral=True)
 
         elif action == "remove":
@@ -472,11 +472,11 @@ class ModerationCog(commands.Cog, name="Moderación"):
                 )
 
             embed = discord.Embed(
-                title="🛡️ Exención Removida de Canal",
+                title=f"{DaletAtoms.GLYPH_CHECK} Exención Removida de Canal",
                 description=desc,
                 color=DaletAtoms.COLOR_SUCCESS,
             )
-            DaletMolecules.add_standard_footer(embed, context_text="Admin • Usa /mod status para ver la config")
+            DaletMolecules.add_standard_footer(embed, context_text="Admin │ Usa /mod status para ver la config")
             return await interaction.followup.send(embed=embed, ephemeral=True)
 
     @mod_group.command(name="off", description="Desactiva la auto-moderación en este servidor.")
@@ -491,7 +491,7 @@ class ModerationCog(commands.Cog, name="Moderación"):
             server_id=interaction.guild_id,
             enabled=False,
         )
-        await interaction.followup.send("🔇 Moderación desactivada. Usa `/mod setup` para reactivarla.", ephemeral=True)
+        await interaction.followup.send(f"{DaletAtoms.GLYPH_CHECK} Moderación desactivada. Usa `/mod setup` para reactivarla.", ephemeral=True)
 
     @mod_group.command(name="status", description="Muestra la configuración granular y módulos activos.")
     @app_commands.checks.has_permissions(manage_messages=True)
@@ -499,15 +499,15 @@ class ModerationCog(commands.Cog, name="Moderación"):
         await interaction.response.defer(ephemeral=True)
         config = await self.bot.admin_repo.get_moderation_config(interaction.guild_id)
 
-        embed = discord.Embed(title="🛡️ Estado de la Auto-Moderación", color=DaletAtoms.COLOR_INFO)
+        embed = discord.Embed(title=f"{DaletAtoms.EMOJI_DALET} Estado de la Auto-Moderación", color=DaletAtoms.COLOR_INFO)
 
         if not config or not config["enabled"]:
             embed.description = "La auto-moderación está **desactivada** en este servidor.\nUsa `/mod setup` para activarla con un clic."
             return await interaction.followup.send(embed=embed, ephemeral=True)
 
         log_ch = interaction.guild.get_channel(config.get("log_channel_id") or 0)
-        embed.add_field(name="Estado General", value="🟢 Activa", inline=True)
-        embed.add_field(name="Canal de Alertas", value=log_ch.mention if log_ch else "⚠️ Sin canal", inline=True)
+        embed.add_field(name="Estado General", value=f"{DaletAtoms.GLYPH_CHECK} Activa", inline=True)
+        embed.add_field(name="Canal de Alertas", value=log_ch.mention if log_ch else f"{DaletAtoms.GLYPH_UP} Sin canal", inline=True)
         embed.add_field(name="Acción Adulto (NSFW)", value=_ACTION_LABELS.get(config["action"], config["action"]), inline=True)
         embed.add_field(name="Duración Timeout", value=f"{config['timeout_minutes']} min", inline=True)
         embed.add_field(name="Auto-ban en Ilegal", value="Sí" if config["auto_ban_on_illegal"] else "No (Alertar)", inline=True)
@@ -520,21 +520,21 @@ class ModerationCog(commands.Cog, name="Moderación"):
                 ch = interaction.guild.get_channel(cid)
                 ch_str = ch.mention if ch else f"`#{cid}`"
                 badges = ", ".join(_EXEMPT_MODULE_NAMES.get(m, m) for m in sorted(mods))
-                lines.append(f"• {ch_str} ({badges})")
+                lines.append(f"{DaletAtoms.GLYPH_SUB} {ch_str} ({badges})")
             exempt_str = "\n".join(lines)
         else:
             exempt_str = "Ninguno (todos vigilados)"
-        embed.add_field(name="🛡️ Canales Exentos", value=exempt_str, inline=False)
+        embed.add_field(name=f"{DaletAtoms.GLYPH_POINTER} Canales Exentos", value=exempt_str, inline=False)
 
         # Módulos granulares
         modules_lines = [
-            f"{'🟢' if config.get('scan_images', True) else '🔴'} **Imágenes (IA Visión):** {'Activo' if config.get('scan_images', True) else 'Desactivado'}",
-            f"{'🟢' if config.get('anti_flood', True) else '🔴'} **Anti-Flood / Ráfagas:** {'Activo' if config.get('anti_flood', True) else 'Desactivado'}",
-            f"{'🟢' if config.get('filter_links', True) else '🔴'} **Filtro Enlaces Adultos:** {'Activo' if config.get('filter_links', True) else 'Desactivado'}",
-            f"{'🟢' if config.get('filter_scams', True) else '🔴'} **Anti-Phishing & Scams:** {'Activo' if config.get('filter_scams', True) else 'Desactivado'}",
-            "🛡️ **Protección Ilegal (CSAM):** 🟢 Siempre Activa",
+            f"{DaletAtoms.GLYPH_CHECK if config.get('scan_images', True) else DaletAtoms.GLYPH_CROSS} **Imágenes (IA Visión):** {'Activo' if config.get('scan_images', True) else 'Desactivado'}",
+            f"{DaletAtoms.GLYPH_CHECK if config.get('anti_flood', True) else DaletAtoms.GLYPH_CROSS} **Anti-Flood / Ráfagas:** {'Activo' if config.get('anti_flood', True) else 'Desactivado'}",
+            f"{DaletAtoms.GLYPH_CHECK if config.get('filter_links', True) else DaletAtoms.GLYPH_CROSS} **Filtro Enlaces Adultos:** {'Activo' if config.get('filter_links', True) else 'Desactivado'}",
+            f"{DaletAtoms.GLYPH_CHECK if config.get('filter_scams', True) else DaletAtoms.GLYPH_CROSS} **Anti-Phishing & Scams:** {'Activo' if config.get('filter_scams', True) else 'Desactivado'}",
+            f"{DaletAtoms.GLYPH_CHECK} **Protección Ilegal (CSAM):** Siempre Activa",
         ]
-        embed.add_field(name="🧩 Módulos Granulares", value="\n".join(modules_lines), inline=False)
+        embed.add_field(name=f"{DaletAtoms.GLYPH_POINTER} Módulos Granulares", value="\n".join(modules_lines), inline=False)
 
         recent = await self.bot.admin_repo.get_recent_mod_actions(interaction.guild_id, limit=5)
         if recent:
@@ -542,9 +542,9 @@ class ModerationCog(commands.Cog, name="Moderación"):
                 f"`{r['UserName']}` — {r['Severity']} — {r['ActionTaken']} ({r['OccurredAt'][:16]})"
                 for r in recent
             ]
-            embed.add_field(name="📋 Últimas acciones", value="\n".join(lines), inline=False)
+            embed.add_field(name=f"{DaletAtoms.GLYPH_POINTER} Últimas acciones", value="\n".join(lines), inline=False)
 
-        DaletMolecules.add_standard_footer(embed, context_text="Admin • Usa /mod toggle o /mod ignore")
+        DaletMolecules.add_standard_footer(embed, context_text="Admin │ Usa /mod toggle o /mod ignore")
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @mod_setup.error
@@ -557,11 +557,11 @@ class ModerationCog(commands.Cog, name="Moderación"):
     @mod_status.error
     async def mod_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(error, app_commands.MissingPermissions):
-            await interaction.response.send_message("❌ Necesitas permisos de administrador.", ephemeral=True)
+            await interaction.response.send_message(f"{DaletAtoms.GLYPH_CROSS} Necesitas permisos de administrador.", ephemeral=True)
         else:
             logger.error(f"Error en comando /mod: {error}")
             if not interaction.response.is_done():
-                await interaction.response.send_message("❌ Error inesperado al procesar el comando.", ephemeral=True)
+                await interaction.response.send_message(f"{DaletAtoms.GLYPH_CROSS} Error inesperado al procesar el comando.", ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

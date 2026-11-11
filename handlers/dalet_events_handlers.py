@@ -148,49 +148,49 @@ class EventsHandler(commands.Cog):
             embed.set_thumbnail(url=self.bot.user.display_avatar.url)
 
         embed.add_field(
-            name="🎮 osu! Analytics & Skill Radar",
+            name=f"{DaletAtoms.GLYPH_POINTER} osu! Analytics & Skill Radar",
             value=(
-                f"• `/link <user>` {DaletAtoms.GLYPH_POINTER} Link your Discord account to your osu! profile\n"
-                f"• `/skills [user]` {DaletAtoms.GLYPH_POINTER} 5-dimension radar (Aim, Speed, Acc, Stamina, Reading)\n"
-                f"• `/recent` & `/top` {DaletAtoms.GLYPH_POINTER} Detailed score breakdown with PP, UR & star rating\n"
-                f"• `/op [user]` {DaletAtoms.GLYPH_POINTER} Full profile overview, global rank, and statistics"
+                f"{DaletAtoms.GLYPH_SUB} `/link <user>` {DaletAtoms.GLYPH_POINTER} Link your Discord account to your osu! profile\n"
+                f"{DaletAtoms.GLYPH_SUB} `/skills [user]` {DaletAtoms.GLYPH_POINTER} 5-dimension radar (Aim, Speed, Acc, Stamina, Reading)\n"
+                f"{DaletAtoms.GLYPH_SUB} `/recent` & `/top` {DaletAtoms.GLYPH_POINTER} Detailed score breakdown with PP, UR & star rating\n"
+                f"{DaletAtoms.GLYPH_SUB} `/op [user]` {DaletAtoms.GLYPH_POINTER} Full profile overview, global rank, and statistics"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="🤖 Conversational AI & Lore",
+            name=f"{DaletAtoms.GLYPH_POINTER} Conversational AI & Lore",
             value=(
-                f"• `@Dalet <message>` {DaletAtoms.GLYPH_POINTER} Chat directly with Dalet in any channel\n"
-                f"• `/resumir` {DaletAtoms.GLYPH_POINTER} Instant smart AI digest of recent channel conversations\n"
-                f"• `/lore <topic>` {DaletAtoms.GLYPH_POINTER} Search server chat history archives with cynical AI commentary"
+                f"{DaletAtoms.GLYPH_SUB} `@Dalet <message>` {DaletAtoms.GLYPH_POINTER} Chat directly with Dalet in any channel\n"
+                f"{DaletAtoms.GLYPH_SUB} `/resumir` {DaletAtoms.GLYPH_POINTER} Instant smart AI digest of recent channel conversations\n"
+                f"{DaletAtoms.GLYPH_SUB} `/lore <topic>` {DaletAtoms.GLYPH_POINTER} Search server chat history archives with cynical AI commentary"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="⚙️ Administration & Language",
+            name=f"{DaletAtoms.GLYPH_POINTER} Administration & Language",
             value=(
-                f"• `/language [en/es]` {DaletAtoms.GLYPH_POINTER} Switch between English (default) and Español\n"
-                f"• `/lock` & `/unlock` {DaletAtoms.GLYPH_POINTER} Restrict or allow Dalet interactions in specific channels\n"
-                f"• `/proactive` {DaletAtoms.GLYPH_POINTER} Toggle proactive AI conversation in a channel\n"
-                f"• `/setwelcome` {DaletAtoms.GLYPH_POINTER} Configure the welcome channel for new members"
+                f"{DaletAtoms.GLYPH_SUB} `/language [en/es]` {DaletAtoms.GLYPH_POINTER} Switch between English (default) and Español\n"
+                f"{DaletAtoms.GLYPH_SUB} `/lock` & `/unlock` {DaletAtoms.GLYPH_POINTER} Restrict or allow Dalet interactions in specific channels\n"
+                f"{DaletAtoms.GLYPH_SUB} `/proactive` {DaletAtoms.GLYPH_POINTER} Toggle proactive AI conversation in a channel\n"
+                f"{DaletAtoms.GLYPH_SUB} `/setwelcome` {DaletAtoms.GLYPH_POINTER} Configure the welcome channel for new members"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="📬 Feedback & Developer Contact",
+            name=f"{DaletAtoms.GLYPH_POINTER} Feedback & Developer Contact",
             value=(
-                f"• `/feedback <message>` {DaletAtoms.GLYPH_POINTER} Send suggestions, bug reports, or ideas directly to the developer\n"
-                f"• `/help` or `d.help` {DaletAtoms.GLYPH_POINTER} Open the interactive categorized command guide"
+                f"{DaletAtoms.GLYPH_SUB} `/feedback <message>` {DaletAtoms.GLYPH_POINTER} Send suggestions, bug reports, or ideas directly to the developer\n"
+                f"{DaletAtoms.GLYPH_SUB} `/help` or `d.help` {DaletAtoms.GLYPH_POINTER} Open the interactive categorized command guide"
             ),
             inline=False
         )
 
         DaletMolecules.add_standard_footer(
             embed,
-            context_text=f"Dalet v{DaletAtoms.VERSION} │ Litxe • Prefix: d. or /"
+            context_text=f"Dalet {DaletAtoms.VERSION} │ Litxe │ Prefix: d. or /"
         )
 
         view = GuildJoinView(self.bot)
@@ -210,17 +210,17 @@ class GuildJoinView(discord.ui.View):
         super().__init__(timeout=86400)  # 24 horas
         self.bot = bot
 
-    @discord.ui.button(label="🌐 Cambiar a Español", style=discord.ButtonStyle.secondary, custom_id="guild_join_lang_es")
+    @discord.ui.button(label="✦ Cambiar a Español", style=discord.ButtonStyle.secondary, custom_id="guild_join_lang_es")
     async def switch_lang_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message(
-                "❌ Solo administradores del servidor pueden cambiar la configuración de idioma.",
+                f"{DaletAtoms.GLYPH_CROSS} Solo administradores del servidor pueden cambiar la configuración de idioma.",
                 ephemeral=True
             )
         try:
             await self.bot.admin_repo.set_server_language(interaction.guild_id, "es")
             button.disabled = True
-            button.label = "✅ Idioma: Español"
+            button.label = f"{DaletAtoms.GLYPH_CHECK} Idioma: Español"
             await interaction.response.edit_message(view=self)
             await interaction.followup.send(
                 "¡Listo! El idioma de Dalet en este servidor ha sido configurado en **Español**.\n"
@@ -229,9 +229,9 @@ class GuildJoinView(discord.ui.View):
             )
         except Exception as e:
             logger.error(f"Error cambiando idioma desde botón de bienvenida: {e}")
-            await interaction.response.send_message("❌ Error configurando el idioma.", ephemeral=True)
+            await interaction.response.send_message(f"{DaletAtoms.GLYPH_CROSS} Error configurando el idioma.", ephemeral=True)
 
-    @discord.ui.button(label="📖 Command Guide / Guía", style=discord.ButtonStyle.primary, custom_id="guild_join_help")
+    @discord.ui.button(label="▸ Command Guide / Guía", style=discord.ButtonStyle.primary, custom_id="guild_join_help")
     async def help_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         server_lang = "en"
         if interaction.guild_id and hasattr(self.bot, "admin_repo"):

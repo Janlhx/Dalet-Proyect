@@ -57,6 +57,10 @@ class DaletAtoms(metaclass=DaletAtomsMeta):
     GLYPH_PIPE = "│"
     GLYPH_STAR = "★"
     GLYPH_CORNER = "└"
+    GLYPH_CHECK = "✓"
+    GLYPH_CROSS = "✕"
+    GLYPH_UP = "▲"
+    GLYPH_DOWN = "▼"
     DIVIDER_MAIN = "─────────────────────────"
     DIVIDER_LIGHT = "┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄"
 
@@ -75,12 +79,12 @@ class DaletAtoms(metaclass=DaletAtomsMeta):
     GLYPH_TECH = "⬡"
     GLYPH_VERDICT = "✦"
 
-    # --- Emojis Funcionales y Limpios ---
+    # --- Glifos Funcionales (Cero Emojis) ---
     EMOJI_DALET = "✦"
-    EMOJI_SUCCESS = "✅"
-    EMOJI_WARNING = "⚠️"
-    EMOJI_ERROR = "❌"
-    EMOJI_INFO = "ℹ️"
+    EMOJI_SUCCESS = "✓"
+    EMOJI_WARNING = "▲"
+    EMOJI_ERROR = "✕"
+    EMOJI_INFO = "▫"
 
     # --- Estilos de Texto ---
     @staticmethod
