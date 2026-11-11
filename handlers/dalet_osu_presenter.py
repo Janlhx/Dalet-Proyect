@@ -33,6 +33,48 @@ def _format_acc(acc: float) -> str:
     val = acc * 100 if acc <= 1.0 else acc
     return f"{val:.2f}%"
 
+def _format_stat_num(val) -> str:
+    """Formatea AR/OD/CS/HP evitando decimales ruidosos (.0 o .333333)."""
+    try:
+        num = round(float(val or 0.0), 1)
+    except (TypeError, ValueError):
+        return "0"
+    if abs(num - round(num)) < 0.05:
+        return str(int(round(num)))
+    return f"{num:.1f}"
+
+def _format_play_pp(play: dict, lang: str = "en", compact: bool = False, decimals: int | None = None) -> str | None:
+    """Formatea el PP real/simulado y su estimación 'if FC' cuando hubo fallo, misses o choke."""
+    actual_raw = play.get("_pp_actual")
+    pp_val = actual_raw if actual_raw is not None else play.get("pp")
+    fc_raw = play.get("_pp_fc")
+    is_sim = bool(play.get("_pp_is_simulated"))
+    misses = (play.get("statistics") or {}).get("count_miss", 0) or 0
+    is_fail = (play.get("passed") is False) or (str(play.get("rank", "")).upper() == "F")
+
+    if pp_val is None and fc_raw is None:
+        return None
+
+    dec = (1 if compact else 2) if decimals is None else decimals
+    prefix = "~" if is_sim else ""
+    if pp_val is not None:
+        pp_num = float(pp_val)
+        pp_text = f"**{prefix}{pp_num:.{dec}f}pp**"
+    else:
+        pp_num = 0.0
+        pp_text = f"**{t('osu.no_pp', lang)}**"
+
+    if fc_raw is not None:
+        fc_num = float(fc_raw)
+        max_c = play.get("max_combo", 0) or 0
+        bm_max = (play.get("beatmap") or {}).get("max_combo", 0) or 0
+        has_break = is_fail or misses > 0 or (bm_max > 0 and max_c < int(bm_max * 0.98))
+        if has_break and fc_num > max(pp_num + 0.5, 0.1):
+            fc_fmt = f"{fc_num:.0f}pp" if compact else f"{fc_num:.2f}pp"
+            pp_text += f" *({fc_fmt} FC)*"
+
+    return pp_text
+
 def _get_country_flag(country_code: str, plain: bool = False) -> str:
     """Formatea el código ISO de país (ej. 'CO', 'US') como etiqueta tipográfica sin emojis."""
     if not country_code or len(country_code) != 2:
@@ -320,9 +362,7 @@ class OsuPresenter:
         rank = play.get("rank", "F").upper()
         acc = _format_acc(play.get("accuracy", 0.0))
 
-        pp = play.get("pp")
-        no_pp_label = t("osu.no_pp", lang)
-        pp_str = f"**{pp:.2f}pp**" if pp is not None else f"**{no_pp_label}**"
+        pp_str = _format_play_pp(play, lang=lang, compact=False) or f"**{t('osu.no_pp', lang)}**"
 
         score = OsuPresenter._extract_score(play)
         max_combo = play.get("max_combo", 0)
@@ -335,27 +375,25 @@ class OsuPresenter:
         miss = stats.get("count_miss", 0)
         hits_str = f"[{c300}/{c100}/{c50}/{miss}]"
 
-        # Atributos del beatmap
+        # Atributos del beatmap (con prioridad para rosu-pp / mods aplicados)
         mods_list = play.get("mods", [])
         mods_upper = [m.upper() if isinstance(m, str) else m.get("acronym", "").upper() for m in mods_list]
-        is_dt = any(m in ("DT", "NC") for m in mods_upper)
-        is_ht = any(m in ("HT", "DC") for m in mods_upper)
+        clock_rate = float(b_attrs.get("clock_rate") or 1.0)
+        if clock_rate == 1.0:
+            if any(m in ("DT", "NC") for m in mods_upper):
+                clock_rate = 1.5
+            elif any(m in ("HT", "DC") for m in mods_upper):
+                clock_rate = 0.75
 
-        ar = b_attrs.get("approach_rate") or beatmap.get("ar", 0.0)
-        od = b_attrs.get("overall_difficulty") or beatmap.get("accuracy", 0.0)
-        hp = beatmap.get("drain", 0.0)
-        cs = beatmap.get("cs", 0.0)
-        bpm = beatmap.get("bpm", 0)
-        if bpm and is_dt:
-            bpm = bpm * 1.5
-        elif bpm and is_ht:
-            bpm = bpm * 0.75
+        ar = _format_stat_num(b_attrs.get("approach_rate") if b_attrs.get("approach_rate") is not None else beatmap.get("ar", 0.0))
+        od = _format_stat_num(b_attrs.get("overall_difficulty") if b_attrs.get("overall_difficulty") is not None else beatmap.get("accuracy", 0.0))
+        hp = _format_stat_num(b_attrs.get("hp") if b_attrs.get("hp") is not None else beatmap.get("drain", 0.0))
+        cs = _format_stat_num(b_attrs.get("cs") if b_attrs.get("cs") is not None else beatmap.get("cs", 0.0))
+        bpm = float(beatmap.get("bpm", 0) or 0) * clock_rate
 
         length_sec = beatmap.get("total_length") or beatmap.get("hit_length") or 0
-        if length_sec and is_dt:
-            length_sec = int(length_sec / 1.5)
-        elif length_sec and is_ht:
-            length_sec = int(length_sec / 0.75)
+        if length_sec and clock_rate != 1.0:
+            length_sec = int(length_sec / clock_rate)
         length_str = DaletAtoms.format_duration(length_sec)
 
         rel_time = DaletAtoms.parse_timestamp_relative(play.get("created_at", ""))
@@ -538,7 +576,6 @@ class OsuPresenter:
         for i, s in enumerate(top_plays, 1):
             bm = s.get("beatmap", {})
             bms = s.get("beatmapset", {})
-            pp = s.get("pp", 0.0) or 0.0
             acc = _format_acc(s.get("accuracy", 0.0))
             mods_str = _format_mods(s.get("mods", []))
             grade = s.get("rank", "?").upper()
@@ -553,6 +590,8 @@ class OsuPresenter:
             misses = s.get("statistics", {}).get("count_miss", 0) or 0
             miss_str = f"{misses}m" if misses > 0 else "FC"
 
+            pp_disp = _format_play_pp(s, lang=lang, compact=True) or f"**{float(s.get('pp') or 0.0):.1f}pp**"
+
             if len(title) > 28:
                 title = title[:26] + ".."
             if len(ver) > 18:
@@ -564,7 +603,7 @@ class OsuPresenter:
             time_suffix = f" · {rel_time}" if rel_time else ""
 
             header = f"`#{orig_rank}` {badge} **[{title} [{ver}]]({map_link})**{time_suffix}"
-            stats_line = f"└─ **{pp:.1f}pp**  │  `{acc}`  │  `{combo_str}`  │  `{miss_str}`  │  **{mods_str}**  │  `{sr:.2f}★`"
+            stats_line = f"└─ {pp_disp}  │  `{acc}`  │  `{combo_str}`  │  `{miss_str}`  │  **{mods_str}**  │  `{sr:.2f}★`"
             play_lines.append(f"{header}\n{stats_line}")
 
         if play_lines:
@@ -901,9 +940,8 @@ class OsuPresenter:
             if len(ver) > 16:
                 ver = ver[:14] + ".."
 
-            if pp_val is not None:
-                pp_disp = f"**{float(pp_val):.0f}pp**"
-            else:
+            pp_disp = _format_play_pp(s, lang=lang, compact=True, decimals=0)
+            if not pp_disp:
                 score_str = OsuPresenter._extract_score(s)
                 pp_disp = f"`{score_str}`"
 
@@ -1280,6 +1318,107 @@ class OsuPresenter:
             )
 
         DaletMolecules.add_standard_footer(embed, context_text=f"ID: {user_id} {DaletAtoms.GLYPH_PIPE} osu! {_mode_title(mode)} {DaletAtoms.GLYPH_PIPE} {srv_label}")
+        return embed
+
+    @staticmethod
+    def build_map_card(
+        beatmap_data: dict,
+        pp_table: dict | None = None,
+        mode: str = "osu",
+        mods: list | None = None,
+        lang: str = "en",
+    ) -> discord.Embed:
+        """Construye una ficha técnica completa de beatmap con simulación PP (95/98/99/100%)."""
+        bm = beatmap_data or {}
+        bms = bm.get("beatmapset") or {}
+        sim = pp_table or {}
+
+        bm_id = bm.get("id", 0)
+        set_id = bms.get("id") or bm.get("beatmapset_id") or 0
+        title = bms.get("title") or bm.get("title") or "Desconocido"
+        artist = bms.get("artist") or bm.get("artist") or ""
+        version = bm.get("version") or "Normal"
+        mapper = bms.get("creator") or "Desconocido"
+        status = str(bm.get("status") or bms.get("status") or "unknown").capitalize()
+        map_url = f"https://osu.ppy.sh/b/{bm_id}" if bm_id else "https://osu.ppy.sh"
+
+        mods_clean = mods or []
+        mods_str = _format_mods(mods_clean)
+        clock_rate = float(sim.get("clock_rate") or 1.0)
+        if clock_rate == 1.0:
+            mods_up = [str(m).upper() for m in mods_clean]
+            if any(m in ("DT", "NC") for m in mods_up):
+                clock_rate = 1.5
+            elif any(m in ("HT", "DC") for m in mods_up):
+                clock_rate = 0.75
+
+        stars = float(sim.get("stars") or bm.get("difficulty_rating") or _calc_effective_sr(bm, mods_clean, mode=mode))
+        ar = _format_stat_num(sim.get("ar") if sim.get("ar") is not None else bm.get("ar", 0.0))
+        od = _format_stat_num(sim.get("od") if sim.get("od") is not None else bm.get("accuracy", 0.0))
+        hp = _format_stat_num(sim.get("hp") if sim.get("hp") is not None else bm.get("drain", 0.0))
+        cs = _format_stat_num(sim.get("cs") if sim.get("cs") is not None else bm.get("cs", 0.0))
+
+        base_bpm = float(bm.get("bpm") or sim.get("bpm") or 0.0)
+        eff_bpm = base_bpm * clock_rate
+        raw_len = int(bm.get("total_length") or bm.get("hit_length") or 0)
+        eff_len = int(raw_len / clock_rate) if (raw_len and clock_rate > 0) else raw_len
+        length_str = DaletAtoms.format_duration(eff_len)
+
+        max_combo = int(sim.get("max_combo") or bm.get("max_combo") or 0)
+        n_circles = int(sim.get("n_circles") if sim.get("n_circles") is not None else (bm.get("count_circles") or 0))
+        n_sliders = int(sim.get("n_sliders") if sim.get("n_sliders") is not None else (bm.get("count_sliders") or 0))
+        n_spinners = int(sim.get("n_spinners") if sim.get("n_spinners") is not None else (bm.get("count_spinners") or 0))
+
+        header_title = f"{artist} - {title} [{version}]" if artist else f"{title} [{version}]"
+        embed = discord.Embed(
+            title=f"✦ {header_title}",
+            url=map_url,
+            color=DaletAtoms.COLOR_PRIMARY,
+        )
+        embed.description = (
+            f"**{mods_str}** {DaletAtoms.GLYPH_PIPE} `{stars:.2f}★` {DaletAtoms.GLYPH_PIPE} `{status}` {DaletAtoms.GLYPH_PIPE} `{_mode_title(mode)}`\n"
+            f"{DaletAtoms.GLYPH_POINTER} **{t('osu.map_mapper', lang)}**: `{mapper}`\n"
+            f"───────────────────────────────────"
+        )
+
+        combo_txt = f"{max_combo:,}x" if max_combo > 0 else "N/A"
+        embed.add_field(
+            name=f"{DaletAtoms.GLYPH_AIM} {t('osu.map_difficulty', lang)}",
+            value=(
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.length', lang)}**: `{length_str}`  {DaletAtoms.GLYPH_PIPE}  **BPM**: `{eff_bpm:.0f}`  {DaletAtoms.GLYPH_PIPE}  **Max Combo**: `{combo_txt}`\n"
+                f"{DaletAtoms.GLYPH_POINTER} `AR {ar}`  ·  `OD {od}`  ·  `HP {hp}`  ·  `CS {cs}`\n"
+                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.map_objects', lang)}**: `○ {n_circles}  ·  ◐ {n_sliders}  ·  ◎ {n_spinners}`"
+            ),
+            inline=False,
+        )
+
+        pp_dict = sim.get("pp") or {}
+        if pp_dict:
+            pp_95 = pp_dict.get(95, 0.0)
+            pp_98 = pp_dict.get(98, 0.0)
+            pp_99 = pp_dict.get(99, 0.0)
+            pp_100 = pp_dict.get(100, 0.0)
+            pp_val_txt = (
+                f"{DaletAtoms.GLYPH_POINTER} `95%` **{pp_95:.0f}pp**  {DaletAtoms.GLYPH_PIPE}  "
+                f"`98%` **{pp_98:.0f}pp**  {DaletAtoms.GLYPH_PIPE}  "
+                f"`99%` **{pp_99:.0f}pp**  {DaletAtoms.GLYPH_PIPE}  "
+                f"`100% SS` **{pp_100:.0f}pp**"
+            )
+            embed.add_field(
+                name=f"{DaletAtoms.GLYPH_ACCURACY} {t('osu.map_pp_table', lang)}",
+                value=pp_val_txt,
+                inline=False,
+            )
+
+        covers = bms.get("covers", {})
+        cover_url = covers.get("cover") or covers.get("card") or covers.get("list")
+        if cover_url:
+            embed.set_image(url=cover_url)
+
+        DaletMolecules.add_standard_footer(
+            embed,
+            context_text=f"Map ID: {bm_id} {DaletAtoms.GLYPH_PIPE} Set: {set_id}" if set_id else f"Map ID: {bm_id}",
+        )
         return embed
 
 

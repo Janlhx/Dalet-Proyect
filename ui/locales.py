@@ -81,6 +81,13 @@ STRINGS: dict[str, dict[str, str]] = {
         "osu.progress_need_snapshots": "Need at least 2 snapshots to plot progress. Check your profile regularly to record history.",
         "osu.firsts_title": "Global #1 Scores · {username} ({mode})",
         "osu.firsts_none": "**{username}** has no global #1 scores in {mode}.",
+        "osu.map_not_found": "✕ Couldn't find a matching beatmap.",
+        "osu.map_no_recent": "✕ Provide a beatmap link/ID or play/search one in this channel first.",
+        "osu.map_mapper": "Mapper",
+        "osu.map_status": "Status",
+        "osu.map_objects": "Objects",
+        "osu.map_pp_table": "PP Simulation (NM / Active Mods)",
+        "osu.map_difficulty": "Difficulty & Rhythm",
 
         # --- General Commands ---
         "general.latency_title": "Latency",
@@ -239,6 +246,13 @@ STRINGS: dict[str, dict[str, str]] = {
         "osu.progress_need_snapshots": "Necesito al menos 2 snapshots para hacer el gráfico. Consulta tu perfil seguido para guardar historial.",
         "osu.firsts_title": "Récords #1 Globales · {username} ({mode})",
         "osu.firsts_none": "**{username}** no tiene #1 globales en {mode}.",
+        "osu.map_not_found": "✕ No encontré ningún beatmap con esa referencia.",
+        "osu.map_no_recent": "✕ Pasa un link/ID de mapa, busca uno por nombre, o muestra un play antes en este canal.",
+        "osu.map_mapper": "Mapper",
+        "osu.map_status": "Estado",
+        "osu.map_objects": "Objetos",
+        "osu.map_pp_table": "Simulación de PP (Mods activos)",
+        "osu.map_difficulty": "Dificultad & Ritmo",
 
         # --- General Commands ---
         "general.latency_title": "Latencia",

@@ -129,6 +129,135 @@ class TestOsuPresenter(unittest.TestCase):
         self.assertIn("mrekk", skills_field.value)
 
 
+SAMPLE_OSU_BYTES = (
+    b"osu file format v14\n\n"
+    b"[General]\nAudioFilename: audio.mp3\nMode: 0\n\n"
+    b"[Metadata]\nTitle: Test Map\nArtist: Dalet\nCreator: Mapper\nVersion: Insane\nBeatmapID: 129891\nBeatmapSetID: 39804\n\n"
+    b"[Difficulty]\nHPDrainRate:5\nCircleSize:4\nOverallDifficulty:8\nApproachRate:9\nSliderMultiplier:1.8\nSliderTickRate:1\n\n"
+    b"[TimingPoints]\n0,333.333333333333,4,2,0,100,1,0\n\n"
+    b"[HitObjects]\n"
+    b"64,192,1000,1,0,0:0:0:0:\n"
+    b"448,192,1166,1,0,0:0:0:0:\n"
+    b"64,64,1333,1,0,0:0:0:0:\n"
+    b"448,320,1500,1,0,0:0:0:0:\n"
+    b"256,64,1666,1,0,0:0:0:0:\n"
+    b"256,320,1833,1,0,0:0:0:0:\n"
+    b"128,128,2000,1,0,0:0:0:0:\n"
+    b"384,256,2166,1,0,0:0:0:0:\n"
+)
+
+
+class TestRosuPPAndMapCard(unittest.TestCase):
+    """Pruebas unitarias para simulación rosu-pp (fails, if FC), d.m / /map y tarjetas enriquecidas."""
+
+    def test_compute_rosu_score_pp_failed_and_if_fc(self):
+        from services.osu_service import OsuService
+
+        failed_score = {
+            "pp": None,
+            "passed": False,
+            "rank": "F",
+            "accuracy": 0.96,
+            "max_combo": 4,
+            "mods": ["HD", "DT"],
+            "statistics": {"count_300": 4, "count_100": 1, "count_50": 0, "count_miss": 1},
+        }
+        res = OsuService.compute_rosu_score_pp(SAMPLE_OSU_BYTES, failed_score, mode="osu")
+        self.assertTrue(res["pp_is_simulated"])
+        self.assertGreater(res["actual_pp"], 0.0)
+        self.assertIsNotNone(res["fc_pp"])
+        self.assertGreater(res["fc_pp"], res["actual_pp"])
+        self.assertGreater(res["ar"], 9.5)  # DT scales AR 9 up to ~10.33
+        self.assertEqual(res["clock_rate"], 1.5)
+
+    def test_simulate_map_pp_table_monotonic(self):
+        import asyncio
+        from services.osu_service import OsuService
+
+        svc = OsuService(0, "")
+        svc._osu_file_cache[129891] = SAMPLE_OSU_BYTES
+
+        async def _run():
+            return await svc.simulate_map_pp_table(129891, mode="osu", mods=["HD", "DT"])
+
+        table = asyncio.run(_run())
+        self.assertIn("pp", table)
+        pp_map = table["pp"]
+        self.assertLessEqual(pp_map[95], pp_map[98])
+        self.assertLessEqual(pp_map[98], pp_map[99])
+        self.assertLessEqual(pp_map[99], pp_map[100])
+        self.assertGreater(table["stars"], 0.0)
+
+    def test_parse_beatmap_reference_map_args_and_channel_context(self):
+        from services.osu_service import OsuService
+
+        bid, bsid, mode = OsuService.parse_beatmap_reference("https://osu.ppy.sh/beatmapsets/39804#osu/129891")
+        self.assertEqual(bid, 129891)
+        self.assertEqual(bsid, 39804)
+        self.assertEqual(mode, "osu")
+
+        bid2, _, mode2 = OsuService.parse_beatmap_reference("https://osu.ppy.sh/b/252002 -m mania")
+        self.assertEqual(bid2, 252002)
+
+        q, mods, ov = OsuService.parse_map_args("https://osu.ppy.sh/b/129891 +HDDT -taiko")
+        self.assertEqual(q, "https://osu.ppy.sh/b/129891")
+        self.assertEqual(mods, ["HD", "DT"])
+        self.assertEqual(ov, "taiko")
+
+        svc = OsuService(0, "")
+        svc.remember_channel_map(999001, 129891, "osu")
+        self.assertEqual(svc.get_channel_map(999001), (129891, "osu"))
+
+    def test_recent_top_and_map_cards_show_pp_if_fc_without_emojis(self):
+        play_fail = {
+            "pp": None,
+            "_pp_actual": 142.85,
+            "_pp_is_simulated": True,
+            "_pp_fc": 310.40,
+            "passed": False,
+            "rank": "F",
+            "accuracy": 0.9645,
+            "max_combo": 210,
+            "total_score": 450000,
+            "mods": ["HD", "DT"],
+            "statistics": {"count_300": 150, "count_100": 8, "count_50": 1, "count_miss": 3},
+            "beatmap": {
+                "id": 129891, "version": "FD", "ar": 9.0, "accuracy": 8.0,
+                "drain": 5.0, "cs": 4.0, "bpm": 222, "total_length": 240, "max_combo": 450,
+                "count_circles": 200, "count_sliders": 20, "count_spinners": 0,
+            },
+            "beatmapset": {"title": "Freedom Dive", "artist": "xi", "creator": "Nakagawa-Kanon", "status": "ranked"},
+            "beatmap_attributes": {"star_rating": 8.42, "approach_rate": 10.333, "overall_difficulty": 9.8, "hp": 5.0, "cs": 4.0, "clock_rate": 1.5},
+        }
+        recent_embed = OsuPresenter.build_recent_card("Maluca", "osu", play_fail, lang="es")
+        perf_val = next(f.value for f in recent_embed.fields if "Rendimiento" in f.name)
+        map_val = next(f.value for f in recent_embed.fields if "Mapa" in f.name or "Beatmap" in f.name)
+        self.assertIn("~142.85pp", perf_val)
+        self.assertIn("310.40pp FC", perf_val)
+        self.assertNotIn("0.00pp", perf_val)
+        self.assertNotIn("Sin PP", perf_val)
+        self.assertIn("AR 10.3", map_val)
+
+        user_dict = {"username": "Maluca", "country_code": "CO", "statistics": {"pp": 5000, "global_rank": 10000}}
+        top_embed = OsuPresenter.build_top_card(user_dict, [play_fail], mode="osu", lang="es")
+        top_text = (top_embed.description or "") + "\n" + "\n".join(f.value for f in top_embed.fields)
+        self.assertIn("~142.8pp", top_text)
+        self.assertIn("310pp FC", top_text)
+
+        map_embed = OsuPresenter.build_map_card(
+            {"id": 129891, "version": "FD", "status": "ranked", "bpm": 222, "total_length": 240,
+             "beatmapset": {"id": 39804, "title": "Freedom Dive", "artist": "xi", "creator": "Nakagawa-Kanon"}},
+            pp_table={"stars": 8.42, "max_combo": 450, "ar": 10.33, "od": 9.8, "hp": 5.0, "cs": 4.0,
+                      "clock_rate": 1.5, "n_circles": 200, "n_sliders": 20, "n_spinners": 0,
+                      "pp": {95: 720.0, 98: 830.0, 99: 890.0, 100: 960.0}},
+            mode="osu", mods=["HD", "DT"], lang="es"
+        )
+        self.assertIn("Freedom Dive", map_embed.title)
+        pp_field = next(f.value for f in map_embed.fields if "PP" in f.name)
+        self.assertIn("720pp", pp_field)
+        self.assertIn("960pp", pp_field)
+
+
 if __name__ == '__main__':
     unittest.main()
 

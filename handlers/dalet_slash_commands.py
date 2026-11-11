@@ -16,7 +16,7 @@ from ui.atoms import DaletAtoms
 from ui.molecules import DaletMolecules
 from ui.locales import t
 from services.feedback_service import FeedbackService
-from services.osu_service import OsuUserNotFoundError
+from services.osu_service import OsuService, OsuUserNotFoundError
 from handlers.dalet_osu_presenter import OsuPresenter
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
 from handlers.dalet_helpcommands_handlers import build_help_pages, HelpPaginator
@@ -433,6 +433,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 )
 
             await self.bot.osu_service.enrich_scores_with_attributes(firsts[:10], mode=mode)
+            if hasattr(self.bot.osu_service, "enrich_scores_with_pp"):
+                await self.bot.osu_service.enrich_scores_with_pp(firsts[:10], mode=mode, max_maps=10)
             embed = OsuPresenter.build_firsts_card(user.get("username", uname), firsts, user_data=user, mode=mode, lang=server_lang)
             await interaction.followup.send(embed=embed)
         except Exception as e:
@@ -499,6 +501,13 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
 
             target_list = filtered[:1]
             await self.bot.osu_service.enrich_scores_with_attributes(target_list, mode=mode)
+            if hasattr(self.bot.osu_service, "enrich_scores_with_pp"):
+                await self.bot.osu_service.enrich_scores_with_pp(target_list, mode=mode, max_maps=1)
+
+            bm0 = (target_list[0].get("beatmap") or {}) if target_list else {}
+            if bm0.get("id") and interaction.channel_id and hasattr(self.bot.osu_service, "remember_channel_map"):
+                self.bot.osu_service.remember_channel_map(interaction.channel_id, int(bm0["id"]), mode)
+
             embed = OsuPresenter.build_recent_card(
                 user.get("username", uname),
                 mode,
@@ -569,6 +578,8 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 )
 
             await self.bot.osu_service.enrich_scores_with_attributes(filtered_best[:5], mode=mode)
+            if hasattr(self.bot.osu_service, "enrich_scores_with_pp"):
+                await self.bot.osu_service.enrich_scores_with_pp(filtered_best[:5], mode=mode, max_maps=5)
             embed = OsuPresenter.build_top_card(
                 user.get("username", uname),
                 mode,
@@ -587,6 +598,78 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
         except Exception as e:
             logger.error(f"Error en /top: {e}")
             await interaction.followup.send(f"{DaletAtoms.GLYPH_POINTER} error obteniendo top plays.", ephemeral=True)
+
+    @app_commands.command(name="map", description="Displays beatmap info, mod-adjusted difficulty stats, and PP table (95/98/99/100%).")
+    @app_commands.describe(
+        query="Beatmap URL, ID, or search keywords (leave empty for last beatmap shown in channel)",
+        mods="Optional mods to simulate (e.g. HDDT, HR, HDHR, DT)",
+        mode="Optional game mode conversion",
+    )
+    @app_commands.choices(
+        mode=[
+            app_commands.Choice(name="Auto / Beatmap Default", value="auto"),
+            app_commands.Choice(name="osu!standard", value="osu"),
+            app_commands.Choice(name="osu!taiko",    value="taiko"),
+            app_commands.Choice(name="osu!catch",    value="fruits"),
+            app_commands.Choice(name="osu!mania",    value="mania"),
+        ]
+    )
+    async def slash_map(
+        self,
+        interaction: discord.Interaction,
+        query: str = None,
+        mods: str = None,
+        mode: str = "auto",
+    ):
+        await interaction.response.defer()
+        server_lang = await self._resolve_lang(interaction)
+
+        q_clean, q_mods, q_mode = OsuService.parse_map_args(query)
+        mods_list = list(dict.fromkeys((OsuService._clean_rosu_mods(mods) if mods else []) + q_mods))
+        mode_override = None if mode == "auto" else mode
+        mode_override = q_mode or mode_override
+
+        preferred_id = None
+        fallback_mode = "osu"
+        if not q_clean:
+            recent_ctx = (
+                self.bot.osu_service.get_channel_map(interaction.channel_id)
+                if interaction.channel_id and hasattr(self.bot.osu_service, "get_channel_map")
+                else None
+            )
+            if not recent_ctx:
+                return await interaction.followup.send(t("osu.map_no_recent", server_lang), ephemeral=True)
+            preferred_id, fallback_mode = recent_ctx
+
+        mode_hint = mode_override or fallback_mode
+        try:
+            resolved = await self.bot.osu_service.resolve_beatmap(
+                query=q_clean or None,
+                preferred_id=preferred_id,
+                mode_hint=mode_hint,
+            )
+            if not resolved or not resolved.get("beatmap"):
+                return await interaction.followup.send(t("osu.map_not_found", server_lang), ephemeral=True)
+
+            bm = resolved["beatmap"]
+            eff_mode = mode_override or resolved.get("mode") or bm.get("mode") or "osu"
+            bm_id = int(bm.get("id") or 0)
+            pp_table = await self.bot.osu_service.simulate_map_pp_table(bm_id, mode=eff_mode, mods=mods_list) if bm_id else {}
+
+            if bm_id and interaction.channel_id and hasattr(self.bot.osu_service, "remember_channel_map"):
+                self.bot.osu_service.remember_channel_map(interaction.channel_id, bm_id, eff_mode)
+
+            embed = OsuPresenter.build_map_card(
+                bm,
+                pp_table=pp_table,
+                mode=eff_mode,
+                mods=mods_list,
+                lang=server_lang,
+            )
+            await interaction.followup.send(embed=embed)
+        except Exception as e:
+            logger.error(f"Error en /map: {e}", exc_info=True)
+            await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} error consultando el beatmap.", ephemeral=True)
 
     @app_commands.command(name="skills", description="5-dimension osu! skill radar (Aim, Speed, Acc, Stamina, Reading) with Dalet's verdict.")
     @app_commands.describe(

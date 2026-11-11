@@ -22,12 +22,13 @@ BANNER_FILE_PATH = "assets/bannersito.png"
 SLASH_CATEGORIES_ES = {
     "osu!": {
         "color": discord.Color.from_rgb(255, 94, 158),  # #FF5E9E Rosa osu!
-        "card_desc": "Bancho, Akatsuki & Gatari.\n`/op` `/recent` `/top`",
+        "card_desc": "Bancho, Akatsuki & Gatari.\n`/op` `/recent` `/top` `/map`",
         "subtitle": "Estadísticas multi-servidor (Bancho, Akatsuki Vanilla/Relax, Gatari) y 4 modos (`-std`, `-mania`, `-taiko`, `-ctb`).",
         "commands": [
             ("/op",               "Perfil general, rango y PP (`d.op`, `d.opm`, `d.opt`, `d.opc`, `-aka`, `-rx`, `-gatari`)"),
-            ("/recent",           "Última jugada (`d.rs`, `d.rsm`, `d.rp`, `best`, `pass`, `+mods`, `-aka`, `-rx`, `-gatari`)"),
-            ("/top",              "Top 5 plays (`d.top`, `d.topm`, `d.rb`, `acc`, `+mods`, `-aka`, `-rx`, `-gatari`)"),
+            ("/recent",           "Última jugada con PP en fail e `if FC` (`d.rs`, `d.rsm`, `d.rp`, `best`, `pass`, `+mods`, `-aka`, `-rx`, `-gatari`)"),
+            ("/top",              "Top 5 plays con `if FC` (`d.top`, `d.topm`, `d.rb`, `acc`, `+mods`, `-aka`, `-rx`, `-gatari`)"),
+            ("/map",              "Info técnica de beatmap + tabla PP `95/98/99/100%` (`d.m [link/ID/búsqueda] [+mods] [-modo]`)"),
             ("/skills",           "Radar 5D y veredicto consciente de nivel (`APEX`, `ALL-ROUNDER`, `SPECIALIST`, `+mods`)"),
             ("/compare",          "Comparativa Head-to-Head y duelo de mapas en común (`d.compare`, `-aka`, `-rx`, `-gatari`)"),
             ("/progress",         "Gráfico histórico de progreso de PP (`d.prog`)"),
@@ -111,12 +112,13 @@ SLASH_CATEGORIES_ES = {
 SLASH_CATEGORIES_EN = {
     "osu!": {
         "color": discord.Color.from_rgb(255, 94, 158),  # #FF5E9E osu! Pink
-        "card_desc": "Bancho, Akatsuki & Gatari.\n`/op` `/recent` `/top`",
+        "card_desc": "Bancho, Akatsuki & Gatari.\n`/op` `/recent` `/top` `/map`",
         "subtitle": "Multi-server stats (Bancho, Akatsuki Vanilla/Relax, Gatari) across all 4 game modes (`-std`, `-mania`, `-taiko`, `-ctb`).",
         "commands": [
             ("/op",               "Profile card, rank, and PP (`d.op`, `d.opm`, `d.opt`, `d.opc`, `-aka`, `-rx`, `-gatari`)"),
-            ("/recent",           "Recent play (`d.rs`, `d.rsm`, `d.rp`, `best`, `pass`, `+mods`, `-aka`, `-rx`, `-gatari`)"),
-            ("/top",              "Top 5 scores (`d.top`, `d.topm`, `d.rb`, `acc`, `+mods`, `-aka`, `-rx`, `-gatari`)"),
+            ("/recent",           "Recent play with Fail PP & `if FC` (`d.rs`, `d.rsm`, `d.rp`, `best`, `pass`, `+mods`, `-aka`, `-rx`, `-gatari`)"),
+            ("/top",              "Top 5 scores with `if FC` (`d.top`, `d.topm`, `d.rb`, `acc`, `+mods`, `-aka`, `-rx`, `-gatari`)"),
+            ("/map",              "Beatmap info & `95/98/99/100%` PP table (`d.m [link/ID/query] [+mods] [-mode]`)"),
             ("/skills",           "5D skill radar and level-aware verdict (`APEX`, `ALL-ROUNDER`, `SPECIALIST`, `+mods`)"),
             ("/compare",          "Head-to-head comparison and shared top map duels (`d.compare`, `-aka`, `-rx`, `-gatari`)"),
             ("/progress",         "Historical PP progress chart (`d.prog`)"),

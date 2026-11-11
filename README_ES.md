@@ -53,8 +53,9 @@ Evalúa los mejores 50 a 100 puntajes de un jugador mediante heurísticas estad�
 - **Veredicto de Dalet**: Un roast sarcástico y directo de 2 líneas que desglosa debilidades y manías del jugador.
 
 ### Tarjetas Principales
-- **`/recent` (`d.rs` / `d.rp` / `d.recent` / `d.or`)**: Tarjeta densa de jugada reciente con filtros (`last`, `best` en 24h, `pass`, `+mods`), estrellas, impactos detallados `[300/100/50/Miss]`, PP, combo y estadísticas del mapa (`AR`, `OD`, `HP`, `CS`, `BPM`, `Tiempo`).
-- **`/top` (`d.top` / `d.rb`)**: Las 5 mejores jugadas registradas con filtros de ordenamiento (`pp`, `recent` / *Recent Best*, `acc`, `+mods`), banderas de país y PP Ponderado matemáticamente verificado.
+- **`/recent` (`d.rs` / `d.rp` / `d.recent` / `d.or`)**: Tarjeta densa de jugada reciente con motor `rosu-pp` para PP real en fails (`passed_objects`), proyección `if FC`, filtros (`last`, `best` en 24h, `pass`, `+mods`), impactos `[300/100/50/Miss]`, combo y atributos del mapa escalados a mods (`AR`, `OD`, `HP`, `CS`, `BPM`, `Tiempo`).
+- **`/top` (`d.top` / `d.rb`)**: Las 5 mejores jugadas con `if FC` en cada choke/miss, filtros (`pp`, `recent` / *Recent Best*, `acc`, `+mods`), banderas y PP Ponderado matemáticamente verificado.
+- **`/map` (`d.m` / `d.map`)**: Ficha técnica de beatmap bajo invocación explícita con `SR`, `AR/OD/HP/CS`, `BPM`, conteo de objetos y tabla de PP (`95% / 98% / 99% / 100% SS`) con soporte de links, IDs, búsqueda, `+mods` o último mapa visto en el canal.
 - **`/op` (`d.op`)**: Perfil completo de osu! con **Récord Máximo Histórico** (`Peak Rank #N`), rango global/nacional, **Combo Máximo**, **Ranked Score**, barra de progreso y conteo de récords (`SS`, `S`, `A`).
 - **`/compare`**: Duelo cara a cara entre dos jugadores con estadísticas comparadas, **duelo de mapas en común en el Top** y veredicto con IA.
 - **`/progress` (`d.prog`)**: Gráfico histórico de progreso de PP a lo largo del tiempo con diseño tipográfico y sin emojis.
@@ -121,8 +122,9 @@ Dalet es compatible tanto con comandos de barra diagonal (`/`) de Discord como c
 | Comando | Tipo | Descripción |
 | :--- | :--- | :--- |
 | `/skills [usuario] [modo] [mods] [server]` | Slash / `d.skills` | Desglose de habilidades 5D (Aim, Speed, Acc, Stamina, Reading) con veredicto consciente de nivel (`APEX`, `ALL-ROUNDER`, `SPECIALIST`) |
-| `/recent [usuario] [modo] [filtro] [mods] [server]` | Slash / `d.rs`, `d.rsm`, `d.rp`, `d.or` | Muestra tu jugada reciente con filtros (`last`, `best` 24h, `pass`, `+mods`, `-aka`, `-rx`, `-gatari`) |
-| `/top [usuario] [modo] [filtro] [mods] [server]` | Slash / `d.top`, `d.topm`, `d.rb` | Muestra tu Top 5 ordenado por `pp`, `recent` (*Recent Best*), `acc`, `+mods` o servidor (`-aka`, `-rx`, `-gatari`) |
+| `/recent [usuario] [modo] [filtro] [mods] [server]` | Slash / `d.rs`, `d.rsm`, `d.rp`, `d.or` | Muestra tu jugada reciente con PP en fails, `if FC` y filtros (`last`, `best` 24h, `pass`, `+mods`, `-aka`, `-rx`, `-gatari`) |
+| `/top [usuario] [modo] [filtro] [mods] [server]` | Slash / `d.top`, `d.topm`, `d.rb` | Muestra tu Top 5 con `if FC`, ordenado por `pp`, `recent` (*Recent Best*), `acc`, `+mods` o servidor |
+| `/map [búsqueda] [mods] [modo]` | Slash / `d.m`, `d.map`, `d.bm` | Info técnica de beatmap (`SR`, `AR/OD/HP/CS`, `BPM`) y tabla PP `95/98/99/100%` (link, ID, nombre o último mapa del canal) |
 | `/op [usuario] [modo] [server]` | Slash / `d.op`, `d.opm`, `d.opt`, `d.opc` | Muestra el perfil completo de osu!, rango, Peak Rank, precisión e historial de notas |
 | `/compare <user1> [user2] [modo] [server]` | Slash / `d.compare` | Compara estadísticas cara a cara con duelo de mapas en común y veredicto IA |
 | `/progress [usuario]` | Slash / `d.prog` | Muestra el gráfico histórico de progreso de PP y delta |

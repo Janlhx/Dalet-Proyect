@@ -53,8 +53,9 @@ Evaluates a player's top 50/100 plays through mathematical heuristics with PP an
 - **Dalet's Verdict**: A sharp, 2-line AI roast dissecting player imbalances and choke habits.
 
 ### Core Cards
-- **`/recent` (`d.rs` / `d.rp` / `d.recent` / `d.or`)**: High-density recent play card with filters (`last`, `best` in 24h, `pass` only, `+mods`), stars, detailed hits `[300/100/50/Miss]`, PP, combo, and technical map stats (`AR`, `OD`, `HP`, `CS`, `BPM`, `Length`).
-- **`/top` (`d.top` / `d.rb`)**: Top 5 ranked scores with sorting/filter modes (`pp`, `recent` / *Recent Best*, `acc`, `+mods`), country badges, and mathematically verified Weighted PP.
+- **`/recent` (`d.rs` / `d.rp` / `d.recent` / `d.or`)**: High-density recent play card with `rosu-pp` Fail PP (`passed_objects`), inline `if FC` simulation, filters (`last`, `best` in 24h, `pass` only, `+mods`), detailed hits `[300/100/50/Miss]`, combo, and mod-adjusted map stats (`AR`, `OD`, `HP`, `CS`, `BPM`, `Length`).
+- **`/top` (`d.top` / `d.rb`)**: Top 5 ranked scores with inline `if FC` PP estimates on chokes, sorting/filter modes (`pp`, `recent` / *Recent Best*, `acc`, `+mods`), country badges, and mathematically verified Weighted PP.
+- **`/map` (`d.m` / `d.map`)**: Explicit beatmap info card showing mod-adjusted `SR`, `AR/OD/HP/CS`, `BPM`, object counts, and a `95% / 98% / 99% / 100% SS` PP table (supports links, IDs, text queries, `+mods`, or channel context fallback).
 - **`/op` (`d.op`)**: Full user profile overview with **Peak Rank** (`#N`), global/country rank, **Max Combo**, **Ranked Score**, progress bar, and grade counts (`SS`, `S`, `A`).
 - **`/compare`**: Direct head-to-head comparison between two players displaying PP differentials, stat leads, **shared top map duels**, and Dalet's AI duel verdict.
 - **`/progress` (`d.prog`)**: Historical PP progress chart tracking growth over time with clean typographic styling and zero emojis.
@@ -164,8 +165,9 @@ Dalet supports both native Discord Slash Commands (`/`) and the traditional `d.`
 | Command | Type | Description |
 | :--- | :--- | :--- |
 | `/skills [user] [mode] [mods] [server]` | Slash / `d.skills` | 5-dimension skill breakdown (`Aim`, `Speed`, `Acc`, `Stamina`, `Reading`) with level-aware AI verdict (`APEX`, `ALL-ROUNDER`, `SPECIALIST`) |
-| `/recent [user] [mode] [filter] [mods] [server]` | Slash / `d.rs`, `d.rsm`, `d.rp`, `d.or` | Displays latest play with filters (`last`, `best` in 24h, `pass` only, `+mods`, `-aka`, `-rx`, `-gatari`) |
-| `/top [user] [mode] [filter] [mods] [server]` | Slash / `d.top`, `d.topm`, `d.rb` | Shows top 5 scores sorted by `pp`, `recent` (*Recent Best*), `acc`, `+mods`, or server (`-aka`, `-rx`, `-gatari`) |
+| `/recent [user] [mode] [filter] [mods] [server]` | Slash / `d.rs`, `d.rsm`, `d.rp`, `d.or` | Displays latest play with Fail PP & `if FC` simulation, plus filters (`last`, `best` in 24h, `pass`, `+mods`, `-aka`, `-rx`, `-gatari`) |
+| `/top [user] [mode] [filter] [mods] [server]` | Slash / `d.top`, `d.topm`, `d.rb` | Shows top 5 scores with inline `if FC` PP, sorted by `pp`, `recent` (*Recent Best*), `acc`, `+mods`, or server |
+| `/map [query] [mods] [mode]` | Slash / `d.m`, `d.map`, `d.bm` | Beatmap technical stats (`SR`, `AR/OD/HP/CS`, `BPM`) and `95/98/99/100%` PP table (`+mods`, link/ID/query or last map in channel) |
 | `/op [user] [mode] [server]` | Slash / `d.op`, `d.opm`, `d.opt`, `d.opc` | Displays complete osu! profile, rank, peak rank, accuracy, and grade history |
 | `/compare <user1> [user2] [mode] [server]` | Slash / `d.compare` | Compares stats head-to-head with shared top map duels and AI duel verdict |
 | `/progress [user]` | Slash / `d.prog` | Displays historical PP progress chart and delta |

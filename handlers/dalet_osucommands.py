@@ -7,7 +7,7 @@ from discord.ext import commands
 
 from ui.atoms import DaletAtoms
 from ui.locales import t
-from services.osu_service import OsuUserNotFoundError
+from services.osu_service import OsuService, OsuUserNotFoundError
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
 from handlers.dalet_osu_presenter import OsuPresenter
 
@@ -484,6 +484,12 @@ class OsuHandler(commands.Cog, name="osu!"):
 
             target_list = filtered[:1]
             await self.osu.enrich_scores_with_attributes(target_list, mode=mode)
+            if hasattr(self.osu, "enrich_scores_with_pp"):
+                await self.osu.enrich_scores_with_pp(target_list, mode=mode, max_maps=1)
+
+            bm0 = (target_list[0].get("beatmap") or {}) if target_list else {}
+            if bm0.get("id") and hasattr(self.osu, "remember_channel_map"):
+                self.osu.remember_channel_map(ctx.channel.id, int(bm0["id"]), mode)
 
             embed = OsuPresenter.build_recent_card(
                 user.get("username", username),
@@ -556,6 +562,8 @@ class OsuHandler(commands.Cog, name="osu!"):
                 )
 
             await self.osu.enrich_scores_with_attributes(filtered_best[:5], mode=mode)
+            if hasattr(self.osu, "enrich_scores_with_pp"):
+                await self.osu.enrich_scores_with_pp(filtered_best[:5], mode=mode, max_maps=5)
 
             embed = OsuPresenter.build_top_card(
                 user,
@@ -880,6 +888,8 @@ class OsuHandler(commands.Cog, name="osu!"):
                 )
 
             await self.osu.enrich_scores_with_attributes(firsts[:10], mode=mode)
+            if hasattr(self.osu, "enrich_scores_with_pp"):
+                await self.osu.enrich_scores_with_pp(firsts[:10], mode=mode, max_maps=10)
             embed = OsuPresenter.build_firsts_card(user.get("username", username), firsts, user_data=user, mode=mode, lang=server_lang)
             await ctx.send(embed=embed)
 
@@ -975,6 +985,57 @@ class OsuHandler(commands.Cog, name="osu!"):
         except Exception as e:
             logger.error(f"Error en d.skills para {username}: {e}", exc_info=True)
             await ctx.send(f"{DaletAtoms.GLYPH_POINTER} error calculando el desglose de habilidades.")
+
+    # ------------------------------------------------------------------
+    # d.m / d.map — Ficha técnica de beatmap + simulación PP (bajo invocación)
+    # ------------------------------------------------------------------
+
+    @commands.command(name="m", aliases=["map", "beatmap", "bm"])
+    async def osu_map(self, ctx, *, args: str = None):
+        """Muestra info detallada de un beatmap y tabla de PP (+mods, -modo, link/ID o búsqueda)."""
+        server_lang = await self._resolve_lang(ctx)
+        query_text, mods_list, mode_override = OsuService.parse_map_args(args)
+
+        preferred_id = None
+        fallback_mode = "osu"
+        if not query_text:
+            recent_ctx = self.osu.get_channel_map(ctx.channel.id) if hasattr(self.osu, "get_channel_map") else None
+            if not recent_ctx:
+                return await ctx.send(t("osu.map_no_recent", server_lang))
+            preferred_id, fallback_mode = recent_ctx
+
+        mode_hint = mode_override or fallback_mode
+
+        try:
+            async with ctx.typing():
+                resolved = await self.osu.resolve_beatmap(
+                    query=query_text or None,
+                    preferred_id=preferred_id,
+                    mode_hint=mode_hint,
+                )
+                if not resolved or not resolved.get("beatmap"):
+                    return await ctx.send(t("osu.map_not_found", server_lang))
+
+                bm = resolved["beatmap"]
+                eff_mode = mode_override or resolved.get("mode") or bm.get("mode") or "osu"
+                bm_id = int(bm.get("id") or 0)
+                pp_table = await self.osu.simulate_map_pp_table(bm_id, mode=eff_mode, mods=mods_list) if bm_id else {}
+
+                if bm_id and hasattr(self.osu, "remember_channel_map"):
+                    self.osu.remember_channel_map(ctx.channel.id, bm_id, eff_mode)
+
+            embed = OsuPresenter.build_map_card(
+                bm,
+                pp_table=pp_table,
+                mode=eff_mode,
+                mods=mods_list,
+                lang=server_lang,
+            )
+            await ctx.send(embed=embed)
+
+        except Exception as e:
+            logger.error(f"Error en d.m ({args}): {e}", exc_info=True)
+            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} error consultando el beatmap.")
 
 
 async def setup(bot):
