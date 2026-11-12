@@ -249,6 +249,18 @@ class SQLiteManager:
                 CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """,
+            # Memoria ligera de servidor / chistes locales / memes recurrentes ($0 IA cost)
+            """
+            CREATE TABLE IF NOT EXISTS GuildCommunityLore (
+                LoreID INTEGER PRIMARY KEY AUTOINCREMENT,
+                ServerID INTEGER NOT NULL,
+                Topic TEXT NOT NULL,
+                LoreSummary TEXT NOT NULL,
+                MentionCount INTEGER DEFAULT 1,
+                LastSeen DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(ServerID, Topic)
+            )
+            """,
             # Índices de rendimiento para consultas concurrentes de contexto y telemetría
             "CREATE INDEX IF NOT EXISTS idx_msg_channel ON Messages(ChannelID)",
             "CREATE INDEX IF NOT EXISTS idx_msg_timestamp ON Messages(Timestamp DESC)",
@@ -262,6 +274,7 @@ class SQLiteManager:
             "CREATE INDEX IF NOT EXISTS idx_modactions_user ON ModActions(UserID, OccurredAt DESC)",
             "CREATE INDEX IF NOT EXISTS idx_usermemories_user ON UserMemories(UserID, Timestamp DESC)",
             "CREATE INDEX IF NOT EXISTS idx_mod_imagehash ON ModImageHashes(ImageHash)",
+            "CREATE INDEX IF NOT EXISTS idx_guild_lore_server ON GuildCommunityLore(ServerID, Topic)",
         ]
 
         try:

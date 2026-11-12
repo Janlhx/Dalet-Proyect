@@ -187,6 +187,44 @@ class TestAIGuardrails(unittest.TestCase):
         calls = NLPService._extract_xml_tool_calls(raw)
         self.assertEqual(calls, [])
 
+    def test_system_prompt_origin_lore_and_anti_tech_leak(self):
+        """Verifica que el prompt contenga la consciencia del creador Litxe (Ciencia de Datos e IA) sin filtraciones técnicas."""
+        nlp = NLPService()
+        prompt_es = nlp._get_system_prompt(bot_name="Dalet", language="es")
+        self.assertIn("Litxe", prompt_es)
+        self.assertIn("Ciencia de Datos e Inteligencia Artificial", prompt_es)
+        self.assertIn("CERO RECITACIÓN", prompt_es)
+        self.assertIn("JAMÁS menciones nombres de modelos de IA", prompt_es)
+
+        prompt_en = nlp._get_system_prompt(bot_name="Dalet", language="en")
+        self.assertIn("Litxe", prompt_en)
+        self.assertIn("Data Science and Artificial Intelligence Engineering", prompt_en)
+        self.assertIn("QUIET AWARENESS", prompt_en)
+        self.assertIn("NEVER dump unrequested bios", prompt_en)
+
+    def test_context_guardrail_multiuser_speaker_attribution_and_gender(self):
+        """Verifica que context_guardrail instruya la atribución estricta entre hablantes y la concordancia de género."""
+        nlp = NLPService()
+        formatted = nlp._format_user_prompt_with_context(
+            trigger="dalet te quiero",
+            context="[Participante: Litxe]: dalet te quiero\n[Participante: cnchamster (habla ahora)]: pero no me dejes hablando sola",
+            username="cnchamster",
+            language="es"
+        )
+        self.assertIn("ATRIBUCIÓN ESTRICTA DE PARTICIPANTES EN EL HISTORIAL", formatted)
+        self.assertIn("Son participantes distintos en la misma sala", formatted)
+        self.assertIn("CONCORDANCIA DE GÉNERO CON cnchamster", formatted)
+        self.assertIn("trátala siempre en femenino", formatted)
+
+    def test_system_prompt_anti_cruelty_and_natural_banter(self):
+        """Verifica que el prompt instruya naturalidad orgánica de Discord ante afecto y proyectos comunitarios."""
+        nlp = NLPService()
+        prompt_es = nlp._get_system_prompt(bot_name="Dalet", language="es")
+        self.assertIn("REACCIÓN NATURAL ANTE AFECTO O CUMPLIDOS", prompt_es)
+        self.assertIn("CERO crueldad ni rechazo humillante", prompt_es)
+        self.assertIn("ANTE DETALLES CREATIVOS DE LA COMUNIDAD", prompt_es)
+        self.assertIn("kerning", prompt_es)
+
 
 if __name__ == '__main__':
     unittest.main()

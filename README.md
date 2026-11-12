@@ -68,15 +68,16 @@ Evaluates a player's top 50/100 plays through mathematical heuristics with PP an
 
 ## Conversational Brain and Cognitive Memory
 
-Dalet features a distinctive persona providing direct, witty, and contextual dialogue rather than generic assistant responses.
+Dalet features an authentic Discord persona: sharp, witty, conversational, and direct, staying far away from generic corporate sycophancy and shallow anime tropes. She acts like a genuine community peer with dry humor, no unprovoked cruelty, stylish acceptance of genuine praise, and a quiet awareness of her canon origin (created by Litxe, a Data Science & AI Engineering student).
 
-### L0–L3 Semantic Pyramid, `PersonaInsights` & TypeSafe Jev Routing
+### L0–L3 Semantic Pyramid, `GuildCommunityLore`, `PersonaInsights` & TypeSafe Jev Routing
 - **System 1 Cognitive Gating**: Uses **TypeSafe Jev** to evaluate in milliseconds whether an incoming message requires deep memory retrieval, classify social sentiment, and gate background reflection — saving over 75% of unnecessary LLM calls.
-- **4-Tier Memory Hierarchy & Self-Calibration**:
-  - **L0 (Working Buffer)**: Immediate in-RAM channel context with strict speaker attribution.
+- **Hierarchical Memory & Self-Calibration ($0 Overhead)**:
+  - **L0 (Working Buffer)**: Immediate in-RAM channel context with **strict participant attribution** (`[Participante: X (habla ahora)]`) to prevent multi-user misattribution, plus dynamic grammatical gender matching.
   - **L1 (Episodic Memory)**: Specific interactions (`UserMessage` + `DaletThought`) with strict relevance gating, ranked by exponential time decay and importance.
-  - **L2 (Social Graph)**: Cross-user relationship dynamics and inside jokes (`user_a` ↔ `user_b`) with a 14-day temporal decay window to keep social context fresh.
+  - **L2 (Social Graph & Active Scenario)**: Active scenarios and cross-user dynamics with a 14-day temporal decay window.
   - **L3 (Semantic Dossier)**: Consolidated psychological profile per user, automatically synthesized as episodes accumulate.
+  - **GuildCommunityLore (Lightweight Server Memory)**: Atomic SQLite/Turso persistence for recurring memes, local nicknames, and community lore with $O(1)$ in-memory caching.
   - **Self-Calibration (`PersonaInsights`)**: Single-pass background distillation that continuously refines Dalet's conversational timing, sarcasm balance, and social awareness per guild without extra LLM calls.
 - **Proactive Mode & Native Emoji Reactions**: When `/proactive` is enabled in a channel, Dalet evaluates conversations every few meaningful messages and autonomously chooses whether to drop a 1-line quip, react with an emoji (`[REACTION: 💀]`, subject to a 180s per-channel cooldown), or stay silent (`[PASS]`).
 

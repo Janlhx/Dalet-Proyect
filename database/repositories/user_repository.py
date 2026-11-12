@@ -475,3 +475,42 @@ class UserRepository(BaseRepository):
                 "avg_len": result['avg_len'] or 0.0
             }
         return {"total_messages": 0, "days_active": 0, "avg_len": 0.0}
+
+    async def get_guild_lore(self, server_id: int, limit: int = 15) -> list[dict]:
+        """Obtiene el lore y memes recurrentes de la comunidad con caché en memoria (O(1))."""
+        cache_key = f"guild_lore_{server_id}"
+        if cache_key in self._cache:
+            entry = self._cache[cache_key]
+            if time.time() - entry.get("ts", 0) < self._cache_ttl:
+                return entry.get("data", [])
+
+        query = """
+            SELECT Topic, LoreSummary, MentionCount, LastSeen
+            FROM GuildCommunityLore
+            WHERE ServerID = ?
+            ORDER BY MentionCount DESC, LastSeen DESC
+            LIMIT ?
+        """
+        rows = await SQLiteManager.fetch_all(query, server_id, limit)
+        results = [dict(row) for row in rows] if rows else []
+        self._cache[cache_key] = {"ts": time.time(), "data": results}
+        return results
+
+    async def record_guild_lore(self, server_id: int, topic: str, summary: str) -> bool:
+        """Registra o actualiza un meme, apodo o chiste local recurrente del servidor."""
+        clean_topic = topic.strip().lower()
+        if not clean_topic or not summary.strip():
+            return False
+
+        query = """
+            INSERT INTO GuildCommunityLore (ServerID, Topic, LoreSummary, MentionCount, LastSeen)
+            VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
+            ON CONFLICT(ServerID, Topic) DO UPDATE SET
+                LoreSummary = excluded.LoreSummary,
+                MentionCount = GuildCommunityLore.MentionCount + 1,
+                LastSeen = CURRENT_TIMESTAMP
+        """
+        await SQLiteManager.execute(query, server_id, clean_topic, summary.strip())
+        cache_key = f"guild_lore_{server_id}"
+        self._cache.pop(cache_key, None)
+        return True

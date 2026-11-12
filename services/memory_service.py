@@ -150,6 +150,7 @@ class MemoryService:
         bot_id: int = None,
         bot_name: str = "Dalet",
         user_name: str = "Usuario",
+        server_id: int = None,
     ) -> str:
         """
         Construye el contexto de conversación Top-Down usando la Pirámide Semántica:
@@ -180,7 +181,12 @@ class MemoryService:
                     elif usr.lower() in ("dalet", (bot_name or "").lower()):
                         is_bot = True
 
-                    author_tag = f"Tú ({bot_name})" if is_bot else usr
+                    if is_bot:
+                        author_tag = f"Tú ({bot_name})"
+                    elif rec_uid and user_id and rec_uid == user_id:
+                        author_tag = f"{usr} (habla ahora)"
+                    else:
+                        author_tag = usr
                     history_section.append(f"{author_tag}: {cnt}")
         except Exception as e:
             logger.error(f"Error obteniendo historial L0: {e}")
@@ -286,6 +292,29 @@ class MemoryService:
 
         # Construir contexto final con directiva estricta anti-repetición
         final_parts = []
+
+        # 2d. Inyectar Memoria Ligera de Servidor (GuildCommunityLore - $0 Costo Extra)
+        if server_id and hasattr(self.repo, "get_guild_lore"):
+            try:
+                server_lores = await self.repo.get_guild_lore(server_id)
+                if server_lores:
+                    msg_words = _extract_meaningful_words(current_message)
+                    matched_lore = []
+                    for item in server_lores:
+                        t = (item.get("Topic") or "").strip()
+                        s = (item.get("LoreSummary") or "").strip()
+                        if not t or not s:
+                            continue
+                        topic_words = _extract_meaningful_words(f"{t} {s}")
+                        if topic_words & msg_words:
+                            matched_lore.append(f"• [{t}]: {s}")
+                    if matched_lore:
+                        final_parts.append(
+                            "[MEMORIA Y MEMES DEL SERVIDOR (Contexto Comunitario)]:\n"
+                            + "\n".join(matched_lore[:2])
+                        )
+            except Exception as e:
+                logger.debug(f"Error consultando GuildCommunityLore: {e}")
 
         # 2c. Inyectar reglas globales de auto-calibración de personalidad aprendidas por Dalet
         try:

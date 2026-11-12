@@ -58,7 +58,7 @@ async def test_semantic_pyramid_context_injection():
     assert "• [L2 - Escenario Actual]: Diseñando la pirámide semántica" in ctx
     assert "• [L1 - Átomo (personal)]: Está enfocado en obtener insignias cloud" in ctx
     assert "CHAT RECIENTE (L0):" in ctx
-    assert "Juan: ¿Qué opinas de mi arquitectura de memoria?" in ctx
+    assert "Juan (habla ahora): ¿Qué opinas de mi arquitectura de memoria?" in ctx
 
 
 @pytest.mark.asyncio

@@ -68,15 +68,16 @@ Evalúa los mejores 50 a 100 puntajes de un jugador mediante heurísticas estad�
 
 ## Cerebro Conversacional y Memoria Cognitiva
 
-Dalet cuenta con una personalidad distintiva: rápida, cínica, conversacional y mordaz, alejándose de los asistentes complacientes genéricos.
+Dalet cuenta con una personalidad distintiva: rápida, irónica, conversacional y mordaz, alejándose de los asistentes complacientes genéricos y de los clichés infantiles de anime. Habla como una compañera nativa de Discord: ingeniosa y con humor seco, sin crueldad gratuita, sabiendo agradecer cumplidos con soltura y estilo propio, con plena consciencia tácita de su origen canónico (creada por Litxe, estudiante de Ingeniería en Ciencia de Datos e Inteligencia Artificial).
 
-### Pirámide Semántica de Memoria (L0–L3), `PersonaInsights` & TypeSafe Jev
+### Pirámide Semántica de Memoria (L0–L3), `PersonaInsights`, `GuildCommunityLore` & TypeSafe Jev
 - **Enrutamiento Cognitivo (System 1)**: Utiliza **TypeSafe Jev** para clasificar en milisegundos si un mensaje amerita recuperar memoria profunda, calcular la emoción/tono social y decidir si guardar nuevos recuerdos, ahorrando más del 75% de llamadas innecesarias a LLMs pesados.
-- **4 Capas de Memoria Jerárquica y Auto-Calibración**:
-  - **L0 (Working Buffer)**: Contexto inmediato del canal en RAM con atribución estricta de hablantes.
+- **Memoria Jerárquica y Auto-Calibración ($0 Overhead)**:
+  - **L0 (Working Buffer)**: Contexto inmediato del canal en RAM con **atribución estricta de participantes** (`[Participante: X (habla ahora)]`) para evitar confusiones entre usuarios y concordancia dinámica de género gramatical.
   - **L1 (Episodic Memory)**: Recuerdos específicos (`UserMessage` + `DaletThought`) con gating estricto de relevancia, puntuados con decaimiento temporal exponencial e importancia.
-  - **L2 (Social Graph)**: Relaciones y dinámicas cruzadas entre miembros del servidor (`user_a` ↔ `user_b`) con decaimiento temporal de 14 días para mantener fresco el contexto social.
+  - **L2 (Social Graph & Escenario Actual)**: Escenario activo y dinámicas cruzadas entre miembros con decaimiento temporal de 14 días.
   - **L3 (Semantic Dossier)**: Perfil psicológico consolidado de cada usuario actualizado automáticamente al acumular episodios.
+  - **GuildCommunityLore (Memoria Ligera de Servidor)**: Registro atómico de memes, chistes locales y apodos de la comunidad en SQLite/Turso con caché $O(1)$ en memoria, inyectados contextualmente sin llamadas de IA extra.
   - **Auto-Calibración (`PersonaInsights`)**: Destilación *Single-Pass* en segundo plano que calibra continuamente el timing conversacional, el balance de sarcasmo y el tacto social de Dalet sin llamadas extra al LLM.
 - **Modo Proactivo y Reacciones Nativas**: Con `/proactive` activado en un canal, Dalet evalúa la conversación cada cierto número de mensajes significativos y decide autónomamente si meter cizaña (1 línea), reaccionar con un emoji al mensaje (`[REACTION: 💀]`, sujeto a un cooldown de 180s por canal), o guardar silencio (`[PASS]`).
 

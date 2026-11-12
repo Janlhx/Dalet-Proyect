@@ -508,6 +508,7 @@ class DaletNLPChat(commands.Cog):
                 clean_content = clean_content[:400] + "..."
 
             # Obtener contexto de conversación del canal (solo inyectar memorias personales en mención directa)
+            server_id = message.guild.id if message.guild else None
             context = await self.bot.memory_service.get_relevant_context(
                 message.channel.id,
                 message.author.id,
@@ -516,6 +517,7 @@ class DaletNLPChat(commands.Cog):
                 bot_id=self.bot.user.id if self.bot.user else None,
                 bot_name=bot_name,
                 user_name=message.author.display_name,
+                server_id=server_id,
             )
 
             if ref_summary:

@@ -15,11 +15,12 @@ class ChangelogService:
     BASE_VERSION = "v4.0"
     # Commit base del hito v4.0 (Pirámide Semántica L0-L3, DeepSeek Web Search/Fetch, Proactive AI & SHA-256 Guard)
     BASE_MILESTONE_COMMIT = "4815b25"
-    FALLBACK_PATCH = 10
+    FALLBACK_PATCH = 11
     REPO_URL = "https://github.com/Janlhx/Dalet-Proyect"
 
     _FALLBACK_COMMITS = [
-        ("HEAD", "feat(osu,compare): add d.c / /compare beatmap score comparison with Bathbot/owo embed detection and /usercompare", "✦"),
+        ("HEAD", "feat(persona,memory): add organic Discord personality calibration, Litxe origin lore, multi-user speaker attribution, and GuildCommunityLore", "✦"),
+        ("e6c19d2", "feat(osu,compare): add d.c / /compare beatmap score comparison with Bathbot/owo embed detection and /usercompare", "✦"),
         ("298c27a", "feat(osu,pp): integrate rosu-pp fail/if-fc simulation, enhanced play cards, and d.m / /map command", "✦"),
         ("7f14f28", "fix(osu,link): enforce strict composite key isolation for multi-server linking and unlink", "✦"),
         ("7919495", "feat(commands,ui): implement Spec-006 legacy cleanup, glyph UI standardization, and slash parity", "✦"),
