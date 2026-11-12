@@ -312,6 +312,7 @@ class MemoryService:
                         final_parts.append(
                             "[MEMORIA Y MEMES DEL SERVIDOR (Contexto Comunitario)]:\n"
                             + "\n".join(matched_lore[:2])
+                            + "\n(Nota: Es contexto pasivo de fondo. Úsalo con sutileza solo si encaja de verdad, sin forzar chistes ni repetirlos como disco rayado)."
                         )
             except Exception as e:
                 logger.debug(f"Error consultando GuildCommunityLore: {e}")
