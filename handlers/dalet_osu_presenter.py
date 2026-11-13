@@ -413,12 +413,12 @@ class OsuPresenter:
             total_hits = (c300 or 0) + (c100 or 0) + (c50 or 0) + (miss or 0)
             if total_objects > 0:
                 completion_pct = min(100.0, (total_hits / total_objects) * 100.0)
-                rank_badge = f"` {rank} ({completion_pct:.1f}%) `"
+                rank_badge = f"`{rank} ({completion_pct:.1f}%)`"
             else:
                 fail_txt = t("osu.failed", lang)
-                rank_badge = f"` {rank} ({fail_txt}) `"
+                rank_badge = f"`{rank} ({fail_txt})`"
         else:
-            rank_badge = f"` {rank} `"
+            rank_badge = f"`{rank}`"
 
         filter_clean = (filter_by or "last").lower().strip()
         if filter_clean == "best":
@@ -440,7 +440,7 @@ class OsuPresenter:
             try_word = "Intento" if (lang or "en").lower().startswith("es") else "Try"
             try_label = f"{try_word} #{int(recent_idx)}"
             author_text += f" · {try_label}"
-            try_segment = f" │ `{try_label}`"
+            try_segment = f" · `{try_label}`"
 
         embed = discord.Embed(
             color=DaletAtoms.get_grade_color(rank)
@@ -451,44 +451,12 @@ class OsuPresenter:
             url=_profile_url(user_data, mode=mode, fallback_username=username) if user_data else None
         )
 
-        # Encabezado del mapa con respiración visual
-        embed.description = (
-            f"{flag_md}**[{artist} - {title} [{version}]]({map_url})**\n"
-            f"**{mods}** │ ` {stars:.2f}★ ` │ {rank_badge}{try_segment} │ {rel_time}\n"
-            f"───────────────────────────────────"
-        )
-
-        # Sección 1: Rendimiento
-        embed.add_field(
-            name=f"{DaletAtoms.GLYPH_POINTER} {t('osu.performance', lang)}",
-            value=(
-                f"{DaletAtoms.GLYPH_POINTER} **PP**: {pp_str}\n"
-                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.accuracy', lang)}**: `{acc}`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **Combo**: `{combo_str}`"
-            ),
-            inline=True
-        )
-
-        # Sección 2: Puntuación & Hits
-        embed.add_field(
-            name=f"{DaletAtoms.GLYPH_ACCURACY} {t('osu.score_hits', lang)}",
-            value=(
-                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.score', lang)}**: `{score}`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.hits', lang)}**: `{hits_str}`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.misses', lang)}**: `{miss}`"
-            ),
-            inline=True
-        )
-
-        # Sección 3: Datos del Beatmap
-        embed.add_field(
-            name=f"{DaletAtoms.GLYPH_AIM} {t('osu.map', lang)}",
-            value=(
-                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.length', lang)}**: `{length_str}`  │  **BPM**: `{bpm:.0f}`\n"
-                f"{DaletAtoms.GLYPH_POINTER} `AR {ar}`  ·  `OD {od}`  ·  `HP {hp}`  ·  `CS {cs}`"
-            ),
-            inline=False
-        )
+        # Diseño limpio mobile-first en 3 niveles (Cero emojis, sin saturación de cajas ni divisores largos)
+        line_map = f"{flag_md}**[{artist} - {title} [{version}]]({map_url})** `{mods}` · `{stars:.2f}★`"
+        line_score = f"**{rank_badge}** · {pp_str} · **{acc}**{try_segment}"
+        line_hits = f"`{combo_str}` · `{hits_str}` · {score} · {rel_time}"
+        line_meta = f"`{length_str}` · `{bpm:.0f} BPM` · AR {ar} · OD {od} · CS {cs} · HP {hp}"
+        embed.description = f"{line_map}\n\n{line_score}\n{line_hits}\n\n{line_meta}"
 
         # Thumbnail con la portada del mapa
         covers = beatmapset.get("covers", {})
@@ -566,8 +534,8 @@ class OsuPresenter:
         lbl_acc = t("osu.accuracy", actual_lang)
 
         desc_lines = [
-            f"{DaletAtoms.GLYPH_POINTER} **{lbl_raw_pp}**: `{pp_real:,.0f}pp`  │  **{lbl_weighted_pp}**: `{weighted_pp:,.0f}pp`  │  **Rank**: `{rank_str}`",
-            f"{DaletAtoms.GLYPH_POINTER} **{lbl_analyzed}**: `{len(actual_scores)}`  │  **{lbl_acc}**: `{acc_global:.2f}%`\n───────────────────────────────────"
+            f"**{lbl_raw_pp}**: `{pp_real:,.0f}pp` · **{lbl_weighted_pp}**: `{weighted_pp:,.0f}pp` · **Rank**: `{rank_str}`",
+            f"**{lbl_analyzed}**: {len(actual_scores)} · **{lbl_acc}**: {acc_global:.2f}%"
         ]
         embed.description = "\n".join(desc_lines)
 
@@ -602,8 +570,8 @@ class OsuPresenter:
             rel_time = DaletAtoms.parse_timestamp_relative(s.get("created_at", ""))
             time_suffix = f" · {rel_time}" if rel_time else ""
 
-            header = f"`#{orig_rank}` {badge} **[{title} [{ver}]]({map_link})**{time_suffix}"
-            stats_line = f"└─ {pp_disp}  │  `{acc}`  │  `{combo_str}`  │  `{miss_str}`  │  **{mods_str}**  │  `{sr:.2f}★`"
+            header = f"**#{orig_rank}** [{title} [{ver}]]({map_link}) **{mods_str}** · {sr:.2f}★"
+            stats_line = f"└ `{badge}` · {pp_disp} · **{acc}** · {combo_str} ({miss_str}){time_suffix}"
             play_lines.append(f"{header}\n{stats_line}")
 
         if play_lines:
@@ -1376,18 +1344,17 @@ class OsuPresenter:
             color=DaletAtoms.COLOR_PRIMARY,
         )
         embed.description = (
-            f"**{mods_str}** {DaletAtoms.GLYPH_PIPE} `{stars:.2f}★` {DaletAtoms.GLYPH_PIPE} `{status}` {DaletAtoms.GLYPH_PIPE} `{_mode_title(mode)}`\n"
-            f"{DaletAtoms.GLYPH_POINTER} **{t('osu.map_mapper', lang)}**: `{mapper}`\n"
-            f"───────────────────────────────────"
+            f"**{mods_str}** · `{stars:.2f}★` · {status} · {_mode_title(mode)}\n"
+            f"**{t('osu.map_mapper', lang)}**: {mapper}"
         )
 
         combo_txt = f"{max_combo:,}x" if max_combo > 0 else "N/A"
         embed.add_field(
             name=f"{DaletAtoms.GLYPH_AIM} {t('osu.map_difficulty', lang)}",
             value=(
-                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.length', lang)}**: `{length_str}`  {DaletAtoms.GLYPH_PIPE}  **BPM**: `{eff_bpm:.0f}`  {DaletAtoms.GLYPH_PIPE}  **Max Combo**: `{combo_txt}`\n"
-                f"{DaletAtoms.GLYPH_POINTER} `AR {ar}`  ·  `OD {od}`  ·  `HP {hp}`  ·  `CS {cs}`\n"
-                f"{DaletAtoms.GLYPH_POINTER} **{t('osu.map_objects', lang)}**: `○ {n_circles}  ·  ◐ {n_sliders}  ·  ◎ {n_spinners}`"
+                f"`{length_str}` · `{eff_bpm:.0f} BPM` · Max Combo **{combo_txt}**\n"
+                f"AR {ar} · OD {od} · HP {hp} · CS {cs}\n"
+                f"○ {n_circles} · ◐ {n_sliders} · ◎ {n_spinners}"
             ),
             inline=False,
         )
@@ -1399,10 +1366,10 @@ class OsuPresenter:
             pp_99 = pp_dict.get(99, 0.0)
             pp_100 = pp_dict.get(100, 0.0)
             pp_val_txt = (
-                f"{DaletAtoms.GLYPH_POINTER} `95%` **{pp_95:.0f}pp**  {DaletAtoms.GLYPH_PIPE}  "
-                f"`98%` **{pp_98:.0f}pp**  {DaletAtoms.GLYPH_PIPE}  "
-                f"`99%` **{pp_99:.0f}pp**  {DaletAtoms.GLYPH_PIPE}  "
-                f"`100% SS` **{pp_100:.0f}pp**"
+                f"95% **{pp_95:.0f}pp** · "
+                f"98% **{pp_98:.0f}pp** · "
+                f"99% **{pp_99:.0f}pp** · "
+                f"SS **{pp_100:.0f}pp**"
             )
             embed.add_field(
                 name=f"{DaletAtoms.GLYPH_ACCURACY} {t('osu.map_pp_table', lang)}",
@@ -1463,14 +1430,14 @@ class OsuPresenter:
         )
 
         header_line = f"**[{artist} - {title} [{version}]]({map_url})**" if artist else f"**[{title} [{version}]]({map_url})**"
-        meta_line = f"`{base_sr:.2f}★` {DaletAtoms.GLYPH_PIPE} `BPM {base_bpm:.0f}` {DaletAtoms.GLYPH_PIPE} `{length_str}`"
+        meta_line = f"`{base_sr:.2f}★` · `{base_bpm:.0f} BPM` · `{length_str}`"
 
         if not scores:
             if mods_filter and total_unfiltered > 0:
                 empty_msg = t("osu.map_compare_none_filtered", lang, username=username, mods=str(mods_filter).upper().replace("+", "").strip())
             else:
                 empty_msg = t("osu.map_compare_none", lang, username=username)
-            embed.description = f"{header_line}\n{meta_line}\n───────────────────────────────────\n{DaletAtoms.GLYPH_POINTER} {empty_msg}"
+            embed.description = f"{header_line}\n{meta_line}\n\n{DaletAtoms.GLYPH_POINTER} {empty_msg}"
         else:
             lines = []
             for idx, s in enumerate(scores[:6], 1):
@@ -1494,13 +1461,13 @@ class OsuPresenter:
                 score_str = OsuPresenter._extract_score(s)
 
                 rel_time = DaletAtoms.parse_timestamp_relative(s.get("created_at", ""))
-                time_part = f" {DaletAtoms.GLYPH_PIPE} {rel_time}" if rel_time else ""
+                time_part = f" · {rel_time}" if rel_time else ""
 
-                row1 = f"`#{idx}` {badge} {pp_disp} {DaletAtoms.GLYPH_PIPE} `{acc}` {DaletAtoms.GLYPH_PIPE} `{combo_str}` {DaletAtoms.GLYPH_PIPE} `{miss_str}` {DaletAtoms.GLYPH_PIPE} **{mods_str}** {DaletAtoms.GLYPH_PIPE} `{sr:.2f}★`"
-                row2 = f"└─ `{score_str}` {DaletAtoms.GLYPH_PIPE} `[{c300}/{c100}/{c50}/{misses}]`{time_part}"
+                row1 = f"**#{idx}** `{badge}` · {pp_disp} · **{acc}** · **{mods_str}** · {sr:.2f}★"
+                row2 = f"└ {combo_str} ({miss_str}) · `[{c300}/{c100}/{c50}/{misses}]` · {score_str}{time_part}"
                 lines.append(f"{row1}\n{row2}")
 
-            embed.description = f"{header_line}\n{meta_line}\n───────────────────────────────────\n\n" + "\n\n".join(lines)
+            embed.description = f"{header_line}\n{meta_line}\n\n" + "\n\n".join(lines)
 
         covers = bms.get("covers", {})
         thumb_url = covers.get("list") or covers.get("cover") or covers.get("card")

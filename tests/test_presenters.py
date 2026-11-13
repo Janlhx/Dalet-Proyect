@@ -230,13 +230,14 @@ class TestRosuPPAndMapCard(unittest.TestCase):
             "beatmap_attributes": {"star_rating": 8.42, "approach_rate": 10.333, "overall_difficulty": 9.8, "hp": 5.0, "cs": 4.0, "clock_rate": 1.5},
         }
         recent_embed = OsuPresenter.build_recent_card("Maluca", "osu", play_fail, lang="es")
-        perf_val = next(f.value for f in recent_embed.fields if "Rendimiento" in f.name)
-        map_val = next(f.value for f in recent_embed.fields if "Mapa" in f.name or "Beatmap" in f.name)
-        self.assertIn("~142.85pp", perf_val)
-        self.assertIn("310.40pp FC", perf_val)
-        self.assertNotIn("0.00pp", perf_val)
-        self.assertNotIn("Sin PP", perf_val)
-        self.assertIn("AR 10.3", map_val)
+        desc_val = recent_embed.description or ""
+        self.assertEqual(len(recent_embed.fields), 0)
+        self.assertNotIn("───", desc_val)
+        self.assertIn("~142.85pp", desc_val)
+        self.assertIn("310.40pp FC", desc_val)
+        self.assertNotIn("0.00pp", desc_val)
+        self.assertNotIn("Sin PP", desc_val)
+        self.assertIn("AR 10.3", desc_val)
 
         user_dict = {"username": "Maluca", "country_code": "CO", "statistics": {"pp": 5000, "global_rank": 10000}}
         top_embed = OsuPresenter.build_top_card(user_dict, [play_fail], mode="osu", lang="es")

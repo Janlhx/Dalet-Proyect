@@ -27,9 +27,14 @@ Bienvenido al repositorio de **Dalet v4**. Cualquier agente principal o subagent
 ## 3. Ecosistema Agéntico Local (`.agents/`)
 - **Skills (`.agents/skills/`):**
   - `dalet-osu-card-craft`: Diseño de embeds de osu!, filtros y gráficos PP.
-  - `dalet-persona-calibration`: Calibración de personalidad, memoria `L0–L3` y `PersonaInsights`.
+  - `dalet-persona-calibration`: Calibración de personalidad, memoria `L0–L3`, `GuildCommunityLore` y `PersonaInsights`.
   - `dalet-vibewise-sync`: Sincronización documental y Graphify.
   - `typesafe-ai`: Primitivas de juicio estructurado con TypeSafe Jev.
+- **Subagentes Persistentes (`.agents/agents/`):**
+  - `osu-ux-engineer`: Especialista en embeds limpios (mobile-first), filtros osu!, `rosu-pp-py` y paridad `/` vs `d.`.
+  - `persona-memory-auditor`: Auditor de tono orgánico, atribución multi-usuario, concordancia de género y memoria `L0–L3`.
+  - `vibewise-doc-keeper`: Sincronización de `/help` (ES/EN), `changelog_service.py`, READMEs y `graphify update .`.
+  - `security-qa-verifier`: Auditoría SSRF/OWASP, aislamiento multi-servidor y verificación integral `pytest`.
 - **Plugin & MCP Propio (`.agents/plugins/dalet-devkit/`):**
   - Servidor MCP `dalet-brain-mcp` (`tools/dalet_mcp_server.py`) con acceso directo a la salud de la BD, Pirámide Semántica `L1–L3` y `PersonaInsights`.
 - **Hooks de Seguridad (`.agents/hooks.json`):**
