@@ -714,14 +714,14 @@ class OsuPresenter:
             history_chron = list(reversed(history))
             dates, pp_vals = [], []
             for h in history_chron:
-                ts = h.get("log_date") or h.get("recorded_at") or ""
+                ts = h.get("recorded_at") or h.get("log_date") or ""
                 pp = h.get("pp", 0)
                 if ts:
                     try:
                         if hasattr(ts, "year"):
                             dates.append(ts)
                         else:
-                            dates.append(datetime.fromisoformat(str(ts)[:19]))
+                            dates.append(datetime.fromisoformat(str(ts).replace("Z", "+00:00")[:19]))
                         pp_vals.append(float(pp))
                     except Exception:
                         continue
@@ -745,16 +745,17 @@ class OsuPresenter:
             ax.plot(dates, pp_vals, color="#d96b82", linewidth=2.2, zorder=5)
             ax.scatter(dates, pp_vals, color="#f7c1cb", s=32, zorder=6, edgecolors="#101012", linewidth=1.0)
 
-            # Tendencia polinomial / lineal si hay >= 3 puntos
+            # Tendencia lineal si hay >= 3 puntos en timestamps distintos
             if len(dates) >= 3:
                 x_num = mdates.date2num(dates)
-                z = np.polyfit(x_num, pp_vals, 1)
-                p = np.poly1d(z)
-                x_smooth = np.linspace(x_num[0], x_num[-1], 200)
-                ax.plot(
-                    mdates.num2date(x_smooth), p(x_smooth),
-                    color="#2cb67d", linewidth=1.2, linestyle="--", alpha=0.7, zorder=4
-                )
+                if len(set(x_num)) >= 2:
+                    z = np.polyfit(x_num, pp_vals, 1)
+                    p = np.poly1d(z)
+                    x_smooth = np.linspace(x_num[0], x_num[-1], 200)
+                    ax.plot(
+                        mdates.num2date(x_smooth), p(x_smooth),
+                        color="#2cb67d", linewidth=1.2, linestyle="--", alpha=0.7, zorder=4
+                    )
 
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
             ax.xaxis.set_major_locator(mdates.AutoDateLocator())

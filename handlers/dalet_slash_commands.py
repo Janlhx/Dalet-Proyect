@@ -346,17 +346,43 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
             await interaction.followup.send(f"{DaletAtoms.GLYPH_CROSS} error al desvincular.", ephemeral=True)
 
     @app_commands.command(name="progress", description="Displays your historical PP progress chart over time.")
-    @app_commands.describe(user="Server member to view progress for (default: yourself)")
-    async def slash_progress(self, interaction: discord.Interaction, user: discord.Member = None):
+    @app_commands.describe(
+        user="Server member to view progress for (default: yourself)",
+        mode="Game mode (osu, taiko, fruits, mania)"
+    )
+    async def slash_progress(self, interaction: discord.Interaction, user: discord.Member = None, mode: str = "osu"):
         await interaction.response.defer()
         target_member = user or interaction.user
         server_lang = await self._resolve_lang(interaction)
+        mode_clean = (mode or "osu").lower().strip()
+        mode_clean = {"std": "osu", "standard": "osu", "ctb": "fruits", "catch": "fruits"}.get(mode_clean, mode_clean)
+        if mode_clean not in ("osu", "taiko", "fruits", "mania"):
+            mode_clean = "osu"
 
         try:
-            history = await self.bot.analytics_repo.get_osu_progress(target_member.id, mode="osu", limit=30)
+            history = await self.bot.analytics_repo.get_osu_progress(target_member.id, mode=mode_clean, limit=30)
+            username = await self.bot.osu_repo.get_linked_username(target_member.id, server="bancho")
+            if (not history or len(history) < 2) and username:
+                try:
+                    live_user = await self.bot.osu_service.get_user(username, mode=mode_clean)
+                    if live_user and isinstance(live_user, dict):
+                        st = live_user.get("statistics", {}) or {}
+                        await self.bot.analytics_repo.record_osu_snapshot(
+                            target_member.id,
+                            float(st.get("pp", 0.0) or 0.0),
+                            st.get("global_rank"),
+                            st.get("country_rank"),
+                            float(st.get("hit_accuracy", 0.0) or 0.0),
+                            mode_clean,
+                        )
+                        history = await self.bot.analytics_repo.get_osu_progress(target_member.id, mode=mode_clean, limit=30)
+                except Exception as snap_err:
+                    logger.debug(f"[SlashProgressSnapshot] Error tomando snapshot en vivo: {snap_err}")
+
             if not history or len(history) < 2:
+                snap_count = len(history) if history else 0
                 return await interaction.followup.send(
-                    f"{DaletAtoms.GLYPH_POINTER} {t('osu.progress_need_snapshots', server_lang)}"
+                    f"{DaletAtoms.GLYPH_POINTER} {t('osu.progress_need_snapshots', server_lang)} (`{snap_count}/2`)"
                 )
 
             loop = asyncio.get_running_loop()
@@ -364,10 +390,9 @@ class SlashCommands(commands.Cog, name="Slash Commands"):
                 None, OsuPresenter.generate_progress_chart, target_member.display_name, history, server_lang
             )
 
-            username = await self.bot.osu_repo.get_linked_username(target_member.id)
             display_name = username or target_member.display_name
             embed = discord.Embed(
-                title=f"✦ {t('osu.progress_title', server_lang, username=display_name, mode='Standard')}",
+                title=f"✦ {t('osu.progress_title', server_lang, username=display_name, mode=OsuPresenter.mode_title(mode_clean))}",
                 color=DaletAtoms.COLOR_PRIMARY
             )
 

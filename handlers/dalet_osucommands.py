@@ -813,18 +813,40 @@ class OsuHandler(commands.Cog, name="osu!"):
     # ------------------------------------------------------------------
 
     @commands.command(name="progress", aliases=["prog"])
-    async def osu_progress(self, ctx, member: discord.Member = None):
+    async def osu_progress(self, ctx, member: discord.Member = None, mode: str = "osu"):
         """Muestra tu gráfico de progreso de PP a lo largo del tiempo."""
         member = member or ctx.author
         server_lang = await self._resolve_lang(ctx)
+        mode_clean = (mode or "osu").lower().strip()
+        mode_clean = {"std": "osu", "standard": "osu", "ctb": "fruits", "catch": "fruits"}.get(mode_clean, mode_clean)
+        if mode_clean not in ("osu", "taiko", "fruits", "mania"):
+            mode_clean = "osu"
 
         try:
             async with ctx.typing():
-                history = await self.bot.analytics_repo.get_osu_progress(member.id, mode="osu", limit=30)
+                history = await self.bot.analytics_repo.get_osu_progress(member.id, mode=mode_clean, limit=30)
+                username = await self.repo.get_linked_username(member.id, server="bancho")
+                if (not history or len(history) < 2) and username:
+                    try:
+                        live_user = await self.osu_service.get_user(username, mode=mode_clean)
+                        if live_user and isinstance(live_user, dict):
+                            st = live_user.get("statistics", {}) or {}
+                            await self.bot.analytics_repo.record_osu_snapshot(
+                                member.id,
+                                float(st.get("pp", 0.0) or 0.0),
+                                st.get("global_rank"),
+                                st.get("country_rank"),
+                                float(st.get("hit_accuracy", 0.0) or 0.0),
+                                mode_clean,
+                            )
+                            history = await self.bot.analytics_repo.get_osu_progress(member.id, mode=mode_clean, limit=30)
+                    except Exception as snap_err:
+                        logger.debug(f"[ProgressSnapshot] Error tomando snapshot en vivo: {snap_err}")
 
             if not history or len(history) < 2:
+                snap_count = len(history) if history else 0
                 return await ctx.send(
-                    f"{DaletAtoms.GLYPH_POINTER} {t('osu.progress_need_snapshots', server_lang)}"
+                    f"{DaletAtoms.GLYPH_POINTER} {t('osu.progress_need_snapshots', server_lang)} (`{snap_count}/2`)"
                 )
 
             loop = asyncio.get_running_loop()
@@ -832,10 +854,9 @@ class OsuHandler(commands.Cog, name="osu!"):
                 None, OsuPresenter.generate_progress_chart, member.display_name, history, server_lang
             )
 
-            username = await self.repo.get_linked_username(member.id)
             display_name = username or member.display_name
             embed = discord.Embed(
-                title=f"✦ {t('osu.progress_title', server_lang, username=display_name, mode='Standard')}",
+                title=f"✦ {t('osu.progress_title', server_lang, username=display_name, mode=OsuPresenter.mode_title(mode_clean))}",
                 color=DaletAtoms.COLOR_PRIMARY
             )
 

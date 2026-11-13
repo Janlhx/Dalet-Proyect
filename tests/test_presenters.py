@@ -438,6 +438,50 @@ class TestRosuPPAndMapCard(unittest.TestCase):
         finally:
             DaletAtoms.CUSTOM_EMOJIS.clear()
 
+    def test_analytics_repository_persists_and_tracks_intraday_pp_snapshots(self):
+        import asyncio
+        import sqlite3
+        from unittest.mock import patch
+        from database.repositories.analytics_repository import AnalyticsRepository
+
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+
+        class _FakeResult:
+            def __init__(self, rows):
+                self.rows = rows
+
+        class _FakeTursoClient:
+            async def execute(self, query, args=()):
+                cur = conn.execute(query, tuple(args or ()))
+                conn.commit()
+                return _FakeResult([dict(r) for r in cur.fetchall()])
+
+        async def _run():
+            fake_client = _FakeTursoClient()
+            AnalyticsRepository._history_schema_ensured = False
+            repo = AnalyticsRepository()
+            with patch("database.repositories.base_repository.get_db", return_value=fake_client):
+                await repo.record_osu_snapshot(123, 5000.0, 20000, 300, 98.5, "osu")
+                # Mismo PP mismo día -> actualiza en vez de duplicar
+                await repo.record_osu_snapshot(123, 5000.0, 19950, 299, 98.5, "osu")
+                hist_1 = await repo.get_osu_progress(123, mode="osu", limit=30)
+                self.assertEqual(len(hist_1), 1)
+                self.assertEqual(hist_1[0]["global_rank"], 19950)
+
+                # Cambio de PP mismo día -> guarda 2do snapshot para poder graficar progreso
+                await repo.record_osu_snapshot(123, 5042.5, 19500, 290, 98.55, "osu")
+                hist_2 = await repo.get_osu_progress(123, mode="osu", limit=30)
+                self.assertEqual(len(hist_2), 2)
+                self.assertAlmostEqual(hist_2[0]["pp"], 5042.5)
+                self.assertAlmostEqual(hist_2[1]["pp"], 5000.0)
+
+        try:
+            asyncio.run(_run())
+        finally:
+            AnalyticsRepository._history_schema_ensured = False
+            conn.close()
+
 
 if __name__ == '__main__':
     unittest.main()
