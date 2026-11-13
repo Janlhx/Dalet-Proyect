@@ -369,6 +369,12 @@ Dalet-Proyect/
 
 ---
 
+## Credits & Acknowledgments
+
+- **osu! Grade & Mode Icons**: Sourced from the **miketakular** osu! skin (`assets/discord_emojis/`).
+
+---
+
 <div align="center">
 
 Crafted by **Litxe** · Colombia

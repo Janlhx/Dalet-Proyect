@@ -375,13 +375,13 @@ def build_help_pages(bot, user, server_lang: str = "en") -> tuple[list[discord.E
             f"Hola, **{user.display_name}**. Soy **Dalet {version}**.\n"
             f"Elige una categoría en el menú de abajo para ver sus comandos:"
         )
-        footer_cover = f"Dalet {version}  │  /changelog • /feedback"
+        footer_cover = f"Dalet {version}  │  osu! skin: miketakular  │  /changelog • /feedback"
     else:
         portada_desc = (
             f"Hello, **{user.display_name}**. I'm **Dalet {version}**.\n"
             f"Pick a category from the menu below to see its commands:"
         )
-        footer_cover = f"Dalet {version}  │  /changelog • /feedback"
+        footer_cover = f"Dalet {version}  │  osu! skin: miketakular  │  /changelog • /feedback"
 
     portada = discord.Embed(
         title=f"{DaletAtoms.EMOJI_DALET} Dalet {version} {DaletAtoms.GLYPH_PIPE} {'Guía de Comandos' if server_lang == 'es' else 'Command Guide'}",

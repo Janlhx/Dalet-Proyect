@@ -289,6 +289,12 @@ d.sync here
 
 ---
 
+## Créditos y Agradecimientos
+
+- **Iconos de Rangos (Grades) y Modos de osu!**: Tomados de la skin **miketakular** (`assets/discord_emojis/`).
+
+---
+
 <div align="center">
 Hecho con precisión para Discord y la comunidad de osu!.
 </div>
