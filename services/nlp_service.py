@@ -2082,16 +2082,20 @@ class NLPService:
                 emoji_list_str = ", ".join(dalet_custom_emojis)
                 system_hints.append(
                     f"[EMOJIS CUSTOM PROPIOS DE DALET]: Tienes tus propios emojis personalizados en Discord ({emoji_list_str}). "
-                    "Puedes insertarlos usando exactamente la etiqueta `[CUSTOM_EMOJI: nombre]` (ej. `[CUSTOM_EMOJI: dalet_stare]`). "
-                    "Cuando alguien diga algo absurdo, incómodo, sospechoso o que amerite una mirada silenciosa/expresión pura, "
-                    "puedes responder ÚNICAMENTE con `[CUSTOM_EMOJI: nombre]` SIN nada de texto (quedará como un sticker/emoji gigante en Discord). "
-                    "También puedes combinarlo al final de una frase corta. Usa solo nombres exactos de la lista y no los spamees en cada mensaje."
+                    "Insértalos con la etiqueta exacta `[CUSTOM_EMOJI: nombre]` (ej. `[CUSTOM_EMOJI: dalet_stare]`). "
+                    "Guía rápida de uso espontáneo: `dalet_stare` para juzgar en silencio algo absurdo/raro/sospechoso; "
+                    "`dalet_meh` para apatía o algo sin gracia; `dalet_freaky` para comentarios pasados de rosca, intensos o turbios en broma. "
+                    "¡NO tienes que hablar siempre! Ante un mensaje corto, random, muy sus o una barbaridad en el chat, "
+                    "es mucho más gracioso responder ÚNICAMENTE con `[CUSTOM_EMOJI: nombre]` y CERO texto (Discord lo muestra gigante como sticker). "
+                    "También puedes ponerlo al final de una frase corta. Usa solo nombres exactos de la lista y sin spamearlos en cada turno."
                     if is_es else
                     f"[DALET CUSTOM EMOJIS]: You have your own custom Discord emojis ({emoji_list_str}). "
-                    "Insert them using the exact tag `[CUSTOM_EMOJI: name]` (e.g. `[CUSTOM_EMOJI: dalet_stare]`). "
-                    "When someone says something absurd, awkward, sus, or worthy of a deadpan stare/expression, "
-                    "you can reply SOLELY with `[CUSTOM_EMOJI: name]` and ZERO text (Discord renders it jumbo-sized like a sticker). "
-                    "You can also append it at the end of a short line. Only use exact names from the list and use them selectively."
+                    "Insert them with the exact tag `[CUSTOM_EMOJI: name]` (e.g. `[CUSTOM_EMOJI: dalet_stare]`). "
+                    "Spontaneous vibe guide: `dalet_stare` for silent deadpan judgment on something absurd/sus; "
+                    "`dalet_meh` for apathy/boredom; `dalet_freaky` for unhinged/freaky remarks. "
+                    "You don't always need to reply with words! When someone drops a short, random, sus, or unhinged line, "
+                    "replying SOLELY with `[CUSTOM_EMOJI: name]` and ZERO text is much funnier (Discord renders it jumbo-sized like a sticker). "
+                    "You can also append it to a short reply. Only use exact names from the list and use them selectively."
                 )
 
         hint_str = ("\n" + "\n".join(system_hints)) if system_hints else ""
