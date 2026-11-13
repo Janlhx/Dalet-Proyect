@@ -27,6 +27,7 @@ from dotenv import load_dotenv
 from database.repositories.user_repository import UserRepository
 from database.sqlite_manager import SQLiteManager
 from handlers.modules.dalet_osuanalyzer import OsuAnalyzer
+from ui.atoms import DaletAtoms
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TELEMETRY_BACKUP_PATH = os.path.join(BASE_DIR, "data", "ai_telemetry.json")
@@ -902,20 +903,59 @@ class NLPService:
         match = re.search(r"(?i)\[\s*REACTION\s*:\s*([^\]]+?)\s*\]", text)
         if match:
             raw_candidate = match.group(1).strip()
-            # Soportar emoji custom de Discord (<:name:123> o <a:name:123>) o emoji Unicode
+            # Soportar emoji custom de Discord (<:name:123> o <a:name:123>), nombre registrado (dalet_stare) o emoji Unicode
             custom_match = re.search(r"<a?:[a-zA-Z0-9_]+:\d+>", raw_candidate)
             if custom_match:
                 reaction_emoji = custom_match.group(0)
             else:
-                uni_match = re.search(
-                    r"(?:[\U00010000-\U0010ffff]|[\u2600-\u27bf]|[\u2300-\u23ff]|[\u2b50-\u2b55]|[\u3030-\u303d])(?:\ufe0f)?",
-                    raw_candidate,
-                )
-                if uni_match:
-                    reaction_emoji = uni_match.group(0)
+                resolved_custom = DaletAtoms.resolve_custom_emoji(raw_candidate)
+                if resolved_custom:
+                    reaction_emoji = resolved_custom
+                else:
+                    uni_match = re.search(
+                        r"(?:[\U00010000-\U0010ffff]|[\u2600-\u27bf]|[\u2300-\u23ff]|[\u2b50-\u2b55]|[\u3030-\u303d])(?:\ufe0f)?",
+                        raw_candidate,
+                    )
+                    if uni_match:
+                        reaction_emoji = uni_match.group(0)
 
         cleaned = re.sub(r"(?i)\[\s*REACTION\s*:\s*[^\]]*\]", "", text).strip()
         return cleaned, reaction_emoji
+
+    @staticmethod
+    def resolve_custom_emojis(text: str) -> str:
+        """
+        Resuelve etiquetas [CUSTOM_EMOJI: nombre] (o :dalet_nombre:) a formato
+        nativo de Discord (<:nombre:id>). Si el emoji no existe, limpia la etiqueta.
+        """
+        if not text:
+            return ""
+
+        def _replace_tag(match: re.Match) -> str:
+            emoji_name = match.group(1).strip().lower()
+            resolved = DaletAtoms.resolve_custom_emoji(emoji_name)
+            return resolved if resolved else ""
+
+        resolved_text = re.sub(
+            r"(?i)\[\s*CUSTOM_EMOJI\s*:\s*([a-zA-Z0-9_]+)\s*\]",
+            _replace_tag,
+            text,
+        )
+
+        # Fallback por si el modelo escribe :dalet_stare: en lugar de [CUSTOM_EMOJI: dalet_stare]
+        def _replace_colon(match: re.Match) -> str:
+            emoji_name = match.group(1).strip().lower()
+            resolved = DaletAtoms.resolve_custom_emoji(emoji_name)
+            return resolved if resolved else match.group(0)
+
+        resolved_text = re.sub(
+            r"(?<!<)(?<!<a):(dalet_[a-zA-Z0-9_]+):",
+            _replace_colon,
+            resolved_text,
+        )
+
+        resolved_text = re.sub(r"[ \t]{2,}", " ", resolved_text).strip()
+        return resolved_text
 
     @staticmethod
     def _clean_reply_text(text: str, bot_name: str = "Dalet", preserve_reaction: bool = False) -> str:
@@ -2035,6 +2075,23 @@ class NLPService:
                     "[REACCIONES CON EMOJI EN DISCORD]: Puedes reaccionar físicamente al mensaje del usuario en Discord añadiendo al final de tu respuesta `[REACTION: <emoji>]` con un emoji Unicode (ej. `[REACTION: 😆]`, `[REACTION: 💀]`, `[REACTION: 🤨]`, `[REACTION: 😭]`, `[REACTION: 🔥]`, `[REACTION: 🤡]`). Úsalo cuando el mensaje cuente algo gracioso, irónico, un fail (ej. se fue la luz, chokeó un mapa), o si te piden reaccionar con un emoji. También puedes responder ÚNICAMENTE con `[REACTION: <emoji>]` sin texto si una reacción muda queda mejor. No reacciones en todos los mensajes, solo cuando encaje con naturalidad."
                     if is_es else
                     "[DISCORD EMOJI REACTIONS]: You can physically react to the user's message on Discord by appending `[REACTION: <emoji>]` at the end of your reply with a Unicode emoji (e.g. `[REACTION: 😆]`, `[REACTION: 💀]`, `[REACTION: 🤨]`, `[REACTION: 😭]`, `[REACTION: 🔥]`, `[REACTION: 🤡]`). Use it when the message is funny, ironic, a fail/choke, or when asked to react. You can even reply ONLY with `[REACTION: <emoji>]` with no text if a silent reaction is funnier. Use it selectively when it fits naturally."
+                )
+
+            dalet_custom_emojis = DaletAtoms.get_dalet_reaction_emojis()
+            if dalet_custom_emojis:
+                emoji_list_str = ", ".join(dalet_custom_emojis)
+                system_hints.append(
+                    f"[EMOJIS CUSTOM PROPIOS DE DALET]: Tienes tus propios emojis personalizados en Discord ({emoji_list_str}). "
+                    "Puedes insertarlos usando exactamente la etiqueta `[CUSTOM_EMOJI: nombre]` (ej. `[CUSTOM_EMOJI: dalet_stare]`). "
+                    "Cuando alguien diga algo absurdo, incómodo, sospechoso o que amerite una mirada silenciosa/expresión pura, "
+                    "puedes responder ÚNICAMENTE con `[CUSTOM_EMOJI: nombre]` SIN nada de texto (quedará como un sticker/emoji gigante en Discord). "
+                    "También puedes combinarlo al final de una frase corta. Usa solo nombres exactos de la lista y no los spamees en cada mensaje."
+                    if is_es else
+                    f"[DALET CUSTOM EMOJIS]: You have your own custom Discord emojis ({emoji_list_str}). "
+                    "Insert them using the exact tag `[CUSTOM_EMOJI: name]` (e.g. `[CUSTOM_EMOJI: dalet_stare]`). "
+                    "When someone says something absurd, awkward, sus, or worthy of a deadpan stare/expression, "
+                    "you can reply SOLELY with `[CUSTOM_EMOJI: name]` and ZERO text (Discord renders it jumbo-sized like a sticker). "
+                    "You can also append it at the end of a short line. Only use exact names from the list and use them selectively."
                 )
 
         hint_str = ("\n" + "\n".join(system_hints)) if system_hints else ""

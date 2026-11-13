@@ -360,6 +360,36 @@ class TestRosuPPAndMapCard(unittest.TestCase):
         self.assertIn("+HDDT", cmp_embed.description)
         self.assertIn("+NM", cmp_embed.description)
 
+    def test_dalet_atoms_application_emojis_and_fallbacks(self):
+        from types import SimpleNamespace
+        from ui.atoms import DaletAtoms
+
+        DaletAtoms.CUSTOM_EMOJIS.clear()
+        try:
+            # Fallback sin emojis cargados
+            self.assertEqual(DaletAtoms.get_grade_emoji("SH", "1x"), "`S (1x)`")
+            self.assertEqual(DaletAtoms.get_mode_emoji("osu"), "")
+            self.assertEqual(DaletAtoms.get_dalet_reaction_emojis(), [])
+
+            # Cargar Application Emojis simulados
+            fake_emojis = [
+                SimpleNamespace(name="grade_sh", id=1001, animated=False),
+                SimpleNamespace(name="mode_osu", id=1002, animated=False),
+                SimpleNamespace(name="dalet_stare", id=1003, animated=False),
+                SimpleNamespace(name="dalet_meh", id=1004, animated=True),
+            ]
+            loaded = DaletAtoms.load_application_emojis(fake_emojis)
+            self.assertEqual(loaded, 4)
+
+            self.assertEqual(DaletAtoms.get_grade_emoji("SH", "1x"), "<:grade_sh:1001> `(1x)`")
+            self.assertEqual(DaletAtoms.get_grade_emoji("SH"), "<:grade_sh:1001>")
+            self.assertEqual(DaletAtoms.get_grade_emoji("X"), "`SS`")
+            self.assertEqual(DaletAtoms.get_mode_emoji("osu"), "<:mode_osu:1002>")
+            self.assertEqual(DaletAtoms.get_dalet_reaction_emojis(), ["dalet_meh", "dalet_stare"])
+            self.assertEqual(DaletAtoms.resolve_custom_emoji("dalet_meh"), "<a:dalet_meh:1004>")
+        finally:
+            DaletAtoms.CUSTOM_EMOJIS.clear()
+
 
 if __name__ == '__main__':
     unittest.main()

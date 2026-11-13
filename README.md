@@ -63,6 +63,7 @@ Evaluates a player's top 50/100 plays through mathematical heuristics with PP an
 - **`/firsts` (`d.op1s`)**: Global #1 scores showcase displaying ranks, accuracy, mods, and beatmap links (with graceful Loved map support).
 - **`/rank` (`d.rank`)**: Server leaderboard with live PP/accuracy sync and mode filtering.
 - **`/link` & `/unlink`**: Link or unlink your osu! account with automatic initial snapshots.
+- **Application Emojis & Custom Chat Reactions (`Spec-010`)**: Automatically loads Discord Application Emojis (`fetch_application_emojis()`) for osu! grades and game modes (with clean text-badge fallbacks) plus Dalet's custom chat emojis (`dalet_stare`, `dalet_meh`) usable inline or as standalone sticker-like replies.
 
 ---
 

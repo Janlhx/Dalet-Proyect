@@ -413,12 +413,12 @@ class OsuPresenter:
             total_hits = (c300 or 0) + (c100 or 0) + (c50 or 0) + (miss or 0)
             if total_objects > 0:
                 completion_pct = min(100.0, (total_hits / total_objects) * 100.0)
-                rank_badge = f"`{rank} ({completion_pct:.1f}%)`"
+                rank_badge = DaletAtoms.get_grade_emoji(rank, suffix=f"{completion_pct:.1f}%")
             else:
                 fail_txt = t("osu.failed", lang)
-                rank_badge = f"`{rank} ({fail_txt})`"
+                rank_badge = DaletAtoms.get_grade_emoji(rank, suffix=fail_txt)
         else:
-            rank_badge = f"`{rank}`"
+            rank_badge = DaletAtoms.get_grade_emoji(rank)
 
         filter_clean = (filter_by or "last").lower().strip()
         if filter_clean == "best":
@@ -451,9 +451,11 @@ class OsuPresenter:
             url=_profile_url(user_data, mode=mode, fallback_username=username) if user_data else None
         )
 
-        # Diseño limpio mobile-first en 3 niveles (Cero emojis, sin saturación de cajas ni divisores largos)
-        line_map = f"{flag_md}**[{artist} - {title} [{version}]]({map_url})** `{mods}` · `{stars:.2f}★`"
-        line_score = f"**{rank_badge}** · {pp_str} · **{acc}**{try_segment}"
+        # Diseño limpio mobile-first en 3 niveles (Application Emojis con fallback seguro)
+        mode_emoji = DaletAtoms.get_mode_emoji(mode)
+        mode_prefix = f"{mode_emoji} " if mode_emoji else ""
+        line_map = f"{flag_md}{mode_prefix}**[{artist} - {title} [{version}]]({map_url})** `{mods}` · `{stars:.2f}★`"
+        line_score = f"{rank_badge} · {pp_str} · **{acc}**{try_segment}"
         line_hits = f"`{combo_str}` · `{hits_str}` · {score} · {rel_time}"
         line_meta = f"`{length_str}` · `{bpm:.0f} BPM` · AR {ar} · OD {od} · CS {cs} · HP {hp}"
         embed.description = f"{line_map}\n\n{line_score}\n{line_hits}\n\n{line_meta}"
@@ -547,7 +549,7 @@ class OsuPresenter:
             acc = _format_acc(s.get("accuracy", 0.0))
             mods_str = _format_mods(s.get("mods", []))
             grade = s.get("rank", "?").upper()
-            badge = DaletAtoms.GRADE_BADGES.get(grade, grade)
+            badge = DaletAtoms.get_grade_emoji(grade)
             title = bms.get("title", "Desconocido")
             ver = bm.get("version", "Normal")
             sr = s.get("official_sr") or s.get("beatmap_attributes", {}).get("star_rating") or _calc_effective_sr(bm, s.get("mods", []), mode=actual_mode)
@@ -571,7 +573,7 @@ class OsuPresenter:
             time_suffix = f" · {rel_time}" if rel_time else ""
 
             header = f"**#{orig_rank}** [{title} [{ver}]]({map_link}) **{mods_str}** · {sr:.2f}★"
-            stats_line = f"└ `{badge}` · {pp_disp} · **{acc}** · {combo_str} ({miss_str}){time_suffix}"
+            stats_line = f"└ {badge} · {pp_disp} · **{acc}** · {combo_str} ({miss_str}){time_suffix}"
             play_lines.append(f"{header}\n{stats_line}")
 
         if play_lines:
@@ -1343,8 +1345,10 @@ class OsuPresenter:
             url=map_url,
             color=DaletAtoms.COLOR_PRIMARY,
         )
+        mode_emoji = DaletAtoms.get_mode_emoji(mode)
+        mode_txt = f"{mode_emoji} {_mode_title(mode)}" if mode_emoji else _mode_title(mode)
         embed.description = (
-            f"**{mods_str}** · `{stars:.2f}★` · {status} · {_mode_title(mode)}\n"
+            f"**{mods_str}** · `{stars:.2f}★` · {status} · {mode_txt}\n"
             f"**{t('osu.map_mapper', lang)}**: {mapper}"
         )
 
@@ -1442,7 +1446,7 @@ class OsuPresenter:
             lines = []
             for idx, s in enumerate(scores[:6], 1):
                 grade = str(s.get("rank", "?")).upper()
-                badge = DaletAtoms.GRADE_BADGES.get(grade, grade)
+                badge = DaletAtoms.get_grade_emoji(grade)
                 pp_disp = _format_play_pp(s, lang=lang, compact=True, decimals=2) or f"**{t('osu.no_pp', lang)}**"
                 acc = _format_acc(s.get("accuracy", 0.0))
                 mods_str = _format_mods(s.get("mods", []))
@@ -1463,7 +1467,7 @@ class OsuPresenter:
                 rel_time = DaletAtoms.parse_timestamp_relative(s.get("created_at", ""))
                 time_part = f" · {rel_time}" if rel_time else ""
 
-                row1 = f"**#{idx}** `{badge}` · {pp_disp} · **{acc}** · **{mods_str}** · {sr:.2f}★"
+                row1 = f"**#{idx}** {badge} · {pp_disp} · **{acc}** · **{mods_str}** · {sr:.2f}★"
                 row2 = f"└ {combo_str} ({miss_str}) · `[{c300}/{c100}/{c50}/{misses}]` · {score_str}{time_part}"
                 lines.append(f"{row1}\n{row2}")
 

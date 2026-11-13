@@ -66,6 +66,14 @@ class EventsHandler(commands.Cog):
             except Exception as e:
                 logger.error(f"Error sincronizando slash commands en on_ready: {e}")
 
+            try:
+                from ui.atoms import DaletAtoms
+                app_emojis = await self.bot.fetch_application_emojis()
+                loaded_cnt = DaletAtoms.load_application_emojis(app_emojis)
+                logger.info(f"Application Emojis cargados en RAM: {loaded_cnt}")
+            except Exception as e:
+                logger.warning(f"No se pudieron cargar Application Emojis: {e}")
+
         logger.info(f"Bot conectado como {self.bot.user} (ID: {self.bot.user.id})")
 
     # -------------------------------------------------------------------------

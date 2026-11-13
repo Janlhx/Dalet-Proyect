@@ -148,3 +148,51 @@ class DaletAtoms(metaclass=DaletAtomsMeta):
             return f"<t:{unix_ts}:R>"
         except Exception:
             return iso_str[:10]
+
+    # --- Application Custom Emojis (Auto-cargados al iniciar el bot) ---
+    CUSTOM_EMOJIS: dict[str, str] = {}
+
+    @classmethod
+    def load_application_emojis(cls, emojis) -> int:
+        """Mapea los Application Emojis de Discord en RAM por nombre en minúsculas."""
+        cls.CUSTOM_EMOJIS.clear()
+        for emoji in (emojis or []):
+            name = getattr(emoji, "name", None)
+            if name:
+                emoji_id = getattr(emoji, "id", None)
+                if emoji_id is not None:
+                    prefix = "a" if getattr(emoji, "animated", False) else ""
+                    cls.CUSTOM_EMOJIS[str(name).lower().strip()] = f"<{prefix}:{name}:{emoji_id}>"
+                else:
+                    cls.CUSTOM_EMOJIS[str(name).lower().strip()] = str(emoji)
+        return len(cls.CUSTOM_EMOJIS)
+
+    @classmethod
+    def resolve_custom_emoji(cls, name: str) -> str | None:
+        """Resuelve un nombre de emoji custom (ej. 'dalet_stare') a '<:dalet_stare:ID>'."""
+        if not name:
+            return None
+        return cls.CUSTOM_EMOJIS.get(str(name).lower().strip())
+
+    @classmethod
+    def get_grade_emoji(cls, grade: str, suffix: str = "") -> str:
+        """Devuelve el emoji custom del grade ('grade_s') o hace fallback al badge limpio."""
+        g = (grade or "?").upper().strip()
+        custom = cls.CUSTOM_EMOJIS.get(f"grade_{g.lower()}")
+        if custom:
+            return f"{custom} `({suffix})`" if suffix else custom
+        badge_txt = cls.GRADE_BADGES.get(g, g)
+        return f"`{badge_txt} ({suffix})`" if suffix else f"`{badge_txt}`"
+
+    @classmethod
+    def get_mode_emoji(cls, mode: str) -> str:
+        """Devuelve el emoji custom del modo de osu! ('mode_osu') si está disponible."""
+        m = (mode or "osu").lower().strip()
+        alias_map = {"std": "osu", "standard": "osu", "catch": "fruits", "ctb": "fruits"}
+        m = alias_map.get(m, m)
+        return cls.CUSTOM_EMOJIS.get(f"mode_{m}", "")
+
+    @classmethod
+    def get_dalet_reaction_emojis(cls) -> list[str]:
+        """Devuelve la lista ordenada de nombres de emojis propios de Dalet ('dalet_*')."""
+        return sorted(name for name in cls.CUSTOM_EMOJIS if name.startswith("dalet_"))

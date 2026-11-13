@@ -225,6 +225,44 @@ class TestAIGuardrails(unittest.TestCase):
         self.assertIn("ANTE DETALLES CREATIVOS DE LA COMUNIDAD", prompt_es)
         self.assertIn("kerning", prompt_es)
 
+    def test_custom_emoji_resolution_and_prompt_injection(self):
+        """Verifica que Dalet pueda resolver emojis propios [CUSTOM_EMOJI: ...] e inyectarlos al prompt."""
+        from types import SimpleNamespace
+        from ui.atoms import DaletAtoms
+
+        DaletAtoms.CUSTOM_EMOJIS.clear()
+        try:
+            DaletAtoms.load_application_emojis([
+                SimpleNamespace(name="dalet_stare", id=9901, animated=False),
+                SimpleNamespace(name="dalet_meh", id=9902, animated=False),
+            ])
+            # Respuesta compuesta únicamente por un emoji (estilo sticker gigante en Discord)
+            self.assertEqual(NLPService.resolve_custom_emojis("[CUSTOM_EMOJI: dalet_stare]"), "<:dalet_stare:9901>")
+            # Respuesta mixta y etiqueta desconocida limpia
+            self.assertEqual(
+                NLPService.resolve_custom_emojis("ok [CUSTOM_EMOJI: dalet_meh] [CUSTOM_EMOJI: inventado]"),
+                "ok <:dalet_meh:9902>",
+            )
+            # Fallback :dalet_stare:
+            self.assertEqual(NLPService.resolve_custom_emojis(":dalet_stare:"), "<:dalet_stare:9901>")
+            # Reacción con nombre custom
+            cleaned, react = NLPService.extract_reaction("qué? [REACTION: dalet_stare]")
+            self.assertEqual(cleaned, "qué?")
+            self.assertEqual(react, "<:dalet_stare:9901>")
+
+            nlp = NLPService()
+            formatted = nlp._format_user_prompt_with_context(
+                trigger="hola",
+                context="...",
+                username="Litxe",
+                language="es",
+            )
+            self.assertIn("[EMOJIS CUSTOM PROPIOS DE DALET]", formatted)
+            self.assertIn("dalet_stare", formatted)
+            self.assertIn("dalet_meh", formatted)
+        finally:
+            DaletAtoms.CUSTOM_EMOJIS.clear()
+
 
 if __name__ == '__main__':
     unittest.main()

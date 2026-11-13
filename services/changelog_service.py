@@ -15,11 +15,12 @@ class ChangelogService:
     BASE_VERSION = "v4.0"
     # Commit base del hito v4.0 (Pirámide Semántica L0-L3, DeepSeek Web Search/Fetch, Proactive AI & SHA-256 Guard)
     BASE_MILESTONE_COMMIT = "4815b25"
-    FALLBACK_PATCH = 12
+    FALLBACK_PATCH = 13
     REPO_URL = "https://github.com/Janlhx/Dalet-Proyect"
 
     _FALLBACK_COMMITS = [
-        ("HEAD", "feat(ux,agents): redesign osu! embeds for mobile-first readability and persist 4 specialized .agents/ subagents & updated skills", "✦"),
+        ("HEAD", "feat(ui,nlp): add Discord Application Emojis for osu! grades/modes and Dalet custom chat reactions (Spec-010)", "✦"),
+        ("0f011d1", "feat(ux,agents): redesign osu! embeds for mobile-first readability and persist 4 specialized .agents/ subagents & updated skills", "✦"),
         ("44661fb", "feat(persona,memory): add organic Discord personality calibration, Litxe origin lore, multi-user speaker attribution, and GuildCommunityLore", "✦"),
         ("e6c19d2", "feat(osu,compare): add d.c / /compare beatmap score comparison with Bathbot/owo embed detection and /usercompare", "✦"),
         ("298c27a", "feat(osu,pp): integrate rosu-pp fail/if-fc simulation, enhanced play cards, and d.m / /map command", "✦"),
@@ -38,6 +39,7 @@ class ChangelogService:
     _MILESTONES_ES = {
         "v4": (
             "Hito v4.0: Compare por Mapas (`d.c`), Motor rosu-pp, Multi-Servidor osu!, UI en Glifos & Seguridad",
+            "▫ **Application Emojis & Reacciones Custom de Dalet (Spec-010)**: Auto-carga de Application Emojis (`fetch_application_emojis`) para rangos (`SS`, `S`, `A`...) y modos de osu! con fallback seguro, además de emojis propios (`dalet_stare`, `dalet_meh`) usables en chat o como respuesta muda.\n"
             "▫ **Compare por Mapas (`d.c` / `/compare`) & Lectura de Otros Bots (Spec-008)**: Compara todas tus mejores jugadas guardadas (con mods o `+NM`) en un mapa leyendo Reply directo o embeds recientes de Bathbot, owo y Dalet en el canal (`d.c` y `d.m`); duelos 1v1 ahora en `/usercompare` (`d.vs`, `d.uc`).\n"
             "▫ **Simulación Exacta rosu-pp & Comando `/map` (`d.m`) (Spec-007)**: Cálculo real de PP alcanzado en fails/unranked (`passed_objects`), proyección `if FC` visible en todas las jugadas con fallos o chokes (`/recent`, `/top`, `/firsts`), atributos escalados a mods y ficha `/map` (`d.m`) con tabla `95/98/99/100% SS`.\n"
             "▫ **Modernización Legacy & UI en Glifos (Spec-006)**: Estandarización total de Discord UI con glifos tipográficos (cero emojis), bloqueo anti-ping en `/say` (`d.say`), paridad `/channelstatus` (`d.cs`), unificación `d.ping` (`d.ms`), cascada híbrida de idioma y retiro de comandos obsoletos (`d.memories`, `d.chatlog`, `d.ver_resumenes`).\n"
@@ -53,6 +55,7 @@ class ChangelogService:
             "Milestone v4.0: Beatmap Compare (`d.c`), rosu-pp Engine, Multi-Server osu!, Glyph UI & Security",
             "▫ **Beatmap Score Compare (`d.c` / `/compare`) & Cross-Bot Embed Detection (Spec-008)**: Compares your saved mod/NM scores on a beatmap directly from a Reply or recent channel embeds by Bathbot, owo, or Dalet (reused in `d.m`); 1v1 player comparison moved cleanly to `/usercompare` (`d.vs`, `d.uc`).\n"
             "▫ **Exact rosu-pp Simulation & `/map` (`d.m`) Command (Spec-007)**: Real PP achieved on failed/unranked scores (`passed_objects`), inline `if FC` estimates across every play card (`/recent`, `/top`, `/firsts`), mod-scaled map attributes, and `/map` (`d.m`) with `95/98/99/100% SS` PP table.\n"
+            "▫ **Application Emojis & Dalet Custom Chat Emojis (Spec-010)**: Automatic `fetch_application_emojis()` loading for osu! grades and modes with safe badge fallbacks, plus Dalet's own custom emojis (`dalet_stare`, `dalet_meh`) usable inline or as standalone sticker-like replies.\n"
             "▫ **Legacy Cleanup & Glyph UI Standardization (Spec-006)**: Pure typographic glyph UI across all Discord embeds/views (zero emojis), mention-safe `/say` (`d.say`), `/channelstatus` (`d.cs`) parity, `d.ping` (`d.ms`) unification, hybrid language cascade, and removal of deprecated commands (`d.memories`, `d.chatlog`, `d.ver_resumenes`).\n"
             "▫ **Security Hardening & Automated Test Suite (Spec-005)**: SSRF guard on `web_fetch`, constant-time auth (`hmac.compare_digest`), OWASP HTTP security headers, Dashboard allowlist/clamping, and `test_security_and_moderation.py`.\n"
             "▫ **Multi-Server Support & Bathbot/owo Prefix Ergonomics (Spec-004)**: Full support for `Bancho`, `Akatsuki` (Vanilla/Relax/Autopilot), and `Gatari`, per-server account linking (`/link`, `d.link -aka -rx -gatari`), and mode shortcuts (`d.opm`, `d.rsm`, `d.topm`).\n"

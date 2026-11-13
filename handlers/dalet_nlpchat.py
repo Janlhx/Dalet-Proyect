@@ -620,6 +620,7 @@ class DaletNLPChat(commands.Cog):
 
             from services.nlp_service import NLPService
             reply, reaction_emoji = NLPService.extract_reaction(raw_reply or "")
+            reply = NLPService.resolve_custom_emojis(reply)
 
             # 1. Aplicar reacción con emoji si Dalet decidió reaccionar al mensaje (respetando cooldown)
             if reaction_emoji and can_react:

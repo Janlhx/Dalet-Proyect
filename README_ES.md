@@ -63,6 +63,7 @@ Evalúa los mejores 50 a 100 puntajes de un jugador mediante heurísticas estad�
 - **`/firsts` (`d.op1s`)**: Vitrina de récords #1 globales del jugador con enlaces a los mapas, precisión, mods y soporte para mapas Loved.
 - **`/rank` (`d.rank`)**: Ranking del servidor filtrable por modo con sincronización en tiempo real.
 - **`/link` & `/unlink`**: Vinculación y desvinculación de cuenta con snapshots iniciales automáticos.
+- **Application Emojis & Reacciones Custom (`Spec-010`)**: Auto-carga Application Emojis de Discord (`fetch_application_emojis()`) para rangos y modos de osu! (con fallback seguro a badges limpios) más emojis propios de Dalet (`dalet_stare`, `dalet_meh`) usables en chat o como respuesta muda estilo sticker.
 
 ---
 
