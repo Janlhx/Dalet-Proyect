@@ -64,6 +64,7 @@ Evalúa los mejores 50 a 100 puntajes de un jugador mediante heurísticas estad�
 - **`/rank` (`d.rank`)**: Ranking del servidor filtrable por modo con sincronización en tiempo real.
 - **`/link` & `/unlink`**: Vinculación y desvinculación de cuenta con snapshots iniciales automáticos.
 - **Application Emojis & Reacciones Custom (`Spec-010`)**: Auto-carga Application Emojis de Discord (`fetch_application_emojis()`) para rangos y modos de osu! (con fallback seguro a badges limpios) más emojis propios de Dalet (`dalet_stare`, `dalet_meh`) usables en chat o como respuesta muda estilo sticker.
+- **Auto-Calibración Bidireccional & Memoria Multi-LLM (`Spec-011`)**: `MemoryService` usa cascada Gemini → Groq para `L1–L3` y `PersonaInsights`, aprendiendo tanto de química positiva como de fricción implícita, con persistencia de `OsuHistory` en Turso Cloud.
 
 ---
 

@@ -263,6 +263,67 @@ class TestAIGuardrails(unittest.TestCase):
         finally:
             DaletAtoms.CUSTOM_EMOJIS.clear()
 
+    def test_memory_service_multi_llm_fallback_and_bidirectional_insights(self):
+        """Verifica que MemoryService caiga a Groq si Gemini falla y guarde insights positivos/correctivos."""
+        import asyncio
+        import json
+        import os
+        from types import SimpleNamespace
+        from unittest.mock import AsyncMock, patch
+        from services.memory_service import MemoryService
+
+        class _FakeResponse:
+            def __init__(self, status_code, payload):
+                self.status_code = status_code
+                self._payload = payload
+
+            def json(self):
+                return self._payload
+
+        class _FakeHTTP:
+            async def post(self, url, **kwargs):
+                if "generativelanguage.googleapis.com" in url:
+                    return _FakeResponse(404, {})
+                return _FakeResponse(200, {
+                    "choices": [{
+                        "message": {
+                            "content": json.dumps({
+                                "save": False,
+                                "lesson_type": "positive",
+                                "critique": "El remate corto generó risa inmediata",
+                                "style_lesson": "Mantener remates secos de 1 línea en bromas de osu!",
+                            })
+                        }
+                    }]
+                })
+
+        fake_repo = SimpleNamespace(
+            add_persona_insight=AsyncMock(),
+            get_user_persona=AsyncMock(return_value=None),
+        )
+        mem = MemoryService(user_repo=fake_repo)
+        nlp_stub = SimpleNamespace(
+            gemini_api_key="fake-gemini",
+            groq_api_key="fake-groq",
+            _http_client=_FakeHTTP(),
+        )
+
+        async def _run():
+            with patch.dict(os.environ, {"GEMINI_MODEL": "gemini-3.8-flash"}):
+                await mem.analyze_and_record_memory(
+                    user_id=42,
+                    user_name="Litxe",
+                    user_message="jsjsjs buena esa, sigue así de directo",
+                    dalet_reply="ni con HD pasas eso",
+                    nlp_service=nlp_stub,
+                )
+
+        asyncio.run(_run())
+        fake_repo.add_persona_insight.assert_awaited_once()
+        kwargs = fake_repo.add_persona_insight.call_args.kwargs
+        self.assertTrue(kwargs["critique"].startswith("[Acierto]"))
+        self.assertIn("remates secos", kwargs["style_rule"])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -64,6 +64,7 @@ Evaluates a player's top 50/100 plays through mathematical heuristics with PP an
 - **`/rank` (`d.rank`)**: Server leaderboard with live PP/accuracy sync and mode filtering.
 - **`/link` & `/unlink`**: Link or unlink your osu! account with automatic initial snapshots.
 - **Application Emojis & Custom Chat Reactions (`Spec-010`)**: Automatically loads Discord Application Emojis (`fetch_application_emojis()`) for osu! grades and game modes (with clean text-badge fallbacks) plus Dalet's custom chat emojis (`dalet_stare`, `dalet_meh`) usable inline or as standalone sticker-like replies.
+- **Bidirectional Self-Calibration & Multi-LLM Memory (`Spec-011`)**: `MemoryService` cascades across Gemini and Groq for `L1–L3` + `PersonaInsights`, learning from both positive rapport and implicit conversational friction, while `OsuHistory` persists in Turso Cloud.
 
 ---
 

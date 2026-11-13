@@ -28,13 +28,17 @@ Evalúa si este mensaje revela algún rasgo DURADERO, hobby real, carrera/estudi
 - Consultas externas puntuales ("qué hora es", "a cómo está el dólar").
 - Si actualizas `persona_l3`, incluye siempre una nota breve de calibración social (cómo tratar a este usuario para que la charla fluya genial sin saturarlo con el mismo chiste).
 
-OBJETIVO 2 — AUTO-ENTRENAMIENTO DE PERSONALIDAD DE DALET (`style_lesson`, opcional):
-Evalúa con ojo crítico la respuesta de Dalet (`dalet_reply`) y la reacción del usuario (`user_message`).
-Genera una regla de mejora en `"style_lesson"` SOLO si detectas alguno de estos fallos en Dalet:
-1. Literalidad robótica / soporte técnico no pedido: El usuario dijo una frase retórica, sarcástica o con errata de Discord (ej. "hay que no puedo ver mis mensajes ahora?" = "¡ay!, ¿acaso no puedo mirar mis mensajes?") y Dalet lo tomó literal dándole soporte técnico de Discord (Ctrl+R, canales, etc.).
-2. Crueldad gratuita o trato de enemigo: Dalet cruzó la línea del sarcasmo ingenioso hacia ataques personales pesados ("nadie te habla", hostilidad cortante) o el usuario se quejó directamente de su actitud (ej. "eres grosera/cruel/arrogante/pesada").
-3. Bucle temático: Dalet repitió el mismo ángulo de burla de turnos anteriores en vez de fluir con la conversación cuando el usuario quería socializar.
-Si Dalet respondió bien y con buen tono, deja `"style_lesson": ""` y `"critique": ""`.
+OBJETIVO 2 — AUTO-ENTRENAMIENTO BIDIRECCIONAL DE PERSONALIDAD (`style_lesson`, opcional):
+Evalúa la química real entre la respuesta de Dalet (`dalet_reply`) y la reacción del usuario (`user_message`).
+NO esperes a que el usuario se queje literalmente ("eres cruel"). Aprende tanto de fricciones implícitas como de aciertos reales:
+1. `lesson_type: "correction"` (Fricción o fallo):
+   - Fricción implícita: el usuario cortó seco ("ok", "ya", "bueno") o cambió de tema incómodo tras la respuesta de Dalet.
+   - Literalidad robótica: Dalet tomó una frase retórica/sarcástica/errata literal dando soporte técnico no pedido.
+   - Crueldad gratuita o bucle temático: Dalet atacó pesado sin gracia o forzó/repitió el mismo chiste viejo.
+2. `lesson_type: "positive"` (Química y acierto):
+   - El usuario reaccionó con risa genuina, complicidad o siguió el hilo animado gracias a un remate seco, brevedad, emoji mudo o nivel exacto de sarcasmo de Dalet.
+   - Registra qué enfoque funcionó para replicar esa naturalidad en el servidor.
+Si la interacción fue rutinaria/neutra sin una lección clara (ni fallo ni acierto notable), deja `"lesson_type": ""`, `"style_lesson": ""` y `"critique": ""`.
 
 Responde ÚNICAMENTE con un objeto JSON en crudo con esta estructura exacta:
 {{
@@ -44,8 +48,9 @@ Responde ÚNICAMENTE con un objeto JSON en crudo con esta estructura exacta:
   "dalet_thought": "L1 (Átomo): Hecho concreto duradero o preferencia social de esta interacción en 1 frase (vacío si save es false).",
   "scenario_l2": "L2 (Escenario Actual): En qué anda el usuario últimamente a nivel de estudios, juegos o proyectos reales (máx 2 frases, vacío si save es false).",
   "persona_l3": "L3 (Perfil Persona + Calibración): Identidad estable del usuario, gustos base y cómo calibrar el sarcasmo/complicidad con él/ella (máx 2-3 frases, vacío si save es false).",
-  "critique": "Breve diagnóstico de 1 frase si Dalet falló en tono, literalidad o repetición (vacío si estuvo bien).",
-  "style_lesson": "Regla accionable y concisa en 1 frase para que Dalet mejore su personalidad en futuras charlas (vacío si no aplica)."
+  "lesson_type": "correction" | "positive" | "",
+  "critique": "Breve diagnóstico de 1 frase (qué falló o qué generó buena química; vacío si no aplica).",
+  "style_lesson": "Regla accionable y concisa en 1 frase para calibrar a Dalet en futuras charlas (vacío si no aplica)."
 }}
 """
 
@@ -420,10 +425,11 @@ class MemoryService:
 
         self._user_memory_cooldown[user_id] = now
 
-        # Ejecutar análisis cognitivo con Gemini
+        # Ejecutar análisis cognitivo con cascada Multi-LLM (Gemini -> Groq)
         try:
-            api_key = (getattr(nlp_service, "gemini_api_key", None) or os.getenv("GEMINI_API_KEY") or "").strip()
-            if not api_key:
+            has_gemini = bool((getattr(nlp_service, "gemini_api_key", None) or os.getenv("GEMINI_API_KEY") or "").strip())
+            has_groq = bool((getattr(nlp_service, "groq_api_key", None) or os.getenv("GROQ_API_KEY") or "").strip())
+            if not has_gemini and not has_groq:
                 return
 
             # Obtener L3 y L2 actuales para que evolucionen incrementalmente
@@ -435,9 +441,6 @@ class MemoryService:
                     current_l3 = existing_persona.get("persona_l3") or current_l3
                     current_l2 = existing_persona.get("scenario_l2") or current_l2
 
-            raw_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
-            model_name = "gemini-3.8-flash" if "flash" in raw_model else raw_model
-
             prompt = _MEMORY_ANALYSIS_PROMPT.format(
                 user_name=user_name,
                 current_persona_l3=current_l3[:500],
@@ -445,15 +448,6 @@ class MemoryService:
                 user_message=clean_msg[:300],
                 dalet_reply=dalet_reply[:300],
             )
-
-            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-            payload = {
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {
-                    "temperature": 0.2,
-                    "response_mime_type": "application/json",
-                },
-            }
 
             http_client = getattr(nlp_service, "_http_client", None)
             close_client = False
@@ -463,14 +457,9 @@ class MemoryService:
                 close_client = True
 
             try:
-                resp = await http_client.post(gemini_url, json=payload, timeout=8.0)
-                if resp.status_code != 200:
-                    logger.debug(f"[MEMORY] API status {resp.status_code} en análisis de recuerdos")
+                result = await self._call_memory_llm(http_client, prompt, nlp_service=nlp_service)
+                if not isinstance(result, dict):
                     return
-
-                data = resp.json()
-                text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                result = json.loads(text)
 
                 thought = (
                     result.get("dalet_thought")
@@ -510,22 +499,95 @@ class MemoryService:
 
                     logger.info(f"🧠 [MEMORY PYRAMID] L1/L2/L3 actualizado para {user_name} ({topic}): '{thought}'")
 
-                # 4. Registrar lección de auto-entrenamiento de personalidad (Approach B) si se detectó margen de mejora
+                # 4. Registrar lección de auto-calibración bidireccional (fricción implícita o química positiva)
                 style_lesson = (result.get("style_lesson") or "").strip()
                 critique = (result.get("critique") or "").strip()
+                lesson_type = (result.get("lesson_type") or "").strip().lower()
                 if style_lesson and hasattr(self.repo, "add_persona_insight"):
+                    tag = "[Acierto]" if lesson_type == "positive" else "[Calibración]"
+                    tagged_critique = f"{tag} {critique}".strip() if critique else tag
                     await self.repo.add_persona_insight(
                         user_id=user_id,
                         user_name=user_name,
                         user_message=clean_msg[:200],
                         dalet_reply=dalet_reply[:200],
-                        critique=critique,
+                        critique=tagged_critique,
                         style_rule=style_lesson,
                     )
-                    logger.info(f"✦ [PERSONA SELF-TRAINING] Nueva regla aprendida: '{style_lesson}' ({critique})")
+                    logger.info(f"✦ [PERSONA SELF-TRAINING] Nueva regla ({lesson_type or 'correction'}): '{style_lesson}' ({tagged_critique})")
             finally:
                 if close_client:
                     await http_client.aclose()
 
         except Exception as e:
-            logger.debug(f"[MEMORY] No se pudo analizar recuerdo: {e}")
+            logger.warning(f"[MEMORY] Error analizando recuerdo en segundo plano: {e}")
+
+    async def _call_memory_llm(self, http_client, prompt: str, nlp_service=None) -> dict | None:
+        """
+        Ejecuta la destilación cognitiva con cascada resiliente de modelos/proveedores:
+        1) GEMINI_MODEL configurado -> gemini-2.5-flash
+        2) Fallback a Groq (llama-3.3-70b-versatile) si está disponible.
+        """
+        api_key = (getattr(nlp_service, "gemini_api_key", None) or os.getenv("GEMINI_API_KEY") or "").strip()
+        raw_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+        gemini_models = []
+        for candidate in (raw_model, "gemini-2.5-flash"):
+            if candidate and candidate not in gemini_models:
+                gemini_models.append(candidate)
+
+        if api_key:
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {
+                    "temperature": 0.2,
+                    "response_mime_type": "application/json",
+                },
+            }
+            for model_name in gemini_models:
+                gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+                try:
+                    resp = await http_client.post(gemini_url, json=payload, timeout=10.0)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        raw_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                        return self._parse_json_response(raw_text)
+                    logger.warning(f"[MEMORY] Gemini ({model_name}) respondió status {resp.status_code}; intentando fallback...")
+                except Exception as e:
+                    logger.warning(f"[MEMORY] Fallo llamando a Gemini ({model_name}): {e}")
+
+        groq_key = (getattr(nlp_service, "groq_api_key", None) or os.getenv("GROQ_API_KEY") or "").strip()
+        if groq_key:
+            try:
+                groq_resp = await http_client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
+                    json={
+                        "model": "llama-3.3-70b-versatile",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.2,
+                        "response_format": {"type": "json_object"},
+                    },
+                    timeout=10.0,
+                )
+                if groq_resp.status_code == 200:
+                    groq_data = groq_resp.json()
+                    raw_text = groq_data["choices"][0]["message"]["content"].strip()
+                    return self._parse_json_response(raw_text)
+                logger.warning(f"[MEMORY] Groq fallback respondió status {groq_resp.status_code}")
+            except Exception as e:
+                logger.warning(f"[MEMORY] Error en Groq fallback: {e}")
+
+        return None
+
+    @staticmethod
+    def _parse_json_response(raw_text: str) -> dict | None:
+        cleaned = (raw_text or "").strip()
+        if cleaned.startswith("```"):
+            cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r"\s*```$", "", cleaned)
+        try:
+            parsed = json.loads(cleaned)
+            return parsed if isinstance(parsed, dict) else None
+        except Exception as e:
+            logger.warning(f"[MEMORY] JSON inválido en destilación: {e}")
+            return None

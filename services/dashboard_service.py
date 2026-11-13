@@ -248,6 +248,7 @@ class DashboardService:
         "PersonaInsights",
         "OsuAccounts",
         "OsuServerLinks",
+        "OsuHistory",
     })
 
     @classmethod
@@ -258,6 +259,7 @@ class DashboardService:
             ("UserPersonas", "Pirámide Semántica: Perfiles Persona (L3) y Escenarios Activos (L2)", "personas"),
             ("UserMemories", "Pirámide Semántica: Átomos cognitivos y pensamientos (L1)", "memories"),
             ("Messages", "Historial de mensajes de chat registrados (L0)", "messages"),
+            ("OsuHistory", "Snapshots históricos de PP y Rank en osu! para /progress", "osu_history"),
             ("ModerationConfig", "Configuraciones de moderación activa por servidor", "moderation_config"),
             ("ModActions", "Auditoría de infracciones y acciones automáticas", "mod_actions"),
             ("Feedbacks", "Buzón de sugerencias y comentarios de la comunidad", "feedbacks"),
