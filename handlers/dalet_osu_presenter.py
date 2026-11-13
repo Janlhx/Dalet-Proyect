@@ -592,11 +592,28 @@ class OsuPresenter:
                 clean_mod_tag = str(mods_filter).upper().replace("+", "").strip()
                 header_label += f" · +{clean_mod_tag}"
 
-            embed.add_field(
-                name=f"{DaletAtoms.GLYPH_STAR} {header_label}",
-                value="\n\n".join(play_lines),
-                inline=False
-            )
+            # Dividir dinámicamente en fields <= 980 chars para respetar el límite de 1024 de Discord
+            chunks = []
+            current_chunk = []
+            current_len = 0
+            for pl in play_lines:
+                added_len = len(pl) + (2 if current_chunk else 0)
+                if current_chunk and (current_len + added_len > 980):
+                    chunks.append("\n\n".join(current_chunk))
+                    current_chunk = [pl]
+                    current_len = len(pl)
+                else:
+                    current_chunk.append(pl)
+                    current_len += added_len
+            if current_chunk:
+                chunks.append("\n\n".join(current_chunk))
+
+            for idx_c, chunk_val in enumerate(chunks):
+                embed.add_field(
+                    name=f"{DaletAtoms.GLYPH_STAR} {header_label}" if idx_c == 0 else "\u200b",
+                    value=chunk_val[:1024],
+                    inline=False
+                )
 
         srv_name = _server_title(actual_user.get("_server") if isinstance(actual_user, dict) else "bancho")
         DaletMolecules.add_standard_footer(embed, context_text=srv_name)

@@ -405,6 +405,36 @@ class TestRosuPPAndMapCard(unittest.TestCase):
                 mode="osu", lang="es",
             )
             self.assertIn("<:grade_sh:1001>", firsts_emb.description)
+
+            # Regresión: 5 top plays con custom emojis largos + if FC + timestamps no deben exceder 1024 chars en fields
+            long_scores = [
+                {
+                    "rank": "SH",
+                    "pp": 412.5,
+                    "_pp_fc": 495.2,
+                    "accuracy": 0.9854,
+                    "max_combo": 720,
+                    "mods": ["HD", "DT"],
+                    "created_at": "2026-11-12T20:00:00Z",
+                    "statistics": {"count_miss": 2},
+                    "beatmap": {"id": 1234567 + idx, "version": "Extra Difficulty Name", "max_combo": 900, "difficulty_rating": 7.5},
+                    "beatmapset": {"title": "Very Long Beatmap Title Example"},
+                }
+                for idx in range(5)
+            ]
+            top_emb = OsuPresenter.build_top_card(
+                {"id": 1, "username": "Litxe", "country_code": "CO", "statistics": {"pp": 7000, "global_rank": 12345, "hit_accuracy": 98.5}},
+                long_scores,
+                mode="osu",
+                lang="es",
+                sort_by="recent",
+            )
+            self.assertLessEqual(len(top_emb.description or ""), 4096)
+            self.assertGreaterEqual(len(top_emb.fields), 1)
+            for fld in top_emb.fields:
+                self.assertLessEqual(len(fld.value), 1024)
+            all_top_text = "\n".join(fld.value for fld in top_emb.fields)
+            self.assertIn("<:grade_sh:1001>", all_top_text)
         finally:
             DaletAtoms.CUSTOM_EMOJIS.clear()
 
