@@ -535,8 +535,10 @@ class OsuPresenter:
         lbl_analyzed = t("osu.plays_analyzed", actual_lang)
         lbl_acc = t("osu.accuracy", actual_lang)
 
+        mode_emoji = DaletAtoms.get_mode_emoji(actual_mode)
+        mode_prefix = f"{mode_emoji} " if mode_emoji else ""
         desc_lines = [
-            f"**{lbl_raw_pp}**: `{pp_real:,.0f}pp` · **{lbl_weighted_pp}**: `{weighted_pp:,.0f}pp` · **Rank**: `{rank_str}`",
+            f"{mode_prefix}**{lbl_raw_pp}**: `{pp_real:,.0f}pp` · **{lbl_weighted_pp}**: `{weighted_pp:,.0f}pp` · **Rank**: `{rank_str}`",
             f"**{lbl_analyzed}**: {len(actual_scores)} · **{lbl_acc}**: {acc_global:.2f}%"
         ]
         embed.description = "\n".join(desc_lines)
@@ -805,8 +807,10 @@ class OsuPresenter:
             f"{DaletAtoms.GLYPH_POINTER} **{t('osu.country_rank', lang, code=country_code or '??')}**: `{cr_str}`",
             f"{DaletAtoms.GLYPH_POINTER} **{t('osu.peak_rank', lang)}**: `{peak_str}`",
         ]
+        mode_emoji = DaletAtoms.get_mode_emoji(mode)
+        perf_glyph = mode_emoji or DaletAtoms.GLYPH_POINTER
         embed.add_field(
-            name=f"{DaletAtoms.GLYPH_POINTER} {t('osu.performance', lang)}",
+            name=f"{perf_glyph} {t('osu.performance', lang)}",
             value="\n".join(perf_lines),
             inline=True
         )
@@ -850,9 +854,13 @@ class OsuPresenter:
         sh, s = grades.get("sh", 0) or 0, grades.get("s", 0) or 0
         a = grades.get("a", 0) or 0
 
+        ss_badge = DaletAtoms.get_grade_emoji("X")
+        s_badge = DaletAtoms.get_grade_emoji("S")
+        a_badge = DaletAtoms.get_grade_emoji("A")
+
         embed.add_field(
             name=f"{DaletAtoms.GLYPH_STAR} {t('osu.grade_history', lang)}",
-            value=f"`SS` **{ssh+ss:,}** │ `S` **{sh+s:,}** │ `A` **{a:,}**",
+            value=f"{ss_badge} **{ssh+ss:,}** │ {s_badge} **{sh+s:,}** │ {a_badge} **{a:,}**",
             inline=False
         )
 
@@ -894,7 +902,7 @@ class OsuPresenter:
             acc = _format_acc(s.get("accuracy", 0.0))
             mods_str = _format_mods(s.get("mods", []))
             grade = str(s.get("rank", "?")).upper()
-            badge = DaletAtoms.GRADE_BADGES.get(grade, grade)
+            badge = DaletAtoms.get_grade_emoji(grade)
             title = bms.get("title", "Desconocido")
             ver = bm.get("version", "Normal")
             sr = s.get("official_sr") or s.get("beatmap_attributes", {}).get("star_rating") or _calc_effective_sr(bm, s.get("mods", []), mode=mode)
@@ -1029,9 +1037,11 @@ class OsuPresenter:
         else:
             h2h_summary = t("osu.compare_score_tie", lang, wins1=wins1, wins2=wins2, mode=mode_name)
 
+        mode_emoji = DaletAtoms.get_mode_emoji(mode_clean)
+        mode_prefix = f"{mode_emoji} " if mode_emoji else ""
         embed = discord.Embed(
             title=f"✦ Head-to-Head {DaletAtoms.GLYPH_PIPE} {u1_name} vs {u2_name}",
-            description=f"{h2h_summary}\n{DaletAtoms.GLYPH_POINTER} {lead_txt}",
+            description=f"{mode_prefix}{h2h_summary}\n{DaletAtoms.GLYPH_POINTER} {lead_txt}",
             color=DaletAtoms.COLOR_PRIMARY
         )
 
@@ -1221,8 +1231,10 @@ class OsuPresenter:
         weak_info = skills_data.get(weakest, {})
         weak_pts = weak_info.get("points", 0.0)
 
+        mode_emoji = DaletAtoms.get_mode_emoji(mode)
+        ov_prefix = mode_emoji or DaletAtoms.GLYPH_POINTER
         desc_lines = [
-            f"{DaletAtoms.GLYPH_POINTER} **{lbl_overall}**: `{ov_pts:.1f} pts` {ov_glyph} `[{ov_tier}]` │ **PP**: `{pp:,.0f}` │ **Rank**: `{rank_str}`",
+            f"{ov_prefix} **{lbl_overall}**: `{ov_pts:.1f} pts` {ov_glyph} `[{ov_tier}]` │ **PP**: `{pp:,.0f}` │ **Rank**: `{rank_str}`",
             f"{DaletAtoms.GLYPH_POINTER} **{lbl_strength}**: `{dominant}` (`{dom_pts:.1f} pts`) │ **{lbl_weakness}**: `{weakest}` (`{weak_pts:.1f} pts`)",
             "`──────────────────────────────────────────`"
         ]
@@ -1433,8 +1445,10 @@ class OsuPresenter:
             url=_profile_url(u, mode=mode, fallback_username=username),
         )
 
+        mode_emoji = DaletAtoms.get_mode_emoji(mode)
         header_line = f"**[{artist} - {title} [{version}]]({map_url})**" if artist else f"**[{title} [{version}]]({map_url})**"
-        meta_line = f"`{base_sr:.2f}★` · `{base_bpm:.0f} BPM` · `{length_str}`"
+        meta_prefix = f"{mode_emoji} · " if mode_emoji else ""
+        meta_line = f"{meta_prefix}`{base_sr:.2f}★` · `{base_bpm:.0f} BPM` · `{length_str}`"
 
         if not scores:
             if mods_filter and total_unfiltered > 0:

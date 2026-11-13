@@ -387,6 +387,24 @@ class TestRosuPPAndMapCard(unittest.TestCase):
             self.assertEqual(DaletAtoms.get_mode_emoji("osu"), "<:mode_osu:1002>")
             self.assertEqual(DaletAtoms.get_dalet_reaction_emojis(), ["dalet_meh", "dalet_stare"])
             self.assertEqual(DaletAtoms.resolve_custom_emoji("dalet_meh"), "<a:dalet_meh:1004>")
+
+            # Verificar renderizado en tarjetas (/op, /firsts)
+            profile_emb = OsuPresenter.build_profile_card(
+                {
+                    "id": 1, "username": "Maluca",
+                    "statistics": {"pp": 5000, "global_rank": 1000, "grade_counts": {"ss": 5, "s": 10, "a": 20}},
+                },
+                mode="osu", lang="es",
+            )
+            profile_text = "\n".join(f.name + f.value for f in profile_emb.fields)
+            self.assertIn("<:mode_osu:1002>", profile_text)
+
+            firsts_emb = OsuPresenter.build_firsts_card(
+                "Maluca",
+                [{"rank": "SH", "accuracy": 0.99, "mods": ["HD"], "pp": 300, "max_combo": 200, "beatmap": {"id": 1}, "beatmapset": {"title": "Map"}}],
+                mode="osu", lang="es",
+            )
+            self.assertIn("<:grade_sh:1001>", firsts_emb.description)
         finally:
             DaletAtoms.CUSTOM_EMOJIS.clear()
 
