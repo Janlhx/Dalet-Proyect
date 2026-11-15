@@ -136,6 +136,7 @@ class OsuService:
         self.client_secret = client_secret
         self.token: str | None = None
         self.token_expiry: float = 0
+        self._auth_lock = asyncio.Lock()
         self.base_url = "https://osu.ppy.sh/api/v2"
         self._attr_cache: dict = {}
         self._bm_cache: dict[int, dict] = {}
@@ -159,40 +160,79 @@ class OsuService:
     # Auth
     # ------------------------------------------------------------------
 
-    async def _authenticate(self):
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                "https://osu.ppy.sh/oauth/token",
-                json={
-                    "client_id": self.client_id,
-                    "client_secret": self.client_secret,
-                    "grant_type": "client_credentials",
-                    "scope": "public",
-                },
-                timeout=15.0,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            self.token = data["access_token"]
-            self.token_expiry = time.time() + data["expires_in"] - 60
+    async def _authenticate(self, force: bool = False):
+        async with self._auth_lock:
+            if not force and self.token and time.time() <= self.token_expiry:
+                return
+            try:
+                async with httpx.AsyncClient() as client:
+                    resp = await client.post(
+                        "https://osu.ppy.sh/oauth/token",
+                        json={
+                            "client_id": self.client_id,
+                            "client_secret": self.client_secret,
+                            "grant_type": "client_credentials",
+                            "scope": "public",
+                        },
+                        timeout=15.0,
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()
+                    self.token = data["access_token"]
+                    self.token_expiry = time.time() + data["expires_in"] - 60
+            except Exception:
+                self.token = None
+                self.token_expiry = 0
+                raise
 
     async def _get_token(self) -> str:
         if not self.token or time.time() > self.token_expiry:
             await self._authenticate()
         return self.token
 
-    async def _get(self, endpoint: str, params: dict = None) -> dict | list:
+    async def _request(
+        self,
+        method: str,
+        endpoint: str,
+        *,
+        params: dict = None,
+        json: dict = None,
+        timeout: float = 20.0,
+    ) -> httpx.Response:
         token = await self._get_token()
-        headers = {"Authorization": f"Bearer {token}"}
+        url = f"{self.base_url}/{endpoint}"
+
         async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{self.base_url}/{endpoint}",
+            headers = {"Authorization": f"Bearer {token}"}
+            resp = await client.request(
+                method,
+                url,
                 headers=headers,
                 params=params,
-                timeout=20.0,
+                json=json,
+                timeout=timeout,
             )
+            if resp.status_code == 401:
+                logger.warning("osu! API v2 devolvió 401 Unauthorized; invalidando token y re-autenticando.")
+                if self.token == token:
+                    self.token = None
+                    self.token_expiry = 0
+                await self._authenticate(force=True)
+                headers = {"Authorization": f"Bearer {self.token}"}
+                resp = await client.request(
+                    method,
+                    url,
+                    headers=headers,
+                    params=params,
+                    json=json,
+                    timeout=timeout,
+                )
             resp.raise_for_status()
-            return resp.json()
+            return resp
+
+    async def _get(self, endpoint: str, params: dict = None) -> dict | list:
+        resp = await self._request("GET", endpoint, params=params, timeout=20.0)
+        return resp.json()
 
     # ------------------------------------------------------------------
     # Usuarios (Bancho / Akatsuki / Gatari)
@@ -613,24 +653,15 @@ class OsuService:
             return self._attr_cache[cache_key]
 
         endpoint = f"beatmaps/{beatmap_id}/attributes"
-        token = await self._get_token()
-        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
         payload = {"ruleset_id": ruleset_id}
         if mods:
             payload["mods"] = mods
 
         try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.post(
-                    f"{self.base_url}/{endpoint}",
-                    headers=headers,
-                    json=payload,
-                    timeout=10.0
-                )
-                if resp.status_code == 200:
-                    attrs = resp.json().get("attributes", {})
-                    self._attr_cache[cache_key] = attrs
-                    return attrs
+            resp = await self._request("POST", endpoint, json=payload, timeout=10.0)
+            attrs = resp.json().get("attributes", {})
+            self._attr_cache[cache_key] = attrs
+            return attrs
         except Exception as e:
             logger.debug(f"No se pudieron obtener atributos de dificultad para {beatmap_id}: {e}")
 
