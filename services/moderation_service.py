@@ -263,7 +263,12 @@ class ModerationService:
                 "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
             }
             try:
-                resp = await http_client.get(url, headers=download_headers, timeout=8.0)
+                from services.nlp_service import is_safe_public_url
+                is_safe, ssrf_reason = is_safe_public_url(url)
+                if not is_safe:
+                    logger.warning(f"[SSRF GUARD] Bloqueada descarga de imagen ({ssrf_reason}) desde: {url[:80]}")
+                    return ModerationResult(False, "safe", 1.0, "blocked_unsafe_url", "ssrf_guard")
+                resp = await http_client.get(url, headers=download_headers, timeout=8.0, follow_redirects=False)
                 if resp.status_code != 200:
                     logger.warning(f"Error descargando imagen para mod (HTTP {resp.status_code}) desde: {url[:80]}")
                     return ModerationResult(False, "safe", 1.0, f"download_failed_{resp.status_code}", "gemini_vision")

@@ -24,10 +24,16 @@ class TestWebSecurityAndEndpoints(unittest.TestCase):
         self.assertEqual(res_privacy.status_code, 200)
 
     def test_endpoints_open_when_no_secret_configured(self):
-        """Si DASHBOARD_SECRET está vacío, la API debe permitir acceso en desarrollo."""
+        """Si DASHBOARD_SECRET está vacío, falla cerrado (503) salvo con DALET_DEV_MODE=1."""
+        import os
         original_secret = dalet_main.DASHBOARD_SECRET
+        original_dev = os.environ.get("DALET_DEV_MODE")
         try:
             dalet_main.DASHBOARD_SECRET = ""
+            os.environ.pop("DALET_DEV_MODE", None)
+            self.assertEqual(self.app.get('/api/telemetry').status_code, 503)
+
+            os.environ["DALET_DEV_MODE"] = "1"
             res_telemetry = self.app.get('/api/telemetry')
             self.assertEqual(res_telemetry.status_code, 200)
 
@@ -35,6 +41,10 @@ class TestWebSecurityAndEndpoints(unittest.TestCase):
             self.assertEqual(res_feedbacks.status_code, 200)
         finally:
             dalet_main.DASHBOARD_SECRET = original_secret
+            if original_dev is None:
+                os.environ.pop("DALET_DEV_MODE", None)
+            else:
+                os.environ["DALET_DEV_MODE"] = original_dev
 
     def test_endpoints_blocked_when_secret_set_and_unauthorized(self):
         """Si DASHBOARD_SECRET está configurado, peticiones sin token deben recibir 401."""

@@ -263,8 +263,12 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
                 embed.add_field(name=lbl_recipient, value=user_ping, inline=True)
                 embed.add_field(name=lbl_time, value=f"`{r['ReminderTime']}` ({r['Timezone']})", inline=True)
                 
-                # Enviar ping + embed
-                await channel.send(content=user_ping, embed=embed)
+                # Enviar ping + embed (bloqueando @everyone, @here y roles)
+                await channel.send(
+                    content=user_ping,
+                    embed=embed,
+                    allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, users=True),
+                )
                 logger.info(f"Recordatorio #{r['ReminderID']} enviado con éxito a {channel.name}")
             else:
                 logger.warning(f"No se pudo enviar el recordatorio #{r['ReminderID']}: Canal {r['ChannelID']} no encontrado.")
@@ -321,6 +325,20 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
             return await interaction.response.send_message(err_msg, ephemeral=True)
 
         target_channel = channel or interaction.channel
+        if interaction.guild and isinstance(interaction.user, discord.Member) and hasattr(target_channel, "permissions_for"):
+            if not target_channel.permissions_for(interaction.user).send_messages:
+                err_msg = (
+                    f"{DaletAtoms.GLYPH_CROSS} You do not have permission to send messages in {target_channel.mention}."
+                    if server_lang == "en"
+                    else f"{DaletAtoms.GLYPH_CROSS} No tienes permiso para enviar mensajes en {target_channel.mention}."
+                )
+                return await interaction.response.send_message(err_msg, ephemeral=True)
+
+        # Sanitizar pings: permitir únicamente menciones de usuario (<@id>) para evitar @everyone/@here/roles
+        sanitized_pings = None
+        if pings:
+            user_mentions = re.findall(r"<@!?\d+>", pings)
+            sanitized_pings = " ".join(dict.fromkeys(user_mentions)) if user_mentions else None
         
         # Guardar en base de datos
         reminder_id = await self.repo.add_reminder(
@@ -332,7 +350,7 @@ class DaletReminders(commands.Cog, name="Recordatorios"):
             message=message,
             timezone=timezone,
             created_by=interaction.user.id,
-            pings=pings
+            pings=sanitized_pings
         )
 
         if reminder_id:

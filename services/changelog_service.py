@@ -15,11 +15,12 @@ class ChangelogService:
     BASE_VERSION = "v4.0"
     # Commit base del hito v4.0 (Pirámide Semántica L0-L3, DeepSeek Web Search/Fetch, Proactive AI & SHA-256 Guard)
     BASE_MILESTONE_COMMIT = "4815b25"
-    FALLBACK_PATCH = 14
+    FALLBACK_PATCH = 15
     REPO_URL = "https://github.com/Janlhx/Dalet-Proyect"
 
     _FALLBACK_COMMITS = [
-        ("HEAD", "feat(memory,ui): add bidirectional PersonaInsights, Multi-LLM memory fallback, Turso OsuHistory, and crisp mode icons (Spec-011)", "✦"),
+        ("HEAD", "security: harden owner commands, SSRF image guards, fail-closed Dashboard auth, and reminder/chat mentions (Spec-012)", "✦"),
+        ("71a1772", "feat(memory,ui): add bidirectional PersonaInsights, Multi-LLM memory fallback, Turso OsuHistory, and crisp mode icons (Spec-011)", "✦"),
         ("006da51", "fix(osu,db): persist OsuHistory snapshots in Turso Cloud and capture intraday PP changes for /progress", "✦"),
         ("0f011d1", "feat(ux,agents): redesign osu! embeds for mobile-first readability and persist 4 specialized .agents/ subagents & updated skills", "✦"),
         ("44661fb", "feat(persona,memory): add organic Discord personality calibration, Litxe origin lore, multi-user speaker attribution, and GuildCommunityLore", "✦"),

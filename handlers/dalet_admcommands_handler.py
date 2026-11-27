@@ -26,9 +26,9 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
     # --- Comandos de Gestión del Bot ---
 
     @commands.command(hidden=True)
-    @commands.has_permissions(administrator=True)
+    @commands.is_owner()
     async def restart(self, ctx):
-        """[ADMIN] Reinicia el bot (solo para administradores)."""
+        """[OWNER] Reinicia el bot (solo para el dueño del bot)."""
         await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Cerrando conexión... el contenedor debería reiniciarme.")
         await self.bot.close()
 
@@ -38,11 +38,13 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
         """
         [ADMIN] Sincroniza slash commands.
         - `d.sync` o `d.sync here`: sincroniza al instante en este servidor (0s de espera).
-        - `d.sync global`: sincroniza globalmente (puede tardar hasta 1h en propagarse en Discord).
+        - `d.sync global`: solo dueño del bot; sincroniza globalmente.
         - `d.sync clear`: limpia comandos del servidor actual.
         """
         try:
             if mode.lower() == "global":
+                if not await self.bot.is_owner(ctx.author):
+                    return await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Solo el dueño del bot puede ejecutar `d.sync global`. Usa `d.sync here`.")
                 msg = await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Sincronizando slash commands **globalmente**... (Discord puede tardar hasta 1 hora)")
                 synced = await self.bot.tree.sync()
                 await msg.edit(content=f"{DaletAtoms.GLYPH_CHECK} Sincronización global completada. **{len(synced)}** slash commands registrados.")
@@ -62,9 +64,9 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
 
 
     @commands.command(name="reload", hidden=True)
-    @commands.has_permissions(administrator=True)
+    @commands.is_owner()
     async def reload_cog(self, ctx, *, cog_name: str):
-        """[ADMIN] Recarga un módulo/handler (Cog)."""
+        """[OWNER] Recarga un módulo/handler (Cog)."""
         try:
             await self.bot.reload_extension(cog_name)
             await ctx.send(f"{DaletAtoms.GLYPH_CHECK} Módulo `{cog_name}` recargado exitosamente.")
@@ -176,9 +178,9 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
             await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Error obteniendo el estado del canal.")
 
     @commands.command(name="dbstats", hidden=True)
-    @commands.has_permissions(administrator=True)
+    @commands.is_owner()
     async def db_stats(self, ctx):
-        """[ADMIN] Muestra un resumen de analíticas de SQLite: comandos, IA y errores."""
+        """[OWNER] Muestra un resumen de analíticas de SQLite: comandos, IA y errores."""
         try:
             # Top 5 comandos más usados (SQLite)
             top_cmds = await SQLiteManager.fetch_all("""

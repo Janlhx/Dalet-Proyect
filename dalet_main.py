@@ -66,7 +66,12 @@ def require_dashboard_auth(f):
     def decorated_function(*args, **kwargs):
         active_secret = (DASHBOARD_SECRET or "").strip()
         if not active_secret:
-            return f(*args, **kwargs)
+            if os.getenv("DALET_DEV_MODE", "").strip() == "1":
+                return f(*args, **kwargs)
+            return jsonify({
+                "error": "Service Unavailable",
+                "message": "DASHBOARD_SECRET no configurado. Endpoint deshabilitado por seguridad (usa DALET_DEV_MODE=1 solo en desarrollo local)."
+            }), 503
 
         auth_header = request.headers.get("Authorization", "").strip()
         if auth_header.startswith("Bearer "):
@@ -163,6 +168,7 @@ def health():
 @app.route('/tos')
 def terms():
     """Términos de servicio para verificación en Discord."""
+    import html as html_lib
     terms_path = os.path.join(os.path.dirname(__file__), "docs", "TERMS_OF_SERVICE.md")
     content = "Terms of Service"
     if os.path.exists(terms_path):
@@ -172,12 +178,13 @@ def terms():
 <html lang="es">
 <head><meta charset="utf-8"><title>Terms of Service — Dalet</title>
 <style>body{{font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #121214; color: #e4e4e7; line-height: 1.6; padding: 40px 20px; max-width: 800px; margin: 0 auto;}} pre{{white-space: pre-wrap; font-family: inherit;}} a{{color: #ff69b4;}}</style>
-</head><body><pre>{content}</pre></body></html>"""
+</head><body><pre>{html_lib.escape(content)}</pre></body></html>"""
     return Response(html, mimetype='text/html')
 
 @app.route('/privacy')
 def privacy():
     """Política de privacidad para verificación en Discord."""
+    import html as html_lib
     privacy_path = os.path.join(os.path.dirname(__file__), "docs", "PRIVACY_POLICY.md")
     content = "Privacy Policy"
     if os.path.exists(privacy_path):
@@ -187,7 +194,7 @@ def privacy():
 <html lang="es">
 <head><meta charset="utf-8"><title>Privacy Policy — Dalet</title>
 <style>body{{font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #121214; color: #e4e4e7; line-height: 1.6; padding: 40px 20px; max-width: 800px; margin: 0 auto;}} pre{{white-space: pre-wrap; font-family: inherit;}} a{{color: #ff69b4;}}</style>
-</head><body><pre>{content}</pre></body></html>"""
+</head><body><pre>{html_lib.escape(content)}</pre></body></html>"""
     return Response(html, mimetype='text/html')
 
 def run_flask():

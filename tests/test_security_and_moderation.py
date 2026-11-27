@@ -589,3 +589,57 @@ class TestOsuMultiServerLinkingAndIsolation:
         u, _, _, _, srv = await cog._parse_osu_filter_args(ctx, "-rx")
         assert u is None and srv is None
         assert "d.link <usuario> -rx" in ctx.send.call_args.args[0]
+
+
+class TestSpec012SecurityHardening:
+    """Pruebas de regresión de Spec-012 (Hardening de repo público y permisos)."""
+
+    def test_dashboard_auth_fails_closed_without_secret(self, monkeypatch):
+        import dalet_main
+
+        monkeypatch.setattr(dalet_main, "DASHBOARD_SECRET", "")
+        monkeypatch.delenv("DALET_DEV_MODE", raising=False)
+        client = dalet_main.app.test_client()
+
+        resp = client.get("/api/telemetry")
+        assert resp.status_code == 503
+
+        monkeypatch.setenv("DALET_DEV_MODE", "1")
+        # En modo dev local sí pasa la autenticación (aunque no haya bot registrado)
+        resp_dev = client.get("/api/telemetry")
+        assert resp_dev.status_code != 503
+
+    @pytest.mark.asyncio
+    async def test_owner_only_commands_and_ssrf_image_guards(self):
+        import discord
+        from discord.ext import commands
+        from services.moderation_service import ModerationService
+        from services.nlp_service import NLPService
+        from database.repositories.reminder_repository import ReminderRepository
+
+        intents = discord.Intents.default()
+        bot = commands.Bot(command_prefix="d.", intents=intents)
+        bot.user_repo = MagicMock()
+        await bot.load_extension("handlers.dalet_admcommands_handler")
+
+        # restart, reload y dbstats deben requerir is_owner (no solo administrator)
+        for cmd_name in ("restart", "reload", "dbstats"):
+            cmd = bot.get_command(cmd_name)
+            assert cmd is not None
+            check_names = [getattr(c, "__qualname__", str(c)) for c in cmd.checks]
+            assert any("is_owner" in n for n in check_names), f"{cmd_name} debe exigir is_owner"
+
+        # SSRF en descarga de imágenes (ModerationService y NLPService)
+        nlp = NLPService(gemini_api_key="fake-key")
+        res_nlp = await nlp._get_images_description(["http://169.254.169.254/latest/meta-data/"])
+        assert res_nlp == ""
+
+        mod = ModerationService(nlp_service=nlp)
+        res_mod = await mod._scan_image("http://127.0.0.1:8080/internal.png")
+        assert res_mod.reason == "blocked_unsafe_url"
+
+        # Allowlist en ReminderRepository.update_reminder
+        rem_repo = ReminderRepository()
+        with pytest.raises(ValueError):
+            await rem_repo.update_reminder(1, {"UserID = 1; DROP TABLE Reminders --": 999})
+

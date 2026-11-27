@@ -197,12 +197,20 @@ class ReminderRepository(BaseRepository):
 
         return new_state if success else None
 
+    _ALLOWED_UPDATE_FIELDS = frozenset({
+        "ReminderTime", "ReminderDays", "Message", "Timezone", "Active", "ChannelID", "UserID", "Pings"
+    })
+
     async def update_reminder(self, reminder_id: int, updates: dict) -> bool:
         """
         Actualiza los campos especificados en `updates` para el recordatorio `reminder_id`.
         """
         if not updates:
             return False
+
+        invalid_fields = [f for f in updates.keys() if f not in self._ALLOWED_UPDATE_FIELDS]
+        if invalid_fields:
+            raise ValueError(f"Campos de actualización no permitidos en Reminders: {invalid_fields}")
 
         success = False
         if TursoClient.is_available():

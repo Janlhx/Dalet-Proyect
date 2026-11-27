@@ -642,13 +642,13 @@ class DaletNLPChat(commands.Cog):
                 try:
                     if hasattr(message, "reply"):
                         try:
-                            await message.reply(reply, mention_author=False)
+                            await message.reply(reply, mention_author=False, allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, users=True))
                         except discord.HTTPException as e_rep:
                             if e_rep.status == 429:
                                 raise
-                            await message.channel.send(reply)
+                            await message.channel.send(reply, allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, users=True))
                     else:
-                        await message.channel.send(reply)
+                        await message.channel.send(reply, allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, users=True))
                     self.consecutive_429s = 0
                     self.bot.global_consecutive_429s = 0
 

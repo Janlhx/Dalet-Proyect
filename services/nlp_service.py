@@ -2693,8 +2693,13 @@ class NLPService:
             else:
                 model_name = raw_model
 
-            # Descarga de imagen con timeout de 5 segundos
-            resp = await self._http_client.get(url, timeout=5.0)
+            is_safe, ssrf_reason = is_safe_public_url(url)
+            if not is_safe:
+                logger.warning(f"[SSRF GUARD] Bloqueada descarga de imagen en visión ({ssrf_reason}) desde: {url[:80]}")
+                return ""
+
+            # Descarga de imagen con timeout de 5 segundos sin redirecciones a IPs internas
+            resp = await self._http_client.get(url, timeout=5.0, follow_redirects=False)
             if resp.status_code != 200:
                 logger.warning(f"No se pudo descargar imagen (HTTP {resp.status_code})")
                 return ""
