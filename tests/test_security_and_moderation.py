@@ -622,12 +622,14 @@ class TestSpec012SecurityHardening:
         bot.user_repo = MagicMock()
         await bot.load_extension("handlers.dalet_admcommands_handler")
 
-        # restart, reload y dbstats deben requerir is_owner (no solo administrator)
-        for cmd_name in ("restart", "reload", "dbstats"):
-            cmd = bot.get_command(cmd_name)
-            assert cmd is not None
-            check_names = [getattr(c, "__qualname__", str(c)) for c in cmd.checks]
-            assert any("is_owner" in n for n in check_names), f"{cmd_name} debe exigir is_owner"
+        # restart, reload y dbstats fueron retirados; sync debe exigir is_owner
+        for removed_cmd in ("restart", "reload", "dbstats"):
+            assert bot.get_command(removed_cmd) is None, f"{removed_cmd} debería haberse eliminado"
+
+        sync_cmd = bot.get_command("sync")
+        assert sync_cmd is not None
+        check_names = [getattr(c, "__qualname__", str(c)) for c in sync_cmd.checks]
+        assert any("is_owner" in n for n in check_names), "sync debe exigir is_owner"
 
         # SSRF en descarga de imágenes (ModerationService y NLPService)
         nlp = NLPService(gemini_api_key="fake-key")

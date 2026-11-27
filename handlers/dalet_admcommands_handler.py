@@ -25,26 +25,17 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
 
     # --- Comandos de Gestión del Bot ---
 
-    @commands.command(hidden=True)
-    @commands.is_owner()
-    async def restart(self, ctx):
-        """[OWNER] Reinicia el bot (solo para el dueño del bot)."""
-        await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Cerrando conexión... el contenedor debería reiniciarme.")
-        await self.bot.close()
-
     @commands.command(name="sync", hidden=True)
-    @commands.has_permissions(administrator=True)
+    @commands.is_owner()
     async def sync_slash_commands(self, ctx, mode: str = "here"):
         """
-        [ADMIN] Sincroniza slash commands.
+        [OWNER] Sincroniza slash commands manualmente si hiciera falta.
         - `d.sync` o `d.sync here`: sincroniza al instante en este servidor (0s de espera).
-        - `d.sync global`: solo dueño del bot; sincroniza globalmente.
+        - `d.sync global`: sincroniza globalmente (puede tardar hasta 1h en propagarse en Discord).
         - `d.sync clear`: limpia comandos del servidor actual.
         """
         try:
             if mode.lower() == "global":
-                if not await self.bot.is_owner(ctx.author):
-                    return await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Solo el dueño del bot puede ejecutar `d.sync global`. Usa `d.sync here`.")
                 msg = await ctx.send(f"{DaletAtoms.GLYPH_POINTER} Sincronizando slash commands **globalmente**... (Discord puede tardar hasta 1 hora)")
                 synced = await self.bot.tree.sync()
                 await msg.edit(content=f"{DaletAtoms.GLYPH_CHECK} Sincronización global completada. **{len(synced)}** slash commands registrados.")
@@ -61,18 +52,6 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
         except Exception as e:
             logger.error(f"Error syncing commands: {e}")
             await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Error al sincronizar: {e}")
-
-
-    @commands.command(name="reload", hidden=True)
-    @commands.is_owner()
-    async def reload_cog(self, ctx, *, cog_name: str):
-        """[OWNER] Recarga un módulo/handler (Cog)."""
-        try:
-            await self.bot.reload_extension(cog_name)
-            await ctx.send(f"{DaletAtoms.GLYPH_CHECK} Módulo `{cog_name}` recargado exitosamente.")
-        except Exception as e:
-            logger.error(f"Error reloading {cog_name}: {e}")
-            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Error al recargar `{cog_name}`: `{e}`")
 
     # --- Comandos de Control del Servidor y Canal ---
 
@@ -176,87 +155,6 @@ class AdminCommands(commands.Cog, name="Comandos para el Administrador del bot")
         except Exception as e:
             logger.error(f"Error in channel_status: {e}")
             await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Error obteniendo el estado del canal.")
-
-    @commands.command(name="dbstats", hidden=True)
-    @commands.is_owner()
-    async def db_stats(self, ctx):
-        """[OWNER] Muestra un resumen de analíticas de SQLite: comandos, IA y errores."""
-        try:
-            # Top 5 comandos más usados (SQLite)
-            top_cmds = await SQLiteManager.fetch_all("""
-                SELECT CommandName,
-                       COUNT(*) as total_uses,
-                       ROUND(100.0 * SUM(Success) / COUNT(*), 1) as success_rate
-                FROM CommandUsage
-                GROUP BY CommandName
-                ORDER BY total_uses DESC
-                LIMIT 5
-            """)
-
-            # Respuestas de IA en las últimas 24h (SQLite)
-            ai_today = await SQLiteManager.fetch_all("""
-                SELECT TriggerType, Provider,
-                       COUNT(*) as n,
-                       ROUND(AVG(ResponseTimeMs)) as avg_ms
-                FROM AIInteractions
-                WHERE InteractedAt >= datetime('now', '-24 hours')
-                GROUP BY TriggerType, Provider
-                ORDER BY n DESC
-            """)
-
-            # Errores recientes (últimos 7 días)
-            recent_errors = await SQLiteManager.fetch_all("""
-                SELECT ErrorType,
-                       COUNT(*) as occurrences,
-                       MAX(OccurredAt) as last_seen
-                FROM BotErrors
-                WHERE OccurredAt >= datetime('now', '-7 days')
-                GROUP BY ErrorType
-                ORDER BY occurrences DESC
-                LIMIT 5
-            """)
-
-            embed = discord.Embed(
-                title=f"{DaletAtoms.EMOJI_DALET} Analíticas (SQLite Local)",
-                color=DaletAtoms.COLOR_PURPLE
-            )
-
-            # Top comandos
-            if top_cmds:
-                cmd_text = "\n".join([
-                    f"`{r['CommandName']}` — {r['total_uses']} usos ({r['success_rate']}% éxito)"
-                    for r in top_cmds
-                ])
-            else:
-                cmd_text = "_Sin datos aún_"
-            embed.add_field(name=f"{DaletAtoms.GLYPH_POINTER} Top 5 Comandos", value=cmd_text, inline=False)
-
-            # IA hoy
-            if ai_today:
-                ai_text = "\n".join([
-                    f"`{r['TriggerType']}` via **{r['Provider']}** — {r['n']} respuestas"
-                    for r in ai_today
-                ])
-            else:
-                ai_text = "_Sin interacciones hoy_"
-            embed.add_field(name=f"{DaletAtoms.GLYPH_POINTER} Respuestas IA (24h)", value=ai_text, inline=False)
-
-            # Errores recientes
-            if recent_errors:
-                err_text = "\n".join([
-                    f"`{r['ErrorType']}` — {r['occurrences']}x"
-                    for r in recent_errors
-                ])
-            else:
-                err_text = f"{DaletAtoms.GLYPH_CHECK} Sin errores recientes"
-            embed.add_field(name=f"{DaletAtoms.GLYPH_POINTER} Errores (7 días)", value=err_text, inline=False)
-
-            embed.set_footer(text="Fuente: SQLite local │ CommandUsage │ AIInteractions │ BotErrors")
-            await ctx.send(embed=embed)
-
-        except Exception as e:
-            logger.error(f"Error en dbstats: {e}")
-            await ctx.send(f"{DaletAtoms.GLYPH_CROSS} Error al obtener estadísticas:\n```{e}```")
 
     @commands.command(name="status", aliases=["setstatus"], hidden=True)
     @commands.is_owner()
