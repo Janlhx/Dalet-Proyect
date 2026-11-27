@@ -536,7 +536,7 @@ class DaletNLPChat(commands.Cog):
             server_lang = "en"
             if message.guild:
                 try:
-                    server_lang = await self.bot.admin_repo.get_server_language(message.guild.id)
+                    server_lang = await self.bot.admin_repo.resolve_language(message.author.id, message.guild.id, default="en")
                 except Exception:
                     server_lang = "en"
 
