@@ -20,7 +20,7 @@ google-auth==2.41.1
 google-auth-httplib2==0.2.0
 googleapis-common-protos==1.71.0
 grpcio==1.75.1
-grpcio-status==1.71.2
+grpcio-status==1.85.3
 httplib2==0.31.0
 idna==3.11
 itsdangerous==2.2.0
