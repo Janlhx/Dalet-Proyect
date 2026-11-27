@@ -7,7 +7,7 @@ audioop-lts==0.2.2; python_version >= '3.13'
 blinker==1.9.0
 cachetools==6.2.1
 certifi==2025.10.5
-charset-normalizer==3.4.4
+charset-normalizer==3.5.3
 click==8.3.0
 colorama==0.4.6
 discord.py==2.6.4
